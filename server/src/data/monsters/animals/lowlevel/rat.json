@@ -1,0 +1,32 @@
+{
+  "id": "rat",
+  "name": "Rat",
+  "level": 2,
+  "stats": {
+    "hp": 20,
+    "speed": 20
+  },
+  "combat": {
+    "xp": 15,
+    "damageMin": 1,
+    "damageMax": 3
+  },
+  "loot": [
+    { "itemId": "currency/gold_coin", "chance": 100000, "min": 1, "max": 4 },
+    { "itemId": "consumable/cheese", "chance": 39410 },
+    { "itemId": "equipment/weapon/swords/boneSword", "chance": 50000 },
+    { "itemId": "equipment/armor/boneArmor", "chance": 50000 }
+  ],
+  "ai": {
+    "type": "aggressive",
+    "fleeHp": 5
+  },
+  "flags": {
+    "hostile": true,
+    "attackable": true,
+    "wander": true
+  },
+  "visual": {
+    "symbol": "M"
+  }
+}
