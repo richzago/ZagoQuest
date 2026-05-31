@@ -1,0 +1,31 @@
+[
+  {
+    "id": "spawn_rat_1",
+    "monsterId": "animals/lowlevel/rat",
+    "x": 6,
+    "y": 5,
+    "respawnTimeMs": 10000,
+    "initialDelayMs": 0
+  },
+  {
+    "id": "spawn_rat_2",
+    "monsterId": "animals/lowlevel/rat",
+    "x": 8,
+    "y": 5,
+    "respawnTimeMs": 10000
+  },
+  {
+    "id": "spawn_rat_3",
+    "monsterId": "animals/lowlevel/rat",
+    "x": 10,
+    "y": 7,
+    "respawnTimeMs": 8000
+  },
+  {
+    "id": "spawn_rat_4",
+    "monsterId": "animals/lowlevel/rat",
+    "x": 9,
+    "y": 6,
+    "respawnTimeMs": 10000
+  }
+]

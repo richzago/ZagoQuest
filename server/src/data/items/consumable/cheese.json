@@ -1,0 +1,8 @@
+{
+  "id": "consumable/cheese",
+  "name": "Cheese",
+  "description": "A piece of cheese. Rats love it.",
+  "type": "consumable",
+  "stackable": false,
+  "value": 5
+}

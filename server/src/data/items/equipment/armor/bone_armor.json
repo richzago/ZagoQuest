@@ -1,0 +1,14 @@
+{
+  "id": "bone_armor",
+  "name": "Bone Armor",
+  "description": "Armor made from bone.",
+  "type": "equipment",
+  "stackable": false,
+  "slot": "armor",
+  "levelRequired": 1,
+  "bonuses": {
+    "defense": 3,
+    "armor": 5
+  },
+  "value": 100
+}

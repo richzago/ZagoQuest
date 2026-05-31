@@ -1,0 +1,34 @@
+[
+  {
+    "id": "fishing/fish/trout",
+    "name": "Trout",
+    "description": "A tasty freshwater fish.",
+    "type": "consumable",
+    "stackable": true,
+    "value": 5
+  },
+  {
+    "id": "fishing/fish/salmon",
+    "name": "Salmon",
+    "description": "A fatty, flavorful fish.",
+    "type": "consumable",
+    "stackable": true,
+    "value": 8
+  },
+  {
+    "id": "fishing/fish/perch",
+    "name": "Perch",
+    "description": "A small but tasty fish.",
+    "type": "consumable",
+    "stackable": true,
+    "value": 4
+  },
+  {
+    "id": "fishing/fish/golden",
+    "name": "Golden Fish",
+    "description": "A rare and valuable fish.",
+    "type": "consumable",
+    "stackable": true,
+    "value": 50
+  }
+]

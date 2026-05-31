@@ -1,0 +1,12 @@
+{
+  "id": "consumable/mana_potion",
+  "name": "Mana Potion",
+  "description": "Restores 30 MP.",
+  "type": "consumable",
+  "stackable": true,
+  "maxStack": 10,
+  "value": 10,
+  "effect": {
+    "healMana": 30
+  }
+}

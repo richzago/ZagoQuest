@@ -1,0 +1,12 @@
+{
+  "id": "consumable/health_potion",
+  "name": "Health Potion",
+  "description": "Restores 50 HP.",
+  "type": "consumable",
+  "stackable": true,
+  "maxStack": 10,
+  "value": 10,
+  "effect": {
+    "healHp": 50
+  }
+}

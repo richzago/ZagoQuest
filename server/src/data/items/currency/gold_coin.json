@@ -1,0 +1,9 @@
+{
+  "id": "gold_coin",
+  "name": "Gold Coin",
+  "description": "Brilliant gold coin",
+  "type": "currency",
+  "stackable": true,
+  "maxStack": 100,
+  "value": 1
+}

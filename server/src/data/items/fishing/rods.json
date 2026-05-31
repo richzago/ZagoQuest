@@ -1,0 +1,16 @@
+[
+  {
+    "id": "fishing/rods/basic_rod",
+    "name": "Basic Fishing Rod",
+    "description": "A simple wooden rod. Good for beginners.",
+    "type": "equipment",
+    "stackable": false,
+    "slot": "weapon",
+    "levelRequired": 1,
+    "fishingTime": 3000,
+    "fishingBonus": 0.05,
+    "bonuses": {},
+    "value": 10
+  }
+  
+]

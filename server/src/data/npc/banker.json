@@ -1,0 +1,8 @@
+{
+  "id": 6,
+  "name": "Banker",
+  "x": 13,
+  "y": 4,
+  "message": "I can store your gold safely.",
+  "type": "banker"
+}

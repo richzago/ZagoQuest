@@ -1,0 +1,14 @@
+{
+  "id": "bone_sword",
+  "name": "Bone Sword",
+  "description": "A sword made from bone.",
+  "type": "equipment",
+  "stackable": false,
+  "slot": "weapon",
+  "levelRequired": 1,
+  "bonuses": {
+    "attack": 8,
+    "criticalChance": 0
+  },
+  "value": 10
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "fishing/baits/worm",
+    "name": "Worm",
+    "description": "A squirming worm.",
+    "type": "consumable",
+    "stackable": true,
+    "maxStack": 20,
+    "fishingBonus": 0.1,
+    "value": 1
+  },
+  {
+    "id": "fishing/baits/cricket",
+    "name": "Cricket",
+    "description": "A hopping cricket.",
+    "type": "consumable",
+    "stackable": true,
+    "maxStack": 20,
+    "fishingBonus": 0.15,
+    "value": 3
+  }
+]
