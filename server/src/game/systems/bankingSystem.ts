@@ -1,20 +1,35 @@
+/**
+ * bankingSystem.ts
+ *
+ * Gerencia o banco do jogador: depósito, saque e consulta de saldo.
+ * O gold armazenado no banco é separado do gold em mãos.
+ *
+ * As operações são registradas no canal ECONOMY do logger.
+ */
+
 import { Player } from "../entities/player";
-import { Npc } from "../entities/npc";
 import { Logger } from "../core/logger/logger";
 
 export class BankingSystem {
   /**
-   * Deposita gold no banco
+   * Deposita uma quantidade de gold da mochila do jogador para sua conta bancária.
+   *
+   * @param player - Jogador que está depositando
+   * @param amount - Quantidade de gold a depositar (deve ser positiva)
+   * @returns true se o depósito foi bem-sucedido, false caso contrário
    */
   static depositGold(player: Player, amount: number): boolean {
+    // Validação: quantidade deve ser positiva
     if (amount <= 0) {
       Logger.warn(`Quantidade inválida.`);
       return false;
     }
+    // Verifica se o jogador tem gold suficiente em mãos
     if (player.gold < amount) {
       Logger.warn(`Você não tem ${amount} gold para depositar.`);
       return false;
     }
+    // Transfere o valor: mochila -> banco
     player.gold -= amount;
     player.bankGold += amount;
     Logger.economy(`${player.name} depositou ${amount} gold. Saldo na conta: ${player.bankGold}`);
@@ -22,17 +37,23 @@ export class BankingSystem {
   }
 
   /**
-   * Saca gold do banco
+   * Saca uma quantidade de gold da conta bancária para a mochila do jogador.
+   *
+   * @param player - Jogador que está sacando
+   * @param amount - Quantidade de gold a sacar (deve ser positiva)
+   * @returns true se o saque foi bem-sucedido, false caso contrário
    */
   static withdrawGold(player: Player, amount: number): boolean {
     if (amount <= 0) {
       Logger.economy(`Quantidade inválida.`);
       return false;
     }
+    // Verifica saldo bancário suficiente
     if (player.bankGold < amount) {
       Logger.economy(`Saldo insuficiente. Você tem ${player.bankGold} gold no banco.`);
       return false;
     }
+    // Transfere o valor: banco -> mochila
     player.bankGold -= amount;
     player.gold += amount;
     Logger.economy(`${player.name} sacou ${amount} gold. Saldo restante: ${player.bankGold}`);
@@ -40,7 +61,9 @@ export class BankingSystem {
   }
 
   /**
-   * Exibe o saldo bancário
+   * Exibe o saldo bancário e o gold em mãos do jogador.
+   *
+   * @param player - Jogador a ser consultado
    */
   static checkBalance(player: Player): void {
     Logger.economy(`💰 Saldo bancário de ${player.name}: ${player.bankGold} gold`);

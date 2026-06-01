@@ -1,11 +1,28 @@
+/**
+ * corpse.ts
+ *
+ * Representa o corpo de um monstro morto que fica no chão.
+ * Contém os itens que o monstro dropou (loot).
+ * O jogador pode saquear o corpo pressionando a tecla G (em área).
+ */
+
 import { LootItem } from "../../shared/interfaces/loot.interface";
 
 export class Corpse {
+  /** Identificador único do corpo (geralmente timestamp) */
   id: number;
+
+  /** Posição X no mundo (tile) */
   x: number;
+
+  /** Posição Y no mundo (tile) */
   y: number;
+
+  /** Lista de itens que o monstro dropou (cada item tem ID e quantidade) */
   loot: LootItem[];
-  killerId?: number; // opcional, para regras de quem pode lootear
+
+  /** ID do jogador que matou o monstro (opcional, para futuras regras de saque exclusivo) */
+  killerId?: number;
 
   constructor(id: number, x: number, y: number, loot: LootItem[], killerId?: number) {
     this.id = id;

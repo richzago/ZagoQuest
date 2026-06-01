@@ -1,3 +1,10 @@
+/**
+ * account.routes.ts
+ *
+ * Define as rotas relacionadas a contas.
+ * POST /api/accounts -> criação de conta
+ */
+
 import { Router } from "express";
 import { AccountController } from "../controllers/accountController";
 
