@@ -5,3 +5,9 @@ dist
 npm-debug.log
 .DS_Storelogs/
 data/players/
+logs/
+data/players/
+data/chatlogs/
+data/reports/
+data/accounts/
+.env
