@@ -1,24 +1,16 @@
 import { Logger } from "./game/core/logger/logger";
 import { registerEventListeners } from "./game/core/events/eventListeners";
-import { initializeGame } from "./game/loaders/gameInitializer";
-import { loadNpcs } from "./game/loaders/npcLoader";
-import { startAutoSave } from "./game/core/autoSave";
-import { setupInput } from "./game/core/inputHandler";
-import { setupGracefulShutdown } from "./game/core/shutdownHandler";
-import { AsciiRenderer } from "./game/rendering/asciiRenderer";
-import { startGameLoops } from "./game/core/gameLoop";
+import { startApi } from "./api/server";
+import { startGame } from "./game/core/gameStarter";
 
 Logger.system("🔥 ZagoQuest iniciando...");
 registerEventListeners();
 
-(async () => {
-  const { world, player } = await initializeGame("Richard");
-  loadNpcs(world);
+// Inicia a API REST (contas e personagens)
+startApi().catch((err: Error) => Logger.error(`Erro ao iniciar API: ${err.message}`));
 
-  const renderer = new AsciiRenderer();
+// // Personagem fixo para testes locais (enquanto não há cliente)
+// const characterName = "Richard";
 
-  startAutoSave(player);
-  setupInput(player, world);
-  setupGracefulShutdown(player);
-  startGameLoops(world, renderer);
-})();
+// // Inicia o jogo
+// startGame(characterName);

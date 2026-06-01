@@ -36,6 +36,9 @@ export class Player extends Creature {
   isFishing: boolean = false;
   fishingTimer?: NodeJS.Timeout;
 
+  gender: "M" | "F" = "M";
+  world: string = "main";
+
   // Construtor
   constructor(id: number, name: string, x: number, y: number) {
     super(id, name, x, y, "P"); // símbolo 'P' para Player no render ASCII

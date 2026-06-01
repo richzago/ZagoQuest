@@ -1,12 +1,9 @@
-/**
- * inputHandler.ts
- * Configura o terminal em modo raw e encaminha as teclas para os sistemas apropriados.
- */
-
+// inputHandler.ts
 import { Player } from "../entities/player";
 import { World } from "../world/world";
 import { immediateCommands } from "./commandHandler";
 import { isMenuActive, handleMenuInput } from "./menuSystem";
+import { activateChat } from "../chat/chatReadline";
 
 export function setupInput(player: Player, world: World): void {
   process.stdin.setRawMode(true);
@@ -18,6 +15,11 @@ export function setupInput(player: Player, world: World): void {
 
     if (isMenuActive()) {
       handleMenuInput(keyStr);
+      return;
+    }
+
+    if (keyStr === "/") {
+      activateChat(player, world);
       return;
     }
 

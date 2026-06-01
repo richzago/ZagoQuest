@@ -82,6 +82,7 @@ export class PersistenceSystem {
       skills: Object.fromEntries(Array.from(player.skills.entries()).map(([k, v]) => [k, v])),
       gold: player.gold,
       bankGold: player.bankGold,
+      
     };
     const filePath = path.join(this.SAVE_DIR, `${player.name}.json`);
     await fs.promises.writeFile(filePath, JSON.stringify(data, null, 2));
@@ -108,6 +109,7 @@ export class PersistenceSystem {
       skills: Object.fromEntries(Array.from(player.skills.entries()).map(([k, v]) => [k, v])),
       gold: player.gold,
       bankGold: player.bankGold,
+     
     };
     const filePath = path.join(this.SAVE_DIR, `${player.name}.json`);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
