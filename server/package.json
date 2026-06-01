@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "better-sqlite3": "^12.10.0",
     "cors": "^2.8.6",
     "cpf-cnpj-validator": "^2.1.2",
     "date-fns": "^4.4.0",
@@ -33,7 +32,6 @@
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",
-    "sqlite3": "^6.0.1",
     "typeorm": "^1.0.0",
     "validator": "^13.15.35",
     "zod": "^4.4.3"
