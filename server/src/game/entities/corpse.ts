@@ -1,4 +1,4 @@
-import { LootItem } from "../systems/lootSystem";
+import { LootItem } from "../../shared/interfaces/loot.interface";
 
 export class Corpse {
   id: number;

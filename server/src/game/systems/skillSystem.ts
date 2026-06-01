@@ -1,18 +1,9 @@
 import { Player } from "../entities/player";
-import { SkillType, SkillConfig } from "../../data/skills/skillTypes";
 import { SkillConfigs } from "../../data/skills/skillConfig";
 import { EventSystem } from "../core/events/eventSystem";
 import { Logger } from "../core/logger/logger";
-
-// Definição de evento de skill level up
-export interface SkillLevelUpEventData {
-  playerId: number;
-  playerName: string;
-  skill: SkillType;
-  oldLevel: number;
-  newLevel: number;
-  newProgress: number; // progresso após level up (geralmente 0)
-}
+import { SkillType } from "../../shared/enums/skillType.enum";
+import { SkillLevelUpEventData } from "../../shared/interfaces/skill.interface";
 
 export class SkillSystem {
   /**

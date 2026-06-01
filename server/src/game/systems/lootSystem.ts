@@ -1,13 +1,10 @@
+import { LootItem } from "../../shared/interfaces/loot.interface";
 import { Logger } from "../core/logger/logger";
 import { Monster } from "../entities/monster";
 
 /**
  * Um item individual que o monstro pode dropar (antes de ir para o corpo).
  */
-export interface LootItem {
-  itemId: string;
-  amount: number;
-}
 
 /**
  * Sistema de loot data-driven.

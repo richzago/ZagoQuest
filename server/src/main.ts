@@ -9,8 +9,8 @@ registerEventListeners();
 // Inicia a API REST (contas e personagens)
 startApi().catch((err: Error) => Logger.error(`Erro ao iniciar API: ${err.message}`));
 
-// // Personagem fixo para testes locais (enquanto não há cliente)
-// const characterName = "Richard";
+// Personagem fixo para testes locais (enquanto não há cliente)
+const characterName = "Richard";
 
-// // Inicia o jogo
-// startGame(characterName);
+// Inicia o jogo
+startGame(characterName);

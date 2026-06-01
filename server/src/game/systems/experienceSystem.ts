@@ -1,9 +1,6 @@
+import { GameEvent } from "../../shared/enums/gameEvent.enum";
+import { PlayerGainXpEventData, PlayerLevelUpEventData } from "../../shared/interfaces/eventData.interface";
 import { EventSystem } from "../core/events/eventSystem";
-import {
-  GameEvent,
-  PlayerGainXpEventData,
-  PlayerLevelUpEventData,
-} from "../core/events/eventTypes";
 import { Logger } from "../core/logger/logger";
 import { Player } from "../entities/player";
 
@@ -41,7 +38,8 @@ export class ExperienceSystem {
 
     player.xp += amount;
 
-    EventSystem.getInstance().emit<PlayerGainXpEventData>(GameEvent.PLAYER_GAIN_XP, {
+    EventSystem.getInstance().emit<PlayerGainXpEventData
+    >(GameEvent.PLAYER_GAIN_XP, {
       playerId: player.id,
       playerName: player.name,
       amount: amount,

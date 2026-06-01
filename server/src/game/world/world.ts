@@ -1,12 +1,12 @@
 import { Player } from "../entities/player";
 import { Npc } from "../entities/npc";
 import { Tile } from "./tile";
-import { Damageable } from "../combat/damageable";
 import { Monster } from "../entities/monster";
 import { Logger } from "../core/logger/logger";
 import { SpawnSystem } from "../systems/spawnSystem";
 import { ItemEntity } from "../entities/item";
 import { Corpse } from "../entities/corpse";
+import { Damageable } from "../../shared/interfaces/damageable.interface";
 
 export class World {
   public spawnSystem?: SpawnSystem;

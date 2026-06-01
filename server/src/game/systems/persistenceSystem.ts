@@ -8,26 +8,11 @@ import fs from "fs";
 import path from "path";
 import { Player } from "../entities/player";
 import { Logger } from "../core/logger/logger";
+import { PlayerSaveData } from "../../shared/interfaces/playerSave.interface";
 
 /**
  * Estrutura de dados que será salva no arquivo JSON.
  */
-export interface PlayerSaveData {
-  id: number;
-  name: string;
-  level: number;
-  xp: number;
-  hp: number;
-  maxHp: number;
-  mana: number;
-  maxMana: number;
-  position: { x: number; y: number };
-  inventory: Record<string, number>; // itemId -> quantidade
-  equipment: Record<string, string>; // slot -> itemId
-  skills: Record<string, { level: number; progress: number }>; // skill -> { level, progress }
-  gold: number;
-  bankGold: number;
-}
 
 export class PersistenceSystem {
   // Diretório onde os saves serão armazenados (relativo ao arquivo atual)
@@ -82,7 +67,6 @@ export class PersistenceSystem {
       skills: Object.fromEntries(Array.from(player.skills.entries()).map(([k, v]) => [k, v])),
       gold: player.gold,
       bankGold: player.bankGold,
-      
     };
     const filePath = path.join(this.SAVE_DIR, `${player.name}.json`);
     await fs.promises.writeFile(filePath, JSON.stringify(data, null, 2));
@@ -109,7 +93,6 @@ export class PersistenceSystem {
       skills: Object.fromEntries(Array.from(player.skills.entries()).map(([k, v]) => [k, v])),
       gold: player.gold,
       bankGold: player.bankGold,
-     
     };
     const filePath = path.join(this.SAVE_DIR, `${player.name}.json`);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));

@@ -4,10 +4,11 @@
  * Carrega arquivos JSON individuais ou arrays de itens.
  */
 
-import { ItemType } from "./itemTypes";
+
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Logger } from "../../game/core/logger/logger";
+import { ItemType } from "../../shared/interfaces/item.interface";
 
 export class ItemRegistry {
   private static items = new Map<string, ItemType>();

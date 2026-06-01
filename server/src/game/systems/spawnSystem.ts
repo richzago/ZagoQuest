@@ -2,15 +2,8 @@ import { World } from "../world/world";
 import { Monster } from "../entities/monster";
 import { MonsterRegistry } from "../../data/monsters/monsterRegistry";
 import { MonsterAI } from "../ai/monsterAi";
-import { SpawnPointData } from "../../data/spawns/spawnPoint";
 import { Logger } from "../core/logger/logger";
-
-interface ActiveSpawn {
-  data: SpawnPointData;
-  monsterId?: number; // id da entidade do monstro vivo
-  respawnTimer?: NodeJS.Timeout;
-  pendingRespawn: boolean;
-}
+import { ActiveSpawn, SpawnPointData } from "../../shared/interfaces/spawn.interface";
 
 export class SpawnSystem {
   private activeSpawns: Map<string, ActiveSpawn> = new Map();

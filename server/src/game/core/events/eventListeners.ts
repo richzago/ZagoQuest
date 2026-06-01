@@ -6,15 +6,15 @@
 import { EventSystem } from "./eventSystem";
 import { Logger } from "../logger/logger";
 import {
-  GameEvent,
-  MonsterDeathEventData,
-  PlayerDeathEventData,
-  PlayerLevelUpEventData,
-  PlayerGainXpEventData,
-  ItemPickupEventData,
   CombatDamageEventData,
   CombatKillEventData,
-} from "./eventTypes";
+  ItemPickupEventData,
+  MonsterDeathEventData,
+  PlayerDeathEventData,
+  PlayerGainXpEventData,
+  PlayerLevelUpEventData,
+} from "../../../shared/interfaces/eventData.interface";
+import { GameEvent } from "../../../shared/enums/gameEvent.enum";
 
 export function registerEventListeners(): void {
   const eventSystem = EventSystem.getInstance();

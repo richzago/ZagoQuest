@@ -6,26 +6,9 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { Logger } from "../core/logger/logger";
+import { ChatMessageLog, ReportLog } from "../../shared/interfaces/chat.interface";
 
-/** Estrutura de uma mensagem de chat salva. */
-export interface ChatMessageLog {
-  timestamp: string; // ISO string
-  playerName: string;
-  playerLevel: number;
-  channel: string; // 'support', 'community', 'trade', 'private'
-  target?: string; // para mensagens privadas
-  message: string;
-}
 
-/** Estrutura de uma denúncia salva. */
-export interface ReportLog {
-  timestamp: string;
-  reporterName: string;
-  reporterLevel: number;
-  reportedName: string;
-  reason: string;
-  status: "pending" | "reviewed" | "dismissed";
-}
 
 /**
  * ChatLogger: responsável por salvar e carregar logs de chat e denúncias.

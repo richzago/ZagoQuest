@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { LogChannel } from "./logChannel";
 import { LoggerConfig } from "./loggerConfig";
+import { LogChannel } from "../../../shared/enums/logChanel.enum";
 
 /**
  * Escreve logs em arquivos com rotação por dia.

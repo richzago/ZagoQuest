@@ -1,9 +1,9 @@
 import { CombatSystem } from "../combat/combatSystem";
-import { MonsterAIConfig } from "./monsterAiConfig";
 import { Monster } from "../entities/monster";
 import { World } from "../world/world";
 import { Logger } from "../core/logger/logger";
 import { Creature } from "../entities/creature";
+import { MonsterAIConfig } from "../../shared/interfaces/combat.interface";
 
 /**
  * IA padrão dos monstros.

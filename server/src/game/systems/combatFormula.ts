@@ -1,10 +1,5 @@
-import { CombatStats } from "../combat/combatStats";
+import { CombatStats, DamageResult } from "../../shared/interfaces/combat.interface";
 import { Logger } from "../core/logger/logger";
-
-export interface DamageResult {
-  damage: number;
-  isCritical: boolean;
-}
 
 /**
  * Fórmula de combate inspirada em Tibia.

@@ -6,7 +6,7 @@
  */
 
 import { Player } from "../entities/player";
-import { Npc, ShopItem } from "../entities/npc";
+import { Npc } from "../entities/npc";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { Logger } from "../core/logger/logger";
 

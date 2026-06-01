@@ -1,14 +1,8 @@
 import { Creature } from "./creature";
 import { NpcAI } from "../ai/npcAI";
+import { ShopItem } from "../../shared/interfaces/npcShop.interface";
+import { NpcType } from "../../shared/types/npc.type";
 
-export type NpcType = "merchant" | "banker" | "quest" | "trainer";
-
-export interface ShopItem {
-  itemId: string; // ID do item (ex: "consumable/health_potion")
-  buyPrice: number; // preço de compra (jogador compra do NPC)
-  sellPrice: number; // preço de venda (jogador vende para NPC)
-  stock?: number; // quantidade disponível (opcional)
-}
 
 export class Npc extends Creature {
   message: string;

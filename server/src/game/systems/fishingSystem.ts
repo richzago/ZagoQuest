@@ -7,20 +7,14 @@
 import { Player } from "../entities/player";
 import { World } from "../world/world";
 import { ItemRegistry } from "../../data/items/itemRegistry";
-import { SkillType } from "../../data/skills/skillTypes";
 import { Logger } from "../core/logger/logger";
 import { EventSystem } from "../core/events/eventSystem";
+import { SkillType } from "../../shared/enums/skillType.enum";
+import { FishingReward } from "../../shared/interfaces/fishing.interface";
 
 /**
  * Configuração de uma recompensa de pesca.
  */
-interface FishingReward {
-  itemId: string;
-  minAmount: number;
-  maxAmount: number;
-  chance: number; // 0 a 1
-  minSkillLevel?: number; // nível mínimo de Fishing necessário
-}
 
 /**
  * Tabela de recompensas (peixes, itens raros).

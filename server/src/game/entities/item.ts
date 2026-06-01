@@ -1,4 +1,4 @@
-import { ItemType } from "../../data/items/itemTypes";
+import { ItemType } from "../../shared/interfaces/item.interface";
 
 export class ItemEntity {
   id: number;

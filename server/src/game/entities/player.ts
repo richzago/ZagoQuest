@@ -5,21 +5,19 @@
  */
 
 import { Creature } from "./creature";
-import { EquipmentSlot } from "./equipmentTypes";
-import { World } from "../world/world";
 import { Logger } from "../core/logger/logger";
 import { EventSystem } from "../core/events/eventSystem";
-import { GameEvent, ItemPickupEventData } from "../core/events/eventTypes";
 import { ItemRegistry } from "../../data/items/itemRegistry";
-import { SkillType } from "../../data/skills/skillTypes";
 import { SkillConfigs } from "../../data/skills/skillConfig";
 import { SkillSystem } from "../systems/skillSystem";
 import { getCoinValue, isCoin } from "../systems/currencySystem";
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
+import { SkillType } from "../../shared/enums/skillType.enum";
+import { SkillState } from "../../shared/interfaces/playerSave.interface";
+import { ItemPickupEventData } from "../../shared/interfaces/eventData.interface";
+import { GameEvent } from "../../shared/enums/gameEvent.enum";
 
-export interface SkillState {
-  level: number;
-  progress: number; // 0 a 100
-}
+
 
 export class Player extends Creature {
   // Mapa de itens no inventário: itemId -> quantidade

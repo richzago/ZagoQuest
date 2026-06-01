@@ -1,5 +1,4 @@
 import { World } from "../world/world";
-import { ItemType } from "../../data/items/itemTypes";
 import { ItemEntity } from "../entities/item";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { Logger } from "../core/logger/logger";

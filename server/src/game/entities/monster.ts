@@ -1,6 +1,6 @@
 import { Creature } from "./creature";
-import { MonsterType } from "../../data/monsters/monsterType";
 import { MonsterAI } from "../ai/monsterAi";
+import { MonsterType } from "../../shared/interfaces/monster.interface";
 
 export class Monster extends Creature {
   type: MonsterType;

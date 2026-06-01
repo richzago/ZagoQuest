@@ -1,7 +1,6 @@
+import { CombatStats } from "../../shared/interfaces/combat.interface";
+import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { Entity } from "./entity";
-import { Damageable } from "../combat/damageable";
-import { CombatStats } from "../combat/combatStats";
-
 /**
  * Classe base abstrata para todas as criaturas (Player, Monster, Npc).
  * Centraliza atributos comuns: HP, Mana, Level, Experience e atributos de combate.

@@ -1,5 +1,5 @@
-import { LogLevel } from "./logLevel";
-import { LogChannel } from "./logChannel";
+import { LogChannel } from "../../../shared/enums/logChanel.enum";
+import { LogLevel } from "../../../shared/enums/logLevel.enum";
 import { FileWriter } from "./fileWriter";
 import { LoggerConfig } from "./loggerConfig";
 import { formatLog } from "./utils/formatLog";

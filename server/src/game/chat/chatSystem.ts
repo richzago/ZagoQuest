@@ -4,8 +4,9 @@
  */
 
 import { Player } from "../entities/player";
-import { ChatLogger, ChatMessageLog, ReportLog } from "./chatLogger";
 import { Logger } from "../core/logger/logger";
+import { ChatMessageLog, ReportLog } from "../../shared/interfaces/chat.interface";
+import { ChatLogger } from "./chatLogger";
 
 export class ChatSystem {
   /**

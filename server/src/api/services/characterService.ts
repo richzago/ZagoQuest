@@ -2,12 +2,13 @@ import { z } from "zod";
 import { AppDataSource } from "../data-source";
 import { Character } from "../entities/Character";
 import { Account } from "../entities/Account";
+import { createCharacterSchema } from "../../shared/schemas/character.schema";
 
-const characterNameSchema = z
-  .string()
-  .min(3)
-  .max(20)
-  .regex(/^[a-zA-Z0-9]+$/);
+// const characterNameSchema = z
+//   .string()
+//   .min(3)
+//   .max(20)
+//   .regex(/^[a-zA-Z0-9]+$/);
 
 export class CharacterService {
   static async createCharacter(
@@ -16,7 +17,7 @@ export class CharacterService {
     gender: "M" | "F",
     world: string = "main",
   ) {
-    const validation = characterNameSchema.safeParse(name);
+    const validation = createCharacterSchema.safeParse({ name, gender, world });
     if (!validation.success) throw new Error(validation.error.issues[0].message);
 
     const characterRepo = AppDataSource.getRepository(Character);

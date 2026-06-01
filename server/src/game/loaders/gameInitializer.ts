@@ -6,11 +6,11 @@
 import { World } from "../world/world";
 import { Player } from "../entities/player";
 import { PersistenceSystem } from "../systems/persistenceSystem";
-import { EquipmentSlot } from "../entities/equipmentTypes";
-import { SkillType } from "../../data/skills/skillTypes";
 import { Logger } from "../core/logger/logger";
 import { SpawnSystem } from "../systems/spawnSystem";
 import spawnsData from "../../data/spawns/mapSpawn.json";
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
+import { SkillType } from "../../shared/enums/skillType.enum";
 
 export async function initializeGame(
   playerName: string,

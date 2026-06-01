@@ -7,16 +7,11 @@
 import { Player } from "../entities/player";
 import { Npc } from "../entities/npc";
 import { Logger } from "./logger/logger";
-import { ShopSystem } from "../systems/shopSystem";
-import { BankingSystem } from "../systems/bankingSystem";
-
+import { MenuOption } from "../../shared/types/menu.type";
 /**
  * Definição de uma opção de menu.
  */
-export type MenuOption = {
-  label: string; // texto exibido (ex: "Health Potion (10g)")
-  action: (player: Player, npc: Npc) => void; // ação a executar quando selecionada
-};
+
 
 // Estado global do menu (simples, pois o Node é single-thread)
 let activeMenu: {

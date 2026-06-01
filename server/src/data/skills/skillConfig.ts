@@ -1,4 +1,5 @@
-import { SkillType, SkillConfig } from "./skillTypes";
+import { SkillType } from "../../shared/enums/skillType.enum";
+import { SkillConfig } from "../../shared/interfaces/skill.interface";
 
 // Configuração padrão embutida (não depende de JSON)
 const defaultSkillsConfig: Record<string, SkillConfig> = {

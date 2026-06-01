@@ -1,18 +1,14 @@
 import { Logger } from "../core/logger/logger";
 import { Player } from "../entities/player";
-import { Monster } from "../entities/monster";
-import { Damageable } from "../combat/damageable";
+import { Monster } from "../entities/monster";;
 import { World } from "../world/world";
 import { ExperienceSystem } from "./experienceSystem";
 import { LootSystem } from "./lootSystem";
 import { Corpse } from "../entities/corpse";
 import { EventSystem } from "../core/events/eventSystem";
-import {
-  CombatKillEventData,
-  GameEvent,
-  MonsterDeathEventData,
-  PlayerDeathEventData,
-} from "../core/events/eventTypes";
+import { CombatKillEventData, MonsterDeathEventData, PlayerDeathEventData } from "../../shared/interfaces/eventData.interface";
+import { GameEvent } from "../../shared/enums/gameEvent.enum";
+import { Damageable } from "../../shared/interfaces/damageable.interface";
 
 export class DeathSystem {
   static handleDeath(victim: Damageable, killer: Damageable | undefined, world: World): void {

@@ -2,18 +2,18 @@ import { World } from "../world/world";
 import { Logger } from "../core/logger/logger";
 import { DeathSystem } from "../systems/deathSystem";
 import { EventSystem } from "../core/events/eventSystem";
-import { CombatDamageEventData, GameEvent } from "../core/events/eventTypes";
-import { Damageable } from "./damageable";
 import { CombatFormula } from "../systems/combatFormula";
-import { CombatStats } from "./combatStats";
-import { Creature } from "../entities/creature";
 import { Player } from "../entities/player"; // ← IMPORTAR PLAYER
-import { SkillType } from "../../data/skills/skillTypes";
 import { SkillConfigs } from "../../data/skills/skillConfig"; // ← IMPORTAR SKILL CONFIGS
-import { EquipmentSlot } from "../entities/equipmentTypes"; // ← PARA DETECTAR ARMA
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
+import { SkillType } from "../../shared/enums/skillType.enum";
+import { CombatStats } from "../../shared/interfaces/combat.interface";
+import { CombatDamageEventData } from "../../shared/interfaces/eventData.interface";
+import { GameEvent } from "../../shared/enums/gameEvent.enum";
+import { Damageable } from "../../shared/interfaces/damageable.interface";
 
 export class CombatSystem {
-  /**
+  /**,
    * Realiza um ataque entre duas entidades.
    * @param attacker Quem ataca (deve implementar CombatStats e Damageable)
    * @param target Quem recebe o dano (deve implementar CombatStats e Damageable)
