@@ -8,6 +8,9 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "types": ["node"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strictPropertyInitialization": false
   }
 }
