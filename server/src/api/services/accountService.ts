@@ -5,6 +5,8 @@
  * - Criação de conta com validação (Zod)
  * - Hash de senha (bcrypt)
  * - Autenticação (verificação de credenciais)
+ *
+ * @module api/services/AccountService
  */
 
 import bcrypt from "bcrypt";
@@ -15,9 +17,25 @@ import { createAccountSchema } from "../../shared/schemas/account.schema";
 export class AccountService {
   /**
    * Cria uma nova conta.
-   * @param input Dados brutos da requisição (email, cellphone, fullName, cpf, birthDate, password, confirmPassword, address)
+   *
+   * @param input - Dados brutos da requisição (email, cellphone, fullName, cpf, birthDate, password, confirmPassword, address)
    * @returns Objeto com id e email da conta criada
    * @throws Se a validação falhar, email duplicado, ou dados inválidos
+   *
+   * @example
+   * ```typescript
+   * const result = await AccountService.createAccount({
+   *   email: "jogador@email.com",
+   *   cellphone: "+5511999999999",
+   *   fullName: "João da Silva",
+   *   cpf: "12345678909",
+   *   birthDate: "1990-01-01",
+   *   password: "senha123",
+   *   confirmPassword: "senha123",
+   *   address: "Rua Exemplo, 123"
+   * });
+   * console.log(result); // { id: "uuid", email: "jogador@email.com" }
+   * ```
    */
   static async createAccount(input: any) {
     // 1. Valida os dados com o schema Zod
@@ -59,10 +77,17 @@ export class AccountService {
 
   /**
    * Autentica um usuário (verifica email e senha).
-   * @param email Email da conta
-   * @param password Senha em texto plano
+   *
+   * @param email - Email da conta
+   * @param password - Senha em texto plano
    * @returns A entidade Account se a autenticação for bem‑sucedida
    * @throws Se a conta não existir ou a senha estiver incorreta
+   *
+   * @example
+   * ```typescript
+   * const account = await AccountService.authenticate("jogador@email.com", "senha123");
+   * console.log(account.id); // "uuid"
+   * ```
    */
   static async authenticate(email: string, password: string) {
     const accountRepo = AppDataSource.getRepository(Account);

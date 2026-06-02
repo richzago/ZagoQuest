@@ -6,6 +6,8 @@
  *
  * synchronize: true é usado apenas em desenvolvimento (cria/atualiza tabelas automaticamente).
  * Em produção, isso deve ser desabilitado e substituído por migrations.
+ *
+ * @module api/data-source
  */
 
 import "reflect-metadata"; // Necessário para os decorators do TypeORM
@@ -17,6 +19,21 @@ import dotenv from "dotenv";
 // Carrega as variáveis de ambiente do arquivo .env
 dotenv.config();
 
+/**
+ * Fonte de dados principal do TypeORM.
+ * Responsável pela conexão com o banco PostgreSQL e pelo gerenciamento das entidades.
+ *
+ * @remarks
+ * - `synchronize: true` cria/atualiza tabelas automaticamente. Útil apenas em desenvolvimento.
+ * - `logging: false` desativa a exibição de queries SQL no console. Altere para `true` para depuração.
+ *
+ * @example
+ * ```typescript
+ * await AppDataSource.initialize();
+ * const accountRepo = AppDataSource.getRepository(Account);
+ * const accounts = await accountRepo.find();
+ * ```
+ */
 export const AppDataSource = new DataSource({
   type: "postgres", // Banco de dados PostgreSQL
   host: process.env.DB_HOST || "localhost",

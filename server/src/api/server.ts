@@ -5,6 +5,8 @@
  * Define middlewares globais (CORS, JSON), rotas e gerencia a conexão com o banco de dados.
  *
  * A função startApi() é chamada pelo main.ts para iniciar a API em paralelo ao servidor do jogo.
+ *
+ * @module api/server
  */
 
 import express from "express";
@@ -35,6 +37,14 @@ app.use("/api/characters", characterRoutes);
  * Inicia o servidor da API.
  * Conecta ao banco de dados via TypeORM e, em caso de sucesso, começa a escutar na porta configurada.
  * Em caso de erro, registra o erro e encerra o processo.
+ *
+ * @returns {Promise<void>} Não retorna valor, mas lança exceção em caso de falha crítica.
+ *
+ * @example
+ * ```typescript
+ * // No main.ts
+ * startApi().catch(err => Logger.error(`Erro ao iniciar API: ${err}`));
+ * ```
  */
 export const startApi = async () => {
   try {

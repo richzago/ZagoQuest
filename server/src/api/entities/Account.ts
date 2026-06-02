@@ -1,3 +1,32 @@
+/**
+ * Account.ts
+ *
+ * Entidade TypeORM que representa uma conta de jogador no banco de dados.
+ *
+ * Campos:
+ * - `id`: UUID gerado automaticamente.
+ * - `email`: único, usado para login.
+ * - `cellphone`: número de celular (formato internacional).
+ * - `fullName`: nome completo do titular.
+ * - `cpf`: único, válido (11 dígitos).
+ * - `birthDate`: data de nascimento (idade mínima 16 anos).
+ * - `passwordHash`: hash da senha (bcrypt).
+ * - `address`: endereço residencial.
+ * - `characters`: lista de personagens associados (relação OneToMany).
+ * - `createdAt` / `updatedAt`: timestamps automáticos.
+ *
+ * @example
+ * ```ts
+ * const account = new Account();
+ * account.email = "player@example.com";
+ * account.fullName = "João da Silva";
+ * // ... outros campos
+ * await AppDataSource.getRepository(Account).save(account);
+ * ```
+ *
+ * @module api/entities/Account
+ */
+
 import {
   Entity,
   Column,
