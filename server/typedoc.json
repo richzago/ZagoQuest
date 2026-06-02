@@ -1,0 +1,13 @@
+{
+  "entryPoints": ["src/main.ts", "src/api/**/*.ts", "src/game/**/*.ts", "src/shared/**/*.ts"],
+  "entryPointStrategy": "expand",
+  "out": "docs/typedoc",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "readme": "README.md",
+  "name": "ZagoQuest - Documentação do Servidor",
+  "tsconfig": "tsconfig.json"
+}
