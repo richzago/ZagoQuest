@@ -1,6 +1,6 @@
 # Licença do ZagoQuest
 
-Copyright © 2026 Richard (ZagoQuest). Todos os direitos reservados.
+Copyright © 2026 Richard Zago (ZagoQuest). Todos os direitos reservados.
 
 ---
 
