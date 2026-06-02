@@ -46,14 +46,18 @@ O servidor já conta com sistemas funcionais como:
 
 ---
 
-## 📚 Documentação importante
+## 📚 Documentação
 
-Antes de contribuir ou explorar o código, leia:
+### ⚠️ IMPORTANTE
 
-* 📄 `LICENSE.md` → Regras de uso e propriedade do projeto
-* 🤝 `CONTRIBUTING.md` → Guia de contribuição e padrões do código
+- 📄 `LICENSE.md` → Regras de uso e propriedade do projeto (leitura obrigatória)
+- 🤝 `CONTRIBUTING.md` → Guia de contribuição e padrões do código (leitura obrigatória)
 
 ---
+
+### 🔧 Documentação técnica
+
+- 📘 `docs/typedoc/` → documentação automática gerada a partir do código (TypeDoc)
 
 ## ⚠️ Aviso
 
