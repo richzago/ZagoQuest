@@ -1,7 +1,18 @@
+/**
+ * skillConfig.ts
+ *
+ * Configuração das habilidades (skills) do jogo.
+ * Define níveis iniciais, progresso por uso e bônus de combate.
+ *
+ * Os valores são embutidos no código (não dependem de JSON) para facilitar o balanceamento.
+ *
+ * @module data/skills/SkillConfig
+ */
+
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillConfig } from "../../shared/interfaces/skill.interface";
 
-// Configuração padrão embutida (não depende de JSON)
+// Configuração padrão embutida
 const defaultSkillsConfig: Record<string, SkillConfig> = {
   sword: {
     name: "Sword Fighting",
@@ -54,6 +65,15 @@ const defaultSkillsConfig: Record<string, SkillConfig> = {
   },
 };
 
+/**
+ * Mapeamento de cada SkillType para sua configuração correspondente.
+ *
+ * @example
+ * ```typescript
+ * const swordConfig = SkillConfigs[SkillType.SWORD];
+ * console.log(swordConfig.name); // "Sword Fighting"
+ * ```
+ */
 export const SkillConfigs: Record<SkillType, SkillConfig> = {
   [SkillType.SWORD]: defaultSkillsConfig.sword,
   [SkillType.AXE]: defaultSkillsConfig.axe,
