@@ -5,20 +5,22 @@
  * localizados na pasta `src/data/npc/`.
  *
  * Cada arquivo JSON deve conter:
- * - id (número único)
- * - name (string)
- * - x (número, posição no mapa)
- * - y (número, posição no mapa)
- * - message (string, opcional, mensagem exibida ao interagir)
- * - type (string, opcional: "merchant", "banker", "quest", "trainer" – padrão "quest")
- * - shopItems (array, apenas para type "merchant")
- * - ai (objeto com originX, originY, radius, apenas para NPCs que se movem)
+ * - `id` (número único)
+ * - `name` (string)
+ * - `x` (número, posição no mapa)
+ * - `y` (número, posição no mapa)
+ * - `message` (string, opcional, mensagem exibida ao interagir)
+ * - `type` (string, opcional: "merchant", "banker", "quest", "trainer" – padrão "quest")
+ * - `shopItems` (array, apenas para type "merchant")
+ * - `ai` (objeto com `originX`, `originY`, `radius`, apenas para NPCs que se movem)
  *
- * O loader lê todos os arquivos .json da pasta, cria instâncias de Npc
+ * O loader lê todos os arquivos `.json` da pasta, cria instâncias de `Npc`
  * e as adiciona ao mundo.
+ *
+ * @module game/loaders/npcLoader
  */
 
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { Npc } from "../entities/npc";
 import { NpcAI } from "../ai/npcAI";
 import { Logger } from "../core/logger/logger";
@@ -27,7 +29,23 @@ import { join } from "path";
 
 /**
  * Carrega todos os NPCs da pasta `src/data/npc/` e os insere no mundo.
- * @param world Instância do mundo onde os NPCs serão adicionados.
+ *
+ * @param world - Instância do mundo onde os NPCs serão adicionados
+ * @returns {void}
+ *
+ * @remarks
+ * Esta função é síncrona e deve ser chamada uma vez durante a inicialização do jogo.
+ * Ela lê todos os arquivos `.json` do diretório, valida os campos obrigatórios,
+ * instancia os NPCs e os adiciona ao mundo.
+ *
+ * Se um arquivo estiver malformado ou faltar campos obrigatórios, um erro é logado
+ * e o arquivo é ignorado (os demais continuam sendo processados).
+ *
+ * @example
+ * ```typescript
+ * // No gameStarter.ts, após criar o mundo
+ * loadNpcs(world);
+ * ```
  */
 export function loadNpcs(world: World): void {
   // Log de início (útil para depuração)
@@ -91,5 +109,3 @@ export function loadNpcs(world: World): void {
     }
   }
 }
-
-//mexer nos logs, console.log, npc 
