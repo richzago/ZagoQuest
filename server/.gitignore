@@ -11,3 +11,5 @@ data/chatlogs/
 data/reports/
 data/accounts/
 .env
+docs/typedoc/
+typedoc/
