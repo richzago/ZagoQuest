@@ -7,12 +7,14 @@
  * - Monstro: concede XP ao killer, gera loot, cria um corpo (Corpse) no lugar, emite eventos de morte e abate.
  *
  * O sistema usa o EventSystem para notificar outros sistemas (ex: quests, conquistas).
+ *
+ * @module game/systems/DeathSystem
  */
 
 import { Logger } from "../core/logger/logger";
 import { Player } from "../entities/player";
 import { Monster } from "../entities/monster";
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { ExperienceSystem } from "./experienceSystem";
 import { LootSystem } from "./lootSystem";
 import { Corpse } from "../entities/corpse";
@@ -25,17 +27,46 @@ import {
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 
+/**
+ * Classe estática que orquestra as consequências da morte de uma entidade.
+ *
+ * @remarks
+ * - Para jogadores: aplica penalidade de 10% de XP, emite evento e respawna na posição (0,0) com HP cheio.
+ * - Para monstros: concede XP ao assassino (se for jogador), gera loot, cria um corpo (Corpse) no lugar do monstro,
+ *   emite eventos de morte (para quests, estatísticas) e marca o monstro como morto (HP = 0).
+ *
+ * O sistema depende do `ExperienceSystem` para cálculo de XP, do `LootSystem` para geração de itens,
+ * e do `EventSystem` para notificar outros módulos (ex: quests, conquistas).
+ *
+ * @example
+ * ```typescript
+ * // Chamado pelo CombatSystem após aplicar dano fatal
+ * DeathSystem.handleDeath(target, attacker, world);
+ * ```
+ */
 export class DeathSystem {
   /**
    * Ponto de entrada para qualquer morte.
    * Verifica o tipo da vítima e chama o handler apropriado.
    *
-   * @param victim - Quem morreu (Player ou Monster)
-   * @param killer - Quem causou a morte (opcional)
+   * @param victim - Quem morreu (deve ser `Player` ou `Monster`)
+   * @param killer - Quem causou a morte (opcional, pode ser `Player`, `Monster` ou `undefined`)
    * @param world - Mundo (necessário para criar corpo e remover entidade)
+   * @returns {void}
+   *
+   * @remarks
+   * A função é chamada automaticamente pelo `CombatSystem` quando o HP do alvo chega a 0.
+   * Não faz nada se o HP da vítima for maior que 0 (proteção contra chamadas indevidas).
+   *
+   * @example
+   * ```typescript
+   * // No CombatSystem.attack()
+   * if (target.hp <= 0) {
+   *   DeathSystem.handleDeath(target, attacker, world);
+   * }
+   * ```
    */
   static handleDeath(victim: Damageable, killer: Damageable | undefined, world: World): void {
-    // Se a vítima ainda tem HP, não está morta (proteção contra chamadas indevidas)
     if (victim.hp > 0) return;
 
     Logger.combat(`💀 ${victim.name} morreu.`);
@@ -50,19 +81,28 @@ export class DeathSystem {
   /**
    * Processa a morte de um jogador.
    * - Aplica penalidade de XP (10% do atual, mínimo 1)
-   * - Emite evento de morte
+   * - Emite evento `PLAYER_DEATH`
    * - Respawn na posição (0,0) com HP total
    *
    * @param player - Jogador morto
-   * @param killer - Quem matou (pode ser monstro, outro player, etc.)
+   * @param killer - Quem matou (opcional, pode ser `Player`, `Monster` ou `undefined`)
+   * @returns {void}
+   *
+   * @remarks
+   * A penalidade é sempre pelo menos 1 XP. Após a morte, o jogador reaparece na origem do mapa (0,0).
+   * O evento `PLAYER_DEATH` pode ser usado por outros sistemas (ex: registrar mortes em estatísticas, aplicar conquistas).
+   *
+   * @example
+   * ```typescript
+   * // Internamente chamado por handleDeath
+   * private static handlePlayerDeath(player, killer) { ... }
+   * ```
    */
   private static handlePlayerDeath(player: Player, killer?: Damageable): void {
-    // Penalidade: perde 10% do XP atual (mínimo 1)
     const xpLoss = Math.max(1, Math.floor(player.xp * 0.1));
     player.xp = Math.max(0, player.xp - xpLoss);
     Logger.skill(`${player.name} perdeu ${xpLoss} XP. XP restante: ${player.xp}`);
 
-    // Notifica outros sistemas via evento
     const eventSystem = EventSystem.getInstance();
     eventSystem.emit<PlayerDeathEventData>(GameEvent.PLAYER_DEATH, {
       playerId: player.id,
@@ -71,7 +111,6 @@ export class DeathSystem {
       killerName: killer?.name,
     });
 
-    // Respawn simples (teleporte para origem e HP cheio)
     player.position = { x: 0, y: 0 };
     player.hp = player.maxHp;
     Logger.system(`${player.name} renasceu em (0,0) com HP total.`);
@@ -80,14 +119,28 @@ export class DeathSystem {
   /**
    * Processa a morte de um monstro.
    * - Concede XP ao killer (se for jogador)
-   * - Gera o loot (via LootSystem)
-   * - Cria um corpo (Corpse) no lugar do monstro
-   * - Emite eventos de morte e abate
-   * - Marca o monstro como morto (HP = 0, será removido posteriormente pelo cleanup)
+   * - Gera o loot (via `LootSystem.generateLoot`)
+   * - Cria um corpo (`Corpse`) no lugar do monstro
+   * - Emite eventos `MONSTER_DEATH` e `COMBAT_KILL`
+   * - Marca o monstro como morto (HP = 0)
    *
    * @param monster - Monstro morto
-   * @param killer - Quem matou (opcional)
-   * @param world - Mundo (para adicionar corpo)
+   * @param killer - Quem matou (opcional, pode ser `Player`, `Monster` ou `undefined`)
+   * @param world - Mundo (para adicionar o corpo)
+   * @returns {void}
+   *
+   * @remarks
+   * O XP concedido depende da diferença de nível entre o monstro e o assassino (via `ExperienceSystem.calculateMonsterXp`).
+   * O loot é gerado estocasticamente baseado nas chances definidas no JSON do monstro.
+   * O corpo contém o loot e pode ser saqueado pelo jogador (tecla `G`).
+   * Os eventos `MONSTER_DEATH` e `COMBAT_KILL` são emitidos para sistemas de quests, estatísticas e conquistas.
+   * O monstro não é removido imediatamente; apenas seu HP é zerado. A remoção ocorre no `World.cleanupDeadMonsters()`.
+   *
+   * @example
+   * ```typescript
+   * // Internamente chamado por handleDeath
+   * private static handleMonsterDeath(monster, killer, world) { ... }
+   * ```
    */
   private static handleMonsterDeath(
     monster: Monster,

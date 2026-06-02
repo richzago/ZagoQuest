@@ -10,15 +10,38 @@
  * - O monstro é removido do mundo pelo World.cleanupDeadMonsters(), e um novo é criado quando o timer disparar.
  *
  * Os IDs dos monstros são sequenciais (nextMonsterId) para garantir unicidade.
+ *
+ * @module game/systems/SpawnSystem
  */
 
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { Monster } from "../entities/monster";
 import { MonsterRegistry } from "../../data/monsters/monsterRegistry";
 import { MonsterAI } from "../ai/monsterAi";
 import { Logger } from "../core/logger/logger";
 import { ActiveSpawn, SpawnPointData } from "../../shared/interfaces/spawn.interface";
 
+/**
+ * Gerencia pontos de spawn de monstros e seus respawns.
+ *
+ * @remarks
+ * O sistema mantém um mapa de `ActiveSpawn` para cada ponto de spawn, controlando:
+ * - O monstro atualmente vivo (se houver)
+ * - Se há um respawn pendente
+ * - Um timer para o respawn
+ *
+ * Quando um monstro morre, o `DeathSystem` deve chamar `onMonsterDeath` para que o respawn seja agendado.
+ *
+ * @example
+ * ```typescript
+ * const spawnSystem = new SpawnSystem(world);
+ * spawnSystem.loadSpawnPoints([
+ *   { id: "rat1", monsterId: "animals/lowlevel/rat", x: 10, y: 5, respawnTimeMs: 10000 }
+ * ]);
+ * // Quando um monstro morrer:
+ * spawnSystem.onMonsterDeath(monster);
+ * ```
+ */
 export class SpawnSystem {
   private activeSpawns: Map<string, ActiveSpawn> = new Map();
   private world: World;
@@ -32,7 +55,22 @@ export class SpawnSystem {
    * Carrega uma lista de pontos de spawn (geralmente lida de um arquivo JSON).
    * Para cada ponto, inicia o primeiro spawn (com delay opcional).
    *
-   * @param spawnsData - Array de SpawnPointData
+   * @param spawnsData - Array de SpawnPointData (posição, monstroId, respawnTime, initialDelay opcional)
+   * @returns {void}
+   *
+   * @remarks
+   * Se o spawn point tiver `initialDelayMs`, o primeiro spawn só ocorrerá após esse tempo.
+   * Caso contrário, o monstro nasce imediatamente.
+   * Todos os pontos são registrados no mapa `activeSpawns` com `pendingRespawn = false`.
+   *
+   * @example
+   * ```typescript
+   * const spawns = [
+   *   { id: "rat1", monsterId: "animals/lowlevel/rat", x: 10, y: 5, respawnTimeMs: 10000 },
+   *   { id: "boss1", monsterId: "bosses/dragon", x: 20, y: 15, respawnTimeMs: 60000, initialDelayMs: 5000 }
+   * ];
+   * spawnSystem.loadSpawnPoints(spawns);
+   * ```
    */
   public loadSpawnPoints(spawnsData: SpawnPointData[]): void {
     for (const data of spawnsData) {
@@ -54,7 +92,19 @@ export class SpawnSystem {
   /**
    * Instancia um novo monstro no mundo, baseado nos dados do spawn point.
    *
-   * @param data - Dados do spawn (posição, monstroId)
+   * @param data - Dados do spawn (posição, monsterId)
+   * @returns {void}
+   *
+   * @remarks
+   * O monstro é criado com um ID sequencial (evita conflitos) e uma IA padrão (`MonsterAI`).
+   * Após adicionar ao mundo, o registro ativo é atualizado com o ID do monstro e `pendingRespawn = false`.
+   * Se o monstro não for encontrado no `MonsterRegistry`, um erro é registrado e o spawn é ignorado.
+   *
+   * @example
+   * ```typescript
+   * // Chamado internamente por loadSpawnPoints ou pelo timer de respawn
+   * private spawnMonster(data)
+   * ```
    */
   private spawnMonster(data: SpawnPointData): void {
     // Obtém a definição do monstro a partir do registry (JSON)
@@ -91,6 +141,19 @@ export class SpawnSystem {
    * Se o monstro pertence a um spawn point, agenda seu respawn.
    *
    * @param monster - Monstro que morreu
+   * @returns {void}
+   *
+   * @remarks
+   * O sistema procura qual spawn point possui `monsterId` igual ao ID do monstro morto.
+   * Se encontrado, marca `pendingRespawn = true`, cancela qualquer timer anterior,
+   * e agenda um novo respawn após `respawnTimeMs` milissegundos.
+   * O timer armazenado permite cancelamento caso o jogo seja encerrado durante a espera.
+   *
+   * @example
+   * ```typescript
+   * // No DeathSystem.handleMonsterDeath, após marcar HP=0:
+   * world.spawnSystem?.onMonsterDeath(monster);
+   * ```
    */
   public onMonsterDeath(monster: Monster): void {
     // Procura o spawn point que possui este monsterId

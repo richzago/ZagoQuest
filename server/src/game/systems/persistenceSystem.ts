@@ -1,7 +1,11 @@
 /**
  * persistenceSystem.ts
+ *
  * Gerencia o salvamento e carregamento de dados do jogador em arquivos JSON.
- * Os saves são armazenados em data/players/<nome>.json
+ * Os saves são armazenados em `data/players/<nome>.json`.
+ * Fornece métodos assíncronos e uma versão síncrona para encerramento.
+ *
+ * @module game/systems/PersistenceSystem
  */
 
 import fs from "fs";
@@ -11,15 +15,30 @@ import { Logger } from "../core/logger/logger";
 import { PlayerSaveData } from "../../shared/interfaces/playerSave.interface";
 
 /**
- * Estrutura de dados que será salva no arquivo JSON.
+ * Sistema de persistência em JSON.
+ * Responsável por salvar e restaurar o estado do jogador (inventário, equipamentos, skills, etc.).
+ *
+ * @remarks
+ * Os dados são armazenados em arquivos individuais com o nome do jogador.
+ * Em produção, pode ser substituído por um banco de dados, mas JSON é suficiente para o estágio atual.
+ *
+ * @example
+ * ```typescript
+ * // Carregar jogador
+ * const data = await PersistenceSystem.loadPlayer("Richard");
+ * // Salvar jogador
+ * await PersistenceSystem.savePlayer(player);
+ * // Salvar síncrono (útil para shutdown)
+ * PersistenceSystem.savePlayerSync(player);
+ * ```
  */
-
 export class PersistenceSystem {
   // Diretório onde os saves serão armazenados (relativo ao arquivo atual)
   private static readonly SAVE_DIR = path.join(__dirname, "../../../data/players");
 
   /**
    * Garante que o diretório de saves existe. Se não existir, cria recursivamente.
+   * @returns {void}
    */
   private static ensureDir(): void {
     if (!fs.existsSync(this.SAVE_DIR)) {
@@ -30,8 +49,25 @@ export class PersistenceSystem {
 
   /**
    * Carrega os dados de um jogador a partir do arquivo JSON.
-   * @param name Nome do jogador
-   * @returns Dados salvos ou null se não encontrado
+   *
+   * @param name - Nome do jogador (corresponde ao nome do arquivo)
+   * @returns Dados salvos ou `null` se o arquivo não existir (jogador novo)
+   * @throws {Error} Se houver erro de leitura ou parse JSON (o erro é logado e `null` é retornado)
+   *
+   * @remarks
+   * O método é assíncrono e utiliza `fs.promises`.
+   * Se o arquivo não existir (código ENOENT), retorna `null` sem lançar erro.
+   * Outros erros são registrados no log e também retornam `null`.
+   *
+   * @example
+   * ```typescript
+   * const saved = await PersistenceSystem.loadPlayer("Richard");
+   * if (saved) {
+   *   // Restaurar jogador
+   * } else {
+   *   // Criar novo jogador
+   * }
+   * ```
    */
   static async loadPlayer(name: string): Promise<PlayerSaveData | null> {
     this.ensureDir();
@@ -48,7 +84,20 @@ export class PersistenceSystem {
 
   /**
    * Salva os dados do jogador de forma assíncrona.
-   * @param player Instância do jogador
+   *
+   * @param player - Instância do jogador (objeto em memória)
+   * @returns {Promise<void>}
+   * @throws {Error} Se houver erro de escrita (o erro é logado, mas a exceção é propagada)
+   *
+   * @remarks
+   * Converte o jogador em um objeto `PlayerSaveData`, transformando `Map`s em objetos simples,
+   * e escreve o JSON no arquivo correspondente ao nome do jogador.
+   *
+   * @example
+   * ```typescript
+   * await PersistenceSystem.savePlayer(player);
+   * console.log("Jogador salvo!");
+   * ```
    */
   static async savePlayer(player: Player): Promise<void> {
     this.ensureDir();
@@ -75,6 +124,22 @@ export class PersistenceSystem {
 
   /**
    * Versão síncrona do save, útil para callbacks de encerramento (tecla 'x', SIGINT).
+   *
+   * @param player - Instância do jogador
+   * @returns {void}
+   * @throws {Error} Se houver erro de escrita (o erro é logado, mas a execução continua)
+   *
+   * @remarks
+   * Utiliza `fs.writeFileSync` e não é recomendado para uso frequente (bloqueia o event loop).
+   * Deve ser usado apenas durante o desligamento do servidor.
+   *
+   * @example
+   * ```typescript
+   * process.on("SIGINT", () => {
+   *   PersistenceSystem.savePlayerSync(player);
+   *   process.exit(0);
+   * });
+   * ```
    */
   static savePlayerSync(player: Player): void {
     this.ensureDir();

@@ -1,8 +1,11 @@
 /**
  * shopSystem.ts
+ *
  * Gerencia a compra e venda de itens entre o jogador e NPCs comerciantes.
  * A compra utiliza primeiro o gold em mãos (player.gold) e, se insuficiente,
  * complementa com o saldo bancário (player.bankGold).
+ *
+ * @module game/systems/ShopSystem
  */
 
 import { Player } from "../entities/player";
@@ -10,16 +13,54 @@ import { Npc } from "../entities/npc";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { Logger } from "../core/logger/logger";
 
+/**
+ * Classe estática que contém as operações de compra e venda com NPCs comerciantes.
+ *
+ * @remarks
+ * O sistema verifica estoque do NPC, valida se o jogador possui os itens ou gold necessário,
+ * e registra todas as transações no canal `ECONOMY` do logger.
+ * Para compras, o pagamento é feito primeiro com o gold em mãos; se insuficiente, utiliza o saldo bancário.
+ *
+ * @example
+ * ```typescript
+ * // Comprar uma poção (usando gold da mochila ou banco)
+ * ShopSystem.buyItem(player, merchant, "consumable/health_potion", 1);
+ *
+ * // Vender um item
+ * ShopSystem.sellItem(player, merchant, "consumable/health_potion", 1);
+ *
+ * // Listar itens do comerciante
+ * ShopSystem.showShopItems(player, merchant);
+ * ```
+ */
 export class ShopSystem {
   /**
    * Compra um item do NPC.
    * O pagamento é feito primeiro com o gold da mochila; se faltar,
    * o restante é descontado do saldo bancário.
-   * @param player Jogador que está comprando
-   * @param npc NPC comerciante
-   * @param itemId ID do item a ser comprado
-   * @param quantity Quantidade (padrão 1)
-   * @returns true se a compra foi bem-sucedida
+   *
+   * @param player - Jogador que está comprando
+   * @param npc - NPC comerciante
+   * @param itemId - ID do item a ser comprado (ex: "consumable/health_potion")
+   * @param quantity - Quantidade (padrão 1)
+   * @returns `true` se a compra foi bem-sucedida, `false` caso contrário
+   *
+   * @remarks
+   * Validações realizadas:
+   * - NPC deve ter itens à venda.
+   * - Item deve existir na lista do comerciante.
+   * - Jogador deve ter fundos totais (mochila + banco) suficientes.
+   * - Estoque do NPC (se definido) deve ser suficiente.
+   *
+   * O pagamento é descontado primeiro do gold em mãos e, se necessário, do saldo bancário.
+   * Após a compra, o item é adicionado ao inventário e o estoque do NPC é reduzido.
+   * Um log detalhado é registrado no canal `ECONOMY`.
+   *
+   * @example
+   * ```typescript
+   * const success = ShopSystem.buyItem(player, merchant, "consumable/health_potion", 2);
+   * if (success) console.log("Compra realizada!");
+   * ```
    */
   static buyItem(player: Player, npc: Npc, itemId: string, quantity: number = 1): boolean {
     // Verifica se o NPC vende itens
@@ -83,11 +124,27 @@ export class ShopSystem {
   /**
    * Vende um item para o NPC.
    * O valor é adicionado diretamente ao gold em mãos do jogador.
-   * @param player Jogador que está vendendo
-   * @param npc NPC comerciante
-   * @param itemId ID do item a ser vendido
-   * @param quantity Quantidade (padrão 1)
-   * @returns true se a venda foi bem-sucedida
+   *
+   * @param player - Jogador que está vendendo
+   * @param npc - NPC comerciante
+   * @param itemId - ID do item a ser vendido
+   * @param quantity - Quantidade (padrão 1)
+   * @returns `true` se a venda foi bem-sucedida, `false` caso contrário
+   *
+   * @remarks
+   * Validações:
+   * - NPC deve comprar itens.
+   * - Item deve existir na lista do comerciante.
+   * - Jogador deve ter a quantidade necessária no inventário.
+   *
+   * O gold é adicionado diretamente ao `player.gold` (não ao banco).
+   * Um log da transação é registrado no canal `ECONOMY`.
+   *
+   * @example
+   * ```typescript
+   * const success = ShopSystem.sellItem(player, merchant, "consumable/health_potion", 1);
+   * if (success) console.log("Venda realizada!");
+   * ```
    */
   static sellItem(player: Player, npc: Npc, itemId: string, quantity: number = 1): boolean {
     // Verifica se o NPC compra itens
@@ -122,8 +179,20 @@ export class ShopSystem {
   /**
    * Exibe a lista de itens que o comerciante vende/compra.
    * Usado para debug e para o menu textual.
-   * @param player Jogador (não utilizado diretamente, mas mantido para consistência)
-   * @param npc NPC comerciante
+   *
+   * @param player - Jogador (não utilizado diretamente, mas mantido para consistência)
+   * @param npc - NPC comerciante
+   * @returns {void}
+   *
+   * @remarks
+   * A função exibe no log (canal `ECONOMY`) o nome do item, ID, preço de compra e preço de venda.
+   * Útil para depuração e para o sistema de menus interativos.
+   *
+   * @example
+   * ```typescript
+   * // Mostrar itens do comerciante
+   * ShopSystem.showShopItems(player, merchant);
+   * ```
    */
   static showShopItems(player: Player, npc: Npc): void {
     if (!npc.shopItems || npc.shopItems.length === 0) {
