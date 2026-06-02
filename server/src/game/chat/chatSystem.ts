@@ -1,6 +1,10 @@
 /**
  * chatSystem.ts
+ *
  * Lógica de envio de mensagens para canais públicos, privadas e denúncias.
+ * Utiliza o ChatLogger para persistência.
+ *
+ * @module game/chat/chatSystem
  */
 
 import { Player } from "../entities/player";
@@ -11,13 +15,20 @@ import { ChatLogger } from "./chatLogger";
 export class ChatSystem {
   /**
    * Envia uma mensagem para um canal público (support, community, trade).
-   * @param player Jogador remetente
-   * @param channel Nome do canal
-   * @param message Texto da mensagem
+   *
+   * @param player - Jogador remetente
+   * @param channel - Nome do canal ('support', 'community', 'trade')
+   * @param message - Texto da mensagem
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * ChatSystem.sendToChannel(player, "support", "Estou com um bug!");
+   * ```
    */
   static sendToChannel(player: Player, channel: string, message: string): void {
     const formatted = `[${channel.toUpperCase()}] ${player.name}: ${message}`;
-    Logger.economy(formatted); // exibe no console do servidor (poderia ser um canal próprio)
+    Logger.economy(formatted);
 
     const log: ChatMessageLog = {
       timestamp: new Date().toISOString(),
@@ -31,10 +42,17 @@ export class ChatSystem {
 
   /**
    * Envia uma mensagem privada de um jogador para outro.
-   * @param sender Quem envia
-   * @param targetName Nome do destinatário
-   * @param message Texto
-   * @param allPlayers Lista de todos os jogadores online
+   *
+   * @param sender - Quem envia
+   * @param targetName - Nome do destinatário
+   * @param message - Texto da mensagem
+   * @param allPlayers - Lista de todos os jogadores online (para encontrar o destinatário)
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * ChatSystem.sendPrivateMessage(player, "Richard", "Olá!", world.players);
+   * ```
    */
   static sendPrivateMessage(
     sender: Player,
@@ -64,9 +82,16 @@ export class ChatSystem {
 
   /**
    * Registra uma denúncia de um jogador contra outro.
-   * @param reporter Quem denuncia
-   * @param reportedName Nome do denunciado
-   * @param reason Motivo da denúncia
+   *
+   * @param reporter - Quem denuncia
+   * @param reportedName - Nome do denunciado
+   * @param reason - Motivo da denúncia
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * ChatSystem.reportPlayer(player, "Hacker", "spamming and offensive language");
+   * ```
    */
   static reportPlayer(reporter: Player, reportedName: string, reason: string): void {
     const report: ReportLog = {

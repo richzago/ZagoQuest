@@ -10,10 +10,12 @@
  *
  * O modo raw permite ler teclas individualmente, sem necessidade de pressionar Enter,
  * essencial para jogos em tempo real.
+ *
+ * @module game/core/inputHandler
  */
 
 import { Player } from "../entities/player";
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { immediateCommands } from "./commandHandler";
 import { isMenuActive, handleMenuInput } from "./menuSystem";
 import { activateChat } from "../chat/chatReadline";
@@ -24,6 +26,17 @@ import { activateChat } from "../chat/chatReadline";
  *
  * @param player - O jogador atual (para executar ações)
  * @param world  - O mundo (necessário para algumas ações, como ataque)
+ * @returns {void}
+ *
+ * @remarks
+ * Esta função ativa o modo raw do terminal e registra um listener para o evento 'data'.
+ * A ordem de prioridade: menu ativo > chat (tecla '/') > comandos imediatos.
+ *
+ * @example
+ * ```typescript
+ * // No main.ts ou gameStarter.ts
+ * setupInput(player, world);
+ * ```
  */
 export function setupInput(player: Player, world: World): void {
   // =========================

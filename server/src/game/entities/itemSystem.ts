@@ -1,4 +1,13 @@
-import { World } from "../world/world";
+/**
+ * itemSystem.ts
+ *
+ * Gerencia itens no mundo (drop, coleta, empilhamento).
+ * Utiliza o ItemRegistry para obter definições dos itens.
+ *
+ * @module game/entities/ItemSystem
+ */
+
+import { World } from "../world/World";
 import { ItemEntity } from "../entities/item";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { Logger } from "../core/logger/logger";
@@ -10,6 +19,21 @@ export class ItemSystem {
 
   /**
    * Cria um item no chão, empilha se existir na mesma posição.
+   *
+   * @param itemId - ID do item (ex: "consumable/health_potion")
+   * @param amount - Quantidade
+   * @param x - Posição X
+   * @param y - Posição Y
+   * @returns {void}
+   *
+   * @remarks
+   * Se o item for empilhável e já houver um item do mesmo tipo na posição,
+   * a quantidade é adicionada ao item existente (respeitando o limite máximo).
+   *
+   * @example
+   * ```typescript
+   * itemSystem.dropItem("consumable/health_potion", 5, 10, 10);
+   * ```
    */
   dropItem(itemId: string, amount: number, x: number, y: number): void {
     const type = ItemRegistry.get(itemId);
@@ -38,6 +62,9 @@ export class ItemSystem {
 
   /**
    * Remove um item do mundo (quando coletado).
+   *
+   * @param item - Item a ser removido
+   * @returns {void}
    */
   removeItem(item: ItemEntity): void {
     this.world.removeItem(item);

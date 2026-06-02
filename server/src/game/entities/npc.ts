@@ -9,6 +9,8 @@
  * - "trainer" (futuro)
  *
  * Os dados são carregados de arquivos JSON em src/data/npc/.
+ *
+ * @module game/entities/Npc
  */
 
 import { Creature } from "./creature";
@@ -32,6 +34,23 @@ export class Npc extends Creature {
   /** Saldo bancário (não usado no momento; o banco é global por jogador) */
   bankBalance?: number;
 
+  /**
+   * Cria um novo NPC.
+   *
+   * @param id - Identificador único
+   * @param name - Nome do NPC
+   * @param x - Posição X inicial
+   * @param y - Posição Y inicial
+   * @param message - Mensagem exibida ao interagir
+   * @param npcType - Tipo do NPC (padrão "quest")
+   *
+   * @example
+   * ```typescript
+   * const merchant = new Npc(5, "Merchant", 12, 3, "Welcome!", "merchant");
+   * merchant.shopItems = [{ itemId: "health_potion", buyPrice: 10, sellPrice: 5 }];
+   * world.addNpc(merchant);
+   * ```
+   */
   constructor(
     id: number,
     name: string,
@@ -40,13 +59,9 @@ export class Npc extends Creature {
     message: string,
     npcType: NpcType = "quest",
   ) {
-    // Chama o construtor de Creature com símbolo 'N' (representação visual no renderizador ASCII)
     super(id, name, x, y, "N");
-
     this.message = message;
     this.npcType = npcType;
-
-    // NPCs são imortais (não participam de combate), mas têm valores padrão
     this.maxHp = 100;
     this.hp = this.maxHp;
     this.maxMana = 0;

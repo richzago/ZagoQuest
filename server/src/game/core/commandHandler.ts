@@ -1,11 +1,14 @@
 /**
  * commandHandler.ts
- * Mapeamento de teclas para ações imediatas (incluindo abertura de menus).
- * Cada função recebe (player, world, ...args).
+ *
+ * Mapeamento de teclas para ações imediatas (movimento, ataque, loot, menus, etc.).
+ * Cada função recebe (player, world, ...args) e executa a ação correspondente.
+ *
+ * @module game/core/commandHandler
  */
 
 import { Player } from "../entities/player";
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { Npc } from "../entities/npc";
 import { CombatSystem } from "../combat/combatSystem";
 import { FishingSystem } from "../systems/fishingSystem";

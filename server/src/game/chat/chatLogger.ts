@@ -1,6 +1,10 @@
 /**
  * chatLogger.ts
+ *
  * Gerencia o armazenamento de mensagens de chat e denúncias em arquivos JSON.
+ * Cada dia gera um arquivo separado (ex: chat_2025-12-31.json).
+ *
+ * @module game/chat/chatLogger
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
@@ -8,11 +12,8 @@ import { join } from "path";
 import { Logger } from "../core/logger/logger";
 import { ChatMessageLog, ReportLog } from "../../shared/interfaces/chat.interface";
 
-
-
 /**
  * ChatLogger: responsável por salvar e carregar logs de chat e denúncias.
- * Cada dia gera um arquivo separado (ex: chat_2025-12-31.json).
  */
 export class ChatLogger {
   private static readonly LOG_DIR = join(process.cwd(), "data", "chatlogs");
@@ -31,6 +32,20 @@ export class ChatLogger {
 
   /**
    * Salva uma mensagem de chat no arquivo do dia.
+   *
+   * @param log - Dados da mensagem (timestamp, player, canal, mensagem)
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * ChatLogger.saveMessage({
+   *   timestamp: new Date().toISOString(),
+   *   playerName: "Richard",
+   *   playerLevel: 1,
+   *   channel: "support",
+   *   message: "Preciso de ajuda!"
+   * });
+   * ```
    */
   static saveMessage(log: ChatMessageLog): void {
     this.ensureDir(this.LOG_DIR);
@@ -46,6 +61,21 @@ export class ChatLogger {
 
   /**
    * Salva uma denúncia no arquivo do dia.
+   *
+   * @param report - Dados da denúncia (denunciante, denunciado, motivo)
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * ChatLogger.saveReport({
+   *   timestamp: new Date().toISOString(),
+   *   reporterName: "Richard",
+   *   reporterLevel: 1,
+   *   reportedName: "Hacker",
+   *   reason: "spamming",
+   *   status: "pending"
+   * });
+   * ```
    */
   static saveReport(report: ReportLog): void {
     this.ensureDir(this.REPORT_DIR);

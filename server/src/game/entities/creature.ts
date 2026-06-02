@@ -1,10 +1,16 @@
+/**
+ * creature.ts
+ *
+ * Classe base abstrata para todas as criaturas (Player, Monster, Npc).
+ * Centraliza atributos comuns: HP, Mana, Level, Experience e atributos de combate.
+ *
+ * @module game/entities/Creature
+ */
+
 import { CombatStats } from "../../shared/interfaces/combat.interface";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { Entity } from "./entity";
-/**
- * Classe base abstrata para todas as criaturas (Player, Monster, Npc).
- * Centraliza atributos comuns: HP, Mana, Level, Experience e atributos de combate.
- */
+
 export abstract class Creature extends Entity implements Damageable, CombatStats {
   // =========================
   // ATRIBUTOS DE VIDA E MANA
@@ -37,18 +43,36 @@ export abstract class Creature extends Entity implements Damageable, CombatStats
   criticalChance: number;
   criticalMultiplier: number;
 
+  /**
+   * Cria uma nova criatura.
+   *
+   * @param id - Identificador único
+   * @param name - Nome da criatura
+   * @param x - Posição X inicial
+   * @param y - Posição Y inicial
+   * @param symbol - Símbolo ASCII para renderização
+   *
+   * @remarks
+   * Valores padrão:
+   * - HP: 100
+   * - Mana: 0
+   * - Level: 1
+   * - Experience: 0
+   * - Attack: 5
+   * - Defense: 0
+   * - Armor: 0
+   * - CriticalChance: 0
+   * - CriticalMultiplier: 1.5
+   */
   constructor(id: number, name: string, x: number, y: number, symbol: string) {
     super(id, name, x, y, symbol);
 
-    // Valores padrão (serão sobrescritos nas subclasses)
     this.hp = 100;
     this.maxHp = 100;
     this.mana = 0;
     this.maxMana = 0;
     this.level = 1;
     this.experience = 0;
-
-    // Atributos de combate iniciais (serão recalculados para Player via equipamentos)
     this.attack = 5;
     this.defense = 0;
     this.armor = 0;

@@ -1,32 +1,64 @@
 /**
  * gameStarter.ts
- * Responsável por inicializar o mundo, carregar NPCs, configurar autosave, input e loops do jogo.
+ *
+ * Orquestra toda a inicialização do jogo:
+ * - Cria mundo e jogador (via worldFactory)
+ * - Carrega NPCs (via npcLoader)
+ * - Configura input, graceful shutdown, game loops
+ * - Inicia tarefas agendadas (autosave, inatividade de guildas)
+ *
+ * @module game/core/gameStarter
  */
 
 import { AsciiRenderer } from "../rendering/asciiRenderer";
-import { initializeGame } from "../loaders/gameInitializer";
+import { createWorldAndPlayer } from "../initialization/worldFactory";
 import { loadNpcs } from "../loaders/npcLoader";
-import { startAutoSave } from "./autoSave";
 import { setupInput } from "./inputHandler";
 import { setupGracefulShutdown } from "./shutdownHandler";
 import { startGameLoops } from "./gameLoop";
+import { startScheduledTasks } from "./scheduledTasks";
 import { Logger } from "./logger/logger";
 
 /**
  * Inicia o jogo propriamente dito.
- * @param characterName Nome do personagem a ser carregado (vindo da API ou fixo para testes)
+ *
+ * @param characterName - Nome do personagem a ser carregado (vindo da API ou fixo para testes)
+ * @returns {Promise<void>}
+ *
+ * @remarks
+ * Este é o orquestrador principal chamado pelo `main.ts`. Ele:
+ * 1. Cria o mundo e o jogador (persistência em JSON)
+ * 2. Carrega todos os NPCs estáticos
+ * 3. Configura o renderizador ASCII
+ * 4. Liga o sistema de entrada (teclado) e graceful shutdown
+ * 5. Inicia os loops do jogo (IA e renderização)
+ * 6. Inicia as tarefas periódicas (autosave, inatividade de guildas)
+ *
+ * @example
+ * ```typescript
+ * // No main.ts
+ * startGame("Richard");
+ * ```
  */
 export async function startGame(characterName: string): Promise<void> {
-  // Inicializa o mundo e o jogador (persistência em JSON)
-  const { world, player } = await initializeGame(characterName);
+  // 1. Cria o mundo e o jogador (substitui o antigo initializeGame)
+  const { world, player } = await createWorldAndPlayer(characterName);
+
+  // 2. Carrega todos os NPCs
   loadNpcs(world);
 
+  // 3. Renderizador ASCII
   const renderer = new AsciiRenderer();
 
-  startAutoSave(player);
+  // 4. Configurações de input e shutdown
   setupInput(player, world);
   setupGracefulShutdown(player);
+
+  // 5. Inicia loops do jogo (IA e renderização)
   startGameLoops(world, renderer);
+
+  // 6. Inicia tarefas periódicas
+  startScheduledTasks(player);
 
   Logger.system(`Jogo iniciado com o personagem: ${characterName}`);
 }

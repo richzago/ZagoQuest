@@ -1,10 +1,19 @@
-import { World } from "../world/world";
+/**
+ * combatSystem.ts
+ *
+ * Sistema central de combate do jogo.
+ * Responsável por aplicar dano, calcular críticos, disparar eventos e atualizar skills.
+ *
+ * @module game/combat/CombatSystem
+ */
+
+import { World } from "../world/World";
 import { Logger } from "../core/logger/logger";
 import { DeathSystem } from "../systems/deathSystem";
 import { EventSystem } from "../core/events/eventSystem";
 import { CombatFormula } from "../systems/combatFormula";
-import { Player } from "../entities/player"; // ← IMPORTAR PLAYER
-import { SkillConfigs } from "../../data/skills/skillConfig"; // ← IMPORTAR SKILL CONFIGS
+import { Player } from "../entities/player";
+import { SkillConfigs } from "../../data/skills/skillConfig";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { CombatStats } from "../../shared/interfaces/combat.interface";
@@ -13,11 +22,29 @@ import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 
 export class CombatSystem {
-  /**,
+  /**
    * Realiza um ataque entre duas entidades.
-   * @param attacker Quem ataca (deve implementar CombatStats e Damageable)
-   * @param target Quem recebe o dano (deve implementar CombatStats e Damageable)
-   * @param world Referência ao mundo para processar morte
+   *
+   * @param attacker - Quem ataca (deve implementar CombatStats e Damageable)
+   * @param target - Quem recebe o dano (deve implementar CombatStats e Damageable)
+   * @param world - Referência ao mundo para processar morte
+   * @returns {void}
+   *
+   * @remarks
+   * O fluxo de ataque:
+   * 1. Verifica se o alvo está vivo.
+   * 2. Calcula dano usando a fórmula de combate (inclui chance de crítico).
+   * 3. Aplica o dano ao alvo.
+   * 4. Emite evento de dano.
+   * 5. Concede progresso na skill ofensiva do atacante (se for jogador).
+   * 6. Concede progresso na skill defensiva (Shielding) do alvo (se for jogador).
+   * 7. Se o alvo morrer, chama o DeathSystem.
+   *
+   * @example
+   * ```typescript
+   * // No jogo, quando um jogador ataca um monstro:
+   * CombatSystem.attack(player, monster, world);
+   * ```
    */
   static attack(
     attacker: Damageable & CombatStats,

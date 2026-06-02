@@ -9,17 +9,49 @@
  * 2. Tiles – chão (.) ou parede (#)
  *
  * A cada frame, limpa o console e desenha a nova viewport.
+ *
+ * @module game/rendering/AsciiRenderer
  */
 
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { Player } from "../entities/player";
 import { Monster } from "../entities/monster";
 import { Npc } from "../entities/npc";
 
+/**
+ * Renderizador ASCII que produz uma visualização do mundo centrada no jogador.
+ * É usado apenas para depuração e testes; o cliente final usará Unity.
+ *
+ * @class AsciiRenderer
+ *
+ * @example
+ * ```typescript
+ * const renderer = new AsciiRenderer();
+ * setInterval(() => renderer.render(world), 1000);
+ * ```
+ */
 export class AsciiRenderer {
   /**
    * Renderiza uma "janela" do mundo ao redor do jogador.
-   * @param world Mundo atual (contém tiles, entidades, jogador)
+   *
+   * @param world - Mundo atual (contém tiles, entidades, jogador)
+   * @returns {void}
+   *
+   * @remarks
+   * O método:
+   * 1. Obtém o primeiro jogador da lista `world.players`.
+   * 2. Calcula a posição da viewport centrada nesse jogador.
+   * 3. Itera sobre cada célula da viewport, desenhando primeiro entidades (P, M, N)
+   *    e depois tiles (. para caminhável, # para obstáculo, espaço para fora do mapa).
+   * 4. Limpa o console e exibe o resultado.
+   *
+   * A viewport tem tamanho fixo de 9x7 tiles.
+   *
+   * @example
+   * ```typescript
+   * // Chamado a cada segundo pelo game loop
+   * renderer.render(world);
+   * ```
    */
   render(world: World) {
     // Dimensões da viewport (largura e altura em tiles)

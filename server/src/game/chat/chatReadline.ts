@@ -1,15 +1,37 @@
+/**
+ * chatReadline.ts
+ *
+ * Gerencia o modo de chat usando readline, desativando temporariamente o raw mode
+ * para permitir digitação de comandos sem interferência do renderizador ou logs.
+ *
+ * @module game/chat/chatReadline
+ */
+
 import readline from "readline";
 import { Player } from "../entities/player";
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { processChatCommand } from "./chatCommands";
 import { Logger } from "../core/logger/logger";
 
+/**
+ * Ativa o modo chat usando readline.
+ * Desativa o raw mode, pausa logs no console, abre um prompt e aguarda o comando.
+ * Após o envio, reativa o raw mode e os logs.
+ *
+ * @param player - Jogador atual
+ * @param world - Mundo (necessário para alguns comandos)
+ * @returns {void}
+ *
+ * @example
+ * // Chamado pela tecla '/' no inputHandler
+ * activateChat(player, world);
+ */
 export function activateChat(player: Player, world: World): void {
   // Desliga o raw mode (se estiver ativo) e restaura o terminal normal
   process.stdin.setRawMode(false);
   process.stdin.pause(); // pausa o stream para não interferir
 
-  // Desliga logs no console
+  // Desliga logs no console (evita poluição durante a digitação)
   Logger.setConsoleOutput(false);
 
   const rl = readline.createInterface({

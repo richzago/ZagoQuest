@@ -1,6 +1,15 @@
+/**
+ * monsterAi.ts
+ *
+ * Inteligência artificial para monstros.
+ * Segue o fluxo: aggro → perseguição → fuga → ataque.
+ *
+ * @module game/ai/MonsterAI
+ */
+
 import { CombatSystem } from "../combat/combatSystem";
 import { Monster } from "../entities/monster";
-import { World } from "../world/world";
+import { World } from "../world/World";
 import { Logger } from "../core/logger/logger";
 import { Creature } from "../entities/creature";
 import { MonsterAIConfig } from "../../shared/interfaces/combat.interface";
@@ -14,12 +23,41 @@ import { MonsterAIConfig } from "../../shared/interfaces/combat.interface";
  * 3. Foge se HP baixo
  * 4. Ataca se estiver adjacente
  * 5. Caso contrário, persegue alvo
+ *
+ * @class MonsterAI
+ * @param {MonsterAIConfig} [config={}] - Configurações opcionais (fleeHp, attackCooldown)
+ *
+ * @example
+ * ```typescript
+ * // Monstro normal
+ * const ai = new MonsterAI();
+ *
+ * // Monstro com fuga em HP < 10 e cooldown de ataque de 1.5s
+ * const fleeAI = new MonsterAI({ fleeHp: 10, attackCooldown: 1500 });
+ * ```
  */
 export class MonsterAI {
   constructor(private config: MonsterAIConfig = {}) {}
 
   /**
    * Atualiza o comportamento do monstro a cada tick do game loop.
+   *
+   * @param monster - O monstro que está sendo controlado
+   * @param world - Referência ao mundo (para buscar jogadores e mover)
+   * @returns {void}
+   *
+   * @example
+   * // Chamado automaticamente pelo game loop
+   * monster.ai.update(monster, world);
+   *
+   * @remarks
+   * A IA executa as etapas na seguinte ordem:
+   * 1. Se não tiver alvo, procura jogadores num raio de 6 tiles.
+   * 2. Se o alvo estiver a mais de 10 tiles de distância, perde o alvo.
+   * 3. Se o HP do monstro estiver abaixo do limite de fuga (fleeHp), foge.
+   * 4. Se estiver adjacente ao alvo e o cooldown de ataque tiver passado, ataca.
+   * 5. Caso contrário, persegue o alvo.
+   * 6. Se não houver alvo, move-se aleatoriamente (wander).
    */
   update(monster: Monster, world: World): void {
     // =========================
@@ -105,6 +143,13 @@ export class MonsterAI {
 
   /**
    * Movimento aleatório usado quando não há alvo (wander).
+   *
+   * @param monster - O monstro
+   * @param world - Mundo
+   * @returns {void}
+   *
+   * @example
+   * // Chamado internamente por update()
    */
   private randomMove(monster: Monster, world: World): void {
     const directions = [

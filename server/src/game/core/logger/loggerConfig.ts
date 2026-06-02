@@ -10,7 +10,7 @@
  * - Quais canais estão ativos (filtro por domínio)
  */
 
-import { LogChannel } from "../../../shared/enums/logChanel.enum";
+import { LogChannel } from "../../../shared/enums/logChannel.enum";
 import { LogLevel } from "../../../shared/enums/logLevel.enum";
 
 export const LoggerConfig = {
