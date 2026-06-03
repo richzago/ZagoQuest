@@ -211,6 +211,7 @@ http://localhost:3000/api/guilds
 | PUT    | `/:guildName/description`     | ✅ Bearer token | Atualiza descrição (apenas líder).                |
 | PUT    | `/:guildName/profile-image`   | ✅ Bearer token | Atualiza imagem de perfil (apenas líder).         |
 | PUT    | `/:guildName/cover-image`     | ✅ Bearer token | Atualiza imagem de capa (apenas líder).           |
+| POST   | `/` |                         | ✅ Bearer token | Cria uma nova guilda (requer requisitos do personagem). |
 
 ---
 
@@ -266,6 +267,8 @@ Resposta:
   "accountId": "account-id"
 }
 ```
+
+
 
 ---
 
