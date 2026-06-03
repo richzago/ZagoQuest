@@ -39,10 +39,10 @@ export function activateChat(player: Player, world: World): void {
     output: process.stdout,
   });
 
-  console.log("\n[CHAT] Modo chat ativado. Digite /s, /c, /t, /w, /report");
-  rl.question("> ", (answer) => {
+  console.log("\n[CHAT] Modo chat ativado. Digite /s, /c, /t, /w, /report, /guild, /gmsg");
+  rl.question("> ", async (answer) => {
     if (answer.trim() && answer.startsWith("/")) {
-      processChatCommand(answer, player, world);
+      await processChatCommand(answer, player, world);
     } else if (answer.trim()) {
       console.log("[CHAT] Comando inválido.");
     }

@@ -17,6 +17,7 @@ import accountRoutes from "./routes/account.routes";
 import sessionRoutes from "./routes/session.routes";
 import characterRoutes from "./routes/character.routes";
 import { AppDataSource } from "./data-source";
+import guildRoutes from "./routes/guild.routes";
 
 // Carrega as variáveis de ambiente
 dotenv.config();
@@ -32,6 +33,7 @@ app.use(express.json()); // Habilita o parsing de JSON no corpo das requisiçõe
 app.use("/api/accounts", accountRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/characters", characterRoutes);
+app.use("/api/guilds", guildRoutes);
 
 /**
  * Inicia o servidor da API.

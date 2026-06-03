@@ -1,33 +1,8 @@
 /**
  * Character.ts
  *
- * Entidade TypeORM que representa um personagem de jogo (pertencente a uma conta).
- *
- * Campos:
- * - `id`: UUID gerado automaticamente.
- * - `name`: único, usado para identificar o personagem no jogo.
- * - `gender`: "M" ou "F".
- * - `world`: nome do mundo (futuro, para separar servidores).
- * - `level`: nível do personagem (progressão).
- * - `xp`: experiência total acumulada.
- * - `hp` / `maxHp`: vida atual e máxima.
- * - `mana` / `maxMana`: mana atual e máxima.
- * - `inventory`: itens no inventário (JSONB).
- * - `equipment`: equipamentos atuais (slot -> itemId).
- * - `skills`: níveis e progresso das habilidades.
- * - `gold`: dinheiro em mãos.
- * - `bankGold`: dinheiro depositado no banco.
- * - `account`: referência à conta dona (ManyToOne).
- * - `createdAt` / `updatedAt`: timestamps.
- *
- * @example
- * ```ts
- * const character = new Character();
- * character.name = "Heroi";
- * character.gender = "M";
- * character.account = account;
- * await AppDataSource.getRepository(Character).save(character);
- * ```
+ * Entidade TypeORM que representa um personagem de jogo dentro de uma conta.
+ * Contém os dados voláteis do personagem (nível, XP, posição, inventário, equipamentos, etc.).
  *
  * @module api/entities/Character
  */
@@ -37,64 +12,119 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { Account } from "./Account";
 
+/**
+ * Classe que representa um personagem jogável.
+ *
+ * @remarks
+ * Cada personagem pertence a uma única conta. Os dados de inventário, equipamentos e skills
+ * são armazenados como JSONB (objetos) para flexibilidade.
+ * A posição no mundo é guardada em `posX` e `posY`.
+ *
+ * @example
+ * ```typescript
+ * // Criar um novo personagem
+ * const character = new Character();
+ * character.name = "Richard";
+ * character.gender = "M";
+ * character.account = account;
+ * await AppDataSource.getRepository(Character).save(character);
+ *
+ * // Atualizar posição
+ * character.posX = 5;
+ * character.posY = 10;
+ * await AppDataSource.getRepository(Character).save(character);
+ * ```
+ */
 @Entity("characters")
 export class Character {
+  /** Identificador único do personagem (UUID). */
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ unique: true })
+  /** Nome do personagem (único, 3-20 caracteres, apenas letras/números). */
+  @Column({ type: "varchar", length: 50, unique: true })
   name: string;
 
+  /** Gênero do personagem: "M" (masculino) ou "F" (feminino). */
   @Column({ type: "enum", enum: ["M", "F"] })
   gender: "M" | "F";
 
-  @Column({ default: "main" })
+  /** Mundo onde o personagem reside (futuro para separar servidores). */
+  @Column({ type: "varchar", default: "main" })
   world: string;
 
-  @Column({ default: 1 })
+  /** Nível do personagem (progressão). */
+  @Column({ type: "int", default: 1 })
   level: number;
 
-  @Column({ default: 0 })
+  /** Experiência total acumulada (XP). */
+  @Column({ type: "int", default: 0 })
   xp: number;
 
-  @Column({ default: 100 })
+  /** Pontos de vida atuais. */
+  @Column({ type: "int", default: 100 })
   hp: number;
 
-  @Column({ default: 100 })
+  /** Pontos de vida máximos. */
+  @Column({ type: "int", default: 100 })
   maxHp: number;
 
-  @Column({ default: 0 })
+  /** Pontos de mana atuais. */
+  @Column({ type: "int", default: 0 })
   mana: number;
 
-  @Column({ default: 0 })
+  /** Pontos de mana máximos. */
+  @Column({ type: "int", default: 0 })
   maxMana: number;
 
+  /** Inventário do personagem (itemId → quantidade). Armazenado como JSONB. */
   @Column({ type: "jsonb", default: {} })
   inventory: Record<string, number>;
 
+  /** Equipamentos atuais (slot → itemId). Armazenado como JSONB. */
   @Column({ type: "jsonb", default: {} })
   equipment: Record<string, string>;
 
+  /** Níveis e progresso das skills (SkillType → { level, progress }). */
   @Column({ type: "jsonb", default: {} })
   skills: Record<string, { level: number; progress: number }>;
 
-  @Column({ default: 0 })
+  /** Dinheiro em mãos (gold). */
+  @Column({ type: "int", default: 0 })
   gold: number;
 
-  @Column({ default: 0 })
+  /** Dinheiro depositado no banco. */
+  @Column({ type: "int", default: 0 })
   bankGold: number;
 
-  @ManyToOne(() => Account, (account) => account.characters)
+  /** Posição X no mundo (tile). */
+  @Column({ type: "int", default: 2 })
+  posX: number;
+
+  /** Posição Y no mundo (tile). */
+  @Column({ type: "int", default: 2 })
+  posY: number;
+
+  /** ID da conta proprietária (chave estrangeira). */
+  @Column({ type: "uuid", nullable: true })
+  accountId: string;
+
+  /** Referência à conta proprietária. */
+  @ManyToOne(() => Account, (account) => account.characters, { nullable: true })
+  @JoinColumn({ name: "accountId" })
   account: Account;
 
+  /** Data de criação do personagem. */
   @CreateDateColumn()
   createdAt: Date;
 
+  /** Data da última atualização do personagem. */
   @UpdateDateColumn()
   updatedAt: Date;
 }

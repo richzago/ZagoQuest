@@ -22,6 +22,10 @@ export interface Guild {
   createdAt: string;
   members: GuildMember[];
   logs?: string[]; // (opcional) histórico de ações
+  level: number; // nível da guilda
+  exp: number; // experiência atual da guilda
+  totalKills: number; // total de kills (PvP) acumulado pela guilda
+  castleConquests?: number; // futuramente: número de conquistas de castelo
 }
 
 export interface GuildInvite {

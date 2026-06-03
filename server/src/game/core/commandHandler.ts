@@ -12,12 +12,12 @@ import { World } from "../world/World";
 import { Npc } from "../entities/npc";
 import { CombatSystem } from "../combat/combatSystem";
 import { FishingSystem } from "../systems/fishingSystem";
-import { PersistenceSystem } from "../systems/persistenceSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { ShopSystem } from "../systems/shopSystem";
 import { BankingSystem } from "../systems/bankingSystem";
 import { showMenu } from "./menuSystem";
 import { Logger } from "./logger/logger";
+import { DatabasePersistence } from "../systems/databasePersistence";
 
 // ------------------------------------------------------------
 // Utilitário para cancelar pesca antes de mover
@@ -187,9 +187,9 @@ function fish(player: Player, world: World) {
 // ------------------------------------------------------------
 // Salvar e sair do jogo (tecla 'x')
 // ------------------------------------------------------------
-function saveAndExit(player: Player, _world: World) {
+async function saveAndExit(player: Player, _world: World) {
   Logger.system("Salvando progresso...");
-  PersistenceSystem.savePlayerSync(player);
+  await DatabasePersistence.saveCharacter(player);
   Logger.system("👋 Encerrando jogo...");
   process.exit(0);
 }

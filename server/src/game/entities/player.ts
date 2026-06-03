@@ -68,7 +68,7 @@ export class Player extends Creature {
    * Valores iniciais:
    * - HP: 100, Mana: 50
    * - Level: 1, XP: 0
-   * - Gold: 500 (para testes), BankGold: 0
+   * - Gold: 0 (inicial), BankGold: 0
    * - Skills inicializadas com base no SkillConfigs
    * - Atributos de combate recalculados
    *
@@ -87,7 +87,7 @@ export class Player extends Creature {
     this.mana = this.maxMana;
     this.level = 1;
     this.experience = 0;
-    this.gold = 500;
+    this.gold = 0; // ← corrigido para 0
     this.bankGold = 0;
     this.isFishing = false;
     this.fishingTimer = undefined;
@@ -348,7 +348,7 @@ export class Player extends Creature {
    */
   showInventory(): void {
     if (this.inventory.size === 0) {
-      Logger.warn(`${this.name} não possui nenhum item.`);
+      Logger.loot(`${this.name} não possui nenhum item.`);
       return;
     }
     const itemsList = Array.from(this.inventory.entries())
@@ -371,7 +371,7 @@ export class Player extends Creature {
    */
   showEquipment(): void {
     if (this.equipment.size === 0) {
-      Logger.warn(`${this.name} não está usando nenhum equipamento.`);
+      Logger.system(`${this.name} não está usando nenhum equipamento.`);
       return;
     }
     const equipList = Array.from(this.equipment.entries())

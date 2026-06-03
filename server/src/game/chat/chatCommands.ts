@@ -14,8 +14,8 @@
  * - /t (ou /trade) <mensagem> → envia para o canal Comércio
  * - /w (ou /whisper) <jogador> <mensagem> → mensagem privada
  * - /report <jogador> <motivo> → registra uma denúncia (salva em arquivo)
- * - /guild (ou /g) <comando> [args] → gerencia guildas (create, invite, accept, kick, leave, disband, info, members, promote, demote, setdesc, setprofile, setcover)
- * - /gmsg (ou /guildmsg) <mensagem> → envia mensagem para o chat da guilda (apenas membros)
+ * - /guild (ou /g) <comando> [args] → gerencia guildas (via GuildService)
+ * - /gmsg (ou /guildmsg) <mensagem> → envia mensagem para o chat da guilda
  *
  * @module game/chat/chatCommands
  */
@@ -24,7 +24,7 @@ import { Player } from "../entities/player";
 import { World } from "../world/World";
 import { ChatSystem } from "./chatSystem";
 import { Logger } from "../core/logger/logger";
-import { GuildSystem } from "../systems/guildSystem";
+import { GuildService } from "../../api/services/guildService";
 
 /**
  * Processa uma linha de comando que começa com '/'.
@@ -35,16 +35,13 @@ import { GuildSystem } from "../systems/guildSystem";
  * @returns `true` se o comando foi reconhecido e executado, `false` caso contrário (não começa com '/')
  *
  * @remarks
- * A função não modifica o estado do mundo diretamente; delega para ChatSystem ou GuildSystem.
- * Se o comando for inválido ou com argumentos insuficientes, exibe uma mensagem de aviso.
- *
- * @example
- * ```typescript
- * // Exemplo de chamada (normalmente feita pelo chatReadline)
- * processChatCommand("/s Olá pessoal", player, world);
- * ```
+ * A função agora é assíncrona porque os comandos de guilda acessam o banco de dados via GuildService.
  */
-export function processChatCommand(fullLine: string, player: Player, world: World): boolean {
+export async function processChatCommand(
+  fullLine: string,
+  player: Player,
+  world: World,
+): Promise<boolean> {
   if (!fullLine.startsWith("/")) return false;
   const parts = fullLine.slice(1).split(" ");
   const cmd = parts[0].toLowerCase();
@@ -111,7 +108,7 @@ export function processChatCommand(fullLine: string, player: Player, world: Worl
       Logger.warn("Uso: /gmsg <mensagem>");
       return true;
     }
-    GuildSystem.sendGuildMessage(player, message);
+    await GuildService.sendGuildMessage(player.name, message);
     return true;
   }
 
@@ -125,77 +122,119 @@ export function processChatCommand(fullLine: string, player: Player, world: Worl
       return true;
     }
 
-    switch (sub) {
-      case "create": {
-        const guildName = args.slice(1).join(" ");
-        if (!guildName) Logger.warn("Uso: /guild create <nome>");
-        else GuildSystem.createGuild(player, guildName);
-        break;
+    try {
+      switch (sub) {
+        case "create": {
+          const guildName = args[1];
+          const description = args.slice(2).join(" ") || "Sem descrição";
+          if (!guildName) {
+            Logger.warn("Uso: /guild create <nome> [descrição]");
+          } else {
+            await GuildService.createGuild(player.name, guildName, description);
+          }
+          break;
+        }
+        case "invite": {
+          const targetName = args[1];
+          if (!targetName) Logger.warn("Uso: /guild invite <jogador>");
+          else await GuildService.inviteToGuild(player.name, targetName);
+          break;
+        }
+        case "accept":
+          await GuildService.acceptInvite(player.name);
+          break;
+        case "kick": {
+          const targetName = args[1];
+          if (!targetName) Logger.warn("Uso: /guild kick <jogador>");
+          else await GuildService.kickFromGuild(player.name, targetName);
+          break;
+        }
+        case "leave":
+          await GuildService.leaveGuild(player.name);
+          break;
+        case "disband":
+          await GuildService.disbandGuild(player.name);
+          break;
+        case "info": {
+          const guild = await GuildService.getPlayerGuild(player.name);
+          if (!guild) {
+            Logger.warn("Você não está em uma guilda.");
+          } else {
+            const totalMembers = guild.members?.length || 0;
+            const leader = guild.members?.find((m) => m.role === "leader");
+            const vice = guild.members?.find((m) => m.role === "vice");
+            const officers = guild.members?.filter((m) => m.role === "officer") || [];
+            Logger.system(`=== Guilda: ${guild.name} ===`);
+            Logger.system(`ID: ${guild.id}`);
+            Logger.system(`Criada em: ${new Date(guild.createdAt).toLocaleDateString()}`);
+            Logger.system(`Membros: ${totalMembers}/100`);
+            Logger.system(`Líder: ${leader?.characterName} (Level ${leader?.level})`);
+            if (vice) Logger.system(`Vice-líder: ${vice.characterName} (Level ${vice.level})`);
+            if (officers.length)
+              Logger.system(
+                `Oficiais: ${officers.map((o) => `${o.characterName} (${o.level})`).join(", ")}`,
+              );
+            if (guild.description) Logger.system(`Descrição: ${guild.description}`);
+          }
+          break;
+        }
+        case "members": {
+          const page = parseInt(args[1], 10) || 1;
+          const guild = await GuildService.getPlayerGuild(player.name);
+          if (!guild) {
+            Logger.warn("Você não está em uma guilda.");
+          } else {
+            const { data, total } = await GuildService.listMembers(guild.name, page);
+            Logger.system(`=== Membros da guilda ${guild.name} (página ${page}) ===`);
+            for (const m of data) {
+              Logger.system(
+                `${m.role.toUpperCase()}: ${m.characterName} (Level ${m.level}) - Último login: ${new Date(m.lastSeen).toLocaleDateString()}`,
+              );
+            }
+            if (total > page * 10) {
+              Logger.system(`Digite /guild members ${page + 1} para ver mais.`);
+            }
+          }
+          break;
+        }
+        case "promote": {
+          const targetName = args[1];
+          const newRole = args[2] as "vice" | "officer";
+          if (!targetName || !newRole) Logger.warn("Uso: /guild promote <jogador> <vice|officer>");
+          else await GuildService.promote(player.name, targetName, newRole);
+          break;
+        }
+        case "demote": {
+          const targetName = args[1];
+          if (!targetName) Logger.warn("Uso: /guild demote <jogador>");
+          else await GuildService.demote(player.name, targetName);
+          break;
+        }
+        case "setdesc": {
+          const description = args.slice(1).join(" ");
+          if (!description) Logger.warn("Uso: /guild setdesc <descrição>");
+          else await GuildService.setDescription(player.name, description);
+          break;
+        }
+        case "setprofile": {
+          const url = args[1];
+          if (!url) Logger.warn("Uso: /guild setprofile <url>");
+          else await GuildService.setProfileImage(player.name, url);
+          break;
+        }
+        case "setcover": {
+          const url = args[1];
+          if (!url) Logger.warn("Uso: /guild setcover <url>");
+          else await GuildService.setCoverImage(player.name, url);
+          break;
+        }
+        default:
+          Logger.warn(
+            "Comando de guilda inválido. Use: create, invite, accept, kick, leave, disband, info, members, promote, demote, setdesc, setprofile, setcover",
+          );
       }
-      case "invite": {
-        const targetName = args[1];
-        if (!targetName) Logger.warn("Uso: /guild invite <jogador>");
-        else GuildSystem.inviteToGuild(player, targetName);
-        break;
-      }
-      case "accept":
-        GuildSystem.acceptInvite(player);
-        break;
-      case "kick": {
-        const targetName = args[1];
-        if (!targetName) Logger.warn("Uso: /guild kick <jogador>");
-        else GuildSystem.kickFromGuild(player, targetName);
-        break;
-      }
-      case "leave":
-        GuildSystem.leaveGuild(player);
-        break;
-      case "disband":
-        GuildSystem.disbandGuild(player);
-        break;
-      case "info":
-        GuildSystem.info(player);
-        break;
-      case "members": {
-        const page = parseInt(args[1], 10) || 1;
-        GuildSystem.listMembers(player, page);
-        break;
-      }
-      case "promote": {
-        const targetName = args[1];
-        const newRole = args[2] as "vice" | "officer";
-        if (!targetName || !newRole) Logger.warn("Uso: /guild promote <jogador> <vice|officer>");
-        else GuildSystem.promote(player, targetName, newRole);
-        break;
-      }
-      case "demote": {
-        const targetName = args[1];
-        if (!targetName) Logger.warn("Uso: /guild demote <jogador>");
-        else GuildSystem.demote(player, targetName);
-        break;
-      }
-      case "setdesc": {
-        const description = args.slice(1).join(" ");
-        if (!description) Logger.warn("Uso: /guild setdesc <descrição>");
-        else GuildSystem.setDescription(player, description);
-        break;
-      }
-      case "setprofile": {
-        const url = args[1];
-        if (!url) Logger.warn("Uso: /guild setprofile <url>");
-        else GuildSystem.setProfileImage(player, url);
-        break;
-      }
-      case "setcover": {
-        const url = args[1];
-        if (!url) Logger.warn("Uso: /guild setcover <url>");
-        else GuildSystem.setCoverImage(player, url);
-        break;
-      }
-      default:
-        Logger.warn(
-          "Comando de guilda inválido. Use: create, invite, accept, kick, leave, disband, info, members, promote, demote, setdesc, setprofile, setcover",
-        );
+    } catch (err: any) {
+      Logger.warn(err.message);
     }
     return true;
   }

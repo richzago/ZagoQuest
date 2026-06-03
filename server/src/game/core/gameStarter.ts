@@ -11,13 +11,13 @@
  */
 
 import { AsciiRenderer } from "../rendering/asciiRenderer";
-import { createWorldAndPlayer } from "../initialization/worldFactory";
 import { loadNpcs } from "../loaders/npcLoader";
 import { setupInput } from "./inputHandler";
 import { setupGracefulShutdown } from "./shutdownHandler";
 import { startGameLoops } from "./gameLoop";
 import { startScheduledTasks } from "./scheduledTasks";
 import { Logger } from "./logger/logger";
+import { createWorldAndPlayer } from "../initialization/worldFactory";
 
 /**
  * Inicia o jogo propriamente dito.

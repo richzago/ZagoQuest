@@ -7,7 +7,7 @@
  */
 
 import { Player } from "../entities/player";
-import { PersistenceSystem } from "../systems/persistenceSystem";
+import { DatabasePersistence } from "../systems/databasePersistence";
 import { Logger } from "./logger/logger";
 
 /**
@@ -27,9 +27,9 @@ import { Logger } from "./logger/logger";
  * ```
  */
 export function setupGracefulShutdown(player: Player): void {
-  process.on("SIGINT", () => {
+  process.on("SIGINT", async () => {
     Logger.system("Sinal SIGINT recebido. Salvando antes de sair...");
-    PersistenceSystem.savePlayerSync(player);
+    await DatabasePersistence.saveCharacter(player);
     process.exit(0);
   });
 }

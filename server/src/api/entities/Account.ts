@@ -42,25 +42,25 @@ export class Account {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: "varchar", length: 255, unique: true })
   email: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 20 })
   cellphone: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   fullName: string;
 
-  @Column({ unique: true })
+  @Column({ type: "varchar", length: 11, unique: true })
   cpf: string;
 
   @Column({ type: "date" })
   birthDate: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   passwordHash: string;
 
-  @Column()
+  @Column({ type: "text" })
   address: string;
 
   @OneToMany(() => Character, (character) => character.account, { cascade: true })

@@ -10,15 +10,6 @@
  * @module api/data-source
  */
 
-import "reflect-metadata"; // Necessário para os decorators do TypeORM
-import { DataSource } from "typeorm";
-import { Account } from "./entities/Account";
-import { Character } from "./entities/Character";
-import dotenv from "dotenv";
-
-// Carrega as variáveis de ambiente do arquivo .env
-dotenv.config();
-
 /**
  * Fonte de dados principal do TypeORM.
  * Responsável pela conexão com o banco PostgreSQL e pelo gerenciamento das entidades.
@@ -34,14 +25,27 @@ dotenv.config();
  * const accounts = await accountRepo.find();
  * ```
  */
+// src/api/data-source.ts
+import "reflect-metadata";
+
+import dotenv from "dotenv";
+
+dotenv.config();
+
+import { DataSource } from "typeorm";
+import { Account } from "./entities/Account";
+import { Character } from "./entities/Character";
+import { Guild } from "./entities/Guild";
+import { GuildMember } from "./entities/GuildMember";
+
 export const AppDataSource = new DataSource({
-  type: "postgres", // Banco de dados PostgreSQL
+  type: "postgres",
   host: process.env.DB_HOST || "localhost",
   port: parseInt(process.env.DB_PORT || "5432"),
   username: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD, // Obrigatório (sem fallback)
+  password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || "zagoquest",
-  synchronize: true, // ⚠️ Apenas desenvolvimento! Em produção, use migrations.
-  logging: false, // Altere para true para ver as queries SQL no console
-  entities: [Account, Character], // Entidades que o TypeORM deve gerenciar
+  synchronize: true,
+  logging: true,
+  entities: [Account, Character, Guild, GuildMember],
 });
