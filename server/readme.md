@@ -208,11 +208,29 @@ http://localhost:3000/api/guilds
 | GET    | `/rank/kills?page=1&limit=10` | ❌              | Ranking de guildas por kills (PvP).               |
 | GET    | `/list?page=1&limit=100`      | ❌              | Lista todas as guildas.                           |
 | GET    | `/:guildName`                 | ❌              | Detalhes completos de uma guilda.                 |
+| POST   | `/`                           | ✅ Bearer token | Cria uma nova guilda.                             |
 | PUT    | `/:guildName/description`     | ✅ Bearer token | Atualiza descrição (apenas líder).                |
 | PUT    | `/:guildName/profile-image`   | ✅ Bearer token | Atualiza imagem de perfil (apenas líder).         |
 | PUT    | `/:guildName/cover-image`     | ✅ Bearer token | Atualiza imagem de capa (apenas líder).           |
-| POST   | `/` |                         | ✅ Bearer token | Cria uma nova guilda.                             |
 
+## 🧪 Exemplo - Criar Guilda
+
+```http
+POST http://localhost:3000/api/guilds
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "characterName": "Richard",
+  "guildName": "Os Bravos",
+  "description": "Uma guilda focada em PvP e exploração."
+}
+
+{
+  "id": "uuid",
+  "name": "Os Bravos",
+  "description": "Uma guilda focada em PvP e exploração."
+}
 
 ---
 
@@ -269,8 +287,6 @@ Resposta:
 }
 ```
 
-
-
 ---
 
 ## 🧭 Observação
@@ -278,7 +294,6 @@ Resposta:
 As rotas de guilda estão em constante evolução e fazem parte do sistema social do ZagoQuest (PvP, ranking e progressão de guildas).
 
 ---
-
 
 # 🎮 Comandos do Jogo
 
