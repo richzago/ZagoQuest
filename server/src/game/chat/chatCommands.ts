@@ -47,7 +47,9 @@ export async function processChatCommand(
   const cmd = parts[0].toLowerCase();
   const args = parts.slice(1);
 
+  // =========================
   // Suporte
+  // =========================
   if (cmd === "s" || cmd === "support") {
     if (args.length === 0) {
       Logger.warn("Uso: /s <mensagem>");
@@ -57,7 +59,9 @@ export async function processChatCommand(
     return true;
   }
 
+  // =========================
   // Comunidade
+  // =========================
   if (cmd === "c" || cmd === "community") {
     if (args.length === 0) {
       Logger.warn("Uso: /c <mensagem>");
@@ -67,7 +71,9 @@ export async function processChatCommand(
     return true;
   }
 
+  // =========================
   // Comércio
+  // =========================
   if (cmd === "t" || cmd === "trade") {
     if (args.length === 0) {
       Logger.warn("Uso: /t <mensagem>");
@@ -77,7 +83,9 @@ export async function processChatCommand(
     return true;
   }
 
-  // Privado
+  // =========================
+  // Mensagem privada
+  // =========================
   if (cmd === "w" || cmd === "whisper") {
     if (args.length < 2) {
       Logger.warn("Uso: /w <jogador> <mensagem>");
@@ -89,7 +97,9 @@ export async function processChatCommand(
     return true;
   }
 
+  // =========================
   // Denúncia
+  // =========================
   if (cmd === "report") {
     if (args.length < 2) {
       Logger.warn("Uso: /report <jogador> <motivo>");
@@ -101,7 +111,9 @@ export async function processChatCommand(
     return true;
   }
 
+  // =========================
   // Chat da guilda
+  // =========================
   if (cmd === "gmsg" || cmd === "guildmsg") {
     const message = args.join(" ");
     if (!message) {
@@ -112,7 +124,9 @@ export async function processChatCommand(
     return true;
   }
 
+  // =========================
   // Guildas
+  // =========================
   if (cmd === "guild" || cmd === "g") {
     const sub = args[0]?.toLowerCase();
     if (!sub) {
@@ -239,6 +253,9 @@ export async function processChatCommand(
     return true;
   }
 
+  // =========================
+  // Comando não reconhecido
+  // =========================
   Logger.warn(`Comando desconhecido: ${cmd}. Use /s, /c, /t, /w, /report, /guild, /gmsg`);
   return true;
 }
