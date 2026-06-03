@@ -64,12 +64,11 @@ export class MonsterAI {
     // AGGRO SYSTEM (pegar alvo)
     // =========================
     if (!monster.target) {
-      // Busca jogadores (Creature) em um raio de 6 tiles
       const nearbyPlayers = world.getPlayersInRange(
         monster.position.x,
         monster.position.y,
         6,
-      ) as Creature[]; // getPlayersInRange retorna Damageable[], mas sabemos que são Players (Creature)
+      ) as Creature[];
 
       if (nearbyPlayers.length > 0) {
         monster.target = nearbyPlayers[0];
@@ -77,13 +76,12 @@ export class MonsterAI {
       }
     }
 
-    // Se ainda não tem alvo, move aleatoriamente
     if (!monster.target) {
       this.randomMove(monster, world);
       return;
     }
 
-    const target = monster.target; // agora target é Creature (não undefined)
+    const target = monster.target;
 
     // =========================
     // TARGET LOSS SYSTEM
@@ -99,11 +97,10 @@ export class MonsterAI {
     }
 
     // =========================
-    // FLEE SYSTEM (prioridade alta)
+    // FLEE SYSTEM
     // =========================
     const fleeHp = this.config.fleeHp ?? monster.type.ai.fleeHp;
     if (fleeHp !== undefined && monster.hp <= fleeHp) {
-      // Foge na direção oposta ao alvo
       const dx = monster.position.x - target.position.x;
       const dy = monster.position.y - target.position.y;
       const moveX = dx !== 0 ? (dx > 0 ? 1 : -1) : 0;
@@ -113,21 +110,16 @@ export class MonsterAI {
     }
 
     // =========================
-    // ATTACK SYSTEM
+    // ATTACK SYSTEM (com CooldownManager)
     // =========================
     const attackCooldown = this.config.attackCooldown ?? monster.type.ai.attackCooldown ?? 1000;
-    const now = Date.now();
-    const canAttack = now - monster.lastAttackTime >= attackCooldown;
-
-    if (distanceToTarget <= 1) {
-      if (canAttack) {
-        // Dano calculado a partir do JSON do monstro
-        const damageMin = monster.type.combat.damageMin;
-        const damageMax = monster.type.combat.damageMax;
-        const damage = damageMin + Math.floor(Math.random() * (damageMax - damageMin + 1));
-        CombatSystem.attack(monster, target, world);
-        monster.lastAttackTime = now;
-      }
+    if (distanceToTarget <= 1 && monster.cooldownManager.isReady("attack", attackCooldown)) {
+      // Aplica cooldown antes de atacar
+      monster.cooldownManager.addCooldown("attack", attackCooldown);
+      const damageMin = monster.type.combat.damageMin;
+      const damageMax = monster.type.combat.damageMax;
+      const damage = damageMin + Math.floor(Math.random() * (damageMax - damageMin + 1));
+      CombatSystem.attack(monster, target, world);
       return;
     }
 
@@ -147,9 +139,6 @@ export class MonsterAI {
    * @param monster - O monstro
    * @param world - Mundo
    * @returns {void}
-   *
-   * @example
-   * // Chamado internamente por update()
    */
   private randomMove(monster: Monster, world: World): void {
     const directions = [

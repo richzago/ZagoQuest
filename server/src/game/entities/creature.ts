@@ -10,6 +10,7 @@
 import { CombatStats } from "../../shared/interfaces/combat.interface";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { ConditionManager } from "../combat/conditions/conditionManager";
+import { CooldownManager } from "../combat/cooldownManager";
 import { Entity } from "./entity";
 
 export abstract class Creature extends Entity implements Damageable, CombatStats {
@@ -28,9 +29,10 @@ export abstract class Creature extends Entity implements Damageable, CombatStats
   experience: number; // ← note: é `experience`, não `xp`
 
   // =========================
-  // GERENCIAMENTO DE CONDIÇÕES
+  // GERENCIAMENTO DE CONDIÇÕES E COOLDOWNS
   // =========================
   public conditionManager: ConditionManager;
+  public cooldownManager: CooldownManager;
 
   // Getter/Setter para compatibilidade com código antigo que usa `player.xp`
   get xp(): number {
@@ -85,6 +87,7 @@ export abstract class Creature extends Entity implements Damageable, CombatStats
     this.criticalChance = 0;
     this.criticalMultiplier = 1.5;
     this.conditionManager = new ConditionManager(this);
+    this.cooldownManager = new CooldownManager();
   }
 
   // =========================

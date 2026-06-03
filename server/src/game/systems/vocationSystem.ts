@@ -11,7 +11,7 @@ import { Vocation } from "../../shared/enums/vocation.enum";
 import { VocationConfigs } from "../../data/vocations/vocationConfig";
 import { PromotionBonus } from "../../shared/interfaces/promotion.interface";
 import { Logger } from "../core/logger/logger";
-import { PROMOTIONS_CONFIG } from "../../data/promotions/promotionCOnfig";
+import { PROMOTIONS_CONFIG } from "../../data/promotions/promotionConfig";
 
 export class VocationSystem {
   /**
