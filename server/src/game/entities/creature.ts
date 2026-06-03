@@ -9,6 +9,7 @@
 
 import { CombatStats } from "../../shared/interfaces/combat.interface";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
+import { ConditionManager } from "../combat/conditions/conditionManager";
 import { Entity } from "./entity";
 
 export abstract class Creature extends Entity implements Damageable, CombatStats {
@@ -25,6 +26,11 @@ export abstract class Creature extends Entity implements Damageable, CombatStats
   // =========================
   level: number;
   experience: number; // ← note: é `experience`, não `xp`
+
+  // =========================
+  // GERENCIAMENTO DE CONDIÇÕES
+  // =========================
+  public conditionManager: ConditionManager;
 
   // Getter/Setter para compatibilidade com código antigo que usa `player.xp`
   get xp(): number {
@@ -78,6 +84,7 @@ export abstract class Creature extends Entity implements Damageable, CombatStats
     this.armor = 0;
     this.criticalChance = 0;
     this.criticalMultiplier = 1.5;
+    this.conditionManager = new ConditionManager(this);
   }
 
   // =========================

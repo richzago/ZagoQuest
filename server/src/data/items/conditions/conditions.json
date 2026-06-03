@@ -1,0 +1,59 @@
+[
+  {
+    "id": "poison",
+    "name": "Poison",
+    "description": "Deals damage over time.",
+    "defaultDuration": 10000,
+    "effects": [
+      {
+        "type": "damage_over_time",
+        "damageType": "earth",
+        "amount": 5,
+        "tickInterval": 2000
+      }
+    ]
+  },
+  {
+    "id": "burn",
+    "name": "Burn",
+    "description": "Deals fire damage over time.",
+    "defaultDuration": 8000,
+    "effects": [
+      {
+        "type": "damage_over_time",
+        "damageType": "fire",
+        "amount": 8,
+        "tickInterval": 1500
+      }
+    ]
+  },
+  {
+    "id": "stun",
+    "name": "Stun",
+    "description": "Unable to act.",
+    "defaultDuration": 3000,
+    "effects": [
+      {
+        "type": "stun"
+      }
+    ]
+  },
+  {
+    "id": "haste",
+    "name": "Haste",
+    "description": "Increased attack speed and movement.",
+    "defaultDuration": 15000,
+    "effects": [
+      {
+        "type": "stat_modifier",
+        "stat": "attackCooldown",
+        "modifier": -0.3
+      },
+      {
+        "type": "stat_modifier",
+        "stat": "speed",
+        "modifier": 0.5
+      }
+    ]
+  }
+]

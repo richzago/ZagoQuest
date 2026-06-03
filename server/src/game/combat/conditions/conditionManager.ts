@@ -1,7 +1,9 @@
 /**
  * conditionManager.ts
  *
- * Gerencia as condições ativas em uma entidade.
+ * Gerencia as condições ativas em uma entidade (ex: poison, burn, stun, haste).
+ * Responsável por aplicar, remover, atualizar e processar os efeitos periódicos.
+ * Utiliza o EventSystem para notificar outros sistemas sobre mudanças nas condições.
  *
  * @module game/combat/conditions/ConditionManager
  */
@@ -10,8 +12,30 @@ import { Creature } from "../../entities/creature";
 import { Condition } from "./condition";
 import { ConditionEffect } from "../../../shared/interfaces/condition.interface";
 import { Logger } from "../../core/logger/logger";
+import { EventSystem } from "../../core/events/eventSystem";
+import { GameEvent } from "../../../shared/enums/gameEvent.enum";
+import {
+  ConditionAppliedEventData,
+  ConditionRemovedEventData,
+  ConditionTickEventData,
+} from "../../../shared/interfaces/conditionEventData.interface";
 import { ConditionRegistry } from "../../../data/items/conditions/conditionRegistry";
 
+/**
+ * Gerencia as condições ativas de uma criatura.
+ *
+ * @remarks
+ * Cada condição é identificada por seu ID (ex: "poison") e possui uma duração.
+ * Se a mesma condição for aplicada novamente enquanto ativa, sua duração é reiniciada.
+ * O gerenciador atualiza periodicamente o tempo restante e aplica os efeitos periódicos.
+ *
+ * @example
+ * ```typescript
+ * const manager = new ConditionManager(monster);
+ * manager.apply("poison", 10000);
+ * manager.update(); // deve ser chamado no game loop
+ * ```
+ */
 export class ConditionManager {
   private conditions: Map<string, Condition> = new Map(); // conditionId -> Condition
   private lastUpdate = Date.now();
@@ -21,14 +45,25 @@ export class ConditionManager {
   /**
    * Aplica uma condição à entidade.
    * Se a mesma condição já existir, reinicia a duração.
+   *
    * @param conditionId - ID da condição (ex: "poison")
-   * @param duration - Duração opcional (ms)
+   * @param duration - Duração em milissegundos (opcional, usa o valor padrão da definição)
+   * @param source - Entidade que causou a condição (opcional, para eventos)
+   * @returns {void}
+   *
+   * @remarks
+   * Dispara o evento `CONDITION_APPLIED` via `EventSystem`.
+   *
+   * @example
+   * ```typescript
+   * conditionManager.apply("poison", 5000, attacker);
+   * ```
    */
-  apply(conditionId: string, duration?: number): void {
+  apply(conditionId: string, duration?: number, source?: Creature): void {
     const definition = ConditionRegistry.get(conditionId);
     const existing = this.conditions.get(conditionId);
     if (existing) {
-      // Reinicia a duração
+      // Reinicia a duração da condição existente
       existing.remainingTime = duration ?? definition.defaultDuration;
       existing.startTime = Date.now();
       Logger.combat(`${this.owner.name} já estava com ${definition.name}, duração renovada.`);
@@ -37,23 +72,69 @@ export class ConditionManager {
 
     const condition = new Condition(definition, duration);
     this.conditions.set(conditionId, condition);
-    condition.startPeriodicEffects(this.owner, this.onTick.bind(this));
+    condition.startPeriodicEffects(this.owner, (effect: ConditionEffect, target: Creature) => this.onTick(condition, effect, target));
+
+    // Emitir evento de condição aplicada
+    const eventData: ConditionAppliedEventData = {
+      targetId: this.owner.id,
+      targetName: this.owner.name,
+      conditionId: definition.id,
+      conditionName: definition.name,
+      duration: condition.remainingTime,
+      sourceId: source?.id,
+      sourceName: source?.name,
+    };
+    EventSystem.getInstance().emit(GameEvent.CONDITION_APPLIED, eventData);
+
     Logger.combat(`${this.owner.name} foi afetado por ${definition.name}.`);
   }
 
   /**
-   * Remove uma condição ativa.
+   * Remove uma condição ativa da entidade.
+   *
+   * @param conditionId - ID da condição a ser removida
+   * @param source - Entidade que removeu a condição (opcional, para eventos)
+   * @returns {void}
+   *
+   * @remarks
+   * Dispara o evento `CONDITION_REMOVED` via `EventSystem`.
+   *
+   * @example
+   * ```typescript
+   * conditionManager.remove("poison");
+   * ```
    */
-  remove(conditionId: string): void {
+  remove(conditionId: string, source?: Creature): void {
     const condition = this.conditions.get(conditionId);
     if (!condition) return;
     condition.stopPeriodicEffects();
     this.conditions.delete(conditionId);
+
+    const eventData: ConditionRemovedEventData = {
+      targetId: this.owner.id,
+      targetName: this.owner.name,
+      conditionId: condition.definition.id,
+      conditionName: condition.definition.name,
+      sourceId: source?.id,
+      sourceName: source?.name,
+    };
+    EventSystem.getInstance().emit(GameEvent.CONDITION_REMOVED, eventData);
+
     Logger.combat(`${this.owner.name} não está mais sob efeito de ${condition.definition.name}.`);
   }
 
   /**
-   * Atualiza todas as condições (chamado periodicamente no game loop).
+   * Atualiza todas as condições ativas (deve ser chamado periodicamente no game loop).
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * Atualiza o tempo restante de cada condição. Se alguma expirar, chama `remove()`.
+   *
+   * @example
+   * ```typescript
+   * setInterval(() => conditionManager.update(), 100);
+   * ```
    */
   update(): void {
     const now = Date.now();
@@ -69,31 +150,64 @@ export class ConditionManager {
   }
 
   /**
-   * Aplica os efeitos de um tick (ex: dano periódico).
+   * Callback chamado em cada tick de uma condição (ex: dano periódico).
+   *
+   * @param condition - A condição que está gerando o tick
+   * @param effect - O efeito associado ao tick
+   * @param target - O alvo da condição (geralmente o próprio `owner`)
+   * @returns {void}
+   *
+   * @remarks
+   * Atualmente suporta apenas efeitos do tipo `damage_over_time`.
+   * Dispara o evento `CONDITION_TICK` via `EventSystem`.
+   *
+   * @private
    */
-  private onTick(effect: ConditionEffect, target: Creature): void {
+  private onTick(condition: Condition, effect: ConditionEffect, target: Creature): void {
     if (effect.type === "damage_over_time") {
       const damage = effect.amount ?? 0;
       const damageType = effect.damageType;
-      // Aplica dano diretamente (futuro: usar CombatFormula com resistências)
       target.takeDamage(damage);
+
+      const tickData: ConditionTickEventData = {
+        targetId: target.id,
+        targetName: target.name,
+        conditionId: condition.definition.id,
+        conditionName: condition.definition.name,
+        damage,
+        damageType,
+      };
+      EventSystem.getInstance().emit(GameEvent.CONDITION_TICK, tickData);
+
       Logger.combat(
-        `${target.name} sofreu ${damage} de dano de ${effect.damageType} (${this.owner.name})`,
+        `${target.name} sofreu ${damage} de dano de ${damageType} (${condition.definition.name})`,
       );
-      // TODO: emitir evento de dano
     }
-    // Outros efeitos (stat modifiers) seriam aplicados em tempo real (não implementado agora)
+    // Futuro: outros tipos de efeito (stat modifiers, etc.) seriam implementados aqui
   }
 
   /**
    * Verifica se a entidade possui uma condição ativa.
+   *
+   * @param conditionId - ID da condição
+   * @returns `true` se a condição está ativa, `false` caso contrário
+   *
+   * @example
+   * ```typescript
+   * if (conditionManager.has("poison")) {
+   *   console.log("Está envenenado!");
+   * }
+   * ```
    */
   has(conditionId: string): boolean {
     return this.conditions.has(conditionId);
   }
 
   /**
-   * Retorna a condição ativa (se existir).
+   * Retorna a instância da condição ativa (se existir).
+   *
+   * @param conditionId - ID da condição
+   * @returns A condição ativa ou `undefined` se não estiver presente
    */
   get(conditionId: string): Condition | undefined {
     return this.conditions.get(conditionId);
@@ -101,13 +215,23 @@ export class ConditionManager {
 
   /**
    * Retorna todas as condições ativas.
+   *
+   * @returns Array de condições ativas
    */
   getAll(): Condition[] {
     return Array.from(this.conditions.values());
   }
 
   /**
-   * Limpa todas as condições (ex: quando o jogador morre).
+   * Remove todas as condições ativas (útil para quando a entidade morre).
+   *
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * // Quando o jogador morre
+   * conditionManager.clear();
+   * ```
    */
   clear(): void {
     for (const condition of this.conditions.values()) {

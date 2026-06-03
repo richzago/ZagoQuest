@@ -18,6 +18,11 @@ import {
   PlayerGainXpEventData,
   PlayerLevelUpEventData,
 } from "../../../shared/interfaces/eventData.interface";
+import {
+  ConditionAppliedEventData,
+  ConditionRemovedEventData,
+  ConditionTickEventData,
+} from "../../../shared/interfaces/conditionEventData.interface";
 import { GameEvent } from "../../../shared/enums/gameEvent.enum";
 
 /**
@@ -35,42 +40,68 @@ import { GameEvent } from "../../../shared/enums/gameEvent.enum";
 export function registerEventListeners(): void {
   const eventSystem = EventSystem.getInstance();
 
-  // MONSTER_DEATH → LOOT (morte do monstro gera loot, mas é um evento de jogo)
+  // =========================
+  // Eventos de monstros
+  // =========================
   eventSystem.on<MonsterDeathEventData>(GameEvent.MONSTER_DEATH, (data) => {
     Logger.loot(`Monstro ${data.monsterName} morreu em (${data.position.x}, ${data.position.y})`);
   });
 
-  // COMBAT_KILL → COMBAT (quem matou quem)
+  // =========================
+  // Eventos de combate
+  // =========================
   eventSystem.on<CombatKillEventData>(GameEvent.COMBAT_KILL, (data) => {
     Logger.combat(`${data.killerName} matou ${data.victimName}`);
   });
 
-  // PLAYER_DEATH → SYSTEM (evento de morte do jogador, com informação do assassino)
+  eventSystem.on<CombatDamageEventData>(GameEvent.COMBAT_DAMAGE, (data) => {
+    Logger.combat(
+      `${data.attackerName} causou ${data.damage} de dano em ${data.targetName} (HP restante: ${data.targetHpAfter})`,
+    );
+  });
+
+  // =========================
+  // Eventos do jogador
+  // =========================
   eventSystem.on<PlayerDeathEventData>(GameEvent.PLAYER_DEATH, (data) => {
     Logger.system(
       `Jogador ${data.playerName} morreu${data.killerName ? ` por ${data.killerName}` : ""}`,
     );
   });
 
-  // PLAYER_LEVEL_UP → SKILL (subiu de nível)
   eventSystem.on<PlayerLevelUpEventData>(GameEvent.PLAYER_LEVEL_UP, (data) => {
     Logger.skill(`${data.playerName} subiu do nível ${data.oldLevel} para ${data.newLevel}!`);
   });
 
-  // PLAYER_GAIN_XP → SKILL (ganho de experiência)
   eventSystem.on<PlayerGainXpEventData>(GameEvent.PLAYER_GAIN_XP, (data) => {
     Logger.skill(`${data.playerName} ganhou ${data.amount} XP (total: ${data.newTotalXp})`);
   });
 
-  // ITEM_PICKUP → LOOT (coleta de item)
+  // =========================
+  // Eventos de inventário
+  // =========================
   eventSystem.on<ItemPickupEventData>(GameEvent.ITEM_PICKUP, (data) => {
     Logger.loot(`${data.playerName} coletou ${data.amount}x ${data.itemId}`);
   });
 
-  // COMBAT_DAMAGE → COMBAT (dano causado)
-  eventSystem.on<CombatDamageEventData>(GameEvent.COMBAT_DAMAGE, (data) => {
+  // =========================
+  // Eventos de condições (efeitos)
+  // =========================
+  eventSystem.on<ConditionAppliedEventData>(GameEvent.CONDITION_APPLIED, (data) => {
     Logger.combat(
-      `${data.attackerName} causou ${data.damage} de dano em ${data.targetName} (HP restante: ${data.targetHpAfter})`,
+      `${data.targetName} foi afetado por ${data.conditionName} (duração: ${data.duration}ms)${data.sourceName ? ` por ${data.sourceName}` : ""}`,
+    );
+  });
+
+  eventSystem.on<ConditionRemovedEventData>(GameEvent.CONDITION_REMOVED, (data) => {
+    Logger.combat(
+      `${data.targetName} não está mais sob efeito de ${data.conditionName}${data.sourceName ? ` (removido por ${data.sourceName})` : ""}`,
+    );
+  });
+
+  eventSystem.on<ConditionTickEventData>(GameEvent.CONDITION_TICK, (data) => {
+    Logger.combat(
+      `${data.targetName} sofreu ${data.damage} de dano de ${data.damageType} (${data.conditionName})`,
     );
   });
 }

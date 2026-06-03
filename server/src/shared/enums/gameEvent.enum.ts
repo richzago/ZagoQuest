@@ -49,4 +49,9 @@ export enum GameEvent {
 
   /** Disparado quando uma entidade é morta */
   COMBAT_KILL = "combat:kill",
+
+  // Conditions
+  CONDITION_APPLIED = "condition:applied",
+  CONDITION_REMOVED = "condition:removed",
+  CONDITION_TICK = "condition:tick",
 }
