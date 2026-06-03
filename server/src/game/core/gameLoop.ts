@@ -46,8 +46,13 @@ export function startGameLoops(world: World, renderer: AsciiRenderer): void {
 
   // Loop de IA (monstros e NPCs) – nunca pausa
   setInterval(() => {
-    world.monsters.forEach((m) => m.ai.update(m, world));
-    world.npcs.forEach((n) => n.ai?.update(n, world));
+    world.monsters.forEach((monster) => {
+      monster.ai.update(monster, world);
+      monster.conditionManager.update();
+    });
+    world.npcs.forEach((npc) => npc.ai?.update(npc, world));
+    // Jogador também deve ter suas condições atualizadas:
+    world.players.forEach((player) => player.conditionManager.update());
     world.cleanupDeadMonsters();
   }, 1500);
 
