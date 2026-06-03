@@ -6,11 +6,13 @@
  * Responsabilidades:
  * - Importar o reflect-metadata (necessário para o TypeORM)
  * - Inicializar o sistema de logs e eventos
+ * - Carregar o registro de condições (efeitos como poison, burn, etc.)
  * - Iniciar a API REST (contas, personagens, autenticação)
  * - Aguardar a inicialização da API antes de iniciar o jogo
  * - Iniciar o servidor do jogo (mundo, entidades, loops, etc.)
  *
- * O nome do personagem é fixo ("Richard") enquanto não há integração com a API.
+ * O nome do personagem é definido por variável de ambiente (CHARACTER_NAME)
+ * ou usa "Richard" como padrão durante os testes.
  * Futuramente, será obtido da sessão autenticada via WebSocket.
  *
  * @module main
@@ -23,6 +25,7 @@ import { Logger } from "./game/core/logger/logger";
 import { registerEventListeners } from "./game/core/events/eventListeners";
 import { startApi } from "./api/server";
 import { startGame } from "./game/core/gameStarter";
+import { ConditionRegistry } from "./data/items/conditions/conditionRegistry";
 
 /**
  * Função principal de inicialização do servidor.
@@ -31,6 +34,7 @@ import { startGame } from "./game/core/gameStarter";
  * @remarks
  * A API deve ser inicializada primeiro porque o jogo pode precisar acessar
  * dados do banco (ex: guildas, personagens) durante a inicialização.
+ * As definições de condições são carregadas antes do jogo começar.
  *
  * @returns {Promise<void>}
  */
@@ -41,13 +45,16 @@ async function bootstrap() {
   // 2. Registra os listeners de eventos (logs, conquistas, etc.)
   registerEventListeners();
 
-  // 3. Inicia a API REST e aguarda a conexão com o banco de dados
+  // 3. Carrega as definições de condições (poison, burn, stun, haste)
+  ConditionRegistry.load();
+
+  // 4. Inicia a API REST e aguarda a conexão com o banco de dados
   await startApi();
 
-  // 4. Nome do personagem (temporariamente fixo)
-  const characterName = "Richard";
+  // 5. Nome do personagem (pode vir de variável de ambiente ou fixo para testes)
+  const characterName = process.env.CHARACTER_NAME || "Richard";
 
-  // 5. Inicia o servidor do jogo (mundo, entidades, loops)
+  // 6. Inicia o servidor do jogo (mundo, entidades, loops)
   startGame(characterName);
 }
 

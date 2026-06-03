@@ -141,12 +141,9 @@ export class GuildService {
     const existing = await this.guildRepo.findOne({ where: { name: guildName } });
     if (existing) throw new Error("Já existe uma guilda com este nome.");
     if (character.level < 100) throw new Error("Nível mínimo 100 para criar guilda.");
-    if ((character as any).gold < 20000) throw new Error("Você precisa de 20.000 gold.");
-
-    // Descontar gold (precisa de implementação de gold no Character entity)
-    // Por enquanto, apenas simulamos. Adicione um campo gold em Character se necessário.
-    // (character as any).gold -= 20000;
-    // await this.characterRepo.save(character);
+    if (character.gold < 20000) throw new Error("Você precisa de 20.000 gold.");
+    character.gold -= 20000;
+    await this.characterRepo.save(character);
 
     const newGuild = this.guildRepo.create({
       name: guildName,
