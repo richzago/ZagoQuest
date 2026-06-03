@@ -115,6 +115,12 @@ export class Character {
   @Column({ type: "uuid", nullable: true })
   accountId: string;
 
+  @Column({ type: "varchar", default: "none" })
+  vocation: string; // "knight", "paladin", "druid", "sorcerer"
+
+  @Column({ type: "int", default: 0 })
+  promotionStage: number; // 0 = base, 1 = elite, 2 = champion, etc.
+
   /** Referência à conta proprietária. */
   @ManyToOne(() => Account, (account) => account.characters, { nullable: true })
   @JoinColumn({ name: "accountId" })

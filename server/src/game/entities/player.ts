@@ -19,6 +19,8 @@ import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillState } from "../../shared/interfaces/playerSave.interface";
 import { ItemPickupEventData } from "../../shared/interfaces/eventData.interface";
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
+import { Vocation } from "../../shared/enums/vocation.enum";
+import { VocationSystem } from "../systems/vocationSystem";
 
 export class Player extends Creature {
   // =========================
@@ -51,6 +53,9 @@ export class Player extends Creature {
 
   /** Nome do mundo (futuro para separação de servidores) */
   world: string = "main";
+
+  vocation: Vocation = Vocation.NONE; // versão atual da vocação do jogador
+  promotionStage: number = 0; // para futuras promoções de vocação
 
   // =========================
   // CONSTRUTOR
@@ -91,6 +96,8 @@ export class Player extends Creature {
     this.bankGold = 0;
     this.isFishing = false;
     this.fishingTimer = undefined;
+    this.vocation = Vocation.NONE;
+    this.promotionStage = 0;
 
     // =========================
     // INICIALIZAÇÃO DAS SKILLS
@@ -154,6 +161,9 @@ export class Player extends Creature {
     this.armor = Math.max(0, armor);
     this.criticalChance = Math.min(100, critChance);
     this.criticalMultiplier = Math.max(1.0, critMulti);
+
+    // Aplica bônus de vocação (HP, mana)
+    VocationSystem.applyVocationBonuses(this);
   }
 
   // =========================

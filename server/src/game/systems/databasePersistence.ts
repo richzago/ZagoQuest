@@ -13,6 +13,7 @@ import { Player } from "../entities/player";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillState } from "../../shared/interfaces/playerSave.interface";
+import { Vocation } from "../../shared/enums/vocation.enum";
 
 export class DatabasePersistence {
   private static characterRepo = AppDataSource.getRepository(Character);
@@ -39,6 +40,8 @@ export class DatabasePersistence {
     player.bankGold = character.bankGold;
     player.gender = character.gender;
     player.world = character.world;
+    player.vocation = (character.vocation as Vocation) || Vocation.NONE;
+    player.promotionStage = character.promotionStage || 0;
 
     // Restaura inventário
     player.inventory.clear();
@@ -87,6 +90,8 @@ export class DatabasePersistence {
     character.world = player.world;
     character.posX = player.position.x;
     character.posY = player.position.y;
+    character.vocation = player.vocation;
+    character.promotionStage = player.promotionStage;
 
     // Serializa Map para objeto
     character.inventory = Object.fromEntries(player.inventory);

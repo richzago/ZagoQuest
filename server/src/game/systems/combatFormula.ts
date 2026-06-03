@@ -11,6 +11,7 @@
  * @module game/systems/CombatFormula
  */
 
+import { DamageType } from "../../shared/enums/damageType.enum";
 import { CombatStats, DamageResult } from "../../shared/interfaces/combat.interface";
 import { Logger } from "../core/logger/logger";
 
@@ -33,6 +34,9 @@ export class CombatFormula {
    *
    * @param attacker - Entidade que ataca (deve implementar CombatStats: attack, criticalChance, criticalMultiplier)
    * @param defender - Entidade que defende (deve implementar CombatStats: defense, armor)
+   * @param damageType - Tipo de dano (padrão PHYSICAL)
+   * @param defenderResistances - Multiplicadores de resistência do defensor (ex: { fire: 0.5 })
+   * @param defenderWeaknesses - Multiplicadores de fraqueza do defensor (ex: { ice: 1.5 })
    * @returns Objeto com o dano final e um booleano indicando se foi um golpe crítico
    *
    * @remarks
@@ -42,7 +46,8 @@ export class CombatFormula {
    * 3. Aplica uma variação aleatória entre ±20% (fator entre 0.8 e 1.2).
    * 4. Verifica se ocorre um golpe crítico com base no `attacker.criticalChance`.
    * 5. Se crítico, multiplica o dano pelo `attacker.criticalMultiplier`.
-   * 6. Garante que o dano final seja pelo menos 1.
+   * 6. Aplica resistências e fraquezas do defensor.
+   * 7. Garante que o dano final seja pelo menos 1.
    *
    * Um log é gerado no canal `COMBAT` quando ocorre um acerto crítico.
    *
@@ -50,18 +55,23 @@ export class CombatFormula {
    * ```typescript
    * const attacker: CombatStats = { attack: 20, criticalChance: 10, criticalMultiplier: 1.5 };
    * const defender: CombatStats = { defense: 5, armor: 2 };
-   * const result = CombatFormula.calculateDamage(attacker, defender);
+   * const result = CombatFormula.calculateDamage(attacker, defender, DamageType.FIRE, { fire: 0.8 });
    * // result.damage pode ser, por exemplo, 15, result.isCritical pode ser true
    * ```
    */
-  static calculateDamage(attacker: CombatStats, defender: CombatStats): DamageResult {
+  static calculateDamage(
+    attacker: CombatStats,
+    defender: CombatStats,
+    damageType: DamageType = DamageType.PHYSICAL,
+    defenderResistances?: Partial<Record<DamageType, number>>,
+    defenderWeaknesses?: Partial<Record<DamageType, number>>,
+  ): DamageResult {
     // Fórmula base: dano = ataque - (defesa + armadura/2)
     let rawDamage = attacker.attack - (defender.defense + Math.floor(defender.armor / 2));
-    // Garante mínimo 1 de dano (Tibia sempre causa pelo menos 1)
     rawDamage = Math.max(1, rawDamage);
 
-    // Aplica uma pequena variação aleatória (±20%) para não ficar previsível
-    const variance = 0.8 + Math.random() * 0.4; // entre 0.8 e 1.2
+    // Variação aleatória (±20%)
+    const variance = 0.8 + Math.random() * 0.4;
     let finalDamage = Math.floor(rawDamage * variance);
 
     // Crítico
@@ -73,7 +83,17 @@ export class CombatFormula {
       isCritical = true;
     }
 
-    // Garante que o dano final nunca seja menor que 1
+    // Aplica resistências e fraquezas do defensor
+    let multiplier = 1.0;
+    if (defenderResistances && defenderResistances[damageType]) {
+      multiplier *= defenderResistances[damageType];
+    }
+    if (defenderWeaknesses && defenderWeaknesses[damageType]) {
+      multiplier *= defenderWeaknesses[damageType];
+    }
+    finalDamage = Math.floor(finalDamage * multiplier);
+
+    // Garante mínimo 1 de dano
     finalDamage = Math.max(1, finalDamage);
 
     if (isCritical) {
