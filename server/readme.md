@@ -173,7 +173,7 @@ Isso permite adicionar conteúdo sem alterar código-fonte.
 
 ---
 
-# 🔌 API REST
+## 🔌 API REST
 
 Base URL:
 
@@ -181,7 +181,9 @@ Base URL:
 http://localhost:3000/api
 ```
 
-## Endpoints
+---
+
+## 📌 Endpoints gerais
 
 | Método | Endpoint                         | Descrição          |
 | ------ | -------------------------------- | ------------------ |
@@ -192,7 +194,43 @@ http://localhost:3000/api
 
 ---
 
-## Exemplo - Criar Conta
+## 🏰 Endpoints de Guildas
+
+Base URL:
+
+```txt
+http://localhost:3000/api/guilds
+```
+
+| Método | Rota                          | Autenticação   | Descrição                                         |
+| ------ | ----------------------------- | -------------- | ------------------------------------------------- |
+| GET    | `/rank/level?page=1&limit=10` | ❌              | Lista guildas por nível (desc) e EXP (desempate). |
+| GET    | `/rank/kills?page=1&limit=10` | ❌              | Ranking de guildas por kills (PvP).               |
+| GET    | `/list?page=1&limit=100`      | ❌              | Lista todas as guildas.                           |
+| GET    | `/:guildName`                 | ❌              | Detalhes completos de uma guilda.                 |
+| PUT    | `/:guildName/description`     | ✅ Bearer token | Atualiza descrição (apenas líder).                |
+| PUT    | `/:guildName/profile-image`   | ✅ Bearer token | Atualiza imagem de perfil (apenas líder).         |
+| PUT    | `/:guildName/cover-image`     | ✅ Bearer token | Atualiza imagem de capa (apenas líder).           |
+
+---
+
+## 🔐 Autenticação
+
+Rotas protegidas exigem:
+
+```txt
+Authorization: Bearer <token>
+```
+
+O token é obtido via:
+
+```txt
+POST /api/sessions
+```
+
+---
+
+## 🧪 Exemplo - Criar Conta
 
 ```json
 {
@@ -209,7 +247,7 @@ http://localhost:3000/api
 
 ---
 
-## Exemplo - Login
+## 🔑 Exemplo - Login
 
 ```json
 POST /api/sessions
@@ -230,6 +268,13 @@ Resposta:
 ```
 
 ---
+
+## 🧭 Observação
+
+As rotas de guilda estão em constante evolução e fazem parte do sistema social do ZagoQuest (PvP, ranking e progressão de guildas).
+
+---
+
 
 # 🎮 Comandos do Jogo
 
