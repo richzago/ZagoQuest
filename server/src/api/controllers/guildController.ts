@@ -96,4 +96,26 @@ export class GuildController {
       res.status(400).json({ error: err.message });
     }
   }
+
+  // ========== Criação de guilda ==========
+  /**
+   * Cria uma nova guilda (autenticado).
+   * @body characterName - Nome do personagem (quem está criando)
+   * @body guildName - Nome da guilda
+   * @body description - Descrição da guilda
+   */
+  static async create(req: Request, res: Response) {
+    try {
+      const { characterName, guildName, description } = req.body;
+      if (!characterName || !guildName || !description) {
+        return res
+          .status(400)
+          .json({ error: "characterName, guildName e description são obrigatórios" });
+      }
+      const guild = await GuildService.createGuild(characterName, guildName, description);
+      res.status(201).json({ id: guild.id, name: guild.name, description: guild.description });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
 }

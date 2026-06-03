@@ -23,4 +23,7 @@ router.put("/:guildName/description", authMiddleware, GuildController.updateDesc
 router.put("/:guildName/profile-image", authMiddleware, GuildController.updateProfileImage);
 router.put("/:guildName/cover-image", authMiddleware, GuildController.updateCoverImage);
 
+// Rota protegida para criar guilda (qualquer jogador autenticado que atenda aos requisitos)
+router.post("/", authMiddleware, GuildController.create);
+    
 export default router;
