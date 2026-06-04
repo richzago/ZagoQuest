@@ -3,7 +3,7 @@
  *
  * Fábrica que cria o mundo (World) e o jogador (Player).
  * Responsável por:
- * - Instanciar o World, gerar o mapa (procedural ou via Tiled)
+ * - Instanciar o World, carregar o mapa (via Tiled) ou gerar proceduralmente
  * - Configurar o sistema de spawn de monstros
  * - Carregar ou criar o jogador a partir do banco de dados (PostgreSQL)
  * - Restaurar inventário, equipamentos, skills (via DatabasePersistence)
@@ -21,6 +21,8 @@ import { SpawnSystem } from "../systems/spawnSystem";
 import spawnsData from "../../data/spawns/mapSpawn.json";
 import { GuildService } from "../../api/services/guildService";
 import { DatabasePersistence } from "../systems/databasePersistence";
+import { MapLoader } from "../loaders/mapLoader";
+import { join } from "path";
 
 /**
  * Cria o mundo e o jogador (ou carrega um existente).
@@ -31,12 +33,12 @@ import { DatabasePersistence } from "../systems/databasePersistence";
  * @remarks
  * Esta fábrica é usada pelo `gameStarter` para inicializar o jogo.
  * Passos internos:
- * 1. Gera o mundo procedural (futuramente via Tiled)
- * 2. Configura o sistema de spawn de monstros
- * 3. Carrega ou cria o jogador usando `DatabasePersistence.loadCharacter`
- * 4. (Se novo jogador) persiste no banco imediatamente
- * 5. Atualiza o campo `lastSeen` do jogador na guilda (se houver)
- * 6. Adiciona o jogador ao mundo
+ * 1. Tenta carregar o mapa do Tiled (JSON). Se falhar, gera um mapa procedural.
+ * 2. Configura o sistema de spawn de monstros.
+ * 3. Carrega ou cria o jogador usando `DatabasePersistence.loadCharacter`.
+ * 4. (Se novo jogador) persiste no banco imediatamente.
+ * 5. Atualiza o campo `lastSeen` do jogador na guilda (se houver).
+ * 6. Adiciona o jogador ao mundo.
  *
  * @example
  * ```typescript
@@ -47,9 +49,20 @@ import { DatabasePersistence } from "../systems/databasePersistence";
 export async function createWorldAndPlayer(
   playerName: string,
 ): Promise<{ world: World; player: Player }> {
-  // 1. Cria o mundo (com mapa procedural temporário)
+  // 1. Cria o mundo e carrega o mapa (Tiled ou procedural)
   const world = new World();
-  world.generateMap(20, 10);
+
+  // Caminho do mapa exportado do Tiled
+  const mapPath = join(process.cwd(), "assets", "maps", "zagoworld.json");
+  try {
+    MapLoader.loadMap(world, mapPath);
+    Logger.world(`Mapa carregado do Tiled: ${mapPath}`);
+  } catch (err: any) {
+    Logger.warn(
+      `Não foi possível carregar o mapa de ${mapPath}: ${err.message}. Usando mapa procedural.`,
+    );
+    world.generateMap(20, 10);
+  }
 
   // 2. Configura o sistema de spawn de monstros
   const spawnSystem = new SpawnSystem(world);
