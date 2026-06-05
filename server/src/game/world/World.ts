@@ -1,17 +1,19 @@
 /**
  * world.ts
  *
- * Classe central que representa o mundo do jogo.
+ * Classe central que representa o mundo do jogo (versão headless, sem dependências ASCII).
  * Armazena todas as entidades (players, monsters, npcs, itens, corpos),
  * os tiles do mapa, e fornece métodos para consulta e modificação.
  *
  * Responsabilidades:
  * - Gerenciar as listas de entidades (adição, remoção, busca)
- * - Gerenciar os tiles (geração inicial, acesso seguro)
+ * - Gerenciar os tiles (carregados do Tiled ou gerados proceduralmente)
  * - Fornecer métodos para detecção de colisão (isPositionOccupied)
- * - Buscar jogadores em alcance (para AI de monstros)
+ * - Buscar jogadores em alcance (para IA de monstros)
  * - Limpar monstros mortos periodicamente
- * - Fornecer lista de todas as entidades para o renderizador
+ *
+ * **NOTA:** Esta versão não contém referência ao sistema de spawn/respawn legado (ASCII).
+ * O respawn de monstros deve ser implementado futuramente via eventos ou sistema específico.
  *
  * @module game/world/World
  */
@@ -21,7 +23,6 @@ import { Npc } from "../entities/npc";
 import { Tile } from "./tile";
 import { Monster } from "../entities/monster";
 import { Logger } from "../core/logger/logger";
-import { SpawnSystem } from "../systems/spawnSystem";
 import { ItemEntity } from "../entities/item";
 import { Corpse } from "../entities/corpse";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
@@ -32,18 +33,19 @@ import { Damageable } from "../../shared/interfaces/damageable.interface";
  * @remarks
  * O mundo é responsável por:
  * - Armazenar jogadores, monstros, NPCs, itens e corpos.
- * - Gerenciar o mapa (tiles) e gerar um mapa procedural temporário.
+ * - Gerenciar o mapa (tiles) e gerar um mapa procedural temporário (fallback).
  * - Fornecer métodos de busca de entidades por posição e alcance.
  * - Verificar colisões (posição ocupada).
  * - Limpar monstros mortos periodicamente.
  *
- * O sistema de spawn é referenciado aqui para notificar quando um monstro morre.
- * A geração do mapa é temporária e será substituída pelo carregamento de JSON do Tiled.
+ * O sistema de spawn não está presente nesta versão – os monstros são criados
+ * apenas uma vez pelos loaders (`MonsterLoader`). O respawn pode ser adicionado
+ * como um sistema separado no futuro.
  *
  * @example
  * ```typescript
  * const world = new World();
- * world.generateMap(20, 10);
+ * world.generateMap(20, 10); // fallback, mas normalmente se usa MapLoader
  * const player = new Player(1, "Hero", 2, 2);
  * world.addPlayer(player);
  * ```
@@ -52,9 +54,6 @@ export class World {
   // =========================
   // PROPRIEDADES PÚBLICAS
   // =========================
-
-  /** Referência ao sistema de spawn (para notificar quando monstro morrer) */
-  public spawnSystem?: SpawnSystem;
 
   /** Largura do mundo em tiles */
   width = 0;
@@ -166,12 +165,12 @@ export class World {
   }
 
   // =========================
-  // GERAÇÃO DO MAPA (procedural temporário, será substituído pelo Tiled)
+  // GERAÇÃO DO MAPA (procedural de fallback)
   // =========================
 
   /**
    * Gera um mapa simples de tiles caminháveis, com uma parede de teste em (5,5).
-   * Futuramente será substituído por carregamento de JSON do Tiled.
+   * Este método é usado apenas como fallback quando o mapa Tiled não pode ser carregado.
    *
    * @param width - Largura do mapa (número de tiles)
    * @param height - Altura do mapa
@@ -211,14 +210,6 @@ export class World {
    * @param x - Coordenada X
    * @param y - Coordenada Y
    * @returns O tile encontrado ou `undefined`
-   *
-   * @example
-   * ```typescript
-   * const tile = world.getTile(player.position.x, player.position.y);
-   * if (tile && !tile.walkable) {
-   *   console.log("Você está em um obstáculo!");
-   * }
-   * ```
    */
   getTile(x: number, y: number): Tile | undefined {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
@@ -280,14 +271,6 @@ export class World {
    * @param y - Coordenada Y do centro
    * @param range - Alcance (distância máxima em Manhattan)
    * @returns Array de jogadores dentro do alcance
-   *
-   * @example
-   * ```typescript
-   * const nearbyPlayers = world.getPlayersInRange(monster.position.x, monster.position.y, 6);
-   * if (nearbyPlayers.length > 0) {
-   *   monster.target = nearbyPlayers[0];
-   * }
-   * ```
    */
   getPlayersInRange(x: number, y: number, range: number): Damageable[] {
     return this.players.filter((player) => {
@@ -309,13 +292,6 @@ export class World {
    * @param y - Coordenada Y
    * @param ignoredEntityId - ID de uma entidade a ser ignorada (ex: o próprio jogador ao se mover)
    * @returns `true` se a posição está ocupada, `false` caso contrário
-   *
-   * @example
-   * ```typescript
-   * if (!world.isPositionOccupied(newX, newY, player.id)) {
-   *   player.position = { x: newX, y: newY };
-   * }
-   * ```
    */
   isPositionOccupied(x: number, y: number, ignoredEntityId?: number): boolean {
     const allEntities = [...this.players, ...this.monsters, ...this.npcs];
@@ -333,14 +309,6 @@ export class World {
    * Remove da lista de monstros aqueles com HP <= 0 (mortos).
    * Deve ser chamado periodicamente (a cada 1.5s no game loop).
    * Os corpos já foram criados pelo DeathSystem, então apenas removemos a entidade viva.
-   *
-   * @returns {void}
-   *
-   * @example
-   * ```typescript
-   * // Chamado a cada intervalo no game loop
-   * setInterval(() => world.cleanupDeadMonsters(), 1500);
-   * ```
    */
   cleanupDeadMonsters(): void {
     const before = this.monsters.length;
@@ -348,25 +316,5 @@ export class World {
     if (before !== this.monsters.length) {
       Logger.world(`Removidos ${before - this.monsters.length} monstros mortos.`);
     }
-  }
-
-  // =========================
-  // SUPORTE AO RENDERIZADOR ASCII
-  // =========================
-
-  /**
-   * Retorna uma lista com todas as entidades que devem ser renderizadas (players, monsters, npcs).
-   * Itens e corpos não são renderizados no ASCII (apenas no futuro cliente).
-   *
-   * @returns Array contendo jogadores, monstros e NPCs
-   *
-   * @example
-   * ```typescript
-   * const allEntities = world.getEntities();
-   * allEntities.forEach(entity => console.log(entity.name, entity.symbol));
-   * ```
-   */
-  getEntities(): (Player | Monster | Npc)[] {
-    return [...this.players, ...this.monsters, ...this.npcs];
   }
 }
