@@ -31,6 +31,8 @@ export interface MonsterType {
   stats: {
     hp: number;
     speed?: number;
+    /** Pontos de mana (opcional) */
+    mana?: number;
   };
   combat: {
     xp: number;
@@ -51,7 +53,14 @@ export interface MonsterType {
     fleeHp?: number;
     attackCooldown?: number;
   };
+  /** Flags de comportamento (hostil, atacável, vagueia) */
+  flags?: {
+    hostile?: boolean;
+    attackable?: boolean;
+    wander?: boolean;
+  };
   visual: {
     symbol: string;
+    /** Futuramente: spritesheet, animações, etc. */
   };
 }
