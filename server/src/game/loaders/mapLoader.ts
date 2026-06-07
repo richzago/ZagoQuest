@@ -2,6 +2,12 @@
  * mapLoader.ts
  *
  * Carrega um mapa exportado do Tiled (formato JSON) e constrói o mundo.
+ * Suporta:
+ * - Tile layers (Ground, Decoration, Collision) – usadas para terreno e colisão
+ * - Object layers:
+ *   - PlayerSpawn: define onde o jogador aparece
+ *   - MonsterSpawn: define spawns de monstros (cada objeto com propriedade `monsterId`)
+ *   - (futuro) NPCSpawn, etc.
  *
  * @module game/loaders/MapLoader
  */
@@ -10,74 +16,185 @@ import { World } from "../world/World";
 import { Tile } from "../world/tile";
 import { Logger } from "../core/logger/logger";
 import { readFileSync } from "fs";
-import { TiledMap } from "../../shared/interfaces/map.interface";
+import { TiledMap, TiledObject } from "../../shared/interfaces/map.interface";
 
 /**
- * Classe estática responsável por carregar mapas do Tiled.
+ * Resultado do carregamento do mapa: posição inicial do jogador e lista de monstros a serem criados.
  */
+export interface MapLoadResult {
+  /** Posição (em tiles) onde o jogador deve nascer */
+  playerSpawn?: { x: number; y: number };
+  /** Lista de monstros a serem instanciados */
+  monsters: Array<{
+    x: number;
+    y: number;
+    monsterId: string;
+    /** Tempo de respawn específico (ms). Se omitido, usa o padrão do monstro. */
+    respawnTime?: number;
+    /** Raio de movimento (wander). Se omitido, usa o padrão do monstro. */
+    radius?: number;
+  }>;
+  /** (Reservado para NPCs) */
+  npcs?: Array<{ x: number; y: number; npcId: string }>;
+}
+
 export class MapLoader {
   /**
    * Carrega um mapa a partir de um arquivo JSON exportado do Tiled.
+   * Modifica o mundo (dimensões, tiles, walkable) e retorna informações de spawn.
    *
-   * @param world - Instância do mundo a ser populada.
-   * @param filePath - Caminho absoluto ou relativo ao arquivo JSON (ex: "assets/maps/zagoworld.json").
-   * @returns {void}
+   * @param world - Instância do mundo a ser populada (já criada, mas sem tiles)
+   * @param filePath - Caminho absoluto ou relativo ao arquivo JSON do mapa
+   * @returns Informações de spawn para o jogo (jogador, monstros)
+   *
+   * @throws {Error} Se o arquivo não existir ou o JSON estiver malformado.
    *
    * @remarks
-   * O mapa deve conter pelo menos duas camadas:
-   * - `ground`: define os tiles do chão (todos são caminháveis).
-   * - `collision`: define os tiles bloqueados (tiles com data > 0 tornam walkable = false).
+   * - Assume que tiles com `walkable = true` por padrão, a menos que a layer `Collision` indique o contrário.
+   * - A layer `PlayerSpawn` deve conter um objeto com `name = "Knight"` ou `type = "player"`.
+   * - A layer `MonsterSpawn` deve conter objetos retangulares/pontos. Cada objeto pode ter:
+   *   - `monsterId` (string, obrigatório) – caminho relativo a `data/monsters/`, ex: `animals/lowlevel/rat`.
+   *   - `respawnTime` (int, opcional) – em ms, sobrescreve o padrão do monstro.
+   *   - `radius` (int, opcional) – raio de movimento, sobrescreve o padrão.
+   * - Se um objeto não tiver `monsterId`, ele é ignorado e um aviso é emitido.
    *
    * @example
    * ```typescript
-   * const mapPath = join(process.cwd(), "assets", "maps", "zagoworld.json");
-   * MapLoader.loadMap(world, mapPath);
+   * const world = new World();
+   * const { playerSpawn, monsters } = MapLoader.loadMap(world, 'assets/maps/test-map.json');
    * ```
    */
-  static loadMap(world: World, filePath: string): void {
+  static loadMap(world: World, filePath: string): MapLoadResult {
+    const result: MapLoadResult = { monsters: [] };
+
     try {
+      // 1. Leitura e parse do JSON
       const raw = readFileSync(filePath, "utf-8");
       const mapData: TiledMap = JSON.parse(raw);
 
-      // Redimensiona o mundo
+      // 2. Redimensiona o mundo e limpa os tiles existentes
       world.width = mapData.width;
       world.height = mapData.height;
       world.tiles.clear();
 
-      // Inicializa todos os tiles como caminháveis (walkable = true)
+      // 3. Inicializa todos os tiles como caminháveis (walkable = true)
       for (let x = 0; x < world.width; x++) {
         for (let y = 0; y < world.height; y++) {
           world.tiles.set(`${x},${y}`, new Tile(x, y, true));
         }
       }
 
-      // Processa cada camada
-      for (const layer of mapData.layers) {
-        if (layer.name === "collision") {
-          // Marca tiles como não caminháveis onde houver tile (data > 0)
-          for (let y = 0; y < layer.height; y++) {
-            for (let x = 0; x < layer.width; x++) {
-              const idx = y * layer.width + x;
-              if (layer.data[idx] !== 0) {
-                const tile = world.getTile(x, y);
-                if (tile) tile.walkable = false;
-              }
+      // 4. Processa a camada de colisão (Tile Layer chamada "Collision")
+      const collisionLayer = mapData.layers.find(
+        (l) => l.name === "Collision" && l.type === "tilelayer",
+      );
+      if (collisionLayer && collisionLayer.data) {
+        for (let y = 0; y < collisionLayer.height; y++) {
+          for (let x = 0; x < collisionLayer.width; x++) {
+            const idx = y * collisionLayer.width + x;
+            // Qualquer tile diferente de 0 na camada de colisão bloqueia o movimento
+            if (collisionLayer.data[idx] !== 0) {
+              const tile = world.getTile(x, y);
+              if (tile) tile.walkable = false;
             }
           }
-          Logger.world(`Camada de colisão processada (${layer.name})`);
-        } else if (layer.name === "spawns") {
-          // Futuramente: extrair pontos de spawn de monstros/NPCs
-          Logger.world(`Camada de spawns encontrada (ainda não implementada)`);
-        } else {
-          // Outras camadas (ground, details) não afetam a lógica do servidor
-          Logger.world(`Camada ignorada: ${layer.name}`);
+        }
+        Logger.world(`Camada de colisão processada (${collisionLayer.name})`);
+      } else {
+        Logger.warn(
+          "[MapLoader] Nenhuma camada 'Collision' encontrada. Todos os tiles são caminháveis.",
+        );
+      }
+
+      // 5. Processa todas as object layers (grupos de objetos)
+      for (const layer of mapData.layers) {
+        if (layer.type !== "objectgroup") continue;
+
+        // -------------------- PLAYER SPAWN --------------------
+        if (layer.name === "PlayerSpawn") {
+          // Procura um objeto que represente o jogador (nome "Knight" ou type "player")
+          const playerObj = layer.objects?.find(
+            (obj) => obj.name === "Knight" || obj.type === "player",
+          );
+          if (playerObj) {
+            const tileX = Math.floor(playerObj.x / mapData.tilewidth);
+            const tileY = Math.floor(playerObj.y / mapData.tileheight);
+            result.playerSpawn = { x: tileX, y: tileY };
+            Logger.world(`Spawn do jogador em (${tileX}, ${tileY})`);
+          } else {
+            Logger.warn(
+              "[MapLoader] Layer 'PlayerSpawn' não contém objeto 'Knight' ou type 'player'.",
+            );
+          }
+        }
+        // -------------------- MONSTER SPAWN (GENÉRICO) --------------------
+        else if (layer.name === "MonsterSpawn") {
+          // Propriedades padrão podem ser definidas no nível da layer (ex: monsterId padrão para todos os objetos)
+          const defaultMonsterId = layer.properties?.find((p) => p.name === "monsterId")?.value;
+          const defaultRespawnTime = layer.properties?.find((p) => p.name === "respawnTime")?.value;
+          const defaultRadius = layer.properties?.find((p) => p.name === "radius")?.value;
+
+          for (const obj of layer.objects || []) {
+            // Converte coordenadas de pixels para tiles (considerando o canto superior esquerdo do objeto)
+            const tileX = Math.floor(obj.x / mapData.tilewidth);
+            const tileY = Math.floor(obj.y / mapData.tileheight);
+
+            // Lê as propriedades do objeto (prioridade sobre as padrão da layer)
+            let monsterId = obj.properties?.find((p) => p.name === "monsterId")?.value;
+            if (!monsterId && defaultMonsterId) monsterId = defaultMonsterId;
+
+            // Se não há monsterId, pula este objeto (log de aviso)
+            if (!monsterId) {
+              Logger.warn(
+                `[MapLoader] Objeto em MonsterSpawn na posição (${tileX}, ${tileY}) não possui 'monsterId'. Ignorado.`,
+              );
+              continue;
+            }
+
+            // Propriedades opcionais (respawnTime e radius)
+            let respawnTime = obj.properties?.find((p) => p.name === "respawnTime")?.value;
+            if (respawnTime === undefined && defaultRespawnTime !== undefined)
+              respawnTime = defaultRespawnTime;
+
+            let radius = obj.properties?.find((p) => p.name === "radius")?.value;
+            if (radius === undefined && defaultRadius !== undefined) radius = defaultRadius;
+
+            result.monsters.push({
+              x: tileX,
+              y: tileY,
+              monsterId: String(monsterId),
+              respawnTime: respawnTime ? Number(respawnTime) : undefined,
+              radius: radius ? Number(radius) : undefined,
+            });
+            Logger.world(
+              `Spawn de monstro '${monsterId}' em (${tileX}, ${tileY})${respawnTime ? ` (respawn: ${respawnTime}ms)` : ""}`,
+            );
+          }
+        }
+        // --------------------  NPC SPAWN --------------------
+        else if (layer.name === "NPCSpawn") {
+          for (const obj of layer.objects || []) {
+            const npcId = obj.properties?.find((p) => p.name === "npcId")?.value;
+            if (!npcId) {
+              Logger.warn(
+                `[MapLoader] Objeto em NPCSpawn sem 'npcId' em (${Math.floor(obj.x / mapData.tilewidth)}, ${Math.floor(obj.y / mapData.tileheight)})`,
+              );
+              continue;
+            }
+            const x = Math.floor(obj.x / mapData.tilewidth);
+            const y = Math.floor(obj.y / mapData.tileheight);
+            result.npcs = result.npcs || [];
+            result.npcs.push({ x, y, npcId: String(npcId) });
+            Logger.world(`[MapLoader] Spawn de NPC '${npcId}' em (${x}, ${y})`);
+          }
         }
       }
 
-      Logger.world(`Mapa carregado: ${mapData.width}x${mapData.height} a partir de ${filePath}`);
+      Logger.world(`Mapa carregado: ${mapData.width}x${mapData.height} de ${filePath}`);
+      return result;
     } catch (error: any) {
       Logger.error(`Falha ao carregar mapa: ${error.message}`);
-      throw error;
+      throw error; // Repassa o erro para que o caller decida o fallback
     }
   }
 }

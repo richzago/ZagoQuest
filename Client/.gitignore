@@ -1,0 +1,10 @@
+# Unity
+Library/
+Temp/
+Logs/
+obj/
+UserSettings/
+Assembly-CSharp*.csproj
+*.sln
+.vscode/
+/*.slnx

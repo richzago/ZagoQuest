@@ -1,38 +1,38 @@
 /**
  * gameStarter.ts
  *
- * Orquestra toda a inicialização do jogo:
- * - Cria mundo e jogador (via worldFactory)
- * - Carrega NPCs (via npcLoader)
- * - Configura input, graceful shutdown, game loops
- * - Inicia tarefas agendadas (autosave, inatividade de guildas)
+ * Orquestra a inicialização do jogo na versão **headless** (sem terminal/ASCII).
+ * Utiliza apenas o mapa Tiled, loaders modernos e não depende de renderização ou entrada via teclado.
+ *
+ * Responsabilidades:
+ * - Criar o mundo e o jogador via `worldFactory` (que carrega o mapa Tiled).
+ * - Configurar o graceful shutdown (salvar ao encerrar).
+ * - Iniciar o loop de IA (monstros, NPCs, condições) sem renderização.
+ * - Iniciar tarefas agendadas (autosave, inatividade de guildas).
  *
  * @module game/core/gameStarter
  */
 
-import { AsciiRenderer } from "../rendering/asciiRenderer";
-import { loadNpcs } from "../loaders/npcLoader";
-import { setupInput } from "./inputHandler";
 import { setupGracefulShutdown } from "./shutdownHandler";
-import { startGameLoops } from "./gameLoop";
 import { startScheduledTasks } from "./scheduledTasks";
 import { Logger } from "./logger/logger";
 import { createWorldAndPlayer } from "../initialization/worldFactory";
+import { World } from "../world/World";
 
 /**
- * Inicia o jogo propriamente dito.
+ * Inicia o servidor do jogo (modo headless, pronto para conexões WebSocket).
  *
- * @param characterName - Nome do personagem a ser carregado (vindo da API ou fixo para testes)
+ * @param characterName - Nome do personagem a ser carregado (usado durante testes, futuramente virá da sessão autenticada)
  * @returns {Promise<void>}
  *
  * @remarks
- * Este é o orquestrador principal chamado pelo `main.ts`. Ele:
- * 1. Cria o mundo e o jogador (persistência em JSON)
- * 2. Carrega todos os NPCs estáticos
- * 3. Configura o renderizador ASCII
- * 4. Liga o sistema de entrada (teclado) e graceful shutdown
- * 5. Inicia os loops do jogo (IA e renderização)
- * 6. Inicia as tarefas periódicas (autosave, inatividade de guildas)
+ * **Fluxo de execução:**
+ * 1. Cria o mundo e o jogador via `createWorldAndPlayer()` (carrega mapa Tiled, spawna monstros/NPCs, configura banco).
+ * 2. Registra o graceful shutdown (salva o jogador ao receber SIGINT).
+ * 3. Inicia o loop periódico de IA (monstros, NPCs, condições).
+ * 4. Inicia tarefas agendadas (autosave a cada 60s, processamento de guildas a cada 24h).
+ *
+ * **Nota:** Não há renderização ASCII nem entrada pelo teclado – o servidor aguarda comandos via WebSocket (cliente Unity).
  *
  * @example
  * ```typescript
@@ -41,24 +41,51 @@ import { createWorldAndPlayer } from "../initialization/worldFactory";
  * ```
  */
 export async function startGame(characterName: string): Promise<void> {
-  // 1. Cria o mundo e o jogador (substitui o antigo initializeGame)
+  // 1. Cria o mundo e o jogador (mapa Tiled, loaders)
   const { world, player } = await createWorldAndPlayer(characterName);
 
-  // 2. Carrega todos os NPCs
-  loadNpcs(world);
-
-  // 3. Renderizador ASCII
-  const renderer = new AsciiRenderer();
-
-  // 4. Configurações de input e shutdown
-  setupInput(player, world);
+  // 2. Configura o salvamento ao encerrar (Ctrl+C)
   setupGracefulShutdown(player);
 
-  // 5. Inicia loops do jogo (IA e renderização)
-  startGameLoops(world, renderer);
+  // 3. Inicia apenas o loop de IA (monstros, NPCs, condições) – sem renderização
+  startAiOnlyLoop(world);
 
-  // 6. Inicia tarefas periódicas
+  // 4. Inicia tarefas periódicas (autosave, guildas, etc.)
   startScheduledTasks(player);
 
   Logger.system(`Jogo iniciado com o personagem: ${characterName}`);
+}
+
+/**
+ * Inicia APENAS o loop de IA (monstros, NPCs, condições).
+ * Não aciona renderização ASCII nem entrada de teclado.
+ *
+ * @param world - Mundo do jogo (contém entidades, tiles, etc.)
+ * @returns {void}
+ *
+ * @remarks
+ * O loop executa a cada 1.5 segundos e é responsável por:
+ * - Atualizar a IA dos monstros (aggro, chase, wander, etc.)
+ * - Atualizar condições dos monstros (poison, fire, etc.)
+ * - Atualizar a IA dos NPCs (se tiver movimento)
+ * - Atualizar condições dos jogadores
+ * - Limpar monstros mortos do mundo
+ */
+function startAiOnlyLoop(world: World): void {
+  setInterval(() => {
+    // Atualiza IA e condições dos monstros
+    world.monsters.forEach((monster) => {
+      monster.ai.update(monster, world);
+      monster.conditionManager.update();
+    });
+
+    // Atualiza IA dos NPCs (ex: Guide que anda em círculo)
+    world.npcs.forEach((npc) => npc.ai?.update(npc, world));
+
+    // Atualiza condições dos jogadores (ex: poison, burn)
+    world.players.forEach((player) => player.conditionManager.update());
+
+    // Remove monstros com HP <= 0 (mortos)
+    world.cleanupDeadMonsters();
+  }, 1500);
 }

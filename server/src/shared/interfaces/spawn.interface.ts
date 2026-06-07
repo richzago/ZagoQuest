@@ -1,16 +1,40 @@
-export interface SpawnPointData {
-  id: string;
-  monsterId: string;
+/**
+ * spawn.interface.ts
+ *
+ * Interfaces relacionadas a spawns de entidades (jogador, monstros, NPCs)
+ * carregados a partir do Tiled ou de outras fontes.
+ *
+ * @module shared/interfaces/spawn
+ */
+
+/**
+ * Dados de spawn do jogador.
+ */
+export interface PlayerSpawnData {
   x: number;
   y: number;
-  respawnTimeMs: number;
-  initialDelayMs?: number;
 }
 
-// ActiveSpawn é usada internamente no spawnSystem; pode ficar lá ou ser exportada
-export interface ActiveSpawn {
-  data: SpawnPointData;
-  monsterId?: number;
-  respawnTimer?: NodeJS.Timeout;
-  pendingRespawn: boolean;
+/**
+ * Dados de spawn de um monstro.
+ */
+export interface MonsterSpawnData {
+  x: number;
+  y: number;
+  /** Identificador do monstro – pode ser nome curto (ex: "rat") ou caminho completo (ex: "animals/lowlevel/rat") */
+  monsterId: string;
+  /** Tempo de respawn personalizado (ms) – opcional, sobrescreve o padrão do monstro */
+  respawnTime?: number;
+  /** Raio de movimento (wander) em tiles – opcional, sobrescreve o padrão */
+  radius?: number;
+}
+
+/**
+ * Dados de spawn de um NPC.
+ */
+export interface NpcSpawnData {
+  x: number;
+  y: number;
+  /** Identificador do NPC (ex: "merchant", "banker") – corresponde ao nome do arquivo JSON em data/npc/ */
+  npcId: string;
 }
