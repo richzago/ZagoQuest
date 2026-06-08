@@ -104,11 +104,11 @@ export class Character {
   bankGold: number;
 
   /** Posição X no mundo (tile). */
-  @Column({ type: "int", default: 2 })
+  @Column({ type: "float", default: 0 })
   posX: number;
 
   /** Posição Y no mundo (tile). */
-  @Column({ type: "int", default: 2 })
+  @Column({ type: "float", default: 0 })
   posY: number;
 
   /** ID da conta proprietária (chave estrangeira). */
