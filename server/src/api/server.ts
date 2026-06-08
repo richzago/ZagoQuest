@@ -4,7 +4,7 @@
  * Configura e inicializa o servidor HTTP da API REST.
  * Define middlewares globais (CORS, JSON), rotas e gerencia a conexão com o banco de dados.
  *
- * A função startApi() é chamada pelo main.ts para iniciar a API em paralelo ao servidor do jogo.
+ * Agora retorna o servidor HTTP e o app Express, para permitir a integração com WebSocket.
  *
  * @module api/server
  */
@@ -12,6 +12,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { createServer, Server as HttpServer } from "http";
 import { Logger } from "../game/core/logger/logger";
 import accountRoutes from "./routes/account.routes";
 import sessionRoutes from "./routes/session.routes";
@@ -26,8 +27,8 @@ dotenv.config();
 const app = express();
 
 // Middlewares globais
-app.use(cors()); // Permite requisições de diferentes origens (útil para o cliente Unity)
-app.use(express.json()); // Habilita o parsing de JSON no corpo das requisições
+app.use(cors()); // Permite requisições de diferentes origens
+app.use(express.json()); // Habilita o parsing de JSON
 
 // Rotas da API
 app.use("/api/accounts", accountRoutes);
@@ -36,31 +37,31 @@ app.use("/api/characters", characterRoutes);
 app.use("/api/guilds", guildRoutes);
 
 /**
- * Inicia o servidor da API.
- * Conecta ao banco de dados via TypeORM e, em caso de sucesso, começa a escutar na porta configurada.
- * Em caso de erro, registra o erro e encerra o processo.
+ * Inicializa a conexão com o banco de dados e retorna um servidor HTTP pronto.
+ * O servidor ainda não está escutando; isso deve ser feito externamente para permitir
+ * a adição do WebSocket antes de `listen`.
  *
- * @returns {Promise<void>} Não retorna valor, mas lança exceção em caso de falha crítica.
+ * @returns {Promise<HttpServer>} O servidor HTTP criado (ainda não iniciado).
  *
  * @example
  * ```typescript
  * // No main.ts
- * startApi().catch(err => Logger.error(`Erro ao iniciar API: ${err}`));
+ * const httpServer = await startApi();
+ * const world = new World();
+ * const wsServer = new WebSocketServer(httpServer, world);
+ * httpServer.listen(port);
  * ```
  */
-export const startApi = async () => {
+export const startApi = async (): Promise<HttpServer> => {
   try {
-    // Estabelece a conexão com o PostgreSQL
+    // Conecta ao PostgreSQL
     await AppDataSource.initialize();
     Logger.system("API conectada ao banco de dados (PostgreSQL) com sucesso!");
 
-    // Obtém a porta da variável de ambiente ou usa 3000 como padrão
-    const port = process.env.API_PORT || 3000;
-    app.listen(port, () => {
-      Logger.system(`API REST rodando na porta ${port}`);
-    });
+    // Cria o servidor HTTP a partir do app Express
+    const server = createServer(app);
+    return server;
   } catch (err: any) {
-    // Se a conexão falhar, loga o erro e encerra o processo (o jogo pode continuar? Mas a API é essencial)
     Logger.error(`Falha ao iniciar API: ${err.message}`);
     process.exit(1);
   }

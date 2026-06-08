@@ -1,11 +1,11 @@
 /**
  * gameStarter.ts
  *
- * Orquestra a inicialização do jogo na versão **headless** (sem terminal/ASCII).
- * Utiliza apenas o mapa Tiled, loaders modernos e não depende de renderização ou entrada via teclado.
+ * Orquestra a inicialização dos loops do jogo (headless).
+ * Não cria o mundo – ele deve ser criado externamente (por exemplo, no main.ts)
+ * e passado para esta função.
  *
  * Responsabilidades:
- * - Criar o mundo e o jogador via `worldFactory` (que carrega o mapa Tiled).
  * - Configurar o graceful shutdown (salvar ao encerrar).
  * - Iniciar o loop de IA (monstros, NPCs, condições) sem renderização.
  * - Iniciar tarefas agendadas (autosave, inatividade de guildas).
@@ -16,44 +16,40 @@
 import { setupGracefulShutdown } from "./shutdownHandler";
 import { startScheduledTasks } from "./scheduledTasks";
 import { Logger } from "./logger/logger";
-import { createWorldAndPlayer } from "../initialization/worldFactory";
 import { World } from "../world/World";
+import { Player } from "../entities/player";
 
 /**
- * Inicia o servidor do jogo (modo headless, pronto para conexões WebSocket).
+ * Inicia os loops do servidor do jogo (IA, autosave, guildas) a partir de um mundo e jogador já existentes.
+ * Esta função NÃO cria o mundo – ele deve ser criado antes (ex: via createWorldAndPlayer).
  *
- * @param characterName - Nome do personagem a ser carregado (usado durante testes, futuramente virá da sessão autenticada)
- * @returns {Promise<void>}
+ * @param world - Instância do mundo já carregado (com mapa, entidades, etc.)
+ * @param player - Jogador já carregado (ou criado) e associado ao mundo
+ * @returns {void}
  *
  * @remarks
  * **Fluxo de execução:**
- * 1. Cria o mundo e o jogador via `createWorldAndPlayer()` (carrega mapa Tiled, spawna monstros/NPCs, configura banco).
- * 2. Registra o graceful shutdown (salva o jogador ao receber SIGINT).
- * 3. Inicia o loop periódico de IA (monstros, NPCs, condições).
- * 4. Inicia tarefas agendadas (autosave a cada 60s, processamento de guildas a cada 24h).
- *
- * **Nota:** Não há renderização ASCII nem entrada pelo teclado – o servidor aguarda comandos via WebSocket (cliente Unity).
+ * 1. Configura o graceful shutdown (salva o jogador ao receber SIGINT).
+ * 2. Inicia o loop periódico de IA (monstros, NPCs, condições).
+ * 3. Inicia tarefas agendadas (autosave a cada 60s, processamento de guildas a cada 24h).
  *
  * @example
  * ```typescript
- * // No main.ts
- * startGame("Richard");
+ * // No main.ts, após criar o mundo e o jogador:
+ * startGameLoops(world, player);
  * ```
  */
-export async function startGame(characterName: string): Promise<void> {
-  // 1. Cria o mundo e o jogador (mapa Tiled, loaders)
-  const { world, player } = await createWorldAndPlayer(characterName);
-
-  // 2. Configura o salvamento ao encerrar (Ctrl+C)
+export function startGameLoops(world: World, player: Player): void {
+  // 1. Configura o salvamento ao encerrar (Ctrl+C) – salva o jogador atual
   setupGracefulShutdown(player);
 
-  // 3. Inicia apenas o loop de IA (monstros, NPCs, condições) – sem renderização
+  // 2. Inicia apenas o loop de IA (monstros, NPCs, condições) – sem renderização
   startAiOnlyLoop(world);
 
-  // 4. Inicia tarefas periódicas (autosave, guildas, etc.)
+  // 3. Inicia tarefas periódicas (autosave, guildas, etc.)
   startScheduledTasks(player);
 
-  Logger.system(`Jogo iniciado com o personagem: ${characterName}`);
+  Logger.system("Loops do jogo iniciados (IA, autosave, guildas).");
 }
 
 /**

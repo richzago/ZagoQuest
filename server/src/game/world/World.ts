@@ -301,6 +301,43 @@ export class World {
     });
   }
 
+  /**
+   * Verifica se uma posição (em unidades do mundo, não tiles) é caminhável.
+   * Considera:
+   * - Limites do mapa
+   * - Tile caminhável (walkable)
+   * - Ausência de entidade ocupando a posição (player, monster, npc)
+   *
+   * @param worldX - Coordenada X em unidades do mundo (ex: posição do jogador)
+   * @param worldY - Coordenada Y em unidades do mundo
+   * @param ignoredEntityId - ID da entidade a ser ignorada (ex: o próprio jogador)
+   * @returns `true` se a posição é válida para movimento, `false` caso contrário.
+   */
+  isPositionWalkable(worldX: number, worldY: number, ignoredEntityId?: number): boolean {
+    // Converte de unidades do mundo para coordenadas de tile (cada tile = 1 unidade, mas o servidor trabalha com posições inteiras)
+    // Nota: se o servidor usa coordenadas contínuas, arredonda para o tile correspondente.
+    const tileX = Math.floor(worldX);
+    const tileY = Math.floor(worldY);
+
+    // Verifica limites do mapa
+    if (tileX < 0 || tileY < 0 || tileX >= this.width || tileY >= this.height) {
+      return false;
+    }
+
+    // Verifica se o tile é caminhável
+    const tile = this.getTile(tileX, tileY);
+    if (!tile || !tile.walkable) {
+      return false;
+    }
+
+    // Verifica se a posição está ocupada por alguma entidade (ignorando o próprio jogador)
+    if (this.isPositionOccupied(tileX, tileY, ignoredEntityId)) {
+      return false;
+    }
+
+    return true;
+  }
+
   // =========================
   // LIMPEZA DE MONSTROS MORTOS
   // =========================
