@@ -21,6 +21,7 @@ public class TiledMapRenderer : MonoBehaviour
         RenderGround();
         RenderAllTileLayers();
         ApplyCollision();
+        SpawnEntitiesFromTiled();   // ← NOVO: instancia NPCs e monstros
         CenterCamera();
     }
 
@@ -41,47 +42,47 @@ public class TiledMapRenderer : MonoBehaviour
         Debug.Log($"Tilesets no JSON: {mapData.tilesets.Count}");
     }
 
-void BuildTileCache()
-{
-    foreach (var tileset in mapData.tilesets)
+    void BuildTileCache()
     {
-        string fileName = Path.GetFileNameWithoutExtension(tileset.image);
-        string path = $"Tilesets/{fileName}";
-
-        Sprite[] sprites = Resources.LoadAll<Sprite>(path);
-
-        if (sprites == null || sprites.Length == 0)
+        foreach (var tileset in mapData.tilesets)
         {
-            Debug.LogError($"Tileset vazio: {path}");
-            continue;
-        }
+            string fileName = Path.GetFileNameWithoutExtension(tileset.image);
+            string path = $"Tilesets/{fileName}";
 
-        foreach (var sprite in sprites)
-        {
-            // 🔥 pega número final do nome: _0, _1, _2...
-            string[] split = sprite.name.Split('_');
-            if (!int.TryParse(split[^1], out int index))
+            Sprite[] sprites = Resources.LoadAll<Sprite>(path);
+
+            if (sprites == null || sprites.Length == 0)
             {
-                Debug.LogWarning($"Sprite sem índice válido: {sprite.name}");
+                Debug.LogError($"Tileset vazio: {path}");
                 continue;
             }
 
-            int gid = tileset.firstgid + index;
+            foreach (var sprite in sprites)
+            {
+                // pega número final do nome: _0, _1, _2...
+                string[] split = sprite.name.Split('_');
+                if (!int.TryParse(split[^1], out int index))
+                {
+                    Debug.LogWarning($"Sprite sem índice válido: {sprite.name}");
+                    continue;
+                }
 
-            Tile tile = ScriptableObject.CreateInstance<Tile>();
-            tile.sprite = sprite;
+                int gid = tileset.firstgid + index;
 
-            tileCache[gid] = tile;
+                Tile tile = ScriptableObject.CreateInstance<Tile>();
+                tile.sprite = sprite;
+
+                tileCache[gid] = tile;
+            }
+
+            Debug.Log($"Tileset '{tileset.name}' carregado com segurança");
         }
 
-        Debug.Log($"Tileset '{tileset.name}' carregado com segurança");
+        Debug.Log($"Cache final: {tileCache.Count}");
     }
 
-    Debug.Log($"Cache final: {tileCache.Count}");
-}
-
     // ------------------------------------------------------------
-    // Os métodos abaixo permanecem iguais (RenderGround, RenderAllTileLayers, etc.)
+    // RENDERIZAÇÃO DAS TILE LAYERS
     // ------------------------------------------------------------
     void RenderGround()
     {
@@ -146,6 +147,9 @@ void BuildTileCache()
         Debug.Log($"Layer '{layer.name}': {tilesRendered} tiles desenhados.");
     }
 
+    // ------------------------------------------------------------
+    // COLISÃO
+    // ------------------------------------------------------------
     void ApplyCollision()
     {
         TiledLayer collision = mapData.layers.Find(l => l.name == "Collision" && l.type == "tilelayer");
@@ -171,8 +175,89 @@ void BuildTileCache()
             Debug.LogError("GameManager.Instance não encontrado!");
         Debug.Log("Colisão aplicada.");
     }
-    
 
+    // ------------------------------------------------------------
+    // SPAWN DE ENTIDADES (NPCs e MONSTROS)
+    // ------------------------------------------------------------
+    void SpawnEntitiesFromTiled()
+    {
+        // ====================
+        // 1. Spawn de NPCs (layer NpcSpawn)
+        // ====================
+       TiledLayer npcLayer = mapData.layers.Find(l => l.name == "NPCSpawn" && l.type == "objectgroup");
+        if (npcLayer != null && npcLayer.objects != null)
+        {
+            foreach (var obj in npcLayer.objects)
+            {
+                // Lê a propriedade npcId (obrigatória)
+                string npcId = obj.properties?.Find(p => p.name == "npcId")?.value;
+                if (string.IsNullOrEmpty(npcId))
+                {
+                    Debug.LogWarning($"Objeto na layer 'NpcSpawn' sem 'npcId' (ID: {obj.id})");
+                    continue;
+                }
+
+                // Converte coordenadas de pixels para unidades Unity
+                float x = obj.x / mapData.tilewidth;
+                float y = (mapData.height - 1) - (obj.y / mapData.tileheight);
+                Vector3 position = new Vector3(x, y, 0);
+
+                // Carrega o prefab da pasta Resources/Prefabs/
+                GameObject prefab = Resources.Load<GameObject>($"Prefabs/{npcId}");
+                if (prefab == null)
+                {
+                    Debug.LogWarning($"Prefab não encontrado para NPC '{npcId}'. Crie um prefab em Resources/Prefabs/{npcId}.prefab");
+                    continue;
+                }
+
+                Instantiate(prefab, position, Quaternion.identity);
+                Debug.Log($"NPC '{npcId}' instanciado em ({x}, {y})");
+            }
+        }
+        else
+        {
+            Debug.Log("Nenhuma layer 'NpcSpawn' encontrada.");
+        }
+
+        // ====================
+        // 2. Spawn de Monstros (layer MonsterSpawn)
+        // ====================
+        TiledLayer monsterLayer = mapData.layers.Find(l => l.name == "MonsterSpawn" && l.type == "objectgroup");
+        if (monsterLayer != null && monsterLayer.objects != null)
+        {
+            foreach (var obj in monsterLayer.objects)
+            {
+                string monsterId = obj.properties?.Find(p => p.name == "monsterId")?.value;
+                if (string.IsNullOrEmpty(monsterId))
+                {
+                    Debug.LogWarning($"Objeto na layer 'MonsterSpawn' sem 'monsterId' (ID: {obj.id})");
+                    continue;
+                }
+
+                float x = obj.x / mapData.tilewidth;
+                float y = (mapData.height - 1) - (obj.y / mapData.tileheight);
+                Vector3 position = new Vector3(x, y, 0);
+
+                GameObject prefab = Resources.Load<GameObject>($"Prefabs/{monsterId}");
+                if (prefab == null)
+                {
+                    Debug.LogWarning($"Prefab não encontrado para monstro '{monsterId}'. Crie um prefab em Resources/Prefabs/{monsterId}.prefab");
+                    continue;
+                }
+
+                Instantiate(prefab, position, Quaternion.identity);
+                Debug.Log($"Monstro '{monsterId}' instanciado em ({x}, {y})");
+            }
+        }
+        else
+        {
+            Debug.Log("Nenhuma layer 'MonsterSpawn' encontrada.");
+        }
+    }
+
+    // ------------------------------------------------------------
+    // CÂMERA
+    // ------------------------------------------------------------
     void CenterCamera()
     {
         Camera cam = Camera.main;
