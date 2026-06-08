@@ -21,7 +21,6 @@ public class GameManager : MonoBehaviour
         collisionMatrix = matrix;
         mapWidth = width;
         mapHeight = height;
-          Debug.Log($"Collision matrix set: {width}x{height}. Bloqueios: {CountBlocked()}");
     }
 
     public bool IsTileWalkable(int x, int y)

@@ -99,7 +99,6 @@ public class TiledMapRenderer : MonoBehaviour
             return;
         }
 
-        Debug.Log($"Renderizando chão: layer '{ground.name}'");
         DrawLayer(ground, groundTilemap);
     }
 
