@@ -21,7 +21,13 @@ public class TiledMapRenderer : MonoBehaviour
         RenderGround();
         RenderAllTileLayers();
         ApplyCollision();
-        SpawnEntitiesFromTiled();   // ← NOVO: instancia NPCs e monstros
+
+        // Só spawna entidades do Tiled se não estiver conectado ao servidor (offline)
+        // if (NetworkManager.Instance == null)
+        // {
+        //     SpawnEntitiesFromTiled();
+        // }
+
         CenterCamera();
     }
 
@@ -183,7 +189,7 @@ public class TiledMapRenderer : MonoBehaviour
         // ====================
         // 1. Spawn de NPCs (layer NpcSpawn)
         // ====================
-       TiledLayer npcLayer = mapData.layers.Find(l => l.name == "NPCSpawn" && l.type == "objectgroup");
+        TiledLayer npcLayer = mapData.layers.Find(l => l.name == "NPCSpawn" && l.type == "objectgroup");
         if (npcLayer != null && npcLayer.objects != null)
         {
             foreach (var obj in npcLayer.objects)
