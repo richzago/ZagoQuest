@@ -102,7 +102,7 @@ async function bootstrap() {
     // =========================
     // 6. Inicia os loops do jogo (IA, autosave, guildas) sobre o mundo já criado
     // =========================
-    startGameLoops(world, player);
+    startGameLoops(world, player, wsServer);
     Logger.system(`Jogo iniciado com o personagem: ${characterName}`);
   } catch (error: any) {
     // Captura qualquer erro não tratado durante o bootstrap

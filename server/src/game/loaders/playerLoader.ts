@@ -11,6 +11,7 @@ import { Player } from "../entities/player";
 import { DatabasePersistence } from "../systems/databasePersistence";
 import { GuildService } from "../../api/services/guildService";
 import { Logger } from "../core/logger/logger";
+import { v4 as uuidv4 } from "uuid";
 import { PlayerSpawnData } from "../../shared/interfaces/spawn.interface";
 
 /**
@@ -26,7 +27,7 @@ export class PlayerLoader {
    *
    * @remarks
    * - Se o jogador já existe no banco, apenas atualiza sua posição e salva.
-   * - Se não existe, cria um novo com nível 1, HP/MP padrão, inventário vazio.
+   * - Se não existe, cria um novo com nível 1, HP/MP padrão, inventário vazio, usando UUID.
    * - Após carregar/criar, atualiza o campo `lastSeen` na guilda (para controle de inatividade).
    *
    * @example
@@ -43,11 +44,13 @@ export class PlayerLoader {
     let player = await DatabasePersistence.loadCharacter(playerName);
 
     if (!player) {
-      // Cria um novo jogador
-      // O construtor de Player espera (id, name, x, y). O id pode ser gerado pelo banco depois.
-      player = new Player(1, playerName, spawnPosition.x, spawnPosition.y);
+      // Cria um novo jogador com UUID
+      const newPlayerId = uuidv4();
+      player = new Player(newPlayerId, playerName, spawnPosition.x, spawnPosition.y);
       await DatabasePersistence.saveCharacter(player);
-      Logger.system(`[PlayerLoader] Novo jogador ${player.name} criado e salvo no banco.`);
+      Logger.system(
+        `[PlayerLoader] Novo jogador ${player.name} criado com ID ${newPlayerId} e salvo no banco.`,
+      );
     } else {
       // Reposiciona o jogador existente para o spawn atual do mapa (evita ficar preso em obstáculos)
       player.position.x = spawnPosition.x;

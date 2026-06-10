@@ -83,8 +83,8 @@ export class Player extends Creature {
    * world.addPlayer(player);
    * ```
    */
-  constructor(id: number, name: string, x: number, y: number) {
-    super(id, name, x, y, "P"); // símbolo 'P' para Player no render ASCII
+  constructor(id: string, name: string, x: number, y: number) {
+    super(id, name, x, y);
 
     this.maxHp = 100;
     this.hp = this.maxHp;

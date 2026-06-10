@@ -11,14 +11,13 @@ public class NetworkManager : MonoBehaviour
     private WebSocket websocket;
     public bool isConnected { get; private set; } = false;
 
-    public event Action<int, Vector2> OnInit;
+    public event Action<string, Vector2> OnInit; // playerId (string)
     public event Action<Vector2> OnPositionReceived;
 
     async void Start()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
-
         await Connect();
     }
 
@@ -37,7 +36,6 @@ public class NetworkManager : MonoBehaviour
         {
             string message = System.Text.Encoding.UTF8.GetString(bytes);
             var msg = JsonUtility.FromJson<WebSocketMessage>(message);
-
             Debug.Log($"Recebido: {message}");
 
             if (msg.type == "init")
@@ -61,6 +59,14 @@ public class NetworkManager : MonoBehaviour
             {
                 EntityManager.Instance?.DespawnEntity(msg.id);
             }
+            else if (msg.type == "damage")
+            {
+                EntityManager.Instance?.UpdateMonsterHp(msg.targetId, msg.newHp, msg.maxHp);
+            }
+            else if (msg.type == "chat")
+            {
+                ChatUI.Instance?.AddMessage(msg.message);
+            }
         };
 
         await websocket.Connect();
@@ -82,6 +88,20 @@ public class NetworkManager : MonoBehaviour
         await websocket.SendText(JsonUtility.ToJson(moveMsg));
     }
 
+    public async void SendChat(string message)
+    {
+        if (websocket == null || websocket.State != WebSocketState.Open) return;
+        var chatMsg = new ChatMessage { type = "chat", message = message };
+        await websocket.SendText(JsonUtility.ToJson(chatMsg));
+    }
+
+    public async void SendAttack(string targetId)
+    {
+        if (websocket == null || websocket.State != WebSocketState.Open) return;
+        var attackMsg = new AttackMessage { type = "attack", targetId = targetId };
+        await websocket.SendText(JsonUtility.ToJson(attackMsg));
+    }
+
     async void OnDestroy()
     {
         if (websocket != null && websocket.State == WebSocketState.Open)
@@ -92,11 +112,13 @@ public class NetworkManager : MonoBehaviour
     private class WebSocketMessage
     {
         public string type;
-        public int playerId;
-        public int id;
+        public string playerId;
+        public string id;
+        public string targetId;
         public string name;
         public float x, y;
-        public int hp;
+        public int hp, maxHp, newHp;
+        public string message;
     }
 
     [Serializable]
@@ -104,5 +126,19 @@ public class NetworkManager : MonoBehaviour
     {
         public string type;
         public float x, y;
+    }
+
+    [Serializable]
+    private class ChatMessage
+    {
+        public string type;
+        public string message;
+    }
+
+    [Serializable]
+    private class AttackMessage
+    {
+        public string type;
+        public string targetId;
     }
 }

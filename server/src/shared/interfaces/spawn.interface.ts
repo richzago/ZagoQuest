@@ -27,6 +27,7 @@ export interface MonsterSpawnData {
   respawnTime?: number;
   /** Raio de movimento (wander) em tiles – opcional, sobrescreve o padrão */
   radius?: number;
+  id?: string;
 }
 
 /**

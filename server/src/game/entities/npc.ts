@@ -34,6 +34,9 @@ export class Npc extends Creature {
   /** Saldo bancário (não usado no momento; o banco é global por jogador) */
   bankBalance?: number;
 
+  isTalking: boolean = false; // indica se o NPC está em conversa com algum jogador
+  talkingToPlayerId?: string; // opcional: guarda o ID do jogador (para futuro)
+
   /**
    * Cria um novo NPC.
    *
@@ -52,14 +55,14 @@ export class Npc extends Creature {
    * ```
    */
   constructor(
-    id: number,
+    id: string,
     name: string,
     x: number,
     y: number,
     message: string,
     npcType: NpcType = "quest",
   ) {
-    super(id, name, x, y, "N");
+    super(id, name, x, y);
     this.message = message;
     this.npcType = npcType;
     this.maxHp = 100;

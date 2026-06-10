@@ -2,6 +2,7 @@
  * Atributos de combate de uma entidade (Player, Monster).
  */
 export interface CombatStats {
+  id?: string;
   attack: number;
   defense: number;
   armor: number;

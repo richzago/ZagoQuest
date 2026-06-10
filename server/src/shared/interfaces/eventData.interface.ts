@@ -1,57 +1,57 @@
 export interface MonsterDeathEventData {
-  monsterId: number;
+  monsterId: string;
   monsterName: string;
-  killerId?: number;
+  killerId?: string;
   killerName?: string;
   position: { x: number; y: number };
 }
 
 export interface MonsterSpawnEventData {
-  monsterId: number;
+  monsterId: string;
   monsterName: string;
   position: { x: number; y: number };
 }
 
 export interface PlayerDeathEventData {
-  playerId: number;
+  playerId: string;
   playerName: string;
-  killerId?: number;
+  killerId?: string;
   killerName?: string;
 }
 
 export interface PlayerLevelUpEventData {
-  playerId: number;
+  playerId: string;
   playerName: string;
   oldLevel: number;
   newLevel: number;
 }
 
 export interface PlayerGainXpEventData {
-  playerId: number;
+  playerId: string;
   playerName: string;
   amount: number;
   newTotalXp: number;
 }
 
 export interface ItemPickupEventData {
-  playerId: number;
+  playerId: string;
   playerName: string;
   itemId: string;
   amount: number;
 }
 
 export interface CombatDamageEventData {
-  attackerId: number;
+  attackerId: string;
   attackerName: string;
-  targetId: number;
+  targetId: string;
   targetName: string;
   damage: number;
   targetHpAfter: number;
 }
 
 export interface CombatKillEventData {
-  killerId: number;
+  killerId: string;
   killerName: string;
-  victimId: number;
+  victimId: string;
   victimName: string;
 }

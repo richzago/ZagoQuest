@@ -3,7 +3,7 @@
  * Nota: não estende Entity para evitar dependência circular.
  */
 export interface Damageable {
-  id: number;
+  id: string;
   name: string;
   hp: number;
   maxHp: number;

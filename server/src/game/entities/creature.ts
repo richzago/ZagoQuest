@@ -72,8 +72,8 @@ export abstract class Creature extends Entity implements Damageable, CombatStats
    * - CriticalChance: 0
    * - CriticalMultiplier: 1.5
    */
-  constructor(id: number, name: string, x: number, y: number, symbol: string) {
-    super(id, name, x, y, symbol);
+  constructor(id: string, name: string, x: number, y: number) {
+    super(id, name, x, y);
 
     this.hp = 100;
     this.maxHp = 100;

@@ -9,26 +9,26 @@
 import { DamageType } from "../enums/damageType.enum";
 
 export interface ConditionAppliedEventData {
-  targetId: number;
+  targetId: string;
   targetName: string;
   conditionId: string;
   conditionName: string;
   duration: number;
-  sourceId?: number;
+  sourceId?: string;
   sourceName?: string;
 }
 
 export interface ConditionRemovedEventData {
-  targetId: number;
+  targetId: string;
   targetName: string;
   conditionId: string;
   conditionName: string;
-  sourceId?: number;
+  sourceId?: string;
   sourceName?: string;
 }
 
 export interface ConditionTickEventData {
-  targetId: number;
+  targetId: string;
   targetName: string;
   conditionId: string;
   conditionName: string;

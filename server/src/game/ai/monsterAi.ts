@@ -3,6 +3,7 @@
  *
  * Inteligência artificial para monstros.
  * Segue o fluxo: aggro → perseguição → fuga → ataque.
+ * Agora respeita um raio de afastamento máximo (wanderRadius) do ponto de spawn.
  *
  * @module game/ai/MonsterAI
  */
@@ -17,51 +18,18 @@ import { MonsterAIConfig } from "../../shared/interfaces/combat.interface";
 /**
  * IA padrão dos monstros.
  *
- * Fluxo de decisão:
- * 1. Procura alvo (Aggro) – busca por criaturas (Players)
- * 2. Perde alvo se muito longe
- * 3. Foge se HP baixo
- * 4. Ataca se estiver adjacente
- * 5. Caso contrário, persegue alvo
- *
  * @class MonsterAI
- * @param {MonsterAIConfig} [config={}] - Configurações opcionais (fleeHp, attackCooldown)
- *
- * @example
- * ```typescript
- * // Monstro normal
- * const ai = new MonsterAI();
- *
- * // Monstro com fuga em HP < 10 e cooldown de ataque de 1.5s
- * const fleeAI = new MonsterAI({ fleeHp: 10, attackCooldown: 1500 });
- * ```
+ * @param config - Configurações opcionais (fleeHp, attackCooldown)
  */
 export class MonsterAI {
   constructor(private config: MonsterAIConfig = {}) {}
 
   /**
    * Atualiza o comportamento do monstro a cada tick do game loop.
-   *
-   * @param monster - O monstro que está sendo controlado
-   * @param world - Referência ao mundo (para buscar jogadores e mover)
-   * @returns {void}
-   *
-   * @example
-   * // Chamado automaticamente pelo game loop
-   * monster.ai.update(monster, world);
-   *
-   * @remarks
-   * A IA executa as etapas na seguinte ordem:
-   * 1. Se não tiver alvo, procura jogadores num raio de 6 tiles.
-   * 2. Se o alvo estiver a mais de 10 tiles de distância, perde o alvo.
-   * 3. Se o HP do monstro estiver abaixo do limite de fuga (fleeHp), foge.
-   * 4. Se estiver adjacente ao alvo e o cooldown de ataque tiver passado, ataca.
-   * 5. Caso contrário, persegue o alvo.
-   * 6. Se não houver alvo, move-se aleatoriamente (wander).
    */
   update(monster: Monster, world: World): void {
     // =========================
-    // AGGRO SYSTEM (pegar alvo)
+    // 1. Procura alvo (aggro) – raio 6 tiles
     // =========================
     if (!monster.target) {
       const nearbyPlayers = world.getPlayersInRange(
@@ -76,6 +44,7 @@ export class MonsterAI {
       }
     }
 
+    // Se não tem alvo, anda aleatoriamente (respeitando raio de wander)
     if (!monster.target) {
       this.randomMove(monster, world);
       return;
@@ -84,7 +53,7 @@ export class MonsterAI {
     const target = monster.target;
 
     // =========================
-    // TARGET LOSS SYSTEM
+    // 2. Perda de alvo (>10 tiles de distância)
     // =========================
     const distanceToTarget =
       Math.abs(target.position.x - monster.position.x) +
@@ -97,7 +66,7 @@ export class MonsterAI {
     }
 
     // =========================
-    // FLEE SYSTEM
+    // 3. Fuga (se HP baixo)
     // =========================
     const fleeHp = this.config.fleeHp ?? monster.type.ai.fleeHp;
     if (fleeHp !== undefined && monster.hp <= fleeHp) {
@@ -110,21 +79,17 @@ export class MonsterAI {
     }
 
     // =========================
-    // ATTACK SYSTEM (com CooldownManager)
+    // 4. Ataque (se adjacente e cooldown ok)
     // =========================
     const attackCooldown = this.config.attackCooldown ?? monster.type.ai.attackCooldown ?? 1000;
     if (distanceToTarget <= 1 && monster.cooldownManager.isReady("attack", attackCooldown)) {
-      // Aplica cooldown antes de atacar
       monster.cooldownManager.addCooldown("attack", attackCooldown);
-      const damageMin = monster.type.combat.damageMin;
-      const damageMax = monster.type.combat.damageMax;
-      const damage = damageMin + Math.floor(Math.random() * (damageMax - damageMin + 1));
       CombatSystem.attack(monster, target, world);
       return;
     }
 
     // =========================
-    // CHASE SYSTEM
+    // 5. Perseguição
     // =========================
     const dx = target.position.x - monster.position.x;
     const dy = target.position.y - monster.position.y;
@@ -135,12 +100,30 @@ export class MonsterAI {
 
   /**
    * Movimento aleatório usado quando não há alvo (wander).
+   * Respeita o raio de deslocamento (wanderRadius) definido no Tiled (ou padrão 3).
    *
    * @param monster - O monstro
    * @param world - Mundo
-   * @returns {void}
    */
   private randomMove(monster: Monster, world: World): void {
+    // Usa o raio de wander (armazenado no monstro) ou padrão 3
+    const radius = monster.wanderRadius ?? 3;
+
+    // Calcula distância Manhattan ao ponto de origem
+    const originX = monster.spawnX ?? monster.position.x;
+    const originY = monster.spawnY ?? monster.position.y;
+    const distToOrigin =
+      Math.abs(monster.position.x - originX) + Math.abs(monster.position.y - originY);
+
+    // Se já está no limite, força retorno ao centro
+    if (distToOrigin >= radius) {
+      const moveX = originX > monster.position.x ? 1 : -1;
+      const moveY = originY > monster.position.y ? 1 : -1;
+      monster.move(moveX, moveY, world);
+      return;
+    }
+
+    // Movimento aleatório (apenas horizontal/vertical)
     const directions = [
       { x: 1, y: 0 },
       { x: -1, y: 0 },

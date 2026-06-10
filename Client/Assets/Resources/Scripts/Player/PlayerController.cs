@@ -3,7 +3,6 @@ using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("Configurações")]
     public float speed = 5f;
 
     private Rigidbody2D rb;
@@ -12,9 +11,6 @@ public class PlayerController : MonoBehaviour
     private Animator animator;
     private NetworkManager networkManager;
 
-    private Vector2 serverPosition;      // Última posição recebida do servidor
-    private bool hasServerPosition = false;
-
     void Awake()
     {
         inputActions = new PlayerInputActions();
@@ -22,9 +18,7 @@ public class PlayerController : MonoBehaviour
         animator = GetComponent<Animator>();
         networkManager = FindAnyObjectByType<NetworkManager>();
 
-        if (rb == null) Debug.LogError("PlayerController: Rigidbody2D ausente");
-        if (animator == null) Debug.LogError("PlayerController: Animator ausente");
-        if (networkManager == null) Debug.LogError("PlayerController: NetworkManager ausente");
+        if (networkManager == null) Debug.LogError("NetworkManager não encontrado!");
     }
 
     void OnEnable()
@@ -33,7 +27,7 @@ public class PlayerController : MonoBehaviour
         if (networkManager != null)
         {
             networkManager.OnPositionReceived += OnServerPosition;
-            networkManager.OnInit += OnServerInit;
+            networkManager.OnInit += OnServerInit;  // ← assinatura deve corresponder
         }
     }
 
@@ -49,12 +43,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // Lê input
         movement.x = inputActions.Gameplay.MoveX.ReadValue<float>();
         movement.y = inputActions.Gameplay.MoveY.ReadValue<float>();
         movement.Normalize();
 
-        // Atualiza animações
         if (animator != null)
         {
             animator.SetFloat("MoveX", movement.x);
@@ -63,27 +55,32 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-  void FixedUpdate()
-{
-    if (movement != Vector2.zero)
+    void FixedUpdate()
     {
-        Vector2 desiredPos = rb.position + movement * speed * Time.fixedDeltaTime;
-        networkManager.SendMove(desiredPos);
+        if (movement != Vector2.zero)
+        {
+            Vector2 desiredPos = rb.position + movement * speed * Time.fixedDeltaTime;
+            networkManager.SendMove(desiredPos);
+        }
     }
-}
 
-    // Posição inicial enviada pelo servidor
-    private void OnServerInit(int playerId, Vector2 pos)
+    /// <summary>
+    /// Evento chamado quando o servidor envia a posição inicial (init).
+    /// </summary>
+    /// <param name="playerId">ID do jogador (UUID, string)</param>
+    /// <param name="pos">Posição inicial</param>
+    private void OnServerInit(string playerId, Vector2 pos)
     {
         rb.position = pos;
-        serverPosition = pos;
-        hasServerPosition = true;
+        Debug.Log($"Player inicializado em {pos} com ID {playerId}");
     }
 
-    // Posição autoritativa atualizada
+    /// <summary>
+    /// Evento chamado quando o servidor envia uma posição autoritativa (position).
+    /// </summary>
+    /// <param name="newPos">Nova posição</param>
     private void OnServerPosition(Vector2 newPos)
-{
-    rb.position = newPos;
-    transform.position = newPos;
-}
+    {
+        rb.position = newPos;
+    }
 }

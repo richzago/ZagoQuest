@@ -14,10 +14,10 @@ import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillState } from "../../shared/interfaces/playerSave.interface";
 import { Vocation } from "../../shared/enums/vocation.enum";
+import { v4 as uuidv4 } from "uuid";
 
 export class DatabasePersistence {
   private static characterRepo = AppDataSource.getRepository(Character);
-  private static nextPlayerId = 1000; // IDs sequenciais para runtime
 
   /**
    * Carrega um personagem do banco de dados e retorna uma instância de Player.
@@ -28,8 +28,8 @@ export class DatabasePersistence {
     const character = await this.characterRepo.findOne({ where: { name: characterName } });
     if (!character) return null;
 
-    // Cria jogador com ID sequencial (não usa UUID do banco)
-    const player = new Player(this.nextPlayerId++, character.name, character.posX, character.posY);
+    // Cria jogador usando o UUID do banco
+    const player = new Player(character.id, character.name, character.posX, character.posY);
     player.level = character.level;
     player.experience = character.xp;
     player.hp = character.hp;
@@ -74,6 +74,7 @@ export class DatabasePersistence {
     let character = await this.characterRepo.findOne({ where: { name: player.name } });
     if (!character) {
       character = this.characterRepo.create();
+      character.id = player.id; // usa o UUID do jogador (que foi gerado via uuidv4)
       character.name = player.name;
     }
 

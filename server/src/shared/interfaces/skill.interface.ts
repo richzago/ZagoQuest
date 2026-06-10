@@ -12,7 +12,7 @@ export interface SkillConfig {
 }
 
 export interface SkillLevelUpEventData {
-  playerId: number;
+  playerId: string;
   playerName: string;
   skill: SkillType;
   oldLevel: number;

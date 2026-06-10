@@ -10,7 +10,7 @@
 import { World } from "../world/World";
 
 export class Entity {
-  id: number;
+  id: string;
   name: string;
   symbol: string;
   position: { x: number; y: number };
@@ -25,10 +25,10 @@ export class Entity {
    * @param y - Posição Y inicial
    * @param symbol - Símbolo ASCII para renderização
    */
-  constructor(id: number, name: string, x: number, y: number, symbol?: any) {
+  constructor(id: string, name: string, x: number, y: number, symbol?: any) {
     this.id = id;
     this.name = name;
-    this.symbol = symbol;
+    // this.symbol = symbol; ascii
     this.position = { x, y };
   }
 

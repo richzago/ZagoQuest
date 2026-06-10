@@ -4,7 +4,8 @@
  * Gerencia a morte de entidades (jogadores e monstros).
  *
  * - Jogador: perde 10% do XP (penalidade), emite evento, respawn na posição (0,0) com HP cheio.
- * - Monstro: concede XP ao killer, gera loot, cria um corpo (Corpse) no lugar, emite eventos de morte e abate.
+ * - Monstro: concede XP ao killer, gera loot, cria um corpo (Corpse) no lugar, emite eventos de morte,
+ *   agenda respawn automático (usando os dados de spawn armazenados) e notifica os clientes.
  *
  * O sistema usa o EventSystem para notificar outros sistemas (ex: quests, conquistas).
  *
@@ -26,14 +27,18 @@ import {
 } from "../../shared/interfaces/eventData.interface";
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
+import { WebSocketServer } from "../../network/websocket/wsServer";
+import { MonsterRegistry } from "../../data/monsters/monsterRegistry";
+import { MonsterAI } from "../ai/monsterAi";
+import { generateId } from "../../shared/utils/idUtils";
 
 /**
  * Classe estática que orquestra as consequências da morte de uma entidade.
  *
  * @remarks
  * - Para jogadores: aplica penalidade de 10% de XP, emite evento e respawna na posição (0,0) com HP cheio.
- * - Para monstros: concede XP ao assassino (se for jogador), gera loot, cria um corpo (Corpse) no lugar do monstro,
- *   emite eventos de morte (para quests, estatísticas) e marca o monstro como morto (HP = 0).
+ * - Para monstros: concede XP ao assassino (se for jogador), gera loot, cria um corpo (Corpse),
+ *   emite eventos de morte, agenda respawn e notifica os clientes via WebSocket.
  *
  * O sistema depende do `ExperienceSystem` para cálculo de XP, do `LootSystem` para geração de itens,
  * e do `EventSystem` para notificar outros módulos (ex: quests, conquistas).
@@ -122,11 +127,12 @@ export class DeathSystem {
    * - Gera o loot (via `LootSystem.generateLoot`)
    * - Cria um corpo (`Corpse`) no lugar do monstro
    * - Emite eventos `MONSTER_DEATH` e `COMBAT_KILL`
-   * - Marca o monstro como morto (HP = 0)
+   * - Agenda respawn usando os dados de spawn armazenados no mundo
+   * - Notifica os clientes via WebSocket (despawn imediato e spawn futuro)
    *
    * @param monster - Monstro morto
    * @param killer - Quem matou (opcional, pode ser `Player`, `Monster` ou `undefined`)
-   * @param world - Mundo (para adicionar o corpo)
+   * @param world - Mundo (para adicionar o corpo e acessar pontos de spawn)
    * @returns {void}
    *
    * @remarks
@@ -134,7 +140,7 @@ export class DeathSystem {
    * O loot é gerado estocasticamente baseado nas chances definidas no JSON do monstro.
    * O corpo contém o loot e pode ser saqueado pelo jogador (tecla `G`).
    * Os eventos `MONSTER_DEATH` e `COMBAT_KILL` são emitidos para sistemas de quests, estatísticas e conquistas.
-   * O monstro não é removido imediatamente; apenas seu HP é zerado. A remoção ocorre no `World.cleanupDeadMonsters()`.
+   * O respawn é agendado usando o `respawnTime` do spawn point (padrão 10 segundos).
    *
    * @example
    * ```typescript
@@ -167,7 +173,8 @@ export class DeathSystem {
     }
 
     // 3. Cria um corpo (entidade inerte) na posição do monstro contendo o loot
-    const corpse = new Corpse(Date.now(), monster.position.x, monster.position.y, loot, killer?.id);
+    const corpseId = generateId(); // UUID
+    const corpse = new Corpse(corpseId, monster.position.x, monster.position.y, loot, killer?.id);
     world.addCorpse(corpse);
 
     // 4. Emite eventos para outros sistemas (ex: quests de "mate 10 ratos")
@@ -190,5 +197,36 @@ export class DeathSystem {
 
     // 5. Marca o monstro como morto (HP = 0). O world.cleanupDeadMonsters() irá removê‑lo posteriormente.
     monster.hp = 0;
+    // =========================
+    // Respawn automático (usando dados do próprio monstro)
+    // =========================
+    const respawnTime = monster.respawnTime;
+    setTimeout(() => {
+      const monsterDef = MonsterRegistry.get(monster.type.id);
+      if (monsterDef) {
+        const newId = generateId(); // ← UUID
+        const newMonster = new Monster(
+          newId,
+          monsterDef,
+          monster.spawnX,
+          monster.spawnY,
+          new MonsterAI(),
+          monster.wanderRadius,
+          monster.respawnTime,
+        );
+        world.addMonster(newMonster);
+        Logger.world(
+          `Monstro ${newMonster.name} respawnado em (${monster.spawnX}, ${monster.spawnY}) com ID ${newId}`,
+        );
+
+        // Notifica todos os clientes
+        const ws = WebSocketServer.getInstance();
+        if (ws) {
+          ws.broadcastSpawn(newMonster);
+        }
+      } else {
+        Logger.error(`[Respawn] Definição do monstro ${monster.name} não encontrada.`);
+      }
+    }, respawnTime);
   }
 }

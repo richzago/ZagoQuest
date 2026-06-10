@@ -26,6 +26,7 @@ import { Logger } from "../core/logger/logger";
 import { ItemEntity } from "../entities/item";
 import { Corpse } from "../entities/corpse";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
+import { MonsterSpawnData } from "../../shared/interfaces/spawn.interface";
 
 /**
  * Representa o mundo do jogo, contendo todas as entidades, tiles e sistemas auxiliares.
@@ -78,6 +79,8 @@ export class World {
 
   /** Corpos de monstros mortos (contêm loot) */
   corpses: Corpse[] = [];
+  /** Pontos de spawn de monstros (definidos pelos loaders, mas não usados para respawn nesta versão) */
+  spawnPoints: MonsterSpawnData[] = [];
 
   // =========================
   // ADIÇÃO DE ENTIDADES
@@ -161,7 +164,7 @@ export class World {
    * @returns O corpo encontrado ou `undefined`
    */
   getCorpseAt(x: number, y: number): Corpse | undefined {
-    return this.corpses.find((c) => c.x === x && c.y === y);
+    return this.corpses.find((c) => c.position.x === x && c.position.y === y);
   }
 
   // =========================
@@ -280,7 +283,6 @@ export class World {
       return distance <= range;
     });
   }
-
   // =========================
   // COLISÃO
   // =========================
@@ -293,7 +295,7 @@ export class World {
    * @param ignoredEntityId - ID de uma entidade a ser ignorada (ex: o próprio jogador ao se mover)
    * @returns `true` se a posição está ocupada, `false` caso contrário
    */
-  isPositionOccupied(x: number, y: number, ignoredEntityId?: number): boolean {
+  isPositionOccupied(x: number, y: number, ignoredEntityId?: string): boolean {
     const allEntities = [...this.players, ...this.monsters, ...this.npcs];
     return allEntities.some((entity) => {
       if (entity.id === ignoredEntityId) return false;
@@ -313,7 +315,7 @@ export class World {
    * @param ignoredEntityId - ID da entidade a ser ignorada (ex: o próprio jogador)
    * @returns `true` se a posição é válida para movimento, `false` caso contrário.
    */
-  isPositionWalkable(worldX: number, worldY: number, ignoredEntityId?: number): boolean {
+  isPositionWalkable(worldX: number, worldY: number, ignoredEntityId?: string): boolean {
     // Converte de unidades do mundo para coordenadas de tile (cada tile = 1 unidade, mas o servidor trabalha com posições inteiras)
     // Nota: se o servidor usa coordenadas contínuas, arredonda para o tile correspondente.
     const tileX = Math.floor(worldX);

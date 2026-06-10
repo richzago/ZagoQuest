@@ -28,7 +28,7 @@ public class TiledMapRenderer : MonoBehaviour
         //     SpawnEntitiesFromTiled();
         // }
 
-        CenterCamera();
+        // CenterCamera();
     }
 
     void LoadMap()

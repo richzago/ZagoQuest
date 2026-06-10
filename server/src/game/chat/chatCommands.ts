@@ -25,6 +25,7 @@ import { World } from "../world/World";
 import { ChatSystem } from "./chatSystem";
 import { Logger } from "../core/logger/logger";
 import { GuildService } from "../../api/services/guildService";
+import { Npc } from "../entities/npc";
 
 /**
  * Processa uma linha de comando que começa com '/'.
@@ -108,6 +109,57 @@ export async function processChatCommand(
     const reportedName = args[0];
     const reason = args.slice(1).join(" ");
     ChatSystem.reportPlayer(player, reportedName, reason);
+    return true;
+  }
+
+  // =========================
+  // Interação com NPC
+  // =========================
+
+  if (cmd === "hi" || cmd === "oi" || cmd === "olá" || cmd === "hello") {
+    // Procura o NPC mais próximo (em até 2 tiles)
+    let closestNpc: Npc | null = null;
+    let minDist = 3; // distância máxima para interagir
+    for (const npc of world.npcs) {
+      const dx = Math.abs(npc.position.x - player.position.x);
+      const dy = Math.abs(npc.position.y - player.position.y);
+      const dist = dx + dy;
+      if (dist < minDist) {
+        minDist = dist;
+        closestNpc = npc;
+      }
+    }
+    if (closestNpc && minDist <= 2) {
+      if (closestNpc.isTalking && closestNpc.talkingToPlayerId !== player.id) {
+        ChatSystem.sendPrivateMessage(
+          player,
+          player.name,
+          `O NPC ${closestNpc.name} já está conversando com outro jogador.`,
+          [player],
+        );
+      } else {
+        closestNpc.isTalking = true;
+        closestNpc.talkingToPlayerId = player.id;
+        ChatSystem.sendPrivateMessage(player, player.name, closestNpc.message, [player]);
+      }
+    } else {
+      ChatSystem.sendPrivateMessage(player, player.name, "Nenhum NPC próximo.", [player]);
+    }
+    return true;
+  }
+
+  if (cmd === "bye" || cmd === "tchau") {
+    // Procura NPC com o qual o jogador está conversando
+    for (const npc of world.npcs) {
+      if (npc.talkingToPlayerId === player.id) {
+        npc.isTalking = false;
+        npc.talkingToPlayerId = undefined;
+        ChatSystem.sendPrivateMessage(player, player.name, `Você se despediu de ${npc.name}.`, [
+          player,
+        ]);
+        break;
+      }
+    }
     return true;
   }
 

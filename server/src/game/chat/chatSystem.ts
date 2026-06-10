@@ -2,7 +2,7 @@
  * chatSystem.ts
  *
  * Lógica de envio de mensagens para canais públicos, privadas e denúncias.
- * Utiliza o ChatLogger para persistência.
+ * Utiliza o ChatLogger para persistência e o WebSocketServer para envio em tempo real.
  *
  * @module game/chat/chatSystem
  */
@@ -11,20 +11,11 @@ import { Player } from "../entities/player";
 import { Logger } from "../core/logger/logger";
 import { ChatMessageLog, ReportLog } from "../../shared/interfaces/chat.interface";
 import { ChatLogger } from "./chatLogger";
+import { WebSocketServer } from "../../network/websocket/wsServer"; //
 
 export class ChatSystem {
   /**
    * Envia uma mensagem para um canal público (support, community, trade).
-   *
-   * @param player - Jogador remetente
-   * @param channel - Nome do canal ('support', 'community', 'trade')
-   * @param message - Texto da mensagem
-   * @returns {void}
-   *
-   * @example
-   * ```typescript
-   * ChatSystem.sendToChannel(player, "support", "Estou com um bug!");
-   * ```
    */
   static sendToChannel(player: Player, channel: string, message: string): void {
     const formatted = `[${channel.toUpperCase()}] ${player.name}: ${message}`;
@@ -42,17 +33,7 @@ export class ChatSystem {
 
   /**
    * Envia uma mensagem privada de um jogador para outro.
-   *
-   * @param sender - Quem envia
-   * @param targetName - Nome do destinatário
-   * @param message - Texto da mensagem
-   * @param allPlayers - Lista de todos os jogadores online (para encontrar o destinatário)
-   * @returns {void}
-   *
-   * @example
-   * ```typescript
-   * ChatSystem.sendPrivateMessage(player, "Richard", "Olá!", world.players);
-   * ```
+   * Além de logar, também envia a mensagem via WebSocket para o destinatário.
    */
   static sendPrivateMessage(
     sender: Player,
@@ -78,20 +59,16 @@ export class ChatSystem {
       message,
     };
     ChatLogger.saveMessage(log);
+
+    // 🔥 Envia a mensagem para o jogador alvo via WebSocket (se ele estiver online)
+    const wsServer = WebSocketServer.getInstance();
+    if (wsServer) {
+      wsServer.sendChatToPlayer(target.id, formatted);
+    }
   }
 
   /**
    * Registra uma denúncia de um jogador contra outro.
-   *
-   * @param reporter - Quem denuncia
-   * @param reportedName - Nome do denunciado
-   * @param reason - Motivo da denúncia
-   * @returns {void}
-   *
-   * @example
-   * ```typescript
-   * ChatSystem.reportPlayer(player, "Hacker", "spamming and offensive language");
-   * ```
    */
   static reportPlayer(reporter: Player, reportedName: string, reason: string): void {
     const report: ReportLog = {
