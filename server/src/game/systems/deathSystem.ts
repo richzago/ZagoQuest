@@ -177,6 +177,12 @@ export class DeathSystem {
     const corpse = new Corpse(corpseId, monster.position.x, monster.position.y, loot, killer?.id);
     world.addCorpse(corpse);
 
+    // Notifica os clientes sobre o novo corpo (que pode ser saqueado)
+    const ws = WebSocketServer.getInstance();
+    if (ws) {
+      ws.broadcastSpawnCorpse(corpse);
+    }
+
     // 4. Emite eventos para outros sistemas (ex: quests de "mate 10 ratos")
     const eventSystem = EventSystem.getInstance();
     eventSystem.emit<MonsterDeathEventData>(GameEvent.MONSTER_DEATH, {

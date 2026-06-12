@@ -2,7 +2,7 @@
  * wsServer.ts
  *
  * Servidor WebSocket para comunicação em tempo real com o cliente Unity.
- * Gerencia conexões, movimentos, chat, combate e atualização de entidades.
+ * Gerencia conexões, movimentos, chat, combate, spawn/despawn e loot.
  *
  * @module network/websocket/wsServer
  */
@@ -16,10 +16,11 @@ import { processChatCommand } from "../../game/chat/chatCommands";
 import { ChatSystem } from "../../game/chat/chatSystem";
 import { CombatSystem } from "../../game/combat/combatSystem";
 import { Monster } from "../../game/entities/monster";
+import { Corpse } from "../../game/entities/corpse"; // ← importação necessária para loot
 
 /**
  * Servidor WebSocket responsável por receber comandos dos clientes
- * e enviar atualizações do mundo (posição de entidades, spawn, despawn, chat, combate).
+ * e enviar atualizações do mundo (posição de entidades, spawn, despawn, chat, combate, loot).
  */
 export class WebSocketServer {
   private wss: WSServer;
@@ -72,6 +73,12 @@ export class WebSocketServer {
               break;
             case "attack":
               await this.handleAttack(ws, msg);
+              break;
+            case "loot":
+              await this.handleLoot(ws, msg);
+              break;
+            case "takeLoot":
+              await this.handleTakeLoot(ws, msg);
               break;
             default:
               Logger.warn(`Tipo de mensagem desconhecido: ${msg.type}`);
@@ -155,7 +162,6 @@ export class WebSocketServer {
       player.position.x = x;
       player.position.y = y;
       ws.send(JSON.stringify({ type: "position", x, y }));
-      // Broadcast para outros jogadores (caso haja mais de um)
       this.broadcastMove(player.id, x, y, ws);
     } else {
       ws.send(JSON.stringify({ type: "position", x: player.position.x, y: player.position.y }));
@@ -195,7 +201,8 @@ export class WebSocketServer {
    * Processa um comando de ataque enviado pelo cliente.
    * @param ws - WebSocket do cliente.
    * @param msg - Objeto com `targetId`.
-   */ private async handleAttack(ws: WebSocket, msg: { targetId: string }): Promise<void> {
+   */
+  private async handleAttack(ws: WebSocket, msg: { targetId: string }): Promise<void> {
     const player = this.clients.get(ws);
     if (!player) return;
 
@@ -206,14 +213,108 @@ export class WebSocketServer {
       return;
     }
 
-    // Executa o ataque
     CombatSystem.attack(player, target, this.world);
 
-    // Após o ataque, se o monstro morreu, envia despawn imediato
     if (target.hp <= 0) {
       this.broadcastDespawn(target.id);
     } else {
       this.broadcastDamage(target.id, target.hp, target.maxHp);
+    }
+  }
+
+  /**
+   * Processa uma solicitação de loot (abrir corpo).
+   * @param ws - WebSocket do cliente.
+   * @param msg - Objeto com `corpseId`.
+   */
+  private async handleLoot(ws: WebSocket, msg: { corpseId: string }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const { corpseId } = msg;
+    const corpse = this.world.corpses.find((c) => c.id === corpseId);
+    if (!corpse) {
+      Logger.warn(`Jogador ${player.name} tentou lootear corpse inexistente ${corpseId}`);
+      ws.send(JSON.stringify({ type: "lootError", message: "Corpse not found" }));
+      return;
+    }
+
+    // Distância máxima Manhattan = 2 tiles
+    const dx = Math.abs(corpse.position.x - player.position.x);
+    const dy = Math.abs(corpse.position.y - player.position.y);
+    if (dx + dy > 2) {
+      Logger.warn(`Jogador ${player.name} muito longe do corpse ${corpseId}`);
+      ws.send(JSON.stringify({ type: "lootError", message: "Too far from corpse" }));
+      return;
+    }
+
+    // Envia a lista de itens para o cliente
+    ws.send(
+      JSON.stringify({
+        type: "lootWindow",
+        corpseId: corpse.id,
+        items: corpse.loot, // array de { itemId, amount }
+      }),
+    );
+    Logger.world(`Jogador ${player.name} abriu loot do corpse ${corpseId}`);
+  }
+
+  /**
+   * Processa a coleta de itens de um corpse (pegar todos ou um específico).
+   * @param ws - WebSocket do cliente.
+   * @param msg - Objeto com `corpseId`, `takeAll` e `itemIndex`.
+   */
+  private async handleTakeLoot(
+    ws: WebSocket,
+    msg: { corpseId: string; takeAll: boolean; itemIndex?: number },
+  ): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const corpse = this.world.corpses.find((c) => c.id === msg.corpseId);
+    if (!corpse) {
+      ws.send(JSON.stringify({ type: "lootError", message: "Corpse not found" }));
+      return;
+    }
+
+    // Verifica distância novamente
+    const dx = Math.abs(corpse.position.x - player.position.x);
+    const dy = Math.abs(corpse.position.y - player.position.y);
+    if (dx + dy > 2) {
+      ws.send(JSON.stringify({ type: "lootError", message: "Too far from corpse" }));
+      return;
+    }
+
+    if (msg.takeAll) {
+      // Adiciona todos os itens ao inventário do jogador
+      for (const item of corpse.loot) {
+        player.addItem(item.itemId, item.amount);
+        Logger.loot(
+          `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
+        );
+      }
+      // Remove o corpse
+      this.world.removeCorpse(corpse);
+      this.broadcastDespawn(corpse.id);
+      ws.send(JSON.stringify({ type: "lootTaken", corpseId: corpse.id }));
+    } else if (msg.itemIndex !== undefined) {
+      const item = corpse.loot[msg.itemIndex];
+      if (item) {
+        player.addItem(item.itemId, item.amount);
+        Logger.loot(
+          `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
+        );
+        corpse.loot.splice(msg.itemIndex, 1);
+        if (corpse.loot.length === 0) {
+          this.world.removeCorpse(corpse);
+          this.broadcastDespawn(corpse.id);
+        }
+        ws.send(
+          JSON.stringify({ type: "lootTaken", corpseId: corpse.id, itemIndex: msg.itemIndex }),
+        );
+      } else {
+        ws.send(JSON.stringify({ type: "lootError", message: "Item not found" }));
+      }
     }
   }
 
@@ -270,9 +371,6 @@ export class WebSocketServer {
   }
 
   /**
-   * Envia uma mensagem de spawn de um monstro para todos os clientes.
-   */
-  /**
    * Envia uma mensagem de spawn para todos os clientes.
    * @param monster - Monstro recém‑criado (respawnado)
    */
@@ -285,6 +383,25 @@ export class WebSocketServer {
       y: monster.position.y,
       hp: monster.hp,
       maxHp: monster.maxHp,
+    });
+    for (const [socket] of this.clients.entries()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(msg);
+      }
+    }
+  }
+
+  /**
+   * Envia uma mensagem de spawn de um corpse para todos os clientes.
+   * @param corpse - Corpo a ser spawnado
+   */
+  public broadcastSpawnCorpse(corpse: Corpse): void {
+    const msg = JSON.stringify({
+      type: "spawn",
+      id: corpse.id,
+      name: "Corpse",
+      x: corpse.position.x,
+      y: corpse.position.y,
     });
     for (const [socket] of this.clients.entries()) {
       if (socket.readyState === WebSocket.OPEN) {

@@ -12,6 +12,7 @@ public class EntityManager : MonoBehaviour
     public GameObject goblinPrefab;
     public GameObject merchantPrefab;
     public GameObject bankerPrefab;
+    public GameObject corpsePrefab; // ← Prefab do corpo (adicionado)
 
     void Awake()
     {
@@ -21,10 +22,11 @@ public class EntityManager : MonoBehaviour
         prefabMap["goblin"] = (goblinPrefab, true);
         prefabMap["merchant"] = (merchantPrefab, false);
         prefabMap["banker"] = (bankerPrefab, false);
+        // Corpse não é adicionado ao prefabMap – será tratado separadamente
     }
 
     /// <summary>
-    /// Instancia uma entidade (monstro ou NPC) a partir dos dados recebidos do servidor.
+    /// Instancia uma entidade (monstro, NPC ou corpse) a partir dos dados recebidos do servidor.
     /// </summary>
     public void SpawnEntity(string id, string name, float x, float y, int hp = -1)
     {
@@ -40,8 +42,36 @@ public class EntityManager : MonoBehaviour
             return;
         }
 
-        string key = name.ToLower();
-        if (!prefabMap.TryGetValue(key, out var entry))
+        string lowerName = name.ToLower();
+        Vector3 pos = new Vector3(x, y, 0);
+        GameObject go = null;
+
+        // ====================
+        // CASO ESPECIAL: CORPSE
+        // ====================
+        if (lowerName == "corpse")
+        {
+            if (corpsePrefab == null)
+            {
+                Debug.LogError("[Spawn] corpsePrefab não atribuído no EntityManager!");
+                return;
+            }
+            go = Instantiate(corpsePrefab, pos, Quaternion.identity);
+            entities[id] = go;
+
+            // Adiciona o componente de identidade do corpo
+            CorpseIdentity corpseId = go.GetComponent<CorpseIdentity>();
+            if (corpseId == null) corpseId = go.AddComponent<CorpseIdentity>();
+            corpseId.corpseId = id;
+
+            Debug.Log($"[Spawn] Corpse (ID {id}) spawnado em ({x}, {y})");
+            return;
+        }
+
+        // ====================
+        // MONSTROS E NPCs
+        // ====================
+        if (!prefabMap.TryGetValue(lowerName, out var entry))
         {
             Debug.LogError($"Prefab não encontrado para entidade '{name}' (ID {id})");
             return;
@@ -50,8 +80,7 @@ public class EntityManager : MonoBehaviour
         GameObject prefab = entry.prefab;
         bool isMonster = entry.isMonster;
 
-        Vector3 pos = new Vector3(x, y, 0);
-        GameObject go = Instantiate(prefab, pos, Quaternion.identity);
+        go = Instantiate(prefab, pos, Quaternion.identity);
         entities[id] = go;
 
         // Remove componentes antigos (caso o prefab os tenha)

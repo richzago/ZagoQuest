@@ -11,7 +11,8 @@ public class NetworkManager : MonoBehaviour
     private WebSocket websocket;
     public bool isConnected { get; private set; } = false;
 
-    public event Action<string, Vector2> OnInit; // playerId (string)
+    // Eventos
+    public event Action<string, Vector2> OnInit;
     public event Action<Vector2> OnPositionReceived;
 
     async void Start()
@@ -36,7 +37,6 @@ public class NetworkManager : MonoBehaviour
         {
             string message = System.Text.Encoding.UTF8.GetString(bytes);
             var msg = JsonUtility.FromJson<WebSocketMessage>(message);
-            Debug.Log($"Recebido: {message}");
 
             if (msg.type == "init")
             {
@@ -65,7 +65,26 @@ public class NetworkManager : MonoBehaviour
             }
             else if (msg.type == "chat")
             {
-                ChatUI.Instance?.AddMessage(msg.message);
+                if (ChatUI.Instance != null) ChatUI.Instance.AddMessage(msg.message);
+                else Debug.LogWarning("ChatUI.Instance não encontrado");
+            }
+            else if (msg.type == "lootWindow")
+            {
+                // Log detalhado para depuração
+                string itemsText = string.Join(", ", System.Array.ConvertAll(msg.items, i => $"{i.itemId} x{i.amount}"));
+                Debug.Log($"[LOOT] Corpse {msg.corpseId} contém: {itemsText}");
+
+                if (LootUI.Instance != null) LootUI.Instance.ShowLootWindow(msg.corpseId, msg.items);
+                else Debug.LogError("LootUI.Instance não encontrado");
+            }
+            else if (msg.type == "lootTaken")
+            {
+                if (LootUI.Instance != null) LootUI.Instance.CloseLootWindow();
+            }
+            else if (msg.type == "lootError")
+            {
+                Debug.LogError($"Erro ao lootear: {msg.message}");
+                // Opcional: exibir mensagem na UI
             }
         };
 
@@ -81,6 +100,9 @@ public class NetworkManager : MonoBehaviour
 #endif
     }
 
+    // =========================
+    // ENVIO DE MENSAGENS
+    // =========================
     public async void SendMove(Vector2 targetPos)
     {
         if (websocket == null || websocket.State != WebSocketState.Open) return;
@@ -102,12 +124,35 @@ public class NetworkManager : MonoBehaviour
         await websocket.SendText(JsonUtility.ToJson(attackMsg));
     }
 
+    public async void SendLoot(string corpseId)
+    {
+        if (websocket == null || websocket.State != WebSocketState.Open) return;
+        var lootMsg = new LootMessage { type = "loot", corpseId = corpseId };
+        await websocket.SendText(JsonUtility.ToJson(lootMsg));
+    }
+
+    public async void SendTakeLoot(string corpseId, bool takeAll = true, int itemIndex = -1)
+    {
+        if (websocket == null || websocket.State != WebSocketState.Open) return;
+        var takeMsg = new TakeLootMessage
+        {
+            type = "takeLoot",
+            corpseId = corpseId,
+            takeAll = takeAll,
+            itemIndex = itemIndex
+        };
+        await websocket.SendText(JsonUtility.ToJson(takeMsg));
+    }
+
     async void OnDestroy()
     {
         if (websocket != null && websocket.State == WebSocketState.Open)
             await websocket.Close();
     }
 
+    // =========================
+    // CLASSES DE MENSAGEM
+    // =========================
     [Serializable]
     private class WebSocketMessage
     {
@@ -115,10 +160,12 @@ public class NetworkManager : MonoBehaviour
         public string playerId;
         public string id;
         public string targetId;
+        public string corpseId;
         public string name;
         public float x, y;
         public int hp, maxHp, newHp;
         public string message;
+        public LootItem[] items;
     }
 
     [Serializable]
@@ -140,5 +187,28 @@ public class NetworkManager : MonoBehaviour
     {
         public string type;
         public string targetId;
+    }
+
+    [Serializable]
+    private class LootMessage
+    {
+        public string type;
+        public string corpseId;
+    }
+
+    [Serializable]
+    private class TakeLootMessage
+    {
+        public string type;
+        public string corpseId;
+        public bool takeAll;
+        public int itemIndex;
+    }
+
+    [Serializable]
+    public class LootItem
+    {
+        public string itemId;
+        public int amount;
     }
 }

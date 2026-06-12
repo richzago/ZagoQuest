@@ -46,15 +46,37 @@ public class TargetSelector : MonoBehaviour
 
         Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
         RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
-        if (hit.collider != null && hit.collider.CompareTag("Monster"))
+        if (hit.collider != null)
         {
-            string clickedId = GetEntityIdFromGameObject(hit.collider.gameObject);
-            if (!string.IsNullOrEmpty(clickedId))
+            // ====================
+            // CLIQUE EM MONSTRO
+            // ====================
+            if (hit.collider.CompareTag("Monster"))
             {
-                if (currentTargetId == clickedId)
-                    AttackCurrentTarget();
-                else
-                    SelectTarget(clickedId);
+                string clickedId = GetEntityIdFromGameObject(hit.collider.gameObject);
+                if (!string.IsNullOrEmpty(clickedId))
+                {
+                    if (currentTargetId == clickedId)
+                        AttackCurrentTarget();
+                    else
+                        SelectTarget(clickedId);
+                }
+            }
+            // ====================
+            // CLIQUE EM CORPSE
+            // ====================
+            else if (hit.collider.CompareTag("Corpse"))
+            {
+                CorpseIdentity corpse = hit.collider.GetComponent<CorpseIdentity>();
+                if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
+                {
+                    Debug.Log($"[TargetSelector] Clicou no corpo ID {corpse.corpseId}");
+                    NetworkManager.Instance.SendLoot(corpse.corpseId);
+                }
+            }
+            else
+            {
+                ClearTarget();
             }
         }
         else
@@ -115,7 +137,7 @@ public class TargetSelector : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[TargetSelector] Atacando ID {currentTargetId}");
+        // Debug.Log($"[TargetSelector] Atacando ID {currentTargetId}");
         NetworkManager.Instance.SendAttack(currentTargetId);
     }
 

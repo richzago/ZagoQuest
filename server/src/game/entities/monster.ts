@@ -21,7 +21,7 @@ export class Monster extends Creature {
   spawnX: number;
   spawnY: number;
   wanderRadius: number = 3;
-  respawnTime: number = 10000; // padrão 10s
+  respawnTime: number = 100000; // tempo em ms para respawn após morte
 
   constructor(
     id: string,
