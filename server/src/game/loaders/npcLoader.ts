@@ -24,6 +24,7 @@ import { Logger } from "../core/logger/logger";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { NpcSpawnData } from "../../shared/interfaces/spawn.interface";
+import { NpcType } from "../../shared/types/npc.type";
 
 /**
  * Loader especializado para NPCs, utilizando dados do Tiled.
@@ -69,12 +70,12 @@ export class NpcLoader {
 
         // Cria o NPC com os dados do arquivo, mas sobrescreve a posição com a do spawn
         const npc = new Npc(
-          data.id,
+          data.id.toString(),
           data.name,
           spawn.x,
           spawn.y,
           data.message || "",
-          data.type || "quest",
+          data.type as NpcType,
         );
 
         // Adiciona itens de loja se existirem (para mercadores)
@@ -112,7 +113,7 @@ export class NpcLoader {
 
         world.addNpc(npc);
         Logger.world(
-          `[NPC Loader] NPC ${npc.name} (${npc.npcType}) carregado do Tiled em (${spawn.x}, ${spawn.y}) com IA (radius=${radius}, interactionRadius=${interactionRadius}, cooldown=${moveCooldown}ms)`,
+          `[NPC Loader] NPC criado com ID ${npc.id}, nome ${npc.name}, tipo ${npc.npcType}`,
         );
       } catch (err) {
         Logger.error(`[NPC Loader] Erro ao carregar NPC ${spawn.npcId}: ${err}`);

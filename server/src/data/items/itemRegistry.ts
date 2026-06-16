@@ -1,93 +1,78 @@
-/**
- * itemRegistry.ts
- *
- * Registro central de itens.
- * Carrega arquivos JSON individuais ou arrays de itens sob demanda (lazy loading).
- *
- * @module data/items/ItemRegistry
- */
-
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readdirSync, readFileSync } from "fs";
+import { join, basename } from "path";
 import { Logger } from "../../game/core/logger/logger";
 import { ItemType } from "../../shared/interfaces/item.interface";
 
 export class ItemRegistry {
-  /** Cache de itens já carregados (itemId → ItemType) */
   private static items = new Map<string, ItemType>();
 
   /**
-   * Carrega um ou mais itens a partir de um caminho (relativo à pasta `items`).
+   * Carrega recursivamente todos os arquivos .json da pasta base.
+   * Cada item é registrado sob duas chaves:
+   * - O `id` definido dentro do JSON (caminho completo, se existir).
+   * - O nome base do arquivo (ex: `bone_sword`).
+   * Ambos apontam para o mesmo objeto.
    *
-   * - Se o arquivo contiver um array, registra cada item individualmente.
-   * - Se contiver um objeto único, registra esse item.
-   *
-   * @param path - Caminho relativo à pasta `src/data/items/`, sem extensão `.json`.
-   * @throws Se o arquivo não existir ou o JSON for inválido.
-   *
-   * @example
-   * ```typescript
-   * // Carrega um item individual
-   * ItemRegistry.load("consumable/health_potion");
-   *
-   * // Carrega vários itens de um único arquivo (ex: fishing/rods.json)
-   * ItemRegistry.load("fishing/rods");
-   * ```
+   * @param basePath - Caminho absoluto para a pasta raiz dos itens
    */
-  static load(path: string): void {
-    try {
-      const fullPath = join(__dirname, `${path}.json`);
-      const raw = readFileSync(fullPath, "utf-8");
-      const data = JSON.parse(raw);
+  static loadAll(basePath: string): void {
+    Logger.system(`Carregando itens a partir de: ${basePath}`);
+    this.loadDirectory(basePath);
+    Logger.system(`ItemRegistry: ${this.items.size} itens carregados.`);
+    const sample = Array.from(this.items.keys()).slice(0, 5);
+    if (sample.length) {
+      Logger.system(`Exemplos de IDs carregados: ${sample.join(", ")}`);
+    } else {
+      Logger.error(`Nenhum item foi carregado! Verifique o caminho: ${basePath}`);
+    }
+  }
 
-      let itemsArray: ItemType[];
-      if (Array.isArray(data)) {
-        itemsArray = data;
-      } else {
-        itemsArray = [data];
-      }
+  private static loadDirectory(dir: string): void {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        this.loadDirectory(fullPath);
+      } else if (entry.isFile() && entry.name.endsWith(".json")) {
+        try {
+          const raw = readFileSync(fullPath, "utf-8");
+          const data = JSON.parse(raw);
+          // Suporta tanto um único item quanto um array
+          const itemsArray = Array.isArray(data) ? data : [data];
+          for (const item of itemsArray) {
+            if (!item.id) {
+              Logger.error(`Item sem ID no arquivo ${fullPath}`);
+              continue;
+            }
+            // Registra pelo ID completo
+            this.items.set(item.id, item);
 
-      for (const item of itemsArray) {
-        if (!item.id) {
-          Logger.error(`Item sem ID no arquivo ${path}`);
-          continue;
+            // Registra também pelo nome base do arquivo (sem extensão)
+            const shortId = basename(entry.name, ".json");
+            if (shortId !== item.id) {
+              if (this.items.has(shortId)) {
+                Logger.warn(
+                  `Conflito de shortId: "${shortId}" já usado por ${this.items.get(shortId)?.id}. Ignorando para ${item.id}.`,
+                );
+              } else {
+                this.items.set(shortId, item);
+              }
+            }
+          }
+        } catch (err) {
+          Logger.error(`Erro ao carregar ${fullPath}: ${err}`);
         }
-        this.items.set(item.id, item);
-        Logger.system(`Item carregado: ${item.name} (${item.id})`);
       }
-    } catch (err) {
-      Logger.error(`Falha ao carregar itens de ${path}: ${err}`);
-      throw err;
     }
   }
 
   /**
-   * Obtém um item pelo seu ID.
-   * Se ainda não foi carregado, tenta carregar o arquivo correspondente.
-   *
-   * @param id - ID completo do item (ex: "consumable/health_potion", "fishing/rods/basic_rod").
-   * @returns O tipo do item (ItemType).
-   * @throws Se o item não for encontrado.
-   *
-   * @example
-   * ```typescript
-   * const potion = ItemRegistry.get("consumable/health_potion");
-   * console.log(potion.name); // "Health Potion"
-   * ```
+   * Obtém um item pelo ID (pode ser o nome completo ou o nome base do arquivo).
+   * @throws Se o item não existir.
    */
   static get(id: string): ItemType {
-    let cached = this.items.get(id);
-    if (cached) return cached;
-
-    // Tenta carregar o arquivo baseado no prefixo do ID (ex: "fishing/rods/basic_rod" → "fishing/rods")
-    const parts = id.split("/");
-    if (parts.length >= 2) {
-      const categoryPath = parts.slice(0, 2).join("/");
-      this.load(categoryPath);
-      cached = this.items.get(id);
-      if (cached) return cached;
-    }
-
-    throw new Error(`Item não encontrado: ${id}`);
+    const item = this.items.get(id);
+    if (!item) throw new Error(`Item não encontrado: ${id}`);
+    return item;
   }
 }

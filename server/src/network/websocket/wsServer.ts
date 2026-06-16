@@ -2,7 +2,8 @@
  * wsServer.ts
  *
  * Servidor WebSocket para comunicação em tempo real com o cliente Unity.
- * Gerencia conexões, movimentos, chat, combate, spawn/despawn e loot.
+ * Gerencia conexões, movimentos, chat, combate, spawn/despawn, loot e inventário.
+ * Agora com suporte a movimento por direção (grid) e ataque automático.
  *
  * @module network/websocket/wsServer
  */
@@ -16,11 +17,27 @@ import { processChatCommand } from "../../game/chat/chatCommands";
 import { ChatSystem } from "../../game/chat/chatSystem";
 import { CombatSystem } from "../../game/combat/combatSystem";
 import { Monster } from "../../game/entities/monster";
-import { Corpse } from "../../game/entities/corpse"; // ← importação necessária para loot
+import { Corpse } from "../../game/entities/corpse";
+import { ItemRegistry } from "../../data/items/itemRegistry";
+import { BankingSystem } from "../../game/systems/bankingSystem";
+import { ShopSystem } from "../../game/systems/shopSystem";
+
+/**
+ * Direções possíveis para movimento estilo Tibia.
+ */
+type Direction =
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "northeast"
+  | "northwest"
+  | "southeast"
+  | "southwest";
 
 /**
  * Servidor WebSocket responsável por receber comandos dos clientes
- * e enviar atualizações do mundo (posição de entidades, spawn, despawn, chat, combate, loot).
+ * e enviar atualizações do mundo.
  */
 export class WebSocketServer {
   private wss: WSServer;
@@ -29,10 +46,19 @@ export class WebSocketServer {
   private static instance: WebSocketServer;
 
   /**
-   * Construtor.
-   * @param server - Servidor HTTP compartilhado (API + WebSocket)
-   * @param world - Instância do mundo do jogo (contém jogadores, monstros, etc.)
+   * Mapa de direção para deslocamento (dx, dy) em tiles.
    */
+  private directionOffsets: Record<Direction, { dx: number; dy: number }> = {
+    north: { dx: 0, dy: 1 }, // norte = cima
+    south: { dx: 0, dy: -1 }, // sul = baixo
+    east: { dx: 1, dy: 0 },
+    west: { dx: -1, dy: 0 },
+    northeast: { dx: 1, dy: 1 },
+    northwest: { dx: -1, dy: 1 },
+    southeast: { dx: 1, dy: -1 },
+    southwest: { dx: -1, dy: -1 },
+  };
+
   constructor(server: HttpServer, world: World) {
     WebSocketServer.instance = this;
     this.world = world;
@@ -40,24 +66,22 @@ export class WebSocketServer {
     this.init();
   }
 
-  /**
-   * Inicializa os handlers de eventos do WebSocket.
-   */
   private init(): void {
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       Logger.system(`Cliente conectado: ${req.socket.remoteAddress}`);
 
-      // Associa o jogador ao socket (por enquanto, assume-se apenas um jogador)
       const player = this.world.players[0];
       if (player) {
         this.clients.set(ws, player);
+        Logger.system(`Jogador ${player.name} (ID ${player.id}) associado ao socket.`);
+        this.sendInventory(ws, player);
+        this.sendPlayerStats(ws, player);
       } else {
         Logger.error("Nenhum jogador disponível para associar ao WebSocket");
         ws.close();
         return;
       }
 
-      // Envia o estado inicial para este cliente
       this.sendInitialState(ws, player);
       this.sendSpawnEntities(ws);
 
@@ -80,6 +104,36 @@ export class WebSocketServer {
             case "takeLoot":
               await this.handleTakeLoot(ws, msg);
               break;
+            case "useItem":
+              await this.handleUseItem(ws, msg);
+              break;
+            case "dropItem":
+              await this.handleDropItem(ws, msg);
+              break;
+            case "openShop":
+              await this.handleOpenShop(ws, msg);
+              break;
+            case "openBank":
+              await this.handleOpenBank(ws, msg);
+              break;
+            case "buyItem":
+              await this.handleBuyItem(ws, msg);
+              break;
+            case "deposit":
+              await this.handleDeposit(ws, msg);
+              break;
+            case "withdraw":
+              await this.handleWithdraw(ws, msg);
+              break;
+            case "moveDir":
+              this.handleMoveDir(ws, msg);
+              break;
+            case "startAutoAttack":
+              this.handleStartAutoAttack(ws, msg);
+              break;
+            case "stopAutoAttack":
+              this.handleStopAutoAttack(ws, msg);
+              break;
             default:
               Logger.warn(`Tipo de mensagem desconhecido: ${msg.type}`);
           }
@@ -95,11 +149,83 @@ export class WebSocketServer {
     });
   }
 
+  // =========================
+  // MOVIMENTO POR DIREÇÃO (ESTILO TIBIA)
+  // =========================
+
   /**
-   * Envia ao cliente a posição inicial do jogador.
+   * Processa um comando de movimento por direção.
    * @param ws - WebSocket do cliente.
-   * @param player - Jogador associado.
+   * @param msg - Objeto com `dir` (direção).
    */
+  private handleMoveDir(ws: WebSocket, msg: { dir: Direction }): void {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const { dir } = msg;
+    const offset = this.directionOffsets[dir];
+    if (!offset) {
+      Logger.warn(`Direção inválida: ${dir}`);
+      return;
+    }
+
+    const newX = player.position.x + offset.dx;
+    const newY = player.position.y + offset.dy;
+
+    if (this.world.isPositionWalkable(newX, newY, player.id)) {
+      player.position.x = newX;
+      player.position.y = newY;
+
+      // Confirma a nova posição para o próprio cliente
+      ws.send(JSON.stringify({ type: "position", x: newX, y: newY }));
+
+      // Broadcast para outros clientes
+      this.broadcastMove(player.id, newX, newY, ws);
+    } else {
+      // Movimento bloqueado: envia a posição atual novamente
+      ws.send(JSON.stringify({ type: "position", x: player.position.x, y: player.position.y }));
+    }
+  }
+
+  // =========================
+  // ATAQUE AUTOMÁTICO
+  // =========================
+
+  /**
+   * Inicia o ataque automático contra um alvo.
+   * @param ws - WebSocket do cliente.
+   * @param msg - Objeto com `targetId`.
+   */
+  private handleStartAutoAttack(ws: WebSocket, msg: { targetId: string }): void {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const targetId = msg.targetId;
+    const target = this.world.monsters.find((m) => m.id === targetId);
+    if (!target || target.hp <= 0) {
+      ws.send(JSON.stringify({ type: "autoAttackStopped", reason: "Alvo inválido ou morto" }));
+      return;
+    }
+
+    // Armazena o alvo atual do jogador (supondo que Player tenha a propriedade `currentTargetId`)
+    player.currentTargetId = targetId;
+    Logger.combat(`${player.name} iniciou ataque automático contra ${target.name}`);
+  }
+
+  /**
+   * Para o ataque automático.
+   */
+  private handleStopAutoAttack(ws: WebSocket, _msg: any): void {
+    const player = this.clients.get(ws);
+    if (!player) return;
+    player.currentTargetId = undefined;
+    Logger.combat(`${player.name} parou ataque automático`);
+  }
+
+  // =========================
+  // MÉTODOS EXISTENTES (MOVIMENTO, CHAT, LOOT, INVENTÁRIO, ECONOMIA)
+  // =========================
+
   private sendInitialState(ws: WebSocket, player: Player): void {
     ws.send(
       JSON.stringify({
@@ -112,12 +238,7 @@ export class WebSocketServer {
     Logger.world(`Estado inicial enviado para ${player.name}`);
   }
 
-  /**
-   * Envia ao cliente todos os monstros e NPCs atualmente vivos no mundo.
-   * @param ws - WebSocket do cliente.
-   */
   private sendSpawnEntities(ws: WebSocket): void {
-    // Monstros
     for (const monster of this.world.monsters) {
       ws.send(
         JSON.stringify({
@@ -133,7 +254,6 @@ export class WebSocketServer {
     }
     Logger.world(`Enviados ${this.world.monsters.length} monstros para o cliente`);
 
-    // NPCs
     for (const npc of this.world.npcs) {
       ws.send(
         JSON.stringify({
@@ -148,12 +268,7 @@ export class WebSocketServer {
     Logger.world(`Enviados ${this.world.npcs.length} NPCs para o cliente`);
   }
 
-  /**
-   * Processa um comando de movimento enviado pelo cliente.
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com `x` e `y` (posição desejada).
-   */
-  private handleMove(ws: WebSocket, msg: { x: number; y: number }): void {
+  private async handleMove(ws: WebSocket, msg: { x: number; y: number }): Promise<void> {
     const player = this.clients.get(ws);
     if (!player) return;
 
@@ -166,24 +281,32 @@ export class WebSocketServer {
     } else {
       ws.send(JSON.stringify({ type: "position", x: player.position.x, y: player.position.y }));
     }
+
+    const talkingNpc = this.world.npcs.find(
+      (n) => n.isTalking && n.talkingToPlayerId === player.id,
+    );
+    if (talkingNpc) {
+      const dx = Math.abs(talkingNpc.position.x - player.position.x);
+      const dy = Math.abs(talkingNpc.position.y - player.position.y);
+      if (dx + dy > 2) {
+        await processChatCommand("/bye", player, this.world);
+        Logger.warn(`Auto-bye: ${player.name} se afastou de ${talkingNpc.name}`);
+      }
+    }
   }
 
-  /**
-   * Processa uma mensagem de chat enviada pelo cliente.
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com campo `message`.
-   */
   private async handleChat(ws: WebSocket, msg: { message: string }): Promise<void> {
     const player = this.clients.get(ws);
     if (!player) return;
 
     let { message } = msg;
     message = message.trim().toLowerCase();
+    Logger.warn(`[RECEBIDO] ${player.name}: ${message}`);
 
-    // Palavras de interação com NPC (sem barra)
     const interactionWords = ["hi", "oi", "olá", "hello", "bye", "tchau"];
     if (interactionWords.includes(message)) {
       const command = message === "bye" || message === "tchau" ? "/bye" : "/hi";
+      Logger.warn(`[COMANDO NPC] ${command} de ${player.name}`);
       await processChatCommand(command, player, this.world);
       return;
     }
@@ -197,11 +320,6 @@ export class WebSocketServer {
     }
   }
 
-  /**
-   * Processa um comando de ataque enviado pelo cliente.
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com `targetId`.
-   */
   private async handleAttack(ws: WebSocket, msg: { targetId: string }): Promise<void> {
     const player = this.clients.get(ws);
     if (!player) return;
@@ -222,11 +340,6 @@ export class WebSocketServer {
     }
   }
 
-  /**
-   * Processa uma solicitação de loot (abrir corpo).
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com `corpseId`.
-   */
   private async handleLoot(ws: WebSocket, msg: { corpseId: string }): Promise<void> {
     const player = this.clients.get(ws);
     if (!player) return;
@@ -239,7 +352,6 @@ export class WebSocketServer {
       return;
     }
 
-    // Distância máxima Manhattan = 2 tiles
     const dx = Math.abs(corpse.position.x - player.position.x);
     const dy = Math.abs(corpse.position.y - player.position.y);
     if (dx + dy > 2) {
@@ -248,22 +360,16 @@ export class WebSocketServer {
       return;
     }
 
-    // Envia a lista de itens para o cliente
     ws.send(
       JSON.stringify({
         type: "lootWindow",
         corpseId: corpse.id,
-        items: corpse.loot, // array de { itemId, amount }
+        items: corpse.loot,
       }),
     );
     Logger.world(`Jogador ${player.name} abriu loot do corpse ${corpseId}`);
   }
 
-  /**
-   * Processa a coleta de itens de um corpse (pegar todos ou um específico).
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com `corpseId`, `takeAll` e `itemIndex`.
-   */
   private async handleTakeLoot(
     ws: WebSocket,
     msg: { corpseId: string; takeAll: boolean; itemIndex?: number },
@@ -277,7 +383,6 @@ export class WebSocketServer {
       return;
     }
 
-    // Verifica distância novamente
     const dx = Math.abs(corpse.position.x - player.position.x);
     const dy = Math.abs(corpse.position.y - player.position.y);
     if (dx + dy > 2) {
@@ -286,23 +391,28 @@ export class WebSocketServer {
     }
 
     if (msg.takeAll) {
-      // Adiciona todos os itens ao inventário do jogador
       for (const item of corpse.loot) {
         player.addItem(item.itemId, item.amount);
         Logger.loot(
           `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
         );
+        Logger.system(
+          `[INVENTORY DEBUG] Após addItem, inventário de ${player.name}: ${JSON.stringify(Array.from(player.inventory.entries()))}`,
+        );
       }
-      // Remove o corpse
       this.world.removeCorpse(corpse);
       this.broadcastDespawn(corpse.id);
       ws.send(JSON.stringify({ type: "lootTaken", corpseId: corpse.id }));
+      this.sendInventory(ws, player);
     } else if (msg.itemIndex !== undefined) {
       const item = corpse.loot[msg.itemIndex];
       if (item) {
         player.addItem(item.itemId, item.amount);
         Logger.loot(
           `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
+        );
+        Logger.system(
+          `[INVENTORY DEBUG] Após addItem individual, inventário: ${JSON.stringify(Array.from(player.inventory.entries()))}`,
         );
         corpse.loot.splice(msg.itemIndex, 1);
         if (corpse.loot.length === 0) {
@@ -312,68 +422,294 @@ export class WebSocketServer {
         ws.send(
           JSON.stringify({ type: "lootTaken", corpseId: corpse.id, itemIndex: msg.itemIndex }),
         );
+        this.sendInventory(ws, player);
       } else {
         ws.send(JSON.stringify({ type: "lootError", message: "Item not found" }));
       }
     }
   }
 
-  /**
-   * Envia uma atualização de dano para todos os clientes.
-   * @param targetId - ID do monstro
-   * @param newHp - HP atual
-   * @param maxHp - HP máximo
-   */
-  private broadcastDamage(targetId: string, newHp: number, maxHp: number): void {
-    const msg = JSON.stringify({
-      type: "damage",
-      targetId,
-      newHp,
-      maxHp,
-    });
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(msg);
+  private async handleUseItem(ws: WebSocket, msg: { itemId: string }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const { itemId } = msg;
+    const item = ItemRegistry.get(itemId);
+    if (!item) {
+      this.sendItemUsed(ws, itemId, false, "Item não encontrado.");
+      return;
+    }
+
+    if (!player.hasItem(itemId, 1)) {
+      this.sendItemUsed(ws, itemId, false, "Você não possui este item.");
+      return;
+    }
+
+    if (item.type === "consumable") {
+      let message = "";
+      let effectApplied = false;
+
+      const healAmount = (item as any).healAmount ?? (item as any).heal ?? 0;
+      if (healAmount > 0) {
+        const actualHeal = Math.min(player.maxHp - player.hp, healAmount);
+        if (actualHeal > 0) {
+          player.hp += actualHeal;
+          message = `Você recuperou ${actualHeal} HP.`;
+          effectApplied = true;
+        } else {
+          message = "Seu HP já está cheio.";
+        }
       }
+
+      const manaAmount = (item as any).manaAmount ?? (item as any).mana ?? 0;
+      if (manaAmount > 0) {
+        const actualMana = Math.min(player.maxMana - player.mana, manaAmount);
+        if (actualMana > 0) {
+          player.mana += actualMana;
+          message = `Você recuperou ${actualMana} de mana.`;
+          effectApplied = true;
+        } else if (!effectApplied) {
+          message = "Sua mana já está cheia.";
+        }
+      }
+
+      if (!effectApplied) {
+        this.sendItemUsed(ws, itemId, false, message);
+        return;
+      }
+
+      player.removeItem(itemId, 1);
+      this.sendItemUsed(ws, itemId, true, message);
+      this.sendInventory(ws, player);
+      this.sendPlayerStats(ws, player);
+    } else if (item.type === "equipment") {
+      const success = player.equipItem(itemId);
+      if (success) {
+        this.sendItemUsed(ws, itemId, true, `Você equipou ${item.name}.`);
+        this.sendInventory(ws, player);
+        this.sendPlayerStats(ws, player);
+      } else {
+        this.sendItemUsed(
+          ws,
+          itemId,
+          false,
+          "Não foi possível equipar este item (nível, slot, etc.).",
+        );
+      }
+    } else {
+      this.sendItemUsed(ws, itemId, false, "Este item não pode ser usado ou equipado.");
     }
   }
 
-  /**
-   * Envia uma mensagem de chat para todos os clientes conectados (broadcast).
-   * @param senderName - Nome do remetente.
-   * @param message - Texto da mensagem.
-   * @param channel - Canal (ex: "local", "support", "community", "trade").
-   */
+  private async handleDropItem(
+    ws: WebSocket,
+    msg: { itemId: string; amount?: number },
+  ): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const { itemId, amount = 1 } = msg;
+    if (!player.hasItem(itemId, amount)) {
+      ws.send(JSON.stringify({ type: "dropError", message: "Quantidade insuficiente." }));
+      return;
+    }
+
+    player.removeItem(itemId, amount);
+    this.sendInventory(ws, player);
+    Logger.loot(`${player.name} descartou ${amount}x ${itemId}`);
+  }
+
+  private async handleOpenShop(ws: WebSocket, msg: { npcId: string }): Promise<void> {
+    Logger.system(`[SHOP] handleOpenShop chamado com msg: ${JSON.stringify(msg)}`);
+    const player = this.clients.get(ws);
+    if (!player) {
+      Logger.error("[SHOP] Player não encontrado");
+      return;
+    }
+    const npcId = msg.npcId;
+    Logger.system(`[SHOP] Procurando NPC com id ou nome: ${npcId}`);
+    const npc = this.world.npcs.find((n) => n.id === npcId || n.name.toLowerCase() === npcId);
+    if (!npc) {
+      Logger.error(`[SHOP] NPC não encontrado: ${npcId}`);
+      ws.send(JSON.stringify({ type: "shopError", message: "NPC não encontrado." }));
+      return;
+    }
+    Logger.system(`[SHOP] NPC encontrado: ${npc.name}, type=${npc.npcType}`);
+    if (npc.npcType !== "merchant") {
+      Logger.error(`[SHOP] NPC não é merchant: ${npc.npcType}`);
+      ws.send(JSON.stringify({ type: "shopError", message: "NPC não é comerciante." }));
+      return;
+    }
+    if (!npc.shopItems || npc.shopItems.length === 0) {
+      Logger.error(`[SHOP] Merchant sem itens: ${npc.name}`);
+      ws.send(JSON.stringify({ type: "shopError", message: "Comerciante não tem itens." }));
+      return;
+    }
+
+    const shopItemsForClient = npc.shopItems.map((item) => ({
+      itemId: item.itemId,
+      name: ItemRegistry.get(item.itemId)?.name || item.itemId,
+      price: item.buyPrice,
+      stock: item.stock ?? -1,
+    }));
+
+    ws.send(
+      JSON.stringify({
+        type: "shopWindow",
+        npcId: npc.id,
+        items: shopItemsForClient,
+      }),
+    );
+    Logger.system(`Loja aberta para ${player.name} (NPC: ${npc.name})`);
+  }
+
+  private async handleBuyItem(ws: WebSocket, msg: any): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const { npcId, itemId, amount } = msg;
+    const npc = this.world.npcs.find((n) => n.id === npcId);
+    if (!npc || npc.npcType !== "merchant") {
+      ws.send(
+        JSON.stringify({ type: "buyResult", success: false, message: "Comerciante inválido." }),
+      );
+      return;
+    }
+
+    const success = ShopSystem.buyItem(player, npc, itemId, amount);
+    if (success) {
+      ws.send(
+        JSON.stringify({
+          type: "buyResult",
+          success: true,
+          message: `Comprou ${amount}x ${ItemRegistry.get(itemId)?.name || itemId}.`,
+        }),
+      );
+      this.sendInventory(ws, player);
+      this.sendPlayerStats(ws, player);
+      this.sendGold(ws, player);
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: "buyResult",
+          success: false,
+          message: "Não foi possível comprar. Verifique gold ou estoque.",
+        }),
+      );
+    }
+  }
+
+  private sendGold(ws: WebSocket, player: Player): void {
+    ws.send(
+      JSON.stringify({
+        type: "goldUpdate",
+        gold: player.gold,
+        bankGold: player.bankGold,
+      }),
+    );
+  }
+
+  private async handleOpenBank(ws: WebSocket, msg: { npcId: string }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const npc = this.world.npcs.find((n) => n.id === msg.npcId);
+    if (!npc || npc.npcType !== "banker") {
+      ws.send(JSON.stringify({ type: "bankError", message: "NPC não é um banqueiro." }));
+      return;
+    }
+
+    ws.send(
+      JSON.stringify({
+        type: "bankWindow",
+        npcId: npc.id,
+        bankGold: player.bankGold,
+        gold: player.gold,
+      }),
+    );
+    Logger.system(`Banco aberto para ${player.name}`);
+  }
+
+  private async handleDeposit(ws: WebSocket, msg: { amount: number }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const success = BankingSystem.depositGold(player, msg.amount);
+    if (success) {
+      ws.send(
+        JSON.stringify({
+          type: "bankResult",
+          success: true,
+          message: `Depositou ${msg.amount} gold.`,
+          bankGold: player.bankGold,
+          gold: player.gold,
+        }),
+      );
+      this.sendGold(ws, player);
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: "bankResult",
+          success: false,
+          message: "Falha no depósito. Verifique o valor ou saldo em mãos.",
+        }),
+      );
+    }
+  }
+
+  private async handleWithdraw(ws: WebSocket, msg: { amount: number }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) return;
+
+    const success = BankingSystem.withdrawGold(player, msg.amount);
+    if (success) {
+      ws.send(
+        JSON.stringify({
+          type: "bankResult",
+          success: true,
+          message: `Sacou ${msg.amount} gold.`,
+          bankGold: player.bankGold,
+          gold: player.gold,
+        }),
+      );
+      this.sendGold(ws, player);
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: "bankResult",
+          success: false,
+          message: "Falha no saque. Verifique o saldo bancário.",
+        }),
+      );
+    }
+  }
+
+  // =========================
+  // BROADCASTS E UTILITÁRIOS
+  // =========================
+
+  private broadcastDamage(targetId: string, newHp: number, maxHp: number): void {
+    const msg = JSON.stringify({ type: "damage", targetId, newHp, maxHp });
+    for (const [socket] of this.clients.entries()) {
+      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
+    }
+  }
+
   private broadcastChat(senderName: string, message: string, channel: string = "local"): void {
     const formatted = `[${channel.toUpperCase()}] ${senderName}: ${message}`;
     for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
+      if (socket.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify({ type: "chat", message: formatted }));
-      }
     }
   }
 
-  /**
-   * Envia uma atualização de posição de uma entidade para **todos** os clientes,
-   * exceto o próprio remetente (opcional).
-   * @param entityId - ID da entidade (jogador, monstro, etc.)
-   * @param x - Nova coordenada X.
-   * @param y - Nova coordenada Y.
-   * @param excludeSocket - WebSocket a ser excluído do broadcast (ex: próprio jogador).
-   */
   public broadcastMove(entityId: string, x: number, y: number, excludeSocket?: WebSocket): void {
     const msg = JSON.stringify({ type: "move", id: entityId, x, y });
     for (const [socket] of this.clients.entries()) {
-      if (socket !== excludeSocket && socket.readyState === WebSocket.OPEN) {
-        socket.send(msg);
-      }
+      if (socket !== excludeSocket && socket.readyState === WebSocket.OPEN) socket.send(msg);
     }
   }
 
-  /**
-   * Envia uma mensagem de spawn para todos os clientes.
-   * @param monster - Monstro recém‑criado (respawnado)
-   */
   public broadcastSpawn(monster: Monster): void {
     const msg = JSON.stringify({
       type: "spawn",
@@ -385,16 +721,10 @@ export class WebSocketServer {
       maxHp: monster.maxHp,
     });
     for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(msg);
-      }
+      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
     }
   }
 
-  /**
-   * Envia uma mensagem de spawn de um corpse para todos os clientes.
-   * @param corpse - Corpo a ser spawnado
-   */
   public broadcastSpawnCorpse(corpse: Corpse): void {
     const msg = JSON.stringify({
       type: "spawn",
@@ -404,30 +734,17 @@ export class WebSocketServer {
       y: corpse.position.y,
     });
     for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(msg);
-      }
+      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
     }
   }
 
-  /**
-   * Envia uma mensagem de despawn para todos os clientes.
-   * @param entityId - ID da entidade a ser removida
-   */
   private broadcastDespawn(entityId: string): void {
     const msg = JSON.stringify({ type: "despawn", id: entityId });
     for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(msg);
-      }
+      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
     }
   }
 
-  /**
-   * Envia uma mensagem de chat para um jogador específico.
-   * @param playerId - ID do jogador destino.
-   * @param message - Mensagem a ser enviada.
-   */
   public sendChatToPlayer(playerId: string, message: string): void {
     for (const [ws, player] of this.clients.entries()) {
       if (player.id === playerId && ws.readyState === WebSocket.OPEN) {
@@ -437,9 +754,54 @@ export class WebSocketServer {
     }
   }
 
+  private sendInventory(ws: WebSocket, player: Player): void {
+    const itemsArray: { itemId: string; amount: number }[] = [];
+    for (const [itemId, qty] of player.inventory.entries()) {
+      itemsArray.push({ itemId, amount: qty });
+    }
+    const payload = JSON.stringify({
+      type: "inventory",
+      gold: player.gold,
+      items: itemsArray,
+    });
+    ws.send(payload);
+    Logger.loot(`Inventário enviado para ${player.name} (${player.inventory.size} tipos de itens)`);
+    Logger.system(`[INVENTORY DEBUG] Payload enviado: ${payload}`);
+  }
+
+  private sendItemUsed(ws: WebSocket, itemId: string, success: boolean, message: string): void {
+    ws.send(JSON.stringify({ type: "itemUsed", itemId, success, message }));
+  }
+
+  private sendPlayerStats(ws: WebSocket, player: Player): void {
+    ws.send(
+      JSON.stringify({
+        type: "playerStats",
+        hp: player.hp,
+        maxHp: player.maxHp,
+        mana: player.mana,
+        maxMana: player.maxMana,
+        level: player.level,
+        attack: player.attack,
+        defense: player.defense,
+      }),
+    );
+  }
+
   /**
-   * Retorna a instância singleton do WebSocketServer.
+   * Envia uma mensagem JSON qualquer para um jogador específico.
+   * @param playerId - ID do jogador destino.
+   * @param message - String JSON a ser enviada.
    */
+  public sendToPlayer(playerId: string, message: string): void {
+    for (const [ws, player] of this.clients.entries()) {
+      if (player.id === playerId && ws.readyState === WebSocket.OPEN) {
+        ws.send(message);
+        break;
+      }
+    }
+  }
+
   public static getInstance(): WebSocketServer {
     return WebSocketServer.instance;
   }

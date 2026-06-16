@@ -1,16 +1,35 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 /// <summary>
-/// Permite interagir com um NPC clicando nele com o mouse.
-/// Envia o comando "/hi" para o servidor via NetworkManager.
+/// Gerencia a interação por clique com NPCs.
+/// Para merchant e banker, envia comandos específicos (abrir loja/banco).
+/// Para outros NPCs, envia /hi via chat.
 /// </summary>
-public class ClickInteract : MonoBehaviour, IPointerClickHandler
+public class ClickInteract : MonoBehaviour
 {
-    public void OnPointerClick(PointerEventData eventData)
+    private NpcIdentity npcIdentity;
+
+    void Awake()
     {
-        // Envia o comando de interação via WebSocket
-        NetworkManager.Instance.SendChat("/hi");
-        Debug.Log($"Interagiu com {gameObject.name}");
+        npcIdentity = GetComponent<NpcIdentity>();
+        if (npcIdentity == null)
+            Debug.LogError($"ClickInteract: NpcIdentity não encontrado em {gameObject.name}");
+    }
+
+    void OnMouseDown()
+    {
+        if (NetworkManager.Instance == null) return;
+        NpcIdentity npc = GetComponent<NpcIdentity>();
+        if (npc == null) return;
+
+        string npcId = npc.id;   //
+        // Debug.Log($"🖱️ Clique no NPC: {npcId}");
+
+        if (npc.npcId == "merchant")
+            NetworkManager.Instance.SendOpenShop(npcId);
+        else if (npc.npcId == "banker")
+            NetworkManager.Instance.SendOpenBank(npcId);
+        else
+            NetworkManager.Instance.SendChat("/hi");
     }
 }

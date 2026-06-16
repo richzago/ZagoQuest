@@ -117,6 +117,7 @@ export async function processChatCommand(
   // =========================
 
   if (cmd === "hi" || cmd === "oi" || cmd === "olá" || cmd === "hello") {
+    Logger.warn(`Executando /hi para ${player.name}. NPCs próximos: ...`);
     // Procura o NPC mais próximo (em até 2 tiles)
     let closestNpc: Npc | null = null;
     let minDist = 3; // distância máxima para interagir

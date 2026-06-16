@@ -7,7 +7,8 @@
  * - Importar o reflect-metadata (necessário para o TypeORM)
  * - Inicializar o sistema de logs e eventos
  * - Carregar o registro de condições (efeitos como poison, burn, etc.)
- * - Carregar todos os monstros recursivamente (suporta nomes curtos no Tiled)
+ * - Carregar todos os monstros recursivamente
+ * - Carregar todos os itens recursivamente (novo)
  * - Iniciar a API REST (conecta ao banco, mas não inicia o servidor HTTP imediatamente)
  * - Criar o mundo e o jogador (persistência via banco de dados)
  * - Iniciar o servidor WebSocket (compartilhando a mesma porta da API)
@@ -32,6 +33,8 @@ import { MonsterRegistry } from "./data/monsters/monsterRegistry";
 import { createWorldAndPlayer } from "./game/initialization/worldFactory";
 import { startGameLoops } from "./game/core/gameStarter";
 import { WebSocketServer } from "./network/websocket/wsServer";
+import { join } from "path";
+import { ItemRegistry } from "./data/items/itemRegistry";
 
 /**
  * Função principal de inicialização do servidor.
@@ -39,7 +42,7 @@ import { WebSocketServer } from "./network/websocket/wsServer";
  *
  * @remarks
  * **Fluxo de execução:**
- * 1. Carrega condições e monstros.
+ * 1. Carrega condições, monstros e itens (recursivamente).
  * 2. Conecta ao banco de dados e prepara o servidor HTTP (ainda não escutando).
  * 3. Cria o mundo e o jogador (persistência – carrega ou cria no banco).
  * 4. Instancia o WebSocket Server (compartilhando o mesmo servidor HTTP).
@@ -57,6 +60,11 @@ async function bootstrap() {
     registerEventListeners();
     ConditionRegistry.load();
     MonsterRegistry.loadAll();
+
+    // Caminho absoluto para a pasta 'items' independente de onde o código está rodando (src ou dist)
+    const itemsRoot = join(process.cwd(), "src", "data", "items");
+    ItemRegistry.loadAll(itemsRoot);
+    Logger.system("ItemRegistry: todos os itens carregados com sucesso.");
 
     // =========================
     // 2. Prepara o servidor HTTP (conecta ao banco, mas não escuta ainda)

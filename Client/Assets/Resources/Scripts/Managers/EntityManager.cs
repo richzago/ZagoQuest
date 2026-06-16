@@ -38,13 +38,15 @@ public class EntityManager : MonoBehaviour
 
         if (entities.ContainsKey(id))
         {
-            Debug.LogWarning($"Entidade {id} já existe, ignorando spawn.");
+            // Debug.LogWarning($"Entidade {id} já existe, ignorando spawn.");
             return;
         }
 
         string lowerName = name.ToLower();
         Vector3 pos = new Vector3(x, y, 0);
         GameObject go = null;
+
+
 
         // ====================
         // CASO ESPECIAL: CORPSE
@@ -64,7 +66,7 @@ public class EntityManager : MonoBehaviour
             if (corpseId == null) corpseId = go.AddComponent<CorpseIdentity>();
             corpseId.corpseId = id;
 
-            Debug.Log($"[Spawn] Corpse (ID {id}) spawnado em ({x}, {y})");
+            // // Debug.Log($"[Spawn] Corpse (ID {id}) spawnado em ({x}, {y})");
             return;
         }
 
@@ -97,7 +99,7 @@ public class EntityManager : MonoBehaviour
         {
             MonsterIdentity monsterId = go.AddComponent<MonsterIdentity>();
             monsterId.entityId = id;
-            Debug.Log($"[Spawn] Monstro {name} (ID {id})");
+            // Debug.Log($"[Spawn] Monstro {name} (ID {id})");
 
             MonsterHealthBar healthBar = go.GetComponentInChildren<MonsterHealthBar>();
             if (healthBar == null)
@@ -114,7 +116,11 @@ public class EntityManager : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[Spawn] NPC {name} (ID {id})");
+            // Garante que o componente NpcIdentity exista
+            NpcIdentity npcIdent = go.GetComponent<NpcIdentity>();
+            if (npcIdent == null) npcIdent = go.AddComponent<NpcIdentity>();
+            npcIdent.id = id;                     // UUID do servidor
+            npcIdent.npcId = name.ToLower();      // "merchant", "banker", etc.
         }
     }
 
@@ -132,7 +138,7 @@ public class EntityManager : MonoBehaviour
             if (TargetSelector.Instance != null)
                 TargetSelector.Instance.ClearTargetIfMatches(go);
 
-            Debug.Log($"[Despawn] Removendo entidade ID {id}");
+            // Debug.Log($"[Despawn] Removendo entidade ID {id}");
             Destroy(go);
             entities.Remove(id);
         }

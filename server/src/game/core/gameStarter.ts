@@ -9,6 +9,7 @@
  * - Configurar o graceful shutdown (salvar ao encerrar).
  * - Iniciar o loop de IA (monstros, NPCs, condições) sem renderização.
  * - Transmitir a posição atualizada dos monstros a todos os clientes conectados.
+ * - Processar ataque automático dos jogadores contra seus alvos.
  * - Iniciar tarefas agendadas (autosave, inatividade de guildas).
  *
  * @module game/core/gameStarter
@@ -20,6 +21,7 @@ import { Logger } from "./logger/logger";
 import { World } from "../world/World";
 import { Player } from "../entities/player";
 import { WebSocketServer } from "../../network/websocket/wsServer";
+import { CombatSystem } from "../combat/combatSystem";
 
 /**
  * Inicia os loops do servidor do jogo (IA, autosave, guildas) a partir de um mundo e jogador já existentes.
@@ -27,13 +29,13 @@ import { WebSocketServer } from "../../network/websocket/wsServer";
  *
  * @param world - Instância do mundo já carregado (com mapa, entidades, etc.)
  * @param player - Jogador já carregado (ou criado) e associado ao mundo
- * @param wsServer - Instância do servidor WebSocket para broadcast de movimentos
+ * @param wsServer - Instância do servidor WebSocket para broadcast de movimentos e notificações
  * @returns {void}
  *
  * @remarks
  * **Fluxo de execução:**
  * 1. Configura o graceful shutdown (salva o jogador ao receber SIGINT).
- * 2. Inicia o loop periódico de IA (monstros, NPCs, condições).
+ * 2. Inicia o loop periódico de IA (monstros, NPCs, condições) + auto attack.
  * 3. A cada atualização de monstro, verifica se a posição mudou e envia `broadcastMove`.
  * 4. Inicia tarefas agendadas (autosave a cada 60s, processamento de guildas a cada 24h).
  *
@@ -47,52 +49,50 @@ export function startGameLoops(world: World, player: Player, wsServer: WebSocket
   // 1. Configura o salvamento ao encerrar (Ctrl+C) – salva o jogador atual
   setupGracefulShutdown(player);
 
-  // 2. Inicia apenas o loop de IA (monstros, NPCs, condições) – sem renderização
-  startAiOnlyLoop(world, wsServer);
+  // 2. Inicia o loop de IA + auto attack
+  startAiAndAutoAttackLoop(world, wsServer);
 
   // 3. Inicia tarefas periódicas (autosave, guildas, etc.)
   startScheduledTasks(player);
 
-  Logger.system("Loops do jogo iniciados (IA, autosave, guildas, broadcast de movimento).");
+  Logger.system(
+    "Loops do jogo iniciados (IA, auto attack, autosave, guildas, broadcast de movimento).",
+  );
 }
 
 /**
- * Inicia APENAS o loop de IA (monstros, NPCs, condições).
- * Não aciona renderização ASCII nem entrada de teclado.
- * Transmite mudanças de posição dos monstros para todos os clientes conectados.
+ * Inicia o loop que processa:
+ * - IA dos monstros (movimento, aggro, chase, wander)
+ * - IA dos NPCs (movimento)
+ * - Condições (poison, burn, etc.) em monstros e jogadores
+ * - Ataque automático dos jogadores contra seus alvos atuais
  *
- * @param world - Mundo do jogo (contém entidades, tiles, etc.)
- * @param wsServer - Servidor WebSocket usado para broadcast de movimento
- * @returns {void}
+ * O loop executa a cada 1.5 segundos.
  *
- * @remarks
- * O loop executa a cada 1.5 segundos e é responsável por:
- * - Atualizar a IA dos monstros (aggro, chase, wander, etc.)
- * - Atualizar condições dos monstros (poison, fire, etc.)
- * - Se a posição do monstro mudar, notifica todos os clientes via WebSocket
- * - Atualizar a IA dos NPCs (se tiver movimento)
- * - Atualizar condições dos jogadores
- * - Limpar monstros mortos do mundo
+ * @param world - Mundo do jogo
+ * @param wsServer - Servidor WebSocket para broadcast de movimento e notificações de auto attack
  */
-function startAiOnlyLoop(world: World, wsServer: WebSocketServer): void {
+function startAiAndAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
   setInterval(() => {
-    // Atualiza IA e condições dos monstros e transmite movimento
+    // ====================
+    // 1. MOVIMENTO E IA DOS MONSTROS
+    // ====================
     world.monsters.forEach((monster) => {
-      // Guarda posição anterior para detectar mudança
       const oldX = monster.position.x;
       const oldY = monster.position.y;
 
-      // Executa a IA (pode alterar a posição)
       monster.ai.update(monster, world);
       monster.conditionManager.update();
 
-      // Se a posição mudou, notifica todos os clientes conectados
+      // Se a posição mudou, notifica todos os clientes
       if (oldX !== monster.position.x || oldY !== monster.position.y) {
         wsServer.broadcastMove(monster.id, monster.position.x, monster.position.y);
       }
     });
 
-    // Atualiza IA dos NPCs (ex: Guide que anda em círculo)
+    // ====================
+    // 2. MOVIMENTO DOS NPCS (SE TIVEREM IA)
+    // ====================
     world.npcs.forEach((npc) => {
       if (npc.ai) {
         const oldX = npc.position.x;
@@ -104,10 +104,57 @@ function startAiOnlyLoop(world: World, wsServer: WebSocketServer): void {
       }
     });
 
-    // Atualiza condições dos jogadores (ex: poison, burn)
+    // ====================
+    // 3. CONDIÇÕES DOS JOGADORES (ex: poison, burn)
+    // ====================
     world.players.forEach((player) => player.conditionManager.update());
 
-    // Remove monstros com HP <= 0 (mortos)
+    // ====================
+    // 4. ATAQUE AUTOMÁTICO DOS JOGADORES
+    // ====================
+    for (const player of world.players) {
+      if (!player.currentTargetId) continue; // sem alvo ativo
+
+      const target = world.monsters.find((m) => m.id === player.currentTargetId);
+      // Verifica se o alvo ainda existe e está vivo
+      if (!target || target.hp <= 0) {
+        // Para o ataque automático e notifica o cliente
+        player.currentTargetId = undefined;
+        wsServer.sendToPlayer(
+          player.id,
+          JSON.stringify({
+            type: "autoAttackStopped",
+            reason: "Alvo morto ou sumiu.",
+          }),
+        );
+        continue;
+      }
+
+      // Verifica distância Manhattan (corpo a corpo: 1 tile)
+      const dx = Math.abs(target.position.x - player.position.x);
+      const dy = Math.abs(target.position.y - player.position.y);
+      if (dx + dy <= 1) {
+        // Ataque automático (respeita cooldown dentro do CombatSystem)
+        CombatSystem.attack(player, target, world);
+        // Se o monstro morreu durante o ataque, notifica o cliente
+        if (target.hp <= 0) {
+          player.currentTargetId = undefined;
+          wsServer.sendToPlayer(
+            player.id,
+            JSON.stringify({
+              type: "autoAttackStopped",
+              reason: "Alvo morto.",
+            }),
+          );
+        }
+      }
+      // Caso contrário (fora de alcance), o cliente pode lidar com auto follow
+      // (opcional: o servidor pode enviar uma mensagem de "fora de alcance")
+    }
+
+    // ====================
+    // 5. LIMPEZA DE MONSTROS MORTOS
+    // ====================
     world.cleanupDeadMonsters();
-  }, 1500);
+  }, 1500); // 1.5 segundos
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic; // ← necessário para List e Queue
 
 public class GameManager : MonoBehaviour
 {
@@ -7,6 +8,12 @@ public class GameManager : MonoBehaviour
     private bool[,] collisionMatrix;
     private int mapWidth;
     private int mapHeight;
+
+    // Direções para pathfinding (4 ou 8 direções? Usaremos 4 para movimentação simples)
+    private readonly Vector2Int[] neighbors = new Vector2Int[]
+    {
+        Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
+    };
 
     void Awake()
     {
@@ -30,17 +37,39 @@ public class GameManager : MonoBehaviour
         return !collisionMatrix[x, y];
     }
 
-    private int CountBlocked()
+    public List<Vector2Int> FindPath(Vector2Int start, Vector2Int target)
     {
-        int count = 0;
-        for (int x = 0; x < mapWidth; x++)
+        if (!IsTileWalkable(target.x, target.y)) return null;
+
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
+        queue.Enqueue(start);
+        cameFrom[start] = start;
+
+        while (queue.Count > 0)
         {
-            for (int y = 0; y < mapHeight; y++)
+            Vector2Int current = queue.Dequeue();
+            if (current == target)
             {
-                if (collisionMatrix[x, y])
-                    count++;
+                List<Vector2Int> path = new List<Vector2Int>();
+                while (current != start)
+                {
+                    path.Add(current);
+                    current = cameFrom[current];
+                }
+                path.Reverse();
+                return path;
+            }
+            foreach (Vector2Int dir in neighbors)
+            {
+                Vector2Int next = current + dir;
+                if (IsTileWalkable(next.x, next.y) && !cameFrom.ContainsKey(next))
+                {
+                    queue.Enqueue(next);
+                    cameFrom[next] = current;
+                }
             }
         }
-        return count;
+        return null;
     }
 }

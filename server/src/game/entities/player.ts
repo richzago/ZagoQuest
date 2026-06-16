@@ -56,6 +56,7 @@ export class Player extends Creature {
 
   vocation: Vocation = Vocation.NONE; // versão atual da vocação do jogador
   promotionStage: number = 0; // para futuras promoções de vocação
+  currentTargetId?: string; //
 
   // =========================
   // CONSTRUTOR

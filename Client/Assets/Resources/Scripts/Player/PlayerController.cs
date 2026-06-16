@@ -3,84 +3,92 @@ using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
-    public float speed = 5f;
-
-    private Rigidbody2D rb;
-    private Vector2 movement;
-    private PlayerInputActions inputActions;
-    private Animator animator;
     private NetworkManager networkManager;
+    private Vector2Int currentGridPosition;
+    private bool isReady = false;
+
+    // Ações de movimento (Input System)
+    private InputAction moveNorth, moveSouth, moveEast, moveWest;
+    private InputAction moveNortheast, moveNorthwest, moveSoutheast, moveSouthwest;
 
     void Awake()
     {
-        inputActions = new PlayerInputActions();
-        rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
-        networkManager = FindAnyObjectByType<NetworkManager>();
+        // Cria as ações e associa os callbacks
+        moveNorth = new InputAction("North", binding: "<Keyboard>/w");
+        moveSouth = new InputAction("South", binding: "<Keyboard>/s");
+        moveEast = new InputAction("East", binding: "<Keyboard>/d");
+        moveWest = new InputAction("West", binding: "<Keyboard>/a");
+        moveNortheast = new InputAction("NE", binding: "<Keyboard>/e");
+        moveNorthwest = new InputAction("NW", binding: "<Keyboard>/q");
+        moveSoutheast = new InputAction("SE", binding: "<Keyboard>/c");
+        moveSouthwest = new InputAction("SW", binding: "<Keyboard>/z");
 
-        if (networkManager == null) Debug.LogError("NetworkManager não encontrado!");
+        moveNorth.performed += _ => SendDirection("north");
+        moveSouth.performed += _ => SendDirection("south");
+        moveEast.performed += _ => SendDirection("east");
+        moveWest.performed += _ => SendDirection("west");
+        moveNortheast.performed += _ => SendDirection("northeast");
+        moveNorthwest.performed += _ => SendDirection("northwest");
+        moveSoutheast.performed += _ => SendDirection("southeast");
+        moveSouthwest.performed += _ => SendDirection("southwest");
     }
 
     void OnEnable()
     {
-        inputActions.Gameplay.Enable();
-        if (networkManager != null)
-        {
-            networkManager.OnPositionReceived += OnServerPosition;
-            networkManager.OnInit += OnServerInit;  // ← assinatura deve corresponder
-        }
+        moveNorth.Enable(); moveSouth.Enable(); moveEast.Enable(); moveWest.Enable();
+        moveNortheast.Enable(); moveNorthwest.Enable(); moveSoutheast.Enable(); moveSouthwest.Enable();
     }
 
     void OnDisable()
     {
-        inputActions.Gameplay.Disable();
+        moveNorth.Disable(); moveSouth.Disable(); moveEast.Disable(); moveWest.Disable();
+        moveNortheast.Disable(); moveNorthwest.Disable(); moveSoutheast.Disable(); moveSouthwest.Disable();
+    }
+
+    void Start()
+    {
+        networkManager = NetworkManager.Instance;
+        if (networkManager == null)
+        {
+            Debug.LogError("PlayerController: NetworkManager não encontrado!");
+            return;
+        }
+
+        networkManager.OnInit += OnServerInit;
+        networkManager.OnPositionReceived += OnPositionReceived;
+
+        // Verifica cache (caso o init já tenha chegado)
+        if (networkManager.TryGetInitPosition(out _, out Vector2 pos))
+            OnServerInit(null, pos);
+    }
+
+    private void OnServerInit(string _, Vector2 pos)
+    {
+        currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
+        transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
+        isReady = true;
+        Debug.Log("PlayerController: pronto para mover.");
+    }
+
+    private void OnPositionReceived(Vector2 pos)
+    {
+        currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
+        transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
+    }
+
+    private void SendDirection(string dir)
+    {
+        if (!isReady) return;
+        if (networkManager == null || !networkManager.isConnected) return;
+        networkManager.SendMoveDir(dir);
+    }
+
+    private void OnDestroy()
+    {
         if (networkManager != null)
         {
-            networkManager.OnPositionReceived -= OnServerPosition;
             networkManager.OnInit -= OnServerInit;
+            networkManager.OnPositionReceived -= OnPositionReceived;
         }
-    }
-
-    void Update()
-    {
-        movement.x = inputActions.Gameplay.MoveX.ReadValue<float>();
-        movement.y = inputActions.Gameplay.MoveY.ReadValue<float>();
-        movement.Normalize();
-
-        if (animator != null)
-        {
-            animator.SetFloat("MoveX", movement.x);
-            animator.SetFloat("MoveY", movement.y);
-            animator.SetBool("IsMoving", movement.magnitude > 0.01f);
-        }
-    }
-
-    void FixedUpdate()
-    {
-        if (movement != Vector2.zero)
-        {
-            Vector2 desiredPos = rb.position + movement * speed * Time.fixedDeltaTime;
-            networkManager.SendMove(desiredPos);
-        }
-    }
-
-    /// <summary>
-    /// Evento chamado quando o servidor envia a posição inicial (init).
-    /// </summary>
-    /// <param name="playerId">ID do jogador (UUID, string)</param>
-    /// <param name="pos">Posição inicial</param>
-    private void OnServerInit(string playerId, Vector2 pos)
-    {
-        rb.position = pos;
-        Debug.Log($"Player inicializado em {pos} com ID {playerId}");
-    }
-
-    /// <summary>
-    /// Evento chamado quando o servidor envia uma posição autoritativa (position).
-    /// </summary>
-    /// <param name="newPos">Nova posição</param>
-    private void OnServerPosition(Vector2 newPos)
-    {
-        rb.position = newPos;
     }
 }

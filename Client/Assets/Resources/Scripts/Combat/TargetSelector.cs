@@ -11,6 +11,7 @@ public class TargetSelector : MonoBehaviour
     public float maxTargetDistance = 5f;
 
     private string currentTargetId = null;
+    private GameObject currentTarget = null; // ← adicionado
     private List<string> monstersInRangeIds = new List<string>();
 
     private InputAction mouseClickAction;
@@ -48,9 +49,6 @@ public class TargetSelector : MonoBehaviour
         RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
         if (hit.collider != null)
         {
-            // ====================
-            // CLIQUE EM MONSTRO
-            // ====================
             if (hit.collider.CompareTag("Monster"))
             {
                 string clickedId = GetEntityIdFromGameObject(hit.collider.gameObject);
@@ -62,17 +60,11 @@ public class TargetSelector : MonoBehaviour
                         SelectTarget(clickedId);
                 }
             }
-            // ====================
-            // CLIQUE EM CORPSE
-            // ====================
             else if (hit.collider.CompareTag("Corpse"))
             {
                 CorpseIdentity corpse = hit.collider.GetComponent<CorpseIdentity>();
                 if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
-                {
-                    Debug.Log($"[TargetSelector] Clicou no corpo ID {corpse.corpseId}");
                     NetworkManager.Instance.SendLoot(corpse.corpseId);
-                }
             }
             else
             {
@@ -88,7 +80,6 @@ public class TargetSelector : MonoBehaviour
     private void OnAttackKey()
     {
         if (ChatUI.IsChatActive) return;
-
         if (!string.IsNullOrEmpty(currentTargetId) && IsTargetInRange(currentTargetId))
             AttackCurrentTarget();
         else
@@ -100,12 +91,12 @@ public class TargetSelector : MonoBehaviour
 
     public void SelectTarget(string targetId)
     {
-        if (currentTargetId == targetId) return;
-        ClearTarget();
+        if (currentTarget != null && currentTarget.CompareTag("Monster"))
+            NetworkManager.Instance.SendStopAutoAttack();
+
         currentTargetId = targetId;
-        GameObject go = EntityManager.Instance.GetGameObject(targetId);
-        if (go != null) AddSelectionOutline(go);
-        Debug.Log($"[TargetSelector] Alvo selecionado: ID {targetId}");
+        currentTarget = EntityManager.Instance.GetGameObject(targetId);
+        NetworkManager.Instance.SendStartAutoAttack(targetId);
     }
 
     public void ClearTarget()
@@ -115,6 +106,7 @@ public class TargetSelector : MonoBehaviour
             GameObject go = EntityManager.Instance.GetGameObject(currentTargetId);
             if (go != null) RemoveSelectionOutline(go);
             currentTargetId = null;
+            currentTarget = null;
         }
     }
 
@@ -122,22 +114,13 @@ public class TargetSelector : MonoBehaviour
     {
         MonsterIdentity idComp = go.GetComponent<MonsterIdentity>();
         if (idComp != null && idComp.entityId == currentTargetId)
-        {
             ClearTarget();
-            Debug.Log($"[TargetSelector] Seleção limpa porque o alvo {go.name} (ID {idComp.entityId}) foi removido.");
-        }
     }
 
     private void AttackCurrentTarget()
     {
         if (string.IsNullOrEmpty(currentTargetId)) return;
-        if (!IsTargetInRange(currentTargetId))
-        {
-            Debug.Log("[TargetSelector] Alvo muito longe para atacar");
-            return;
-        }
-
-        // Debug.Log($"[TargetSelector] Atacando ID {currentTargetId}");
+        if (!IsTargetInRange(currentTargetId)) return;
         NetworkManager.Instance.SendAttack(currentTargetId);
     }
 
@@ -151,7 +134,6 @@ public class TargetSelector : MonoBehaviour
     private void CycleToNextMonster()
     {
         monstersInRangeIds.Clear();
-
         Collider2D[] colliders = Physics2D.OverlapCircleAll(transform.position, maxTargetDistance);
         foreach (var col in colliders)
         {
@@ -162,19 +144,16 @@ public class TargetSelector : MonoBehaviour
                     monstersInRangeIds.Add(id);
             }
         }
-
         if (monstersInRangeIds.Count == 0)
         {
             ClearTarget();
             return;
         }
-
         if (string.IsNullOrEmpty(currentTargetId) || !monstersInRangeIds.Contains(currentTargetId))
         {
             SelectTarget(monstersInRangeIds[0]);
             return;
         }
-
         int idx = monstersInRangeIds.IndexOf(currentTargetId);
         idx = (idx + 1) % monstersInRangeIds.Count;
         SelectTarget(monstersInRangeIds[idx]);
