@@ -70,7 +70,7 @@ public class ChatUI : MonoBehaviour
     void SetChannel(string channel)
     {
         currentChannel = channel;
-        Debug.Log($"Canal alterado para: {channel}");
+        // Debug.Log($"Canal alterado para: {channel}");
     }
 
     void SendChat()

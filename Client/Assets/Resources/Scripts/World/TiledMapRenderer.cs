@@ -21,31 +21,22 @@ public class TiledMapRenderer : MonoBehaviour
         RenderGround();
         RenderAllTileLayers();
         ApplyCollision();
-
-        // Só spawna entidades do Tiled se não estiver conectado ao servidor (offline)
-        // if (NetworkManager.Instance == null)
-        // {
-        //     SpawnEntitiesFromTiled();
-        // }
-
-        // CenterCamera();
     }
 
     void LoadMap()
     {
         if (mapJson == null)
         {
-            Debug.LogError("mapJson não atribuído!");
+            Debug.LogError("TiledMapRenderer: mapJson não atribuído!");
             return;
         }
         mapData = JsonUtility.FromJson<TiledMap>(mapJson.text);
         if (mapData == null)
         {
-            Debug.LogError("Falha ao parsear JSON.");
+            Debug.LogError("TiledMapRenderer: Falha ao parsear JSON.");
             return;
         }
         Debug.Log($"Mapa carregado: {mapData.width}x{mapData.height}");
-        Debug.Log($"Tilesets no JSON: {mapData.tilesets.Count}");
     }
 
     void BuildTileCache()
@@ -65,11 +56,9 @@ public class TiledMapRenderer : MonoBehaviour
 
             foreach (var sprite in sprites)
             {
-                // pega número final do nome: _0, _1, _2...
                 string[] split = sprite.name.Split('_');
                 if (!int.TryParse(split[^1], out int index))
                 {
-                    Debug.LogWarning($"Sprite sem índice válido: {sprite.name}");
                     continue;
                 }
 
@@ -77,14 +66,10 @@ public class TiledMapRenderer : MonoBehaviour
 
                 Tile tile = ScriptableObject.CreateInstance<Tile>();
                 tile.sprite = sprite;
-
                 tileCache[gid] = tile;
             }
-
-            Debug.Log($"Tileset '{tileset.name}' carregado com segurança");
         }
-
-        Debug.Log($"Cache final: {tileCache.Count}");
+        Debug.Log($"TileCache: {tileCache.Count} tiles carregados.");
     }
 
     // ------------------------------------------------------------
@@ -94,14 +79,14 @@ public class TiledMapRenderer : MonoBehaviour
     {
         if (groundTilemap == null)
         {
-            Debug.LogError("groundTilemap não atribuído!");
+            Debug.LogError("TiledMapRenderer: groundTilemap não atribuído!");
             return;
         }
 
         TiledLayer ground = mapData.layers.Find(l => l.type == "tilelayer");
         if (ground == null)
         {
-            Debug.LogError("Nenhuma tile layer encontrada!");
+            Debug.LogError("TiledMapRenderer: Nenhuma tile layer encontrada!");
             return;
         }
 
@@ -145,11 +130,11 @@ public class TiledMapRenderer : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning($"GID {gid} não encontrado (layer '{layer.name}')");
+                    Debug.LogWarning($"TiledMapRenderer: GID {gid} não encontrado (layer '{layer.name}')");
                 }
             }
         }
-        Debug.Log($"Layer '{layer.name}': {tilesRendered} tiles desenhados.");
+        // Log removido para evitar spam
     }
 
     // ------------------------------------------------------------
@@ -160,7 +145,7 @@ public class TiledMapRenderer : MonoBehaviour
         TiledLayer collision = mapData.layers.Find(l => l.name == "Collision" && l.type == "tilelayer");
         if (collision == null)
         {
-            Debug.LogWarning("Camada 'Collision' não encontrada. Tudo caminhável.");
+            Debug.LogWarning("TiledMapRenderer: Camada 'Collision' não encontrada. Tudo caminhável.");
             return;
         }
 
@@ -177,12 +162,11 @@ public class TiledMapRenderer : MonoBehaviour
         if (GameManager.Instance != null)
             GameManager.Instance.SetCollisionMatrix(blocked, mapData.width, mapData.height);
         else
-            Debug.LogError("GameManager.Instance não encontrado!");
-        Debug.Log("Colisão aplicada.");
+            Debug.LogError("TiledMapRenderer: GameManager.Instance não encontrado!");
     }
 
     // ------------------------------------------------------------
-    // SPAWN DE ENTIDADES (NPCs e MONSTROS)
+    // SPAWN DE ENTIDADES (NPCs e MONSTROS) - OFFLINE
     // ------------------------------------------------------------
     void SpawnEntitiesFromTiled()
     {
@@ -194,34 +178,26 @@ public class TiledMapRenderer : MonoBehaviour
         {
             foreach (var obj in npcLayer.objects)
             {
-                // Lê a propriedade npcId (obrigatória)
                 string npcId = obj.properties?.Find(p => p.name == "npcId")?.value;
                 if (string.IsNullOrEmpty(npcId))
                 {
-                    Debug.LogWarning($"Objeto na layer 'NpcSpawn' sem 'npcId' (ID: {obj.id})");
+                    Debug.LogWarning($"TiledMapRenderer: Objeto na layer 'NpcSpawn' sem 'npcId' (ID: {obj.id})");
                     continue;
                 }
 
-                // Converte coordenadas de pixels para unidades Unity
                 float x = obj.x / mapData.tilewidth;
                 float y = (mapData.height - 1) - (obj.y / mapData.tileheight);
                 Vector3 position = new Vector3(x, y, 0);
 
-                // Carrega o prefab da pasta Resources/Prefabs/
                 GameObject prefab = Resources.Load<GameObject>($"Prefabs/{npcId}");
                 if (prefab == null)
                 {
-                    Debug.LogWarning($"Prefab não encontrado para NPC '{npcId}'. Crie um prefab em Resources/Prefabs/{npcId}.prefab");
+                    Debug.LogWarning($"TiledMapRenderer: Prefab não encontrado para NPC '{npcId}'");
                     continue;
                 }
 
                 Instantiate(prefab, position, Quaternion.identity);
-                Debug.Log($"NPC '{npcId}' instanciado em ({x}, {y})");
             }
-        }
-        else
-        {
-            Debug.Log("Nenhuma layer 'NpcSpawn' encontrada.");
         }
 
         // ====================
@@ -235,7 +211,7 @@ public class TiledMapRenderer : MonoBehaviour
                 string monsterId = obj.properties?.Find(p => p.name == "monsterId")?.value;
                 if (string.IsNullOrEmpty(monsterId))
                 {
-                    Debug.LogWarning($"Objeto na layer 'MonsterSpawn' sem 'monsterId' (ID: {obj.id})");
+                    Debug.LogWarning($"TiledMapRenderer: Objeto na layer 'MonsterSpawn' sem 'monsterId' (ID: {obj.id})");
                     continue;
                 }
 
@@ -246,17 +222,12 @@ public class TiledMapRenderer : MonoBehaviour
                 GameObject prefab = Resources.Load<GameObject>($"Prefabs/{monsterId}");
                 if (prefab == null)
                 {
-                    Debug.LogWarning($"Prefab não encontrado para monstro '{monsterId}'. Crie um prefab em Resources/Prefabs/{monsterId}.prefab");
+                    Debug.LogWarning($"TiledMapRenderer: Prefab não encontrado para monstro '{monsterId}'");
                     continue;
                 }
 
                 Instantiate(prefab, position, Quaternion.identity);
-                Debug.Log($"Monstro '{monsterId}' instanciado em ({x}, {y})");
             }
-        }
-        else
-        {
-            Debug.Log("Nenhuma layer 'MonsterSpawn' encontrada.");
         }
     }
 

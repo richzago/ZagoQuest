@@ -28,7 +28,7 @@ public class BankUI : MonoBehaviour
         networkManager.OnBankWindow += OpenBank;
         networkManager.OnBankResult += UpdateBankUI;
 
-        Debug.Log("BankUI: inscrito nos eventos OnBankWindow e OnBankResult.");
+        // Debug.Log("BankUI: inscrito nos eventos OnBankWindow e OnBankResult.");
 
         // Configura botões
         if (depositButton != null)

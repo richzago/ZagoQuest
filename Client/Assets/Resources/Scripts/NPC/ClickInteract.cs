@@ -12,8 +12,8 @@ public class ClickInteract : MonoBehaviour
     void Awake()
     {
         npcIdentity = GetComponent<NpcIdentity>();
-        if (npcIdentity == null)
-            Debug.LogError($"ClickInteract: NpcIdentity não encontrado em {gameObject.name}");
+        // if (npcIdentity == null)
+        //     Debug.LogError($"ClickInteract: NpcIdentity não encontrado em {gameObject.name}");
     }
 
     void OnMouseDown()

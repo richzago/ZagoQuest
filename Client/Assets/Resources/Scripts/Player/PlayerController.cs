@@ -1,19 +1,28 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 public class PlayerController : MonoBehaviour
 {
+    public static PlayerController Instance { get; private set; }
+
+    [Header("Movement")]
+    public float stepDuration = 0.2f;
+    private bool isMoving = false;
+    private Queue<Vector2Int> moveQueue = new Queue<Vector2Int>();
+
     private NetworkManager networkManager;
     private Vector2Int currentGridPosition;
     private bool isReady = false;
 
-    // Ações de movimento (Input System)
     private InputAction moveNorth, moveSouth, moveEast, moveWest;
     private InputAction moveNortheast, moveNorthwest, moveSoutheast, moveSouthwest;
 
     void Awake()
     {
-        // Cria as ações e associa os callbacks
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+
         moveNorth = new InputAction("North", binding: "<Keyboard>/w");
         moveSouth = new InputAction("South", binding: "<Keyboard>/s");
         moveEast = new InputAction("East", binding: "<Keyboard>/d");
@@ -57,7 +66,6 @@ public class PlayerController : MonoBehaviour
         networkManager.OnInit += OnServerInit;
         networkManager.OnPositionReceived += OnPositionReceived;
 
-        // Verifica cache (caso o init já tenha chegado)
         if (networkManager.TryGetInitPosition(out _, out Vector2 pos))
             OnServerInit(null, pos);
     }
@@ -74,6 +82,7 @@ public class PlayerController : MonoBehaviour
     {
         currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
         transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
+        ProcessMoveQueue();
     }
 
     private void SendDirection(string dir)
@@ -81,6 +90,52 @@ public class PlayerController : MonoBehaviour
         if (!isReady) return;
         if (networkManager == null || !networkManager.isConnected) return;
         networkManager.SendMoveDir(dir);
+    }
+
+    // =========================
+    // Walk Queue
+    // =========================
+    private void EnqueueDirection(Vector2Int direction)
+    {
+        Vector2Int targetTile = currentGridPosition + direction;
+        moveQueue.Enqueue(targetTile);
+        if (!isMoving) ProcessMoveQueue();
+    }
+
+    private void ProcessMoveQueue()
+    {
+        if (moveQueue.Count == 0)
+        {
+            isMoving = false;
+            return;
+        }
+        isMoving = true;
+        Vector2Int nextTile = moveQueue.Dequeue();
+        Vector2Int dir = nextTile - currentGridPosition;
+        string dirStr = DirectionToString(dir);
+        if (dirStr != null)
+            networkManager.SendMoveDir(dirStr);
+        else
+            ProcessMoveQueue();
+    }
+
+    private string DirectionToString(Vector2Int dir)
+    {
+        if (dir == Vector2Int.up) return "north";
+        if (dir == Vector2Int.down) return "south";
+        if (dir == Vector2Int.right) return "east";
+        if (dir == Vector2Int.left) return "west";
+        if (dir.x == 1 && dir.y == 1) return "northeast";
+        if (dir.x == -1 && dir.y == 1) return "northwest";
+        if (dir.x == 1 && dir.y == -1) return "southeast";
+        if (dir.x == -1 && dir.y == -1) return "southwest";
+        return null;
+    }
+
+    public void RequestMoveDirection(Vector2Int direction)
+    {
+        if (!isReady) return;
+        EnqueueDirection(direction);
     }
 
     private void OnDestroy()
