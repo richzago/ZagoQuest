@@ -1,16 +1,8 @@
 /**
  * gameStarter.ts
  *
- * Orquestra a inicialização dos loops do jogo (headless).
- * Não cria o mundo – ele deve ser criado externamente (por exemplo, no main.ts)
- * e passado para esta função.
- *
- * Responsabilidades:
- * - Configurar o graceful shutdown (salvar ao encerrar).
- * - Iniciar o loop de IA (monstros, NPCs, condições) sem renderização.
- * - Transmitir a posição atualizada dos monstros a todos os clientes conectados.
- * - Processar ataque automático dos jogadores contra seus alvos.
- * - Iniciar tarefas agendadas (autosave, inatividade de guildas).
+ * Loop robusto com setInterval e logs detalhados.
+ * Agora também remove monstros que estejam fora dos limites do mapa.
  *
  * @module game/core/gameStarter
  */
@@ -22,139 +14,133 @@ import { World } from "../world/World";
 import { Player } from "../entities/player";
 import { WebSocketServer } from "../../network/websocket/wsServer";
 import { CombatSystem } from "../combat/combatSystem";
+import { Monster } from "../entities/monster";
 
-/**
- * Inicia os loops do servidor do jogo (IA, autosave, guildas) a partir de um mundo e jogador já existentes.
- * Esta função NÃO cria o mundo – ele deve ser criado antes (ex: via createWorldAndPlayer).
- *
- * @param world - Instância do mundo já carregado (com mapa, entidades, etc.)
- * @param player - Jogador já carregado (ou criado) e associado ao mundo
- * @param wsServer - Instância do servidor WebSocket para broadcast de movimentos e notificações
- * @returns {void}
- *
- * @remarks
- * **Fluxo de execução:**
- * 1. Configura o graceful shutdown (salva o jogador ao receber SIGINT).
- * 2. Inicia o loop periódico de IA (monstros, NPCs, condições) + auto attack.
- * 3. A cada atualização de monstro, verifica se a posição mudou e envia `broadcastMove`.
- * 4. Inicia tarefas agendadas (autosave a cada 60s, processamento de guildas a cada 24h).
- *
- * @example
- * ```typescript
- * // No main.ts, após criar o mundo e o jogador:
- * startGameLoops(world, player, wsServer);
- * ```
- */
 export function startGameLoops(world: World, player: Player, wsServer: WebSocketServer): void {
-  // 1. Configura o salvamento ao encerrar (Ctrl+C) – salva o jogador atual
   setupGracefulShutdown(player);
-
-  // 2. Inicia o loop de IA + auto attack
-  startAiAndAutoAttackLoop(world, wsServer);
-
-  // 3. Inicia tarefas periódicas (autosave, guildas, etc.)
+  startAutoAttackLoop(world, wsServer);
   startScheduledTasks(player);
-
-  Logger.system(
-    "Loops do jogo iniciados (IA, auto attack, autosave, guildas, broadcast de movimento).",
-  );
+  Logger.system("Loops do jogo iniciados (IA, auto attack, autosave, guildas).");
 }
 
-/**
- * Inicia o loop que processa:
- * - IA dos monstros (movimento, aggro, chase, wander)
- * - IA dos NPCs (movimento)
- * - Condições (poison, burn, etc.) em monstros e jogadores
- * - Ataque automático dos jogadores contra seus alvos atuais
- *
- * O loop executa a cada 1.5 segundos.
- *
- * @param world - Mundo do jogo
- * @param wsServer - Servidor WebSocket para broadcast de movimento e notificações de auto attack
- */
-function startAiAndAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
+function startAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
   setInterval(() => {
-    // ====================
-    // 1. MOVIMENTO E IA DOS MONSTROS
-    // ====================
-    world.monsters.forEach((monster) => {
-      const oldX = monster.position.x;
-      const oldY = monster.position.y;
-
-      monster.ai.update(monster, world);
-      monster.conditionManager.update();
-
-      // Se a posição mudou, notifica todos os clientes
-      if (oldX !== monster.position.x || oldY !== monster.position.y) {
-        wsServer.broadcastMove(monster.id, monster.position.x, monster.position.y);
-      }
-    });
-
-    // ====================
-    // 2. MOVIMENTO DOS NPCS (SE TIVEREM IA)
-    // ====================
-    world.npcs.forEach((npc) => {
-      if (npc.ai) {
-        const oldX = npc.position.x;
-        const oldY = npc.position.y;
-        npc.ai.update(npc, world);
-        if (oldX !== npc.position.x || oldY !== npc.position.y) {
-          wsServer.broadcastMove(npc.id, npc.position.x, npc.position.y);
+    try {
+      // 1. Movimento e IA dos monstros
+      for (const monster of world.monsters) {
+        try {
+          const oldX = monster.position.x;
+          const oldY = monster.position.y;
+          monster.ai.update(monster, world);
+          monster.conditionManager.update();
+          if (oldX !== monster.position.x || oldY !== monster.position.y) {
+            wsServer.broadcastMove(monster.id, monster.position.x, monster.position.y);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          Logger.error(`Erro no update do monstro ${monster.id}: ${msg}`);
         }
       }
-    });
 
-    // ====================
-    // 3. CONDIÇÕES DOS JOGADORES (ex: poison, burn)
-    // ====================
-    world.players.forEach((player) => player.conditionManager.update());
-
-    // ====================
-    // 4. ATAQUE AUTOMÁTICO DOS JOGADORES
-    // ====================
-    for (const player of world.players) {
-      if (!player.currentTargetId) continue; // sem alvo ativo
-
-      const target = world.monsters.find((m) => m.id === player.currentTargetId);
-      // Verifica se o alvo ainda existe e está vivo
-      if (!target || target.hp <= 0) {
-        // Para o ataque automático e notifica o cliente
-        player.currentTargetId = undefined;
-        wsServer.sendToPlayer(
-          player.id,
-          JSON.stringify({
-            type: "autoAttackStopped",
-            reason: "Alvo morto ou sumiu.",
-          }),
-        );
-        continue;
+      // 2. Movimento dos NPCs
+      for (const npc of world.npcs) {
+        if (npc.ai) {
+          try {
+            const oldX = npc.position.x;
+            const oldY = npc.position.y;
+            npc.ai.update(npc, world);
+            if (oldX !== npc.position.x || oldY !== npc.position.y) {
+              wsServer.broadcastMove(npc.id, npc.position.x, npc.position.y);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            Logger.error(`Erro no update do NPC ${npc.id}: ${msg}`);
+          }
+        }
       }
 
-      // Verifica distância Manhattan (corpo a corpo: 1 tile)
-      const dx = Math.abs(target.position.x - player.position.x);
-      const dy = Math.abs(target.position.y - player.position.y);
-      if (dx + dy <= 1) {
-        // Ataque automático (respeita cooldown dentro do CombatSystem)
-        CombatSystem.attack(player, target, world);
-        // Se o monstro morreu durante o ataque, notifica o cliente
-        if (target.hp <= 0) {
+      // 3. Condições dos jogadores
+      for (const player of world.players) {
+        try {
+          player.conditionManager.update();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          Logger.error(`Erro nas condições do player ${player.id}: ${msg}`);
+        }
+      }
+
+      // 4. Ataque automático
+      for (const player of world.players) {
+        if (!player.currentTargetId) continue;
+
+        const target = world.monsters.find((m) => m.id === player.currentTargetId);
+        if (!target || target.hp <= 0) {
           player.currentTargetId = undefined;
-          wsServer.sendToPlayer(
+          wsServer.sendToPlayer?.(
             player.id,
             JSON.stringify({
               type: "autoAttackStopped",
-              reason: "Alvo morto.",
+              reason: "Alvo morto ou sumiu.",
             }),
+          );
+          Logger.combat(`[AUTO] ${player.name} perdeu alvo (morto/sumiu)`);
+          continue;
+        }
+
+        const dx = Math.abs(target.position.x - player.position.x);
+        const dy = Math.abs(target.position.y - player.position.y);
+        const distance = dx + dy;
+
+        // Log de distância a cada 5 segundos (útil para debug)
+        if (Math.floor(Date.now() / 5000) > Math.floor((Date.now() - 1500) / 5000)) {
+          Logger.combat(`[AUTO] ${player.name} distância de ${target.name}: ${distance}`);
+        }
+
+        if (distance <= 1) {
+          try {
+            CombatSystem.attack(player, target, world);
+            const damageDealt = CombatSystem.attack(player, target, world);
+            wsServer.broadcastDamage(target.id, target.hp, target.maxHp, damageDealt);
+            if (target.hp <= 0) {
+              player.currentTargetId = undefined;
+              wsServer.sendToPlayer?.(
+                player.id,
+                JSON.stringify({
+                  type: "autoAttackStopped",
+                  reason: "Alvo morto",
+                }),
+              );
+              Logger.combat(`[AUTO] ${player.name} matou ${target.name}`);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            Logger.error(`Erro no ataque de ${player.name} contra ${target.name}: ${msg}`);
+          }
+        }
+      }
+
+      // 5. Limpeza de monstros mortos
+      world.cleanupDeadMonsters();
+
+      // 6. Limpeza de monstros fora dos limites do mundo
+      const monstersOutOfBounds: Monster[] = [];
+      for (const monster of world.monsters) {
+        if (!world.isWithinBounds(monster.position.x, monster.position.y)) {
+          monstersOutOfBounds.push(monster);
+          Logger.warn(
+            `Monstro ${monster.name} (${monster.id}) fora dos limites em (${monster.position.x}, ${monster.position.y}) - removendo.`,
           );
         }
       }
-      // Caso contrário (fora de alcance), o cliente pode lidar com auto follow
-      // (opcional: o servidor pode enviar uma mensagem de "fora de alcance")
+      for (const monster of monstersOutOfBounds) {
+        world.removeMonster(monster);
+        wsServer.broadcastDespawn(monster.id);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      Logger.error(`Erro crítico no loop principal: ${msg}`);
+      if (stack) Logger.error(stack);
     }
-
-    // ====================
-    // 5. LIMPEZA DE MONSTROS MORTOS
-    // ====================
-    world.cleanupDeadMonsters();
   }, 1500); // 1.5 segundos
 }

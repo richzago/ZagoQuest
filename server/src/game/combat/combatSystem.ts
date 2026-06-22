@@ -23,10 +23,11 @@ import { CombatDamageEventData } from "../../shared/interfaces/eventData.interfa
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { Creature } from "../entities/creature";
+import { WebSocketServer } from "../../network/websocket/wsServer"; // 🔥 IMPORT ADICIONADO
 
 export class CombatSystem {
   /**
-   * Realiza um ataque entre duas entidades.
+   * Realiza um ataque entre duas entidades e retorna o dano causado..
    *
    * @param attacker - Quem ataca (deve implementar CombatStats e Damageable)
    * @param target - Quem recebe o dano (deve implementar CombatStats e Damageable)
@@ -53,8 +54,9 @@ export class CombatSystem {
     attacker: Damageable & CombatStats,
     target: Damageable & CombatStats,
     world: World,
-  ): void {
-    if (target.hp <= 0) return;
+  ): number {
+    // ← AGORA RETORNA NUMBER
+    if (target.hp <= 0) return 0;
 
     // ----------------------------------------------------------
     // 1. Determina o tipo de dano e as resistências/weaknesses do alvo
@@ -81,12 +83,34 @@ export class CombatSystem {
       defenderResistances,
       defenderWeaknesses,
     );
-    const finalDamage = result.damage;
+    const finalDamage = result.damage; // ← valor do dano calculado
 
     // ----------------------------------------------------------
     // 3. Aplica o dano ao alvo
     // ----------------------------------------------------------
     target.hp = Math.max(0, target.hp - finalDamage);
+
+    // ==========================================================
+    // 🔥 ENVIA PLAYER STATS (se o alvo for jogador)
+    // ==========================================================
+    if (target instanceof Player) {
+      const wsServer = WebSocketServer.getInstance();
+      if (wsServer) {
+        wsServer.sendToPlayer(
+          target.id,
+          JSON.stringify({
+            type: "playerStats",
+            hp: target.hp,
+            maxHp: target.maxHp,
+            mana: target.mana,
+            maxMana: target.maxMana,
+            level: target.level,
+            attack: target.attack,
+            defense: target.defense,
+          }),
+        );
+      }
+    }
 
     // ----------------------------------------------------------
     // 4. Emite evento de dano
@@ -149,5 +173,10 @@ export class CombatSystem {
     if (target.hp <= 0) {
       DeathSystem.handleDeath(target, attacker, world);
     }
+
+    // ==========================================================
+    // 🔥 RETORNA O DANO CAUSADO (para ser usado no broadcast)
+    // ==========================================================
+    return finalDamage;
   }
 }

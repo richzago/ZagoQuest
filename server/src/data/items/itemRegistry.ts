@@ -71,8 +71,44 @@ export class ItemRegistry {
    * @throws Se o item não existir.
    */
   static get(id: string): ItemType {
-    const item = this.items.get(id);
-    if (!item) throw new Error(`Item não encontrado: ${id}`);
-    return item;
+    // 1. Tenta encontrar pelo ID completo
+    let item = this.items.get(id);
+    if (item) return item;
+
+    // 2. Tenta extrair o shortId (última parte após a última barra)
+    const shortId = id.includes("/") ? id.substring(id.lastIndexOf("/") + 1) : id;
+    item = this.items.get(shortId);
+    if (item) return item;
+
+    // 3. Normalização robusta: remove tudo que não é letra/número, converte para minúsculo
+    const normalize = (str: string) => str.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const normalizedInput = normalize(id);
+
+    // Percorre todos os itens registrados e compara com o normalizedInput
+    for (const [key, value] of this.items.entries()) {
+      const normalizedKey = normalize(key);
+      if (normalizedKey === normalizedInput) {
+        return value;
+      }
+    }
+
+    // 4. Fallback final: tenta extrair o nome do arquivo (último segmento sem extensão)
+    // Isso é útil se o ID for algo como "equipment/weapon/swords/boneSword" e o item estiver
+    // registrado como "bone_sword" (o normalize já deve pegar, mas deixamos como segurança)
+    const fileName =
+      id
+        .split("/")
+        .pop()
+        ?.replace(/\.[^/.]+$/, "") || "";
+    if (fileName) {
+      const normalizedFileName = normalize(fileName);
+      for (const [key, value] of this.items.entries()) {
+        if (normalize(key) === normalizedFileName) {
+          return value;
+        }
+      }
+    }
+
+    throw new Error(`Item não encontrado: ${id}`);
   }
 }

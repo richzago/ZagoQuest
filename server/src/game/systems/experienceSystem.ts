@@ -3,6 +3,7 @@
  *
  * Sistema de experiência e level up.
  * Totalmente baseado em dados (level, xp) do Player.
+ * Agora com envio de playerStats ao cliente sempre que XP ou Level mudam.
  *
  * @module game/systems/ExperienceSystem
  */
@@ -15,6 +16,7 @@ import {
 import { EventSystem } from "../core/events/eventSystem";
 import { Logger } from "../core/logger/logger";
 import { Player } from "../entities/player";
+import { WebSocketServer } from "../../network/websocket/wsServer"; // 🔥 import adicionado
 
 /**
  * Gerencia a progressão de nível e experiência do jogador.
@@ -79,6 +81,7 @@ export class ExperienceSystem {
    * acumulado seja inferior ao necessário para o próximo nível.
    * Dispara evento `PLAYER_GAIN_XP` e (se houver level up) `PLAYER_LEVEL_UP`.
    * O log é escrito no canal `SKILL`.
+   * Após qualquer alteração, envia `playerStats` atualizado para o cliente.
    *
    * @example
    * ```typescript
@@ -106,6 +109,30 @@ export class ExperienceSystem {
       this.levelUp(player);
       leveledUp = true;
     }
+
+    // ==========================================================
+    // 🔥 ENVIA PLAYER STATS ATUALIZADOS PARA O CLIENTE
+    // (inclui XP, nível, HP e Mana)
+    // ==========================================================
+    const wsServer = WebSocketServer.getInstance();
+    if (wsServer) {
+      wsServer.sendToPlayer(
+        player.id,
+        JSON.stringify({
+          type: "playerStats",
+          hp: player.hp,
+          maxHp: player.maxHp,
+          mana: player.mana,
+          maxMana: player.maxMana,
+          level: player.level,
+          attack: player.attack,
+          defense: player.defense,
+          xp: player.xp, // ← incluído para a barra de XP (se o cliente quiser usar)
+        }),
+      );
+      Logger.combat(`[HUD] PlayerStats enviado para ${player.name} (XP atualizado)`);
+    }
+
     return leveledUp;
   }
 
@@ -141,7 +168,6 @@ export class ExperienceSystem {
     Logger.system(
       `${player.name} atingiu o nível ${player.level}! HP máximo agora ${player.maxHp}.`,
     );
-    // TODO: disparar evento para client
   }
 
   /**

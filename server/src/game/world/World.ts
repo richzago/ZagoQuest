@@ -316,26 +316,18 @@ export class World {
    * @returns `true` se a posição é válida para movimento, `false` caso contrário.
    */
   isPositionWalkable(worldX: number, worldY: number, ignoredEntityId?: string): boolean {
-    // Converte de unidades do mundo para coordenadas de tile (cada tile = 1 unidade, mas o servidor trabalha com posições inteiras)
-    // Nota: se o servidor usa coordenadas contínuas, arredonda para o tile correspondente.
     const tileX = Math.floor(worldX);
     const tileY = Math.floor(worldY);
 
-    // Verifica limites do mapa
+    // 🔥 Verifica limites do mapa
     if (tileX < 0 || tileY < 0 || tileX >= this.width || tileY >= this.height) {
       return false;
     }
 
-    // Verifica se o tile é caminhável
     const tile = this.getTile(tileX, tileY);
-    if (!tile || !tile.walkable) {
-      return false;
-    }
+    if (!tile || !tile.walkable) return false;
 
-    // Verifica se a posição está ocupada por alguma entidade (ignorando o próprio jogador)
-    if (this.isPositionOccupied(tileX, tileY, ignoredEntityId)) {
-      return false;
-    }
+    if (this.isPositionOccupied(tileX, tileY, ignoredEntityId)) return false;
 
     return true;
   }
@@ -354,6 +346,25 @@ export class World {
     this.monsters = this.monsters.filter((m) => m.hp > 0);
     if (before !== this.monsters.length) {
       Logger.world(`Removidos ${before - this.monsters.length} monstros mortos.`);
+    }
+  }
+
+  /**
+   * Verifica se uma coordenada está dentro dos limites do mundo (baseado em tiles).
+   */
+  isWithinBounds(x: number, y: number): boolean {
+    return x >= 0 && x < this.width && y >= 0 && y < this.height;
+  }
+
+  /**
+   * Remove um monstro da lista de monstros vivos.
+   * @param monster - Monstro a ser removido
+   */
+  removeMonster(monster: Monster): void {
+    const index = this.monsters.findIndex((m) => m.id === monster.id);
+    if (index !== -1) {
+      this.monsters.splice(index, 1);
+      Logger.world(`Monstro ${monster.name} (${monster.id}) removido do mundo.`);
     }
   }
 }

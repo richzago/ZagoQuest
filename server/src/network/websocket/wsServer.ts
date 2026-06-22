@@ -199,17 +199,13 @@ export class WebSocketServer {
   private handleStartAutoAttack(ws: WebSocket, msg: { targetId: string }): void {
     const player = this.clients.get(ws);
     if (!player) return;
-
-    const targetId = msg.targetId;
-    const target = this.world.monsters.find((m) => m.id === targetId);
+    const target = this.world.monsters.find((m) => m.id === msg.targetId);
     if (!target || target.hp <= 0) {
       ws.send(JSON.stringify({ type: "autoAttackStopped", reason: "Alvo inválido ou morto" }));
       return;
     }
-
-    // Armazena o alvo atual do jogador (supondo que Player tenha a propriedade `currentTargetId`)
-    player.currentTargetId = targetId;
-    Logger.combat(`${player.name} iniciou ataque automático contra ${target.name}`);
+    player.currentTargetId = msg.targetId;
+    Logger.combat(`[AUTO] ${player.name} iniciou ataque contra ${target.name} (ID ${target.id})`);
   }
 
   /**
@@ -238,6 +234,15 @@ export class WebSocketServer {
     Logger.world(`Estado inicial enviado para ${player.name}`);
   }
 
+  /**
+   * Envia ao cliente todos os monstros e NPCs atualmente vivos no mundo.
+   * @param ws - WebSocket do cliente.
+   */
+
+  // =========================
+  // 1. ENVIA MONSTERS
+  // =========================
+
   private sendSpawnEntities(ws: WebSocket): void {
     for (const monster of this.world.monsters) {
       ws.send(
@@ -254,6 +259,9 @@ export class WebSocketServer {
     }
     Logger.world(`Enviados ${this.world.monsters.length} monstros para o cliente`);
 
+    // =========================
+    // 2. ENVIA NPCS
+    // =========================
     for (const npc of this.world.npcs) {
       ws.send(
         JSON.stringify({
@@ -262,6 +270,7 @@ export class WebSocketServer {
           name: npc.name,
           x: npc.position.x,
           y: npc.position.y,
+          npcType: npc.npcType, // ← ESSENCIAL para o cliente saber o tipo (merchant, banker, etc.)
         }),
       );
     }
@@ -331,12 +340,14 @@ export class WebSocketServer {
       return;
     }
 
-    CombatSystem.attack(player, target, this.world);
+    // 🔥 Captura o dano causado
+    const damageDealt = CombatSystem.attack(player, target, this.world);
 
     if (target.hp <= 0) {
       this.broadcastDespawn(target.id);
     } else {
-      this.broadcastDamage(target.id, target.hp, target.maxHp);
+      // 🔥 Agora com 4 argumentos: targetId, newHp, maxHp, damage
+      this.broadcastDamage(target.id, target.hp, target.maxHp, damageDealt);
     }
   }
 
@@ -364,10 +375,13 @@ export class WebSocketServer {
       JSON.stringify({
         type: "lootWindow",
         corpseId: corpse.id,
-        items: corpse.loot,
+        items: corpse.loot.map((item) => ({
+          itemId: item.itemId,
+          amount: item.amount,
+          itemName: ItemRegistry.get(item.itemId)?.name || item.itemId,
+        })),
       }),
     );
-    Logger.world(`Jogador ${player.name} abriu loot do corpse ${corpseId}`);
   }
 
   private async handleTakeLoot(
@@ -688,8 +702,8 @@ export class WebSocketServer {
   // BROADCASTS E UTILITÁRIOS
   // =========================
 
-  private broadcastDamage(targetId: string, newHp: number, maxHp: number): void {
-    const msg = JSON.stringify({ type: "damage", targetId, newHp, maxHp });
+  public broadcastDamage(targetId: string, newHp: number, maxHp: number, damage: number): void {
+    const msg = JSON.stringify({ type: "damage", targetId, newHp, maxHp, damage });
     for (const [socket] of this.clients.entries()) {
       if (socket.readyState === WebSocket.OPEN) socket.send(msg);
     }
@@ -738,7 +752,8 @@ export class WebSocketServer {
     }
   }
 
-  private broadcastDespawn(entityId: string): void {
+  public broadcastDespawn(entityId: string): void {
+    Logger.system(`[DESPAWN] Enviando despawn para entidade ${entityId}`);
     const msg = JSON.stringify({ type: "despawn", id: entityId });
     for (const [socket] of this.clients.entries()) {
       if (socket.readyState === WebSocket.OPEN) socket.send(msg);
