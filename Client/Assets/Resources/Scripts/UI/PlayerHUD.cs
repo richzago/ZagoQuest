@@ -1,42 +1,94 @@
-using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class PlayerHUD : MonoBehaviour
 {
+    [Header("Barras")]
+    public Slider hpSlider;
+    public Slider manaSlider;
+    public Slider xpSlider;
+    public TextMeshProUGUI hpText;
+    public TextMeshProUGUI manaText;
+    public TextMeshProUGUI xpText;
+    public TextMeshProUGUI levelText;
+
+    [Header("Textos existentes")]
     public TextMeshProUGUI playerNameText;
-    public TextMeshProUGUI playerHPText;
-    public TextMeshProUGUI playerPosText;
+    public TextMeshProUGUI positionText;
     public TextMeshProUGUI fpsText;
 
-    public PlayerController player;
-
-    private float deltaTime = 0.0f;
+    private NetworkManager networkManager;
 
     void Start()
     {
-        if (player == null)
-            player = FindAnyObjectByType<PlayerController>();
+        networkManager = NetworkManager.Instance;
+        if (networkManager == null) return;
 
-        if (player != null)
+        networkManager.OnPlayerStats += UpdateStats;
+        networkManager.OnInit += (id, pos) =>
         {
-            playerNameText.text = player.gameObject.name;
-        }
-        else
+            if (playerNameText != null) playerNameText.text = "Richard";
+        };
+        networkManager.OnPositionReceived += (pos) =>
         {
-            playerNameText.text = "Player";
-        }
+            if (positionText != null) positionText.text = $"({pos.x:F1}, {pos.y:F1})";
+        };
     }
 
     void Update()
     {
-        if (player != null)
+        if (fpsText != null)
+            fpsText.text = $"FPS: {Mathf.Round(1f / Time.unscaledDeltaTime)}";
+    }
+
+    void UpdateStats(int hp, int maxHp, int mana, int maxMana, int level, int attack, int defense, int xp)
+    {
+        // HP
+        if (hpSlider != null)
         {
-            Vector3 pos = player.transform.position;
-            playerPosText.text = $"Pos: ({pos.x:F2}, {pos.y:F2})";
+            hpSlider.maxValue = maxHp;
+            hpSlider.value = hp;
+        }
+        if (hpText != null)
+            hpText.text = $"{hp}/{maxHp}";
+
+        // Mana
+        if (manaSlider != null)
+        {
+            manaSlider.maxValue = maxMana;
+            manaSlider.value = mana;
+        }
+        if (manaText != null)
+            manaText.text = $"{mana}/{maxMana}";
+
+        // XP
+        if (xpSlider != null)
+        {
+            int xpNeeded = GetXpForNextLevel(level);
+            xpSlider.maxValue = xpNeeded;
+            xpSlider.value = xp;
+        }
+        if (xpText != null)
+        {
+            int xpNeeded = GetXpForNextLevel(level);
+            xpText.text = $"{xp}/{xpNeeded}";
         }
 
-        deltaTime += (Time.deltaTime - deltaTime) * 0.1f;
-        float fps = 1.0f / deltaTime;
-        fpsText.text = $"FPS: {Mathf.Ceil(fps)}";
+        // Level
+        if (levelText != null)
+            levelText.text = $"Nv. {level}";
+    }
+
+    private int GetXpForNextLevel(int level)
+    {
+        // Fórmula simples: 100 * level (ajuste conforme sua fórmula do servidor)
+        return 100 * level;
+    }
+
+    void OnDestroy()
+    {
+        if (networkManager != null)
+            networkManager.OnPlayerStats -= UpdateStats;
     }
 }

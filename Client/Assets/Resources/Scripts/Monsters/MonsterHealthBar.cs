@@ -1,51 +1,60 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class MonsterHealthBar : MonoBehaviour
 {
-    public Slider hpSlider;
+    public Slider slider;
+    public TextMeshProUGUI hpText;
+    public TextMeshProUGUI nameText;
 
-    void Start()
+    private Canvas canvas;
+    private Transform target;
+
+    void Awake()
     {
-        // Fallback: se o slider ainda não foi criado, chama Initialize automaticamente
-        if (hpSlider == null)
-            Initialize();
+        canvas = GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.renderMode = RenderMode.WorldSpace;
+            transform.localScale = Vector3.one * 0.01f;
+        }
     }
 
-    /// <summary>
-    /// Cria a barra de HP se ela não existir.
-    /// Deve ser chamada manualmente após adicionar o componente.
-    /// </summary>
-    public void Initialize()
+    void LateUpdate()
     {
-        if (hpSlider != null) return;
-
-        GameObject sliderObj = new GameObject("HPBar");
-        sliderObj.transform.SetParent(transform);
-        sliderObj.transform.localPosition = new Vector3(0, 1.2f, 0);
-
-        Canvas canvas = sliderObj.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.scaleFactor = 0.01f;
-
-        hpSlider = sliderObj.AddComponent<Slider>();
-        hpSlider.minValue = 0;
-        hpSlider.maxValue = 100;
-        hpSlider.value = 100;
-
-        RectTransform rect = hpSlider.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(1, 0.2f);
+        if (Camera.main != null && target != null)
+        {
+            transform.position = target.position + Vector3.up * 1.2f;
+            transform.forward = Camera.main.transform.forward;
+        }
     }
 
-    public void SetMaxHp(int max)
+    public void SetTarget(Transform targetTransform)
     {
-        if (hpSlider != null)
-            hpSlider.maxValue = max;
+        target = targetTransform;
+    }
+
+    public void SetName(string name)
+    {
+        if (nameText != null) nameText.text = name;
+    }
+
+    public void SetMaxHp(int maxHp)
+    {
+        if (slider != null) slider.maxValue = maxHp;
+        UpdateHpText();
     }
 
     public void SetHp(int hp)
     {
-        if (hpSlider != null)
-            hpSlider.value = hp;
+        if (slider != null) slider.value = hp;
+        UpdateHpText();
+    }
+
+    private void UpdateHpText()
+    {
+        if (hpText != null && slider != null)
+            hpText.text = $"{slider.value}/{slider.maxValue}";
     }
 }
