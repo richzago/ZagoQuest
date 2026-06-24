@@ -5,6 +5,9 @@ import { LootSender } from "./LootSender";
 import { ShopSender } from "./ShopSender";
 import { BankSender } from "./BankSender";
 import { ChatSender } from "./ChatSender";
+import { InitialStateSender } from "./initialStateSender";
+import { PlayerStatsSender } from "./playerStatsSender";
+import { WorldStateSender } from "./worldStateSender";
 
 /**
  * Agrupa todos os senders para facilitar o uso.
@@ -27,5 +30,15 @@ export class PacketSender {
   }
 }
 
-// Re-exporta os senders individuais (opcional)
-export { CombatSender, InventorySender, LootSender, ShopSender, BankSender, ChatSender };
+// Re-exporta os senders individuais (incluindo os novos)
+export {
+  CombatSender,
+  InventorySender,
+  LootSender,
+  ShopSender,
+  BankSender,
+  ChatSender,
+  InitialStateSender,
+  PlayerStatsSender,
+  WorldStateSender,
+};
