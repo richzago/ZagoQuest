@@ -3,8 +3,9 @@
  *
  * Inteligência artificial para monstros.
  * Segue o fluxo: aggro → perseguição → fuga → ataque.
- * Agora respeita um raio de afastamento máximo (wanderRadius) do ponto de spawn
- * e nunca ultrapassa os limites do mapa (utiliza World.isPositionWalkable).
+ * Agora respeita um raio de afastamento máximo (wanderRadius) do ponto de spawn,
+ * nunca ultrapassa os limites do mapa (utiliza World.isPositionWalkable)
+ * e possui um cooldown de movimento para controlar a velocidade.
  *
  * @module game/ai/MonsterAI
  */
@@ -17,8 +18,22 @@ import { Creature } from "../entities/creature";
 import { MonsterAIConfig } from "../../shared/interfaces/combat.interface";
 
 export class MonsterAI {
-  constructor(private config: MonsterAIConfig = {}) {}
+  // =========================
+  // CONTROLE DE MOVIMENTO
+  // =========================
+  private lastMoveTime: number = 0;
+  private moveCooldown: number = 1000; // 1 segundo entre movimentos (padrão)
 
+  constructor(private config: MonsterAIConfig = {}) {
+    // Permite sobrescrever o cooldown via configuração, se desejado
+    if (config.moveCooldown) {
+      this.moveCooldown = config.moveCooldown;
+    }
+  }
+
+  /**
+   * Atualiza o comportamento do monstro a cada tick do game loop.
+   */
   update(monster: Monster, world: World): void {
     // Procura alvo (aggro) – raio 6 tiles
     if (!monster.target) {
@@ -70,7 +85,7 @@ export class MonsterAI {
       return;
     }
 
-    // Perseguição
+    // Perseguição (movimento em direção ao alvo)
     const dx = target.position.x - monster.position.x;
     const dy = target.position.y - monster.position.y;
     const moveX = dx !== 0 ? (dx > 0 ? 1 : -1) : 0;
@@ -108,17 +123,36 @@ export class MonsterAI {
   }
 
   /**
-   * Tenta mover o monstro, verificando se a posição destino é caminhável e dentro do mapa.
+   * Tenta mover o monstro, verificando se a posição destino é caminhável,
+   * dentro do mapa e se o cooldown de movimento foi respeitado.
    */
   private tryMove(monster: Monster, dx: number, dy: number, world: World): void {
+    // ==========================================================
+    // 1. VERIFICA COOLDOWN DE MOVIMENTO
+    // ==========================================================
+    const now = Date.now();
+    if (now - this.lastMoveTime < this.moveCooldown) {
+      // Ainda não pode se mover novamente
+      return;
+    }
+
+    // ==========================================================
+    // 2. CALCULA A NOVA POSIÇÃO
+    // ==========================================================
     const newX = monster.position.x + dx;
     const newY = monster.position.y + dy;
 
+    // ==========================================================
+    // 3. VALIDA A POSIÇÃO (caminhável e dentro dos limites)
+    // ==========================================================
     if (world.isPositionWalkable(newX, newY, monster.id)) {
+      // Move o monstro
       monster.position.x = newX;
       monster.position.y = newY;
+      // Atualiza o timestamp do último movimento
+      this.lastMoveTime = now;
     } else {
-      // Log de movimento bloqueado (útil para debug, descomente se necessário)
+      // Movimento bloqueado (opcional: log para depuração)
       if (Math.random() < 0.1) {
         Logger.warn(`${monster.name} bloqueado de mover para (${newX}, ${newY})`);
       }
