@@ -24,6 +24,14 @@ import { ShopSystem } from "../../game/systems/shopSystem";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
+import {
+  handleMove,
+  handleMoveDir,
+  handleStartAutoAttack,
+  handleStopAutoAttack,
+} from "../handlers/move.handler";
+import { HandlerContext } from "../handlers/HandlerContext";
+import { PacketSender } from "../senders/PacketSender";
 
 /**
  * Direções possíveis para movimento estilo Tibia.
@@ -47,20 +55,6 @@ export class WebSocketServer {
   private world: World;
   private clients: Map<WebSocket, Player> = new Map(); // Mapeamento socket -> jogador
   private static instance: WebSocketServer;
-
-  /**
-   * Mapa de direção para deslocamento (dx, dy) em tiles.
-   */
-  private directionOffsets: Record<Direction, { dx: number; dy: number }> = {
-    north: { dx: 0, dy: 1 }, // norte = cima
-    south: { dx: 0, dy: -1 }, // sul = baixo
-    east: { dx: 1, dy: 0 },
-    west: { dx: -1, dy: 0 },
-    northeast: { dx: 1, dy: 1 },
-    northwest: { dx: -1, dy: 1 },
-    southeast: { dx: 1, dy: -1 },
-    southwest: { dx: -1, dy: -1 },
-  };
 
   constructor(server: HttpServer, world: World) {
     WebSocketServer.instance = this;
@@ -91,9 +85,19 @@ export class WebSocketServer {
       ws.on("message", async (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString());
+          const ctx = new HandlerContext(this.world, this, new PacketSender(ws));
           switch (msg.type) {
             case "move":
-              this.handleMove(ws, msg);
+              await handleMove(ws, player, msg, ctx);
+              break;
+            case "moveDir":
+              handleMoveDir(ws, player, msg, ctx);
+              break;
+            case "startAutoAttack":
+              handleStartAutoAttack(ws, player, msg, ctx);
+              break;
+            case "stopAutoAttack":
+              handleStopAutoAttack(ws, player, msg, ctx);
               break;
             case "chat":
               await this.handleChat(ws, msg);
@@ -128,15 +132,6 @@ export class WebSocketServer {
             case "withdraw":
               await this.handleWithdraw(ws, msg);
               break;
-            case "moveDir":
-              this.handleMoveDir(ws, msg);
-              break;
-            case "startAutoAttack":
-              this.handleStartAutoAttack(ws, msg);
-              break;
-            case "stopAutoAttack":
-              this.handleStopAutoAttack(ws, msg);
-              break;
             case "equipItem":
               await this.handleEquipItem(ws, msg);
               break;
@@ -162,75 +157,6 @@ export class WebSocketServer {
         this.clients.delete(ws);
       });
     });
-  }
-
-  // =========================
-  // MOVIMENTO POR DIREÇÃO (ESTILO TIBIA)
-  // =========================
-
-  /**
-   * Processa um comando de movimento por direção.
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com `dir` (direção).
-   */
-  private handleMoveDir(ws: WebSocket, msg: { dir: Direction }): void {
-    const player = this.clients.get(ws);
-    if (!player) return;
-
-    const { dir } = msg;
-    const offset = this.directionOffsets[dir];
-    if (!offset) {
-      Logger.warn(`Direção inválida: ${dir}`);
-      return;
-    }
-
-    const newX = player.position.x + offset.dx;
-    const newY = player.position.y + offset.dy;
-
-    if (this.world.isPositionWalkable(newX, newY, player.id)) {
-      player.position.x = newX;
-      player.position.y = newY;
-
-      // Confirma a nova posição para o próprio cliente
-      ws.send(JSON.stringify({ type: "position", x: newX, y: newY }));
-
-      // Broadcast para outros clientes
-      this.broadcastMove(player.id, newX, newY, ws);
-    } else {
-      // Movimento bloqueado: envia a posição atual novamente
-      ws.send(JSON.stringify({ type: "position", x: player.position.x, y: player.position.y }));
-    }
-  }
-
-  // =========================
-  // ATAQUE AUTOMÁTICO
-  // =========================
-
-  /**
-   * Inicia o ataque automático contra um alvo.
-   * @param ws - WebSocket do cliente.
-   * @param msg - Objeto com `targetId`.
-   */
-  private handleStartAutoAttack(ws: WebSocket, msg: { targetId: string }): void {
-    const player = this.clients.get(ws);
-    if (!player) return;
-    const target = this.world.monsters.find((m) => m.id === msg.targetId);
-    if (!target || target.hp <= 0) {
-      ws.send(JSON.stringify({ type: "autoAttackStopped", reason: "Alvo inválido ou morto" }));
-      return;
-    }
-    player.currentTargetId = msg.targetId;
-    Logger.combat(`[AUTO] ${player.name} iniciou ataque contra ${target.name} (ID ${target.id})`);
-  }
-
-  /**
-   * Para o ataque automático.
-   */
-  private handleStopAutoAttack(ws: WebSocket, _msg: any): void {
-    const player = this.clients.get(ws);
-    if (!player) return;
-    player.currentTargetId = undefined;
-    Logger.combat(`${player.name} parou ataque automático`);
   }
 
   // =========================
