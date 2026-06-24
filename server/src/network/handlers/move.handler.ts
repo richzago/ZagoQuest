@@ -95,38 +95,3 @@ export function handleMoveDir(
     ctx.packetSender.sendPosition(player.position.x, player.position.y);
   }
 }
-
-// =========================
-// HANDLERS DE AUTO ATTACK
-// =========================
-
-/**
- * Inicia o ataque automático contra um alvo.
- */
-export function handleStartAutoAttack(
-  ws: WebSocket,
-  player: Player,
-  msg: { targetId: string },
-  ctx: HandlerContext,
-): void {
-  const target = ctx.world.monsters.find((m) => m.id === msg.targetId);
-  if (!target || target.hp <= 0) {
-    ctx.packetSender.sendAutoAttackStopped("Alvo inválido ou morto");
-    return;
-  }
-  player.currentTargetId = msg.targetId;
-  Logger.combat(`[AUTO] ${player.name} iniciou ataque contra ${target.name} (ID ${target.id})`);
-}
-
-/**
- * Para o ataque automático.
- */
-export function handleStopAutoAttack(
-  ws: WebSocket,
-  player: Player,
-  _msg: any,
-  ctx: HandlerContext,
-): void {
-  player.currentTargetId = undefined;
-  Logger.combat(`${player.name} parou ataque automático`);
-}

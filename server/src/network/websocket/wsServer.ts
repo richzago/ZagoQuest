@@ -24,15 +24,11 @@ import { ShopSystem } from "../../game/systems/shopSystem";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
-import {
-  handleMove,
-  handleMoveDir,
-  handleStartAutoAttack,
-  handleStopAutoAttack,
-} from "../handlers/move.handler";
+import { handleMove, handleMoveDir } from "../handlers/move.handler";
 import { HandlerContext } from "../handlers/HandlerContext";
 import { PacketSender } from "../senders/PacketSender";
 import { handleChat } from "../handlers/chat.handler";
+import { handleAttack, handleStartAutoAttack, handleStopAutoAttack } from "../handlers/attack.handler";
 
 /**
  * Direções possíveis para movimento estilo Tibia.
@@ -94,6 +90,9 @@ export class WebSocketServer {
             case "moveDir":
               handleMoveDir(ws, player, msg, ctx);
               break;
+            case "attack":
+              await handleAttack(ws, player, msg, ctx);
+              break;
             case "startAutoAttack":
               handleStartAutoAttack(ws, player, msg, ctx);
               break;
@@ -103,9 +102,7 @@ export class WebSocketServer {
             case "chat":
               await handleChat(ws, player, msg, ctx);
               break;
-            case "attack":
-              await this.handleAttack(ws, msg);
-              break;
+
             case "loot":
               await this.handleLoot(ws, msg);
               break;
@@ -243,27 +240,6 @@ export class WebSocketServer {
         await processChatCommand("/bye", player, this.world);
         Logger.warn(`Auto-bye: ${player.name} se afastou de ${talkingNpc.name}`);
       }
-    }
-  }
-
-  private async handleAttack(ws: WebSocket, msg: { targetId: string }): Promise<void> {
-    const player = this.clients.get(ws);
-    if (!player) return;
-
-    const targetId = msg.targetId;
-    const target = this.world.monsters.find((m) => m.id === targetId);
-    if (!target) {
-      return;
-    }
-
-    // 🔥 Captura o dano causado
-    const damageDealt = CombatSystem.attack(player, target, this.world);
-
-    if (target.hp <= 0) {
-      this.broadcastDespawn(target.id);
-    } else {
-      // 🔥 Agora com 4 argumentos: targetId, newHp, maxHp, damage
-      this.broadcastDamage(target.id, target.hp, target.maxHp, damageDealt);
     }
   }
 
