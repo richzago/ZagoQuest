@@ -12,6 +12,7 @@ import { HandlerContext } from "./HandlerContext";
 import { Logger } from "../../game/core/logger/logger";
 import { ShopSystem } from "../../game/systems/shopSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
+import type { ClientOpenShopMessage, ClientBuyItemMessage } from "../messages";
 
 /**
  * Abre a janela da loja do NPC merchant.
@@ -19,7 +20,7 @@ import { ItemRegistry } from "../../data/items/itemRegistry";
 export async function handleOpenShop(
   ws: WebSocket,
   player: Player,
-  msg: { npcId: string },
+  msg: ClientOpenShopMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const npc = ctx.world.npcs.find(
@@ -57,7 +58,7 @@ export async function handleOpenShop(
 export async function handleBuyItem(
   ws: WebSocket,
   player: Player,
-  msg: { npcId: string; itemId: string; amount: number },
+  msg: ClientBuyItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const npc = ctx.world.npcs.find((n) => n.id === msg.npcId);

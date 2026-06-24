@@ -11,6 +11,11 @@ import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
 import { Logger } from "../../game/core/logger/logger";
 import { CombatSystem } from "../../game/combat/combatSystem";
+import type {
+  ClientAttackMessage,
+  ClientStartAutoAttackMessage,
+  ClientStopAutoAttackMessage,
+} from "../messages";
 
 /**
  * Processa um ataque manual (tecla Espaço ou clique no monstro).
@@ -18,7 +23,7 @@ import { CombatSystem } from "../../game/combat/combatSystem";
 export async function handleAttack(
   ws: WebSocket,
   player: Player,
-  msg: { targetId: string },
+  msg: ClientAttackMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const target = ctx.world.monsters.find((m) => m.id === msg.targetId);
@@ -68,7 +73,7 @@ export async function handleAttack(
 export function handleStartAutoAttack(
   ws: WebSocket,
   player: Player,
-  msg: { targetId: string },
+  msg: ClientStartAutoAttackMessage,
   ctx: HandlerContext,
 ): void {
   const target = ctx.world.monsters.find((m) => m.id === msg.targetId);
@@ -107,7 +112,7 @@ export function handleStartAutoAttack(
 export function handleStopAutoAttack(
   ws: WebSocket,
   player: Player,
-  _msg: any,
+  _msg: ClientStopAutoAttackMessage,
   ctx: HandlerContext,
 ): void {
   player.currentTargetId = undefined;

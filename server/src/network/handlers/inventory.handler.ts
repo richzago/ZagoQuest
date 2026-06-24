@@ -14,11 +14,18 @@ import { ItemRegistry } from "../../data/items/itemRegistry";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
+import type {
+  ClientUseItemMessage,
+  ClientEquipItemMessage,
+  ClientUnequipItemMessage,
+  ClientDropItemMessage,
+  ClientPickupItemMessage,
+} from "../messages";
 
 export async function handleUseItem(
   ws: WebSocket,
   player: Player,
-  msg: { itemId: string },
+  msg: ClientUseItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const { itemId } = msg;
@@ -37,6 +44,7 @@ export async function handleUseItem(
     let message = "";
     let effectApplied = false;
 
+    // TODO: Tipar os dados do item adequadamente
     const healAmount = (item as any).healAmount ?? (item as any).heal ?? 0;
     if (healAmount > 0) {
       const actualHeal = Math.min(player.maxHp - player.hp, healAmount);
@@ -100,7 +108,7 @@ export async function handleUseItem(
 export async function handleEquipItem(
   ws: WebSocket,
   player: Player,
-  msg: { itemId: string },
+  msg: ClientEquipItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const success = player.equipItem(msg.itemId);
@@ -116,7 +124,7 @@ export async function handleEquipItem(
 export async function handleUnequipItem(
   ws: WebSocket,
   player: Player,
-  msg: { slot: string },
+  msg: ClientUnequipItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const slotKey = msg.slot.toUpperCase() as keyof typeof EquipmentSlot;
@@ -142,7 +150,7 @@ export async function handleUnequipItem(
 export async function handleDropItem(
   ws: WebSocket,
   player: Player,
-  msg: { itemId: string; amount?: number; x: number; y: number },
+  msg: ClientDropItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const { itemId, amount = 1, x, y } = msg;
@@ -206,7 +214,7 @@ export async function handleDropItem(
 export async function handlePickupItem(
   ws: WebSocket,
   player: Player,
-  msg: { itemId: string },
+  msg: ClientPickupItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   Logger.system(`[Pickup] Recebido pickup para item ${msg.itemId}`);

@@ -10,6 +10,11 @@ import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
 import { BankingSystem } from "../../game/systems/bankingSystem";
+import type {
+  ClientOpenBankMessage,
+  ClientDepositMessage,
+  ClientWithdrawMessage,
+} from "../messages";
 
 /**
  * Abre a janela do banco.
@@ -17,7 +22,7 @@ import { BankingSystem } from "../../game/systems/bankingSystem";
 export async function handleOpenBank(
   ws: WebSocket,
   player: Player,
-  msg: { npcId: string },
+  msg: ClientOpenBankMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const npc = ctx.world.npcs.find((n) => n.id === msg.npcId);
@@ -35,7 +40,7 @@ export async function handleOpenBank(
 export async function handleDeposit(
   ws: WebSocket,
   player: Player,
-  msg: { amount: number },
+  msg: ClientDepositMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const success = BankingSystem.depositGold(player, msg.amount);
@@ -63,7 +68,7 @@ export async function handleDeposit(
 export async function handleWithdraw(
   ws: WebSocket,
   player: Player,
-  msg: { amount: number },
+  msg: ClientWithdrawMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const success = BankingSystem.withdrawGold(player, msg.amount);

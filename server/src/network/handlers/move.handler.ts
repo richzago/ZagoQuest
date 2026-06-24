@@ -11,16 +11,8 @@ import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
 import { Logger } from "../../game/core/logger/logger";
 import { processChatCommand } from "../../game/chat/chatCommands";
-
-type Direction =
-  | "north"
-  | "south"
-  | "east"
-  | "west"
-  | "northeast"
-  | "northwest"
-  | "southeast"
-  | "southwest";
+import type { ClientMoveMessage, ClientMoveDirMessage } from "../messages";
+import type { Direction } from "../messages/client/movement.messages";
 
 const directionOffsets: Record<Direction, { dx: number; dy: number }> = {
   north: { dx: 0, dy: 1 },
@@ -39,7 +31,7 @@ const directionOffsets: Record<Direction, { dx: number; dy: number }> = {
 export async function handleMove(
   ws: WebSocket,
   player: Player,
-  msg: { x: number; y: number },
+  msg: ClientMoveMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const { x, y } = msg;
@@ -72,7 +64,7 @@ export async function handleMove(
 export function handleMoveDir(
   ws: WebSocket,
   player: Player,
-  msg: { dir: Direction },
+  msg: ClientMoveDirMessage,
   ctx: HandlerContext,
 ): void {
   const { dir } = msg;

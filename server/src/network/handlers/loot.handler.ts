@@ -11,11 +11,12 @@ import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
 import { Logger } from "../../game/core/logger/logger";
 import { ItemRegistry } from "../../data/items/itemRegistry";
+import type { ClientLootMessage, ClientTakeLootMessage } from "../messages";
 
 export async function handleLoot(
   ws: WebSocket,
   player: Player,
-  msg: { corpseId: string },
+  msg: ClientLootMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const { corpseId } = msg;
@@ -46,7 +47,7 @@ export async function handleLoot(
 export async function handleTakeLoot(
   ws: WebSocket,
   player: Player,
-  msg: { corpseId: string; takeAll: boolean; itemIndex?: number },
+  msg: ClientTakeLootMessage,
   ctx: HandlerContext,
 ): Promise<void> {
   const corpse = ctx.world.corpses.find((c) => c.id === msg.corpseId);
