@@ -19,6 +19,13 @@ import { BroadcastService } from "./wsBroadcast";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { Corpse } from "../../game/entities/corpse";
 import { Monster } from "../../game/entities/monster";
+// Importar os novos senders específicos
+import {
+  InitialStateSender,
+  InventorySender,
+  PlayerStatsSender,
+  WorldStateSender,
+} from "../senders";
 
 /**
  * Servidor WebSocket responsável por receber comandos dos clientes
@@ -56,11 +63,23 @@ export class WebSocketServer {
 
       Logger.system(`Jogador ${player.name} (ID ${player.id}) associado ao socket.`);
 
-      // Envia estado inicial
-      this.sendInitialState(ws, player);
-      this.sendInventory(ws, player);
-      this.sendPlayerStats(ws, player);
-      this.sendSpawnEntities(ws);
+      // ============================================
+      // ENVIO DE DADOS INICIAIS - USANDO SENDERS
+      // ============================================
+
+      // 1. Estado inicial do jogador
+      InitialStateSender.send(ws, player);
+
+      // 2. Inventário
+      InventorySender.send(ws, player);
+
+      // 3. Estatísticas
+      PlayerStatsSender.send(ws, player);
+
+      // 4. Mundo (monstros, NPCs, itens)
+      WorldStateSender.send(ws, this.world);
+
+      // ============================================
 
       // Configura handlers de mensagens
       ws.on("message", async (data: Buffer) => {
@@ -69,12 +88,7 @@ export class WebSocketServer {
           const player = this.clients.get(ws);
           if (!player) return;
 
-          const ctx = new HandlerContext(
-            this.world,
-            this,
-            new PacketSender(ws),
-            this.broadcast, // Injeta o broadcast service
-          );
+          const ctx = new HandlerContext(this.world, this, new PacketSender(ws), this.broadcast);
 
           const handler = handlers[msg.type] as HandlerFn | undefined;
 
@@ -94,102 +108,6 @@ export class WebSocketServer {
         this.clients.delete(ws);
       });
     });
-  }
-
-  // =========================
-  // MÉTODOS DE ENVIO INICIAL
-  // =========================
-
-  private sendInitialState(ws: WebSocket, player: Player): void {
-    ws.send(
-      JSON.stringify({
-        type: "init",
-        playerId: player.id,
-        x: player.position.x,
-        y: player.position.y,
-      }),
-    );
-    Logger.world(`Estado inicial enviado para ${player.name}`);
-  }
-
-  private sendSpawnEntities(ws: WebSocket): void {
-    // Envia monstros
-    for (const monster of this.world.monsters) {
-      ws.send(
-        JSON.stringify({
-          type: "spawn",
-          id: monster.id,
-          name: monster.name,
-          x: monster.position.x,
-          y: monster.position.y,
-          hp: monster.hp,
-          maxHp: monster.maxHp,
-        }),
-      );
-    }
-    Logger.world(`Enviados ${this.world.monsters.length} monstros para o cliente`);
-
-    // Envia NPCs
-    for (const npc of this.world.npcs) {
-      ws.send(
-        JSON.stringify({
-          type: "spawn",
-          id: npc.id,
-          name: npc.name,
-          x: npc.position.x,
-          y: npc.position.y,
-          npcType: npc.npcType,
-        }),
-      );
-    }
-    Logger.world(`Enviados ${this.world.npcs.length} NPCs para o cliente`);
-
-    // Envia itens no chão
-    for (const item of this.world.itemsOnGround) {
-      ws.send(
-        JSON.stringify({
-          type: "spawn",
-          id: item.id,
-          name: item.itemName,
-          x: item.position.x,
-          y: item.position.y,
-          itemId: item.itemId,
-          amount: item.amount,
-          isItem: true,
-        }),
-      );
-    }
-    Logger.world(`Enviados ${this.world.itemsOnGround.length} itens no chão para o cliente`);
-  }
-
-  private sendInventory(ws: WebSocket, player: Player): void {
-    const itemsArray = Array.from(player.inventory.entries()).map(([itemId, qty]) => ({
-      itemId,
-      amount: qty,
-    }));
-    ws.send(
-      JSON.stringify({
-        type: "inventory",
-        gold: player.gold,
-        items: itemsArray,
-      }),
-    );
-    Logger.loot(`Inventário enviado para ${player.name} (${player.inventory.size} tipos de itens)`);
-  }
-
-  private sendPlayerStats(ws: WebSocket, player: Player): void {
-    ws.send(
-      JSON.stringify({
-        type: "playerStats",
-        hp: player.hp,
-        maxHp: player.maxHp,
-        mana: player.mana,
-        maxMana: player.maxMana,
-        level: player.level,
-        attack: player.attack,
-        defense: player.defense,
-      }),
-    );
   }
 
   // =========================
