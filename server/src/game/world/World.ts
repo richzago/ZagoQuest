@@ -27,6 +27,7 @@ import { ItemEntity } from "../entities/item";
 import { Corpse } from "../entities/corpse";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { MonsterSpawnData } from "../../shared/interfaces/spawn.interface";
+import { ItemOnGround } from "../entities/itemOnGround";
 
 /**
  * Representa o mundo do jogo, contendo todas as entidades, tiles e sistemas auxiliares.
@@ -81,6 +82,8 @@ export class World {
   corpses: Corpse[] = [];
   /** Pontos de spawn de monstros (definidos pelos loaders, mas não usados para respawn nesta versão) */
   spawnPoints: MonsterSpawnData[] = [];
+
+  public itemsOnGround: ItemOnGround[] = [];
 
   // =========================
   // ADIÇÃO DE ENTIDADES
@@ -366,5 +369,40 @@ export class World {
       this.monsters.splice(index, 1);
       Logger.world(`Monstro ${monster.name} (${monster.id}) removido do mundo.`);
     }
+  }
+
+  /**
+   * Adiciona um item no chão.
+   */
+  addItemOnGround(item: ItemOnGround): void {
+    this.itemsOnGround.push(item);
+    Logger.world(
+      `Item ${item.itemId} x${item.amount} dropado em (${item.position.x}, ${item.position.y})`,
+    );
+  }
+
+  /**
+   * Remove um item do chão.
+   */
+  removeItemOnGround(item: ItemOnGround): void {
+    const index = this.itemsOnGround.indexOf(item);
+    if (index !== -1) {
+      this.itemsOnGround.splice(index, 1);
+      Logger.world(`Item ${item.itemId} removido do chão.`);
+    }
+  }
+
+  /**
+   * Busca um item no chão pelo ID.
+   */
+  getItemOnGround(id: string): ItemOnGround | undefined {
+    return this.itemsOnGround.find((i) => i.id === id);
+  }
+
+  /**
+   * Busca itens no chão em uma posição (tile).
+   */
+  getItemsOnGroundAt(x: number, y: number): ItemOnGround[] {
+    return this.itemsOnGround.filter((i) => i.position.x === x && i.position.y === y);
   }
 }

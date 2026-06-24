@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class EntityManager : MonoBehaviour
 {
@@ -13,9 +14,10 @@ public class EntityManager : MonoBehaviour
     public GameObject merchantPrefab;
     public GameObject bankerPrefab;
     public GameObject corpsePrefab;
+    public GameObject itemOnGroundPrefab;
 
     [Header("UI Prefabs")]
-    public GameObject monsterUIPrefab; // Prefab da UI do monstro (barra de vida + nome)
+    public GameObject monsterUIPrefab;
 
     void Awake()
     {
@@ -117,9 +119,6 @@ public class EntityManager : MonoBehaviour
             {
                 Debug.LogWarning("[EntityManager] monsterUIPrefab não atribuído! Monstros não terão barra de vida.");
             }
-
-            // ❌ REMOVIDO: Nameplate para monstro (para evitar duplicação com a MonsterUI)
-            // O nome já é exibido pela MonsterUI, então não precisamos de um nameplate separado.
         }
         // ====================
         // NPC
@@ -152,19 +151,30 @@ public class EntityManager : MonoBehaviour
         {
             go.transform.position = new Vector3(x, y, 0);
             NameplateManager.Instance?.UpdateNameplatePosition(id, go.transform.position);
+            // Atualiza a posição do texto do item na tela (se for um item no chão)
+            if (ItemNameManager.Instance != null)
+            {
+                ItemNameManager.Instance.UpdateItemPosition(id, go.transform.position);
+            }
         }
     }
 
     public void DespawnEntity(string id)
     {
-        // Debug.Log($"[EntityManager] DespawnEntity chamado para ID {id}. Existe? {entities.ContainsKey(id)}");
+        Debug.Log($"[EntityManager] DespawnEntity chamado para ID {id}. Existe? {entities.ContainsKey(id)}");
         if (entities.TryGetValue(id, out GameObject go))
         {
+            Debug.Log($"[EntityManager] Removendo entidade {go.name}");
             NameplateManager.Instance?.RemoveNameplate(id);
+            // 🔥 Remove o texto do item na tela (se for item no chão)
+            ItemNameManager.Instance?.HideItemName(id);
+
             if (TargetSelector.Instance != null)
                 TargetSelector.Instance.ClearTargetIfMatches(go);
+
             Destroy(go);
             entities.Remove(id);
+            Debug.Log($"[EntityManager] Entidade removida. Total: {entities.Count}");
         }
     }
 
@@ -179,6 +189,147 @@ public class EntityManager : MonoBehaviour
                 identity.healthBar.SetHp(newHp);
             }
         }
+    }
+
+    // =========================
+    // SPAWN DE ITEM NO CHÃO
+    // =========================
+
+    public void SpawnItemOnGround(string id, string itemId, string name, float x, float y, int amount)
+    {
+        // 1. VALIDA ID
+        if (string.IsNullOrEmpty(id))
+        {
+            Debug.LogError($"[SpawnItem] ❌ ID inválido para item no chão");
+            return;
+        }
+
+        // 2. VERIFICA SE JÁ EXISTE
+        if (entities.ContainsKey(id))
+        {
+            Debug.LogWarning($"[SpawnItem] ⚠️ Item com ID {id} já existe, ignorando.");
+            return;
+        }
+
+        Vector3 pos = new Vector3(x, y, 0);
+        Debug.Log($"[SpawnItem] 📦 Instanciando item '{name}' em posição ({x}, {y})");
+
+        // 3. INSTANCIA O PREFAB
+        if (itemOnGroundPrefab == null)
+        {
+            Debug.LogError("[SpawnItem] ❌ itemOnGroundPrefab é NULL! Atribua no Inspector.");
+            return;
+        }
+
+        GameObject go = Instantiate(itemOnGroundPrefab, pos, Quaternion.identity);
+        entities[id] = go;
+        Debug.Log($"[SpawnItem] ✅ GameObject instanciado: {go.name}, posição: {go.transform.position}");
+
+        // 4. CONFIGURA IDENTIDADE
+        ItemOnGroundIdentity identity = go.GetComponent<ItemOnGroundIdentity>();
+        if (identity == null) identity = go.AddComponent<ItemOnGroundIdentity>();
+        identity.groundItemId = id;               // 🔥 UUID do item no chão (para pickup)
+        identity.itemId = itemId;
+        identity.amount = amount;
+        identity.itemName = name;
+        Debug.Log($"[SpawnItem] 🏷️ Identidade configurada: groundItemId={id}, itemId={itemId}, amount={amount}, name={name}");
+
+        // 5. VERIFICA SPRITE RENDERER
+        SpriteRenderer sr = go.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            Debug.Log($"[SpawnItem] 🖼️ SpriteRenderer encontrado. Sprite: {(sr.sprite != null ? sr.sprite.name : "NULL")}, enabled: {sr.enabled}");
+            if (sr.sprite == null)
+            {
+                Debug.LogWarning("[SpawnItem] ⚠️ SpriteRenderer sem sprite! Atribua um sprite no prefab.");
+            }
+            else
+            {
+                sr.enabled = true;
+                Debug.Log($"[SpawnItem] ✅ SpriteRenderer ativado. Tamanho do sprite: {sr.sprite.bounds.size}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[SpawnItem] ⚠️ SpriteRenderer não encontrado no prefab! Adicionando um padrão.");
+            sr = go.AddComponent<SpriteRenderer>();
+            // Cria um sprite placeholder (quadrado branco)
+            Texture2D tex = new Texture2D(32, 32);
+            for (int i = 0; i < tex.width * tex.height; i++) tex.SetPixel(i % 32, i / 32, Color.white);
+            tex.Apply();
+            sr.sprite = Sprite.Create(tex, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f), 1);
+            sr.enabled = true;
+            Debug.Log("[SpawnItem] ✅ SpriteRenderer padrão adicionado.");
+        }
+
+        // 6. VERIFICA TEXTMESHPRO (opcional – caso ainda haja texto 3D, mantido para compatibilidade)
+        TextMeshPro text3D = go.GetComponentInChildren<TextMeshPro>();
+        if (text3D != null)
+        {
+            string displayName = name;
+            if (amount > 1) displayName += $" x{amount}";
+            text3D.text = displayName;
+            text3D.gameObject.SetActive(true);
+            Debug.Log($"[SpawnItem] 📝 TextMeshPro 3D configurado: '{displayName}', pos local: {text3D.transform.localPosition}, escala: {text3D.transform.localScale}");
+        }
+        else
+        {
+            // Fallback: tenta encontrar TextMeshProUGUI (UI) – caso exista Canvas
+            TextMeshProUGUI textUI = go.GetComponentInChildren<TextMeshProUGUI>();
+            if (textUI != null)
+            {
+                string displayName = name;
+                if (amount > 1) displayName += $" x{amount}";
+                textUI.text = displayName;
+                textUI.gameObject.SetActive(true);
+                Debug.Log($"[SpawnItem] 📝 TextMeshProUGUI configurado: '{displayName}'");
+            }
+        }
+
+        // 7. VERIFICA BOX COLLIDER (para clique)
+        BoxCollider2D col = go.GetComponent<BoxCollider2D>();
+        if (col == null)
+        {
+            Debug.LogWarning("[SpawnItem] ⚠️ BoxCollider2D não encontrado! Adicionando.");
+            col = go.AddComponent<BoxCollider2D>();
+            col.isTrigger = true;
+            col.size = new Vector2(0.8f, 0.8f);
+            Debug.Log("[SpawnItem] ✅ BoxCollider2D adicionado.");
+        }
+        else
+        {
+            Debug.Log($"[SpawnItem] ✅ BoxCollider2D encontrado. isTrigger: {col.isTrigger}, size: {col.size}");
+        }
+
+        // 8. VERIFICA TAG
+        if (go.tag != "ItemOnGround")
+        {
+            Debug.LogWarning($"[SpawnItem] ⚠️ Tag do GameObject é '{go.tag}', esperado 'ItemOnGround'. Corrigindo.");
+            go.tag = "ItemOnGround";
+        }
+        Debug.Log($"[SpawnItem] 🏷️ Tag definida: {go.tag}");
+
+        // 9. ATIVA O GAMEOBJECT
+        go.SetActive(true);
+        Debug.Log($"[SpawnItem] ✅ GameObject ativado. Posição final: {go.transform.position}, ativo: {go.activeSelf}");
+
+        // =========================
+        // EXIBE O NOME NA TELA (UI)
+        // =========================
+        if (ItemNameManager.Instance != null)
+        {
+            string displayName = name;
+            if (amount > 1) displayName += $" x{amount}";
+            ItemNameManager.Instance.ShowItemName(id, displayName, pos);
+            Debug.Log($"[SpawnItem] 📝 Nome do item exibido na UI: '{displayName}'");
+        }
+        else
+        {
+            Debug.LogWarning("[SpawnItem] ⚠️ ItemNameManager não encontrado! Nomes não serão exibidos.");
+        }
+
+        // 10. LOG FINAL
+        Debug.Log($"[SpawnItem] 🎯 Item no chão: {name} x{amount} em ({x}, {y})");
     }
 
     // ====================

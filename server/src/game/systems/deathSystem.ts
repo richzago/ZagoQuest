@@ -5,7 +5,7 @@
  *
  * - Jogador: perde 10% do XP (penalidade), emite evento, respawn na posição (0,0) com HP cheio.
  * - Monstro: concede XP ao killer, gera loot, cria um corpo (Corpse) no lugar, emite eventos de morte,
- *   agenda respawn automático (usando os dados de spawn armazenados) e notifica os clientes.
+ *   agenda respawn automático e notifica os clientes.
  *
  * O sistema usa o EventSystem para notificar outros sistemas (ex: quests, conquistas).
  *
@@ -31,6 +31,12 @@ import { WebSocketServer } from "../../network/websocket/wsServer";
 import { MonsterRegistry } from "../../data/monsters/monsterRegistry";
 import { MonsterAI } from "../ai/monsterAi";
 import { generateId } from "../../shared/utils/idUtils";
+
+/**
+ * Tempo de vida padrão de um corpo (em milissegundos) antes de ser removido.
+ * Pode ser sobrescrito por variável de ambiente ou configurado globalmente.
+ */
+const DEFAULT_CORPSE_LIFETIME = 15000; // 15 segundos
 
 export class DeathSystem {
   static handleDeath(victim: Damageable, killer: Damageable | undefined, world: World): void {
@@ -63,7 +69,7 @@ export class DeathSystem {
     Logger.system(`${player.name} renasceu em (0,0) com HP total.`);
 
     // ==========================================================
-    // 🔥 ENVIA PLAYER STATS ATUALIZADOS PARA O CLIENTE
+    // ENVIA PLAYER STATS ATUALIZADOS PARA O CLIENTE
     // ==========================================================
     const wsServer = WebSocketServer.getInstance();
     if (wsServer) {
@@ -78,7 +84,7 @@ export class DeathSystem {
           level: player.level,
           attack: player.attack,
           defense: player.defense,
-          xp: player.xp, // se quiser enviar XP também, adicione
+          xp: player.xp,
         }),
       );
       Logger.combat(`[HUD] PlayerStats enviado para ${player.name} (respawn)`);
@@ -90,7 +96,9 @@ export class DeathSystem {
     killer: Damageable | undefined,
     world: World,
   ): void {
-    // 1. Concede XP se o assassino for um jogador
+    // ==========================================================
+    // 1. CONCEDE XP AO JOGADOR (SE FOR O CASO)
+    // ==========================================================
     if (killer instanceof Player) {
       const monsterLevel = (monster.type as any).level || 1;
       const baseXp = monster.type.combat.xp;
@@ -98,7 +106,7 @@ export class DeathSystem {
       ExperienceSystem.addXp(killer, xpGained);
       Logger.skill(`${killer.name} ganhou ${xpGained} XP por matar ${monster.name}.`);
 
-      // 🔥 ENVIA PLAYER STATS PARA O JOGADOR QUE MATOU (XP ATUALIZADO)
+      // Atualiza o HUD do jogador com o novo XP
       const wsServer = WebSocketServer.getInstance();
       if (wsServer) {
         wsServer.sendToPlayer(
@@ -119,7 +127,9 @@ export class DeathSystem {
       }
     }
 
-    // 2. Gera loot
+    // ==========================================================
+    // 2. GERA O LOOT
+    // ==========================================================
     const loot = LootSystem.generateLoot(monster);
     if (loot.length > 0) {
       Logger.loot(
@@ -127,15 +137,27 @@ export class DeathSystem {
       );
     }
 
-    // 3. Cria corpo
+    // ==========================================================
+    // 3. CRIA O CORPO (CORPSE) E NOTIFICA OS CLIENTES
+    // ==========================================================
     const corpseId = generateId();
     const corpse = new Corpse(corpseId, monster.position.x, monster.position.y, loot, killer?.id);
     world.addCorpse(corpse);
 
     const ws = WebSocketServer.getInstance();
-    if (ws) ws.broadcastSpawnCorpse(corpse);
+    if (ws) {
+      ws.broadcastSpawnCorpse(corpse);
+      Logger.loot(`Corpse ${corpseId} spawnado em (${corpse.position.x}, ${corpse.position.y})`);
+    }
 
-    // 4. Eventos
+    // ==========================================================
+    // 4. AGENDA A REMOÇÃO DO CORPO APÓS O TEMPO DE VIDA
+    // ==========================================================
+    this.scheduleCorpseRemoval(corpse, world, ws, DEFAULT_CORPSE_LIFETIME);
+
+    // ==========================================================
+    // 5. EMITE EVENTOS DE MORTE
+    // ==========================================================
     const eventSystem = EventSystem.getInstance();
     eventSystem.emit<MonsterDeathEventData>(GameEvent.MONSTER_DEATH, {
       monsterId: monster.id,
@@ -153,9 +175,18 @@ export class DeathSystem {
       });
     }
 
+    // ==========================================================
+    // 6. MARCA O MONSTRO COMO MORTO E NOTIFICA OS CLIENTES
+    // ==========================================================
     monster.hp = 0;
+    if (ws) {
+      ws.broadcastDespawn(monster.id);
+      Logger.combat(`[DESPAWN] Enviado despawn para ${monster.name} (${monster.id})`);
+    }
 
-    // 5. Respawn
+    // ==========================================================
+    // 7. RESPAWN AUTOMÁTICO DO MONSTRO
+    // ==========================================================
     const respawnTime = monster.respawnTime;
     setTimeout(() => {
       const monsterDef = MonsterRegistry.get(monster.type.id);
@@ -179,5 +210,38 @@ export class DeathSystem {
         Logger.error(`[Respawn] Definição do monstro ${monster.name} não encontrada.`);
       }
     }, respawnTime);
+  }
+
+  /**
+   * Agenda a remoção de um corpo após um determinado tempo de vida.
+   *
+   * @param corpse - O corpo a ser removido
+   * @param ws - Instância do WebSocketServer (pode ser undefined)
+   * @param lifetime - Tempo de vida em milissegundos
+   *
+   * @remarks
+   * Esta função é responsável por:
+   * - Remover o corpo da lista do mundo após o tempo especificado.
+   * - Notificar todos os clientes sobre a remoção (via broadcastDespawn).
+   * - Registrar logs adequados.
+   *
+   * É separada para facilitar a manutenção e permitir futuras extensões
+   * (ex: diferentes tempos de vida por tipo de monstro, configuração externa, etc.).
+   */
+  private static scheduleCorpseRemoval(
+    corpse: Corpse,
+    world: World, // ← necessário para remover o corpo
+    ws: WebSocketServer | undefined,
+    lifetime: number,
+  ): void {
+    setTimeout(() => {
+      // Remove o corpo do mundo (método de instância)
+      world.removeCorpse(corpse);
+      // Notifica os clientes (se o WebSocket existir)
+      if (ws) {
+        ws.broadcastDespawn(corpse.id);
+        Logger.loot(`Corpse ${corpse.id} removido após ${lifetime / 1000} segundos.`);
+      }
+    }, lifetime);
   }
 }
