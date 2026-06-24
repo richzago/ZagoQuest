@@ -4,9 +4,6 @@ import { HandlerContext } from "./HandlerContext";
 import { Logger } from "../../game/core/logger/logger";
 import { processChatCommand } from "../../game/chat/chatCommands";
 
-/**
- * Direções possíveis para movimento estilo Tibia.
- */
 type Direction =
   | "north"
   | "south"
@@ -17,9 +14,6 @@ type Direction =
   | "southeast"
   | "southwest";
 
-/**
- * Mapa de direção para deslocamento (dx, dy) em tiles.
- */
 const directionOffsets: Record<Direction, { dx: number; dy: number }> = {
   north: { dx: 0, dy: 1 },
   south: { dx: 0, dy: -1 },
@@ -31,12 +25,8 @@ const directionOffsets: Record<Direction, { dx: number; dy: number }> = {
   southwest: { dx: -1, dy: -1 },
 };
 
-// =========================
-// HANDLERS DE MOVIMENTO
-// =========================
-
 /**
- * Processa movimento por coordenadas (legado).
+ * Processa movimento por coordenadas (legado - chat/click move).
  */
 export async function handleMove(
   ws: WebSocket,
@@ -49,13 +39,12 @@ export async function handleMove(
   if (ctx.world.isPositionWalkable(x, y, player.id)) {
     player.position.x = x;
     player.position.y = y;
-    ctx.packetSender.sendPosition(x, y);
+    ctx.packetSender.combat.sendPosition(x, y);
     ctx.wsServer.broadcastMove(player.id, x, y, ws);
   } else {
-    ctx.packetSender.sendPosition(player.position.x, player.position.y);
+    ctx.packetSender.combat.sendPosition(player.position.x, player.position.y);
   }
 
-  // Auto-bye: se o jogador estiver conversando com um NPC e se afastar, envia /bye automaticamente
   const talkingNpc = ctx.world.npcs.find((n) => n.isTalking && n.talkingToPlayerId === player.id);
   if (talkingNpc) {
     const dx = Math.abs(talkingNpc.position.x - player.position.x);
@@ -89,9 +78,9 @@ export function handleMoveDir(
   if (ctx.world.isPositionWalkable(newX, newY, player.id)) {
     player.position.x = newX;
     player.position.y = newY;
-    ctx.packetSender.sendPosition(newX, newY);
+    ctx.packetSender.combat.sendPosition(newX, newY);
     ctx.wsServer.broadcastMove(player.id, newX, newY, ws);
   } else {
-    ctx.packetSender.sendPosition(player.position.x, player.position.y);
+    ctx.packetSender.combat.sendPosition(player.position.x, player.position.y);
   }
 }

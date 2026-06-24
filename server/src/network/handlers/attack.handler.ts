@@ -5,7 +5,7 @@ import { Logger } from "../../game/core/logger/logger";
 import { CombatSystem } from "../../game/combat/combatSystem";
 
 /**
- * Processa um comando de ataque manual (tecla Espaço ou clique no monstro).
+ * Processa um ataque manual (tecla Espaço ou clique no monstro).
  */
 export async function handleAttack(
   ws: WebSocket,
@@ -13,21 +13,18 @@ export async function handleAttack(
   msg: { targetId: string },
   ctx: HandlerContext,
 ): Promise<void> {
-  const targetId = msg.targetId;
-  const target = ctx.world.monsters.find((m) => m.id === targetId);
-
+  const target = ctx.world.monsters.find((m) => m.id === msg.targetId);
   if (!target) {
-    Logger.warn(`Jogador ${player.name} tentou atacar monstro inexistente ${targetId}`);
+    Logger.warn(`Jogador ${player.name} tentou atacar monstro inexistente ${msg.targetId}`);
     return;
   }
 
-  // Captura o dano causado
   const damageDealt = CombatSystem.attack(player, target, ctx.world);
 
   if (target.hp <= 0) {
     ctx.wsServer.broadcastDespawn(target.id);
   } else {
-    ctx.wsServer.broadcastDamage(target.id, target.hp, target.maxHp, damageDealt);
+    ctx.packetSender.combat.sendDamage(target.id, target.hp, target.maxHp, damageDealt);
   }
 }
 
@@ -42,7 +39,7 @@ export function handleStartAutoAttack(
 ): void {
   const target = ctx.world.monsters.find((m) => m.id === msg.targetId);
   if (!target || target.hp <= 0) {
-    ctx.packetSender.sendAutoAttackStopped("Alvo inválido ou morto");
+    ctx.packetSender.combat.sendAutoAttackStopped("Alvo inválido ou morto");
     return;
   }
   player.currentTargetId = msg.targetId;

@@ -7,5 +7,10 @@
 //   stopAutoAttack: handleStopAutoAttack,
 //   loot: handleLoot,
 //   takeLoot: handleTakeLoot,
+// openShop: handleOpenShop,
+//   buyItem: handleBuyItem,
+//   openBank: handleOpenBank,
+//   deposit: handleDeposit,
+//   withdraw: handleWithdraw,
 
 // };
