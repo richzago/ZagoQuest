@@ -1,3 +1,11 @@
+/**
+ * index.ts
+ *
+ * Registry de handlers mapeando o tipo da mensagem para a função handler.
+ *
+ * @module network/handlers
+ */
+
 import { WebSocket } from "ws";
 import { HandlerContext } from "./HandlerContext";
 import { Player } from "../../game/entities/player";
@@ -19,13 +27,12 @@ import { handleOpenBank, handleDeposit, handleWithdraw } from "./bank.handler";
 
 /**
  * Tipo de função handler.
- * Recebe o WebSocket, o jogador, a mensagem e o contexto.
- * Pode ser síncrona ou assíncrona.
+ * Recebe o WebSocket, o jogador, a mensagem tipada e o contexto.
  */
 export type HandlerFn = (
   ws: WebSocket,
   player: Player,
-  msg: any,
+  msg: any, // Mantém any aqui pois o registry é genérico
   ctx: HandlerContext,
 ) => Promise<void> | void;
 
