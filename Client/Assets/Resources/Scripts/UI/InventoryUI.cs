@@ -2,14 +2,15 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine.InputSystem;
 
 public class InventoryUI : MonoBehaviour
 {
     [Header("UI References")]
-    public GameObject slotPrefab;          // Prefab do slot
-    public Transform slotsGrid;            // Objeto com GridLayoutGroup (dentro do InventoryPanel)
-    public TextMeshProUGUI goldText;       // Texto do gold (dentro do InventoryPanel)
+    public GameObject slotPrefab;          // Prefab do slot (com InventorySlot)
+    public Transform slotsGrid;            // Objeto com GridLayoutGroup
+    public TextMeshProUGUI goldText;       // Texto do gold
     public GameObject inventoryPanel;      // O painel que será aberto/fechado
 
     private NetworkManager networkManager;
@@ -20,12 +21,17 @@ public class InventoryUI : MonoBehaviour
     private InputAction toggleInventoryAction;
     private bool isInventoryOpen = false;
 
+    // =========================
+    // CICLO DE VIDA
+    // =========================
+
     void Awake()
     {
+        // Configura a tecla 'I' para abrir/fechar o inventário
         toggleInventoryAction = new InputAction("ToggleInventory", binding: "<Keyboard>/i");
         toggleInventoryAction.performed += ctx =>
         {
-            // Se existe um EventSystem e o objeto selecionado é um InputField (TMP), não abre o inventário
+            // Se houver um input field selecionado (ex: chat), não abre o inventário
             if (UnityEngine.EventSystems.EventSystem.current != null)
             {
                 var selected = UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject;
@@ -36,15 +42,8 @@ public class InventoryUI : MonoBehaviour
         };
     }
 
-    void OnEnable()
-    {
-        toggleInventoryAction.Enable();
-    }
-
-    void OnDisable()
-    {
-        toggleInventoryAction.Disable();
-    }
+    void OnEnable() => toggleInventoryAction.Enable();
+    void OnDisable() => toggleInventoryAction.Disable();
 
     void Start()
     {
@@ -64,23 +63,25 @@ public class InventoryUI : MonoBehaviour
             return;
         }
 
-        // Garante que o painel comece fechado
         isInventoryOpen = false;
         inventoryPanel.SetActive(false);
     }
 
-    // NÃO TEM MÉTODO Update() – a detecção da tecla é feita via InputAction
+    // =========================
+    // CONTROLE DO PAINEL
+    // =========================
 
     private void ToggleInventory()
     {
-        // Debug.Log($"[INVENTORY] ToggleInventory chamado. Painel ativo antes: {inventoryPanel.activeSelf}");
         isInventoryOpen = !isInventoryOpen;
         inventoryPanel.SetActive(isInventoryOpen);
-        // Debug.Log($"📦 Inventário {(isInventoryOpen ? "ABERTO" : "FECHADO")}");
-
         if (isInventoryOpen)
             RefreshUI();
     }
+
+    // =========================
+    // EVENTOS DO NETWORK
+    // =========================
 
     private void HandleInventory(int gold, Dictionary<string, int> newItems)
     {
@@ -96,24 +97,52 @@ public class InventoryUI : MonoBehaviour
             ChatUI.Instance.AddMessage($"Item: {message}");
     }
 
+    // =========================
+    // REFRESH DA UI
+    // =========================
+
     private void RefreshUI()
     {
         if (goldText != null)
             goldText.text = $"{currentGold} gold";
 
+        // Remove slots antigos
         foreach (var slot in slotObjects)
             Destroy(slot);
         slotObjects.Clear();
 
+        // Cria novos slots
         foreach (var kvp in items)
         {
             GameObject slot = Instantiate(slotPrefab, slotsGrid);
             InventorySlot slotScript = slot.GetComponent<InventorySlot>();
             if (slotScript != null)
+            {
                 slotScript.Setup(kvp.Key, kvp.Value, networkManager);
+                // Assina o evento de duplo clique do slot
+                slotScript.OnDoubleClick += OnSlotDoubleClicked;
+            }
             slotObjects.Add(slot);
         }
     }
+
+    // =========================
+    // INTERAÇÃO COM ITENS
+    // =========================
+
+    /// <summary>
+    /// Chamado quando um slot é clicado duas vezes.
+    /// Tenta equipar o item (se for equipável).
+    /// </summary>
+    private void OnSlotDoubleClicked(string itemId)
+    {
+        Debug.Log($"[InventoryUI] Duplo clique em {itemId} → tentando equipar.");
+        NetworkManager.Instance.SendEquipItem(itemId);
+    }
+
+    // =========================
+    // LIMPEZA
+    // =========================
 
     private void OnDestroy()
     {

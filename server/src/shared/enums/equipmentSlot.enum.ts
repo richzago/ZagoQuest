@@ -31,4 +31,10 @@ export enum EquipmentSlot {
 
   /** Anel (dedo) */
   RING = "ring",
+
+  /** Mochila */
+  BACKPACK = "BACKPACK",
+
+  /** Slot extra para iscas, ferramentas, acessórios especiais */
+  USEFUL = "USEFUL",
 }

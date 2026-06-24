@@ -240,26 +240,27 @@ export class Player extends Creature {
   }
 
   /**
-   * Desequipa o item de um slot (move de volta para o inventário).
-   *
-   * @param slot - Slot a ser desequipado (ex: EquipmentSlot.WEAPON)
-   * @returns `true` se removeu com sucesso, `false` caso contrário
-   *
-   * @example
-   * ```typescript
-   * player.unequipSlot(EquipmentSlot.WEAPON);
-   * ```
+   * Remove um item do slot de equipamento e o devolve ao inventário.
+   * @param slot - Slot a ser desequipado (ex: EquipmentSlot.HEAD)
+   * @returns `true` se o item foi desequipado com sucesso, `false` caso contrário.
    */
-  unequipSlot(slot: EquipmentSlot): boolean {
+  public unequipItem(slot: EquipmentSlot): boolean {
+    // Verifica se há um item equipado neste slot
     const itemId = this.equipment.get(slot);
     if (!itemId) {
-      Logger.system(`Nada equipado no slot ${slot}.`);
+      // Nada para desequipar
       return false;
     }
+
+    // Remove o item do slot
     this.equipment.delete(slot);
+
+    // Devolve o item ao inventário
     this.addItem(itemId, 1);
+
+    // Recalcula os atributos (attack, defense, armor)
     this.recalculateStats();
-    Logger.system(`${this.name} removeu ${itemId} do slot ${slot}.`);
+
     return true;
   }
 

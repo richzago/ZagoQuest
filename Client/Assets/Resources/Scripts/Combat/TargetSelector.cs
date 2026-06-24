@@ -37,15 +37,13 @@ public class TargetSelector : MonoBehaviour
 
     private string currentTargetId = null;
     private GameObject currentTarget = null;
-    private bool autoFollowEnabled = true;          // Por padrão, segue o monstro
+    private bool autoFollowEnabled = true;
     private float nextFollowStepTime = 0f;
-    private float followStepInterval = 0.4f;       // Mesmo valor do stepDuration do PlayerController
+    private float followStepInterval = 0.15f;
 
-    // Borda de seleção
     private GameObject currentOutline;
     private TargetOutline outlineScript;
 
-    // Input System
     private InputAction mouseClickAction;
     private InputAction attackAction;
     private InputAction toggleFollowAction;
@@ -56,11 +54,9 @@ public class TargetSelector : MonoBehaviour
 
     void Awake()
     {
-        // Singleton
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
-        // Configura as ações de input
         mouseClickAction = new InputAction("MouseClick", binding: "<Mouse>/leftButton");
         attackAction = new InputAction("Attack", binding: "<Keyboard>/space");
         toggleFollowAction = new InputAction("ToggleFollow", binding: "<Keyboard>/f");
@@ -86,7 +82,6 @@ public class TargetSelector : MonoBehaviour
 
     void Update()
     {
-        // Lógica de auto follow (movimento em direção ao alvo)
         if (!autoFollowEnabled || currentTarget == null) return;
         if (Time.time < nextFollowStepTime) return;
 
@@ -94,7 +89,7 @@ public class TargetSelector : MonoBehaviour
         Vector2 targetPos = currentTarget.transform.position;
         float distance = Vector2.Distance(playerPos, targetPos);
 
-        if (distance > 1.2f) // Se estiver além de 1 tile de distância
+        if (distance > 1.2f)
         {
             Vector2Int delta = new Vector2Int(
                 (int)Mathf.Sign(targetPos.x - playerPos.x),
@@ -102,7 +97,11 @@ public class TargetSelector : MonoBehaviour
             );
             if (delta != Vector2Int.zero)
             {
-                PlayerController.Instance.RequestMoveDirection(delta);
+                int steps = Mathf.FloorToInt(distance / 1.0f);
+                for (int i = 0; i < Mathf.Min(steps, 3); i++)
+                {
+                    PlayerController.Instance.RequestMoveDirection(delta);
+                }
                 nextFollowStepTime = Time.time + followStepInterval;
             }
         }
@@ -110,7 +109,6 @@ public class TargetSelector : MonoBehaviour
 
     void OnDestroy()
     {
-        // Ao destruir, garante que o auto attack seja interrompido
         if (NetworkManager.Instance != null && currentTarget != null)
             NetworkManager.Instance.SendStopAutoAttack();
     }
@@ -119,9 +117,6 @@ public class TargetSelector : MonoBehaviour
     // EVENTOS DE INPUT
     // =========================
 
-    /// <summary>
-    /// Chamado ao clicar com o botão esquerdo do mouse.
-    /// </summary>
     private void OnMouseClick()
     {
         if (ChatUI.IsChatActive) return;
@@ -130,24 +125,57 @@ public class TargetSelector : MonoBehaviour
         RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
         if (hit.collider != null)
         {
+            Debug.Log($"[TargetSelector] Clique em: {hit.collider.name}, tag: {hit.collider.tag}");
+
+            // ====================
+            // 1. CLIQUE EM MONSTRO
+            // ====================
             if (hit.collider.CompareTag("Monster"))
             {
                 string clickedId = GetEntityIdFromGameObject(hit.collider.gameObject);
                 if (!string.IsNullOrEmpty(clickedId))
                 {
-                    // Se clicou no mesmo monstro, cancela a seleção
                     if (currentTargetId == clickedId)
                         ClearTarget();
                     else
                         SelectTarget(clickedId);
                 }
             }
+            // ====================
+            // 2. CLIQUE EM CORPSE (LOOT)
+            // ====================
             else if (hit.collider.CompareTag("Corpse"))
             {
                 CorpseIdentity corpse = hit.collider.GetComponent<CorpseIdentity>();
                 if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
+                {
+                    Debug.Log($"[TargetSelector] Clique no corpse ID {corpse.corpseId}");
                     NetworkManager.Instance.SendLoot(corpse.corpseId);
+                }
+                else
+                {
+                    Debug.LogWarning("[TargetSelector] CorpseIdentity inválido ou sem ID!");
+                }
             }
+            // ====================
+            // 3. CLIQUE EM ITEM NO CHÃO (PICKUP)
+            // ====================
+            else if (hit.collider.CompareTag("ItemOnGround"))
+            {
+                ItemOnGroundIdentity item = hit.collider.GetComponent<ItemOnGroundIdentity>();
+                if (item != null && !string.IsNullOrEmpty(item.groundItemId))
+                {
+                    Debug.Log($"[TargetSelector] Clicou no item {item.itemName} (ID: {item.groundItemId})");
+                    NetworkManager.Instance.SendPickupItem(item.groundItemId);
+                }
+                else
+                {
+                    Debug.LogWarning("[TargetSelector] ItemOnGroundIdentity inválido ou sem groundItemId!");
+                }
+            }
+            // ====================
+            // 4. CLIQUE EM OUTRO LUGAR → CANCELA TARGET
+            // ====================
             else
             {
                 ClearTarget();
@@ -159,51 +187,34 @@ public class TargetSelector : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Chamado ao pressionar a tecla Espaço.
-    /// Troca para o próximo monstro disponível na tela.
-    /// </summary>
     private void OnAttackKey()
     {
         if (ChatUI.IsChatActive) return;
         CycleToNextMonster();
     }
 
-    /// <summary>
-    /// Alterna o estado do auto follow (ligado/desligado).
-    /// </summary>
     private void ToggleAutoFollow()
     {
         autoFollowEnabled = !autoFollowEnabled;
+
     }
 
     // =========================
     // SELEÇÃO DE ALVO
     // =========================
 
-    /// <summary>
-    /// Seleciona um alvo (monstro) pelo ID, inicia o ataque automático
-    /// e exibe a borda de seleção.
-    /// </summary>
     public void SelectTarget(string targetId)
     {
-        // Para o ataque automático do alvo anterior
         if (currentTarget != null)
             NetworkManager.Instance.SendStopAutoAttack();
 
         currentTargetId = targetId;
         currentTarget = EntityManager.Instance.GetGameObject(targetId);
 
-        // Exibe a borda ao redor do novo alvo
         ShowOutline(currentTarget.transform);
-
-        // Inicia o ataque automático
         NetworkManager.Instance.SendStartAutoAttack(targetId);
     }
 
-    /// <summary>
-    /// Cancela a seleção atual, para o ataque automático e esconde a borda.
-    /// </summary>
     public void ClearTarget()
     {
         if (!string.IsNullOrEmpty(currentTargetId))
@@ -216,10 +227,6 @@ public class TargetSelector : MonoBehaviour
         HideOutline();
     }
 
-    /// <summary>
-    /// Cancela a seleção se o GameObject fornecido for o alvo atual.
-    /// (Chamado quando um monstro é despawneado).
-    /// </summary>
     public void ClearTargetIfMatches(GameObject go)
     {
         MonsterIdentity idComp = go.GetComponent<MonsterIdentity>();
@@ -231,23 +238,14 @@ public class TargetSelector : MonoBehaviour
     // BORDA DE SELEÇÃO
     // =========================
 
-    /// <summary>
-    /// Exibe a borda ao redor do alvo.
-    /// Se a borda ainda não existir, instancia uma nova.
-    /// </summary>
     private void ShowOutline(Transform target)
     {
-        // Debug.Log("[TargetSelector] ShowOutline chamado.");
         if (outlinePrefab == null)
         {
             Debug.LogWarning("[TargetSelector] outlinePrefab não atribuído!");
-#if UNITY_EDITOR
-            Debug.LogWarning("[TargetSelector] outlinePrefab não atribuído!");
-#endif
             return;
         }
 
-        // Se já existe, apenas atualiza o alvo
         if (currentOutline != null)
         {
             outlineScript = currentOutline.GetComponent<TargetOutline>();
@@ -256,26 +254,19 @@ public class TargetSelector : MonoBehaviour
             return;
         }
 
-        // Cria nova instância como filho do TargetSelector
         currentOutline = Instantiate(outlinePrefab, transform);
         outlineScript = currentOutline.GetComponent<TargetOutline>();
         if (outlineScript != null)
         {
             outlineScript.SetTarget(target);
-            outlineScript.SetColor(Color.red); // Cor padrão (futuramente pode ser parametrizada)
-            // Debug.Log("[TargetSelector] Outline configurado.");
+            outlineScript.SetColor(Color.red);
         }
         else
         {
-#if UNITY_EDITOR
             Debug.LogError("[TargetSelector] O prefab TargetOutline não possui o script TargetOutline!");
-#endif
         }
     }
 
-    /// <summary>
-    /// Esconde a borda (sem destruí-la, para reutilização futura).
-    /// </summary>
     private void HideOutline()
     {
         if (outlineScript != null)
@@ -286,9 +277,6 @@ public class TargetSelector : MonoBehaviour
     // UTILITÁRIOS
     // =========================
 
-    /// <summary>
-    /// Cicla para o próximo monstro dentro do alcance.
-    /// </summary>
     private void CycleToNextMonster()
     {
         List<string> nearbyMonsters = new List<string>();
@@ -323,9 +311,6 @@ public class TargetSelector : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Extrai o ID da entidade a partir do GameObject (monstro ou entidade genérica).
-    /// </summary>
     private string GetEntityIdFromGameObject(GameObject go)
     {
         MonsterIdentity mid = go.GetComponent<MonsterIdentity>();
@@ -336,9 +321,6 @@ public class TargetSelector : MonoBehaviour
         return eid?.entityId;
     }
 
-    /// <summary>
-    /// Converte um vetor de direção para string (usado no envio de movimento).
-    /// </summary>
     private string DirectionToString(Vector2Int dir)
     {
         if (dir == Vector2Int.up) return "north";

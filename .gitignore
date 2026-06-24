@@ -55,3 +55,5 @@ server/logs/
 .DS_Store
 npm-debug.log*node_modules/
 package-lock.json
+client/Assets/_Recovery/
+client/Assets/_Recovery.meta

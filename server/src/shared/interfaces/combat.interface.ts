@@ -25,4 +25,5 @@ export interface DamageResult {
 export interface MonsterAIConfig {
   fleeHp?: number; // HP abaixo do qual foge
   attackCooldown?: number; // tempo entre ataques (ms)
+  moveCooldown?: number; // tempo entre movimentos (ms)
 }
