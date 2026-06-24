@@ -1,3 +1,4 @@
+// server/src/network/senders/combatSender.ts
 import { BaseSender } from "./base/baseSender";
 
 export class CombatSender extends BaseSender {
@@ -20,5 +21,26 @@ export class CombatSender extends BaseSender {
    */
   sendAutoAttackStopped(reason: string): void {
     this.send({ type: "autoAttackStopped", reason });
+  }
+
+  /**
+   * Notifica o cliente que o ataque falhou.
+   */
+  sendAttackFailed(reason: string): void {
+    this.send({ type: "attackFailed", reason });
+  }
+
+  /**
+   * Notifica o cliente que o ataque automático foi iniciado.
+   */
+  sendAutoAttackStarted(targetId: string): void {
+    this.send({ type: "autoAttackStarted", targetId });
+  }
+
+  /**
+   * Notifica o cliente que um monstro morreu.
+   */
+  sendMonsterDied(monsterId: string): void {
+    this.send({ type: "monsterDied", monsterId });
   }
 }

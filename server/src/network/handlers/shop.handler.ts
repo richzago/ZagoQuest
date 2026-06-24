@@ -1,3 +1,11 @@
+/**
+ * shop.handler.ts
+ *
+ * Handlers relacionados à loja de NPCs.
+ *
+ * @module network/handlers/shop
+ */
+
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";

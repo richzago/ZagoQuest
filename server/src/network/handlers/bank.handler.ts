@@ -1,3 +1,11 @@
+/**
+ * bank.handler.ts
+ *
+ * Handlers relacionados ao banco.
+ *
+ * @module network/handlers/bank
+ */
+
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";

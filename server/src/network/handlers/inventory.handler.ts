@@ -1,3 +1,11 @@
+/**
+ * inventory.handler.ts
+ *
+ * Handlers relacionados ao inventário, equipamento e itens no chão.
+ *
+ * @module network/handlers/inventory
+ */
+
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
@@ -187,7 +195,8 @@ export async function handleDropItem(
   );
   ctx.world.addItemOnGround(itemOnGround);
 
-  ctx.wsServer.broadcastSpawnItemOnGround(itemOnGround);
+  // Usa broadcast service para notificar todos
+  ctx.broadcast.broadcastSpawnItemOnGround(itemOnGround);
   ctx.packetSender.inventory.sendInventory(player);
   ctx.packetSender.inventory.sendEquipment(player);
 
@@ -217,7 +226,9 @@ export async function handlePickupItem(
 
   player.addItem(itemOnGround.itemId, itemOnGround.amount);
   ctx.world.removeItemOnGround(itemOnGround);
-  ctx.wsServer.broadcastDespawn(itemOnGround.id);
+
+  // Usa broadcast service para remover o item do chão para todos
+  ctx.broadcast.broadcastDespawn(itemOnGround.id);
   ctx.packetSender.inventory.sendInventory(player);
 
   Logger.loot(`${player.name} pegou ${itemOnGround.amount}x ${itemOnGround.itemId} do chão.`);

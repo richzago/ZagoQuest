@@ -1,3 +1,11 @@
+/**
+ * loot.handler.ts
+ *
+ * Handlers relacionados ao loot de cadáveres.
+ *
+ * @module network/handlers/loot
+ */
+
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
@@ -62,7 +70,9 @@ export async function handleTakeLoot(
       );
     }
     ctx.world.removeCorpse(corpse);
-    ctx.wsServer.broadcastDespawn(corpse.id);
+
+    // Usa broadcast service para remover o corpse para todos
+    ctx.broadcast.broadcastDespawn(corpse.id);
     ctx.packetSender.loot.sendLootTaken(corpse.id);
     ctx.packetSender.inventory.sendInventory(player);
   } else if (msg.itemIndex !== undefined) {
@@ -75,7 +85,7 @@ export async function handleTakeLoot(
       corpse.loot.splice(msg.itemIndex, 1);
       if (corpse.loot.length === 0) {
         ctx.world.removeCorpse(corpse);
-        ctx.wsServer.broadcastDespawn(corpse.id);
+        ctx.broadcast.broadcastDespawn(corpse.id);
       }
       ctx.packetSender.loot.sendLootTaken(corpse.id, msg.itemIndex);
       ctx.packetSender.inventory.sendInventory(player);

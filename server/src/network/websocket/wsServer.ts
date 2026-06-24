@@ -12,12 +12,13 @@ import { WebSocketServer as WSServer, WebSocket } from "ws";
 import { World } from "../../game/world/World";
 import { Player } from "../../game/entities/player";
 import { Logger } from "../../game/core/logger/logger";
-import { Monster } from "../../game/entities/monster";
-import { Corpse } from "../../game/entities/corpse";
-import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { HandlerContext } from "../handlers/HandlerContext";
 import { PacketSender } from "../senders";
 import { handlers, HandlerFn } from "../handlers/index";
+import { BroadcastService } from "./wsBroadcast";
+import { ItemOnGround } from "../../game/entities/itemOnGround";
+import { Corpse } from "../../game/entities/corpse";
+import { Monster } from "../../game/entities/monster";
 
 /**
  * Servidor WebSocket responsável por receber comandos dos clientes
@@ -26,12 +27,14 @@ import { handlers, HandlerFn } from "../handlers/index";
 export class WebSocketServer {
   private wss: WSServer;
   private world: World;
+  private broadcast: BroadcastService;
   private clients: Map<WebSocket, Player> = new Map();
   private static instance: WebSocketServer;
 
   constructor(server: HttpServer, world: World) {
     WebSocketServer.instance = this;
     this.world = world;
+    this.broadcast = new BroadcastService(world);
     this.wss = new WSServer({ server });
     this.init();
   }
@@ -41,29 +44,38 @@ export class WebSocketServer {
       Logger.system(`Cliente conectado: ${req.socket.remoteAddress}`);
 
       const player = this.world.players[0];
-      if (player) {
-        this.clients.set(ws, player);
-        Logger.system(`Jogador ${player.name} (ID ${player.id}) associado ao socket.`);
-        this.sendInventory(ws, player);
-        this.sendPlayerStats(ws, player);
-      } else {
+      if (!player) {
         Logger.error("Nenhum jogador disponível para associar ao WebSocket");
         ws.close();
         return;
       }
 
+      // Registra o cliente no broadcast service
+      this.broadcast.registerClient(ws, player);
+      this.clients.set(ws, player);
+
+      Logger.system(`Jogador ${player.name} (ID ${player.id}) associado ao socket.`);
+
+      // Envia estado inicial
       this.sendInitialState(ws, player);
+      this.sendInventory(ws, player);
+      this.sendPlayerStats(ws, player);
       this.sendSpawnEntities(ws);
 
+      // Configura handlers de mensagens
       ws.on("message", async (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString());
           const player = this.clients.get(ws);
           if (!player) return;
 
-          const ctx = new HandlerContext(this.world, this, new PacketSender(ws));
+          const ctx = new HandlerContext(
+            this.world,
+            this,
+            new PacketSender(ws),
+            this.broadcast, // Injeta o broadcast service
+          );
 
-          // 🔥 Registry de handlers – substitui o switch
           const handler = handlers[msg.type] as HandlerFn | undefined;
 
           if (handler) {
@@ -78,6 +90,7 @@ export class WebSocketServer {
 
       ws.on("close", () => {
         Logger.system("Cliente desconectado");
+        this.broadcast.unregisterClient(ws);
         this.clients.delete(ws);
       });
     });
@@ -100,6 +113,7 @@ export class WebSocketServer {
   }
 
   private sendSpawnEntities(ws: WebSocket): void {
+    // Envia monstros
     for (const monster of this.world.monsters) {
       ws.send(
         JSON.stringify({
@@ -115,6 +129,7 @@ export class WebSocketServer {
     }
     Logger.world(`Enviados ${this.world.monsters.length} monstros para o cliente`);
 
+    // Envia NPCs
     for (const npc of this.world.npcs) {
       ws.send(
         JSON.stringify({
@@ -128,6 +143,23 @@ export class WebSocketServer {
       );
     }
     Logger.world(`Enviados ${this.world.npcs.length} NPCs para o cliente`);
+
+    // Envia itens no chão
+    for (const item of this.world.itemsOnGround) {
+      ws.send(
+        JSON.stringify({
+          type: "spawn",
+          id: item.id,
+          name: item.itemName,
+          x: item.position.x,
+          y: item.position.y,
+          itemId: item.itemId,
+          amount: item.amount,
+          isItem: true,
+        }),
+      );
+    }
+    Logger.world(`Enviados ${this.world.itemsOnGround.length} itens no chão para o cliente`);
   }
 
   private sendInventory(ws: WebSocket, player: Player): void {
@@ -161,102 +193,43 @@ export class WebSocketServer {
   }
 
   // =========================
-  // BROADCASTS
+  // MÉTODOS DELEGADOS PARA BROADCAST (mantém compatibilidade)
   // =========================
 
   public broadcastMove(entityId: string, x: number, y: number, excludeSocket?: WebSocket): void {
-    const msg = JSON.stringify({ type: "move", id: entityId, x, y });
-    for (const [socket] of this.clients.entries()) {
-      if (socket !== excludeSocket && socket.readyState === WebSocket.OPEN) {
-        socket.send(msg);
-      }
-    }
+    this.broadcast.broadcastMove(entityId, x, y, excludeSocket);
   }
 
   public broadcastDamage(targetId: string, newHp: number, maxHp: number, damage: number): void {
-    const msg = JSON.stringify({ type: "damage", targetId, newHp, maxHp, damage });
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
-    }
+    this.broadcast.broadcastDamage(targetId, newHp, maxHp, damage);
   }
 
   public broadcastDespawn(entityId: string): void {
-    Logger.system(`[DESPAWN] Enviando despawn para entidade ${entityId}`);
-    const msg = JSON.stringify({ type: "despawn", id: entityId });
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
-    }
+    this.broadcast.broadcastDespawn(entityId);
   }
 
   public broadcastChat(senderName: string, message: string, channel: string = "local"): void {
-    const formatted = `[${channel.toUpperCase()}] ${senderName}: ${message}`;
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "chat", message: formatted }));
-      }
-    }
+    this.broadcast.broadcastChat(senderName, message, channel);
   }
 
   public broadcastSpawn(monster: Monster): void {
-    const msg = JSON.stringify({
-      type: "spawn",
-      id: monster.id,
-      name: monster.name,
-      x: monster.position.x,
-      y: monster.position.y,
-      hp: monster.hp,
-      maxHp: monster.maxHp,
-    });
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
-    }
+    this.broadcast.broadcastSpawn(monster);
   }
 
   public broadcastSpawnCorpse(corpse: Corpse): void {
-    const msg = JSON.stringify({
-      type: "spawn",
-      id: corpse.id,
-      name: "Corpse",
-      x: corpse.position.x,
-      y: corpse.position.y,
-    });
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
-    }
+    this.broadcast.broadcastSpawnCorpse(corpse);
   }
 
   public broadcastSpawnItemOnGround(item: ItemOnGround): void {
-    const msg = JSON.stringify({
-      type: "spawn",
-      id: item.id,
-      name: item.itemName,
-      x: item.position.x,
-      y: item.position.y,
-      itemId: item.itemId,
-      amount: item.amount,
-      isItem: true,
-    });
-    for (const [socket] of this.clients.entries()) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(msg);
-    }
+    this.broadcast.broadcastSpawnItemOnGround(item);
   }
 
   public sendToPlayer(playerId: string, message: string): void {
-    for (const [ws, player] of this.clients.entries()) {
-      if (player.id === playerId && ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
-        break;
-      }
-    }
+    this.broadcast.sendToPlayer(playerId, message);
   }
 
   public sendChatToPlayer(playerId: string, message: string): void {
-    for (const [ws, player] of this.clients.entries()) {
-      if (player.id === playerId && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "chat", message }));
-        break;
-      }
-    }
+    this.broadcast.sendChatToPlayer(playerId, message);
   }
 
   // =========================
@@ -265,5 +238,9 @@ export class WebSocketServer {
 
   public static getInstance(): WebSocketServer {
     return WebSocketServer.instance;
+  }
+
+  public getBroadcastService(): BroadcastService {
+    return this.broadcast;
   }
 }

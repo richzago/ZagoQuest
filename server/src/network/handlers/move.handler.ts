@@ -1,3 +1,11 @@
+/**
+ * move.handler.ts
+ *
+ * Handlers relacionados ao movimento.
+ *
+ * @module network/handlers/move
+ */
+
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
@@ -40,7 +48,9 @@ export async function handleMove(
     player.position.x = x;
     player.position.y = y;
     ctx.packetSender.combat.sendPosition(x, y);
-    ctx.wsServer.broadcastMove(player.id, x, y, ws);
+
+    // Usa broadcast service para notificar todos
+    ctx.broadcast.broadcastMove(player.id, x, y, ws);
   } else {
     ctx.packetSender.combat.sendPosition(player.position.x, player.position.y);
   }
@@ -79,7 +89,9 @@ export function handleMoveDir(
     player.position.x = newX;
     player.position.y = newY;
     ctx.packetSender.combat.sendPosition(newX, newY);
-    ctx.wsServer.broadcastMove(player.id, newX, newY, ws);
+
+    // Usa broadcast service para notificar todos
+    ctx.broadcast.broadcastMove(player.id, newX, newY, ws);
   } else {
     ctx.packetSender.combat.sendPosition(player.position.x, player.position.y);
   }

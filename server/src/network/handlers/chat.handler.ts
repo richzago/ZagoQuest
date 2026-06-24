@@ -1,3 +1,11 @@
+/**
+ * chat.handler.ts
+ *
+ * Handlers relacionados ao chat e interação com NPCs.
+ *
+ * @module network/handlers/chat
+ */
+
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { HandlerContext } from "./HandlerContext";
@@ -33,8 +41,8 @@ export async function handleChat(
     return;
   }
 
-  // Mensagem normal
+  // Mensagem normal - usa broadcast service
   const channel = (player as any).currentChannel || "local";
   ChatSystem.sendToChannel(player, channel, message);
-  ctx.wsServer.broadcastChat(player.name, message, channel);
+  ctx.broadcast.broadcastChat(player.name, message, channel);
 }
