@@ -51,7 +51,7 @@ export class PacketSender {
   }
 
   // =========================
-  // INVENTÁRIO
+  // INVENTÁRIO E EQUIPAMENTO
   // =========================
 
   sendInventory(player: Player): void {
@@ -66,5 +66,55 @@ export class PacketSender {
         items: itemsArray,
       }),
     );
+  }
+
+  sendEquipment(player: Player): void {
+    const itemsArray = Array.from(player.equipment.entries()).map(([slot, itemId]) => ({
+      slot,
+      itemId,
+    }));
+    this.ws.send(JSON.stringify({ type: "equipment", items: itemsArray }));
+  }
+
+  sendPlayerStats(player: Player): void {
+    this.ws.send(
+      JSON.stringify({
+        type: "playerStats",
+        hp: player.hp,
+        maxHp: player.maxHp,
+        mana: player.mana,
+        maxMana: player.maxMana,
+        level: player.level,
+        attack: player.attack,
+        defense: player.defense,
+      }),
+    );
+  }
+
+  sendItemUsed(itemId: string, success: boolean, message: string): void {
+    this.ws.send(
+      JSON.stringify({
+        type: "itemUsed",
+        itemId,
+        success,
+        message,
+      }),
+    );
+  }
+
+  sendUnequipResult(success: boolean, message: string): void {
+    this.ws.send(JSON.stringify({ type: "unequipResult", success, message }));
+  }
+
+  sendDropError(message: string): void {
+    this.ws.send(JSON.stringify({ type: "dropError", message }));
+  }
+
+  sendPickupError(message: string): void {
+    this.ws.send(JSON.stringify({ type: "pickupError", message }));
+  }
+
+  sendError(message: string): void {
+    this.ws.send(JSON.stringify({ type: "error", message }));
   }
 }

@@ -34,6 +34,13 @@ import {
   handleStopAutoAttack,
 } from "../handlers/attack.handler";
 import { handleLoot, handleTakeLoot } from "../handlers/loot.handler";
+import {
+  handleDropItem,
+  handleEquipItem,
+  handlePickupItem,
+  handleUnequipItem,
+  handleUseItem,
+} from "../handlers/inventory.handler";
 
 /**
  * Direções possíveis para movimento estilo Tibia.
@@ -95,6 +102,7 @@ export class WebSocketServer {
             case "moveDir":
               handleMoveDir(ws, player, msg, ctx);
               break;
+
             case "attack":
               await handleAttack(ws, player, msg, ctx);
               break;
@@ -104,6 +112,7 @@ export class WebSocketServer {
             case "stopAutoAttack":
               handleStopAutoAttack(ws, player, msg, ctx);
               break;
+
             case "chat":
               await handleChat(ws, player, msg, ctx);
               break;
@@ -114,12 +123,23 @@ export class WebSocketServer {
             case "takeLoot":
               await handleTakeLoot(ws, player, msg, ctx);
               break;
+
             case "useItem":
-              await this.handleUseItem(ws, msg);
+              await handleUseItem(ws, player, msg, ctx);
               break;
             case "dropItem":
-              await this.handleDropItem(ws, msg);
+              await handleDropItem(ws, player, msg, ctx);
               break;
+            case "equipItem":
+              await handleEquipItem(ws, player, msg, ctx);
+              break;
+            case "unequipItem":
+              await handleUnequipItem(ws, player, msg, ctx);
+              break;
+            case "pickupItem":
+              await handlePickupItem(ws, player, msg, ctx);
+              break;
+
             case "openShop":
               await this.handleOpenShop(ws, msg);
               break;
@@ -134,18 +154,6 @@ export class WebSocketServer {
               break;
             case "withdraw":
               await this.handleWithdraw(ws, msg);
-              break;
-            case "equipItem":
-              await this.handleEquipItem(ws, msg);
-              break;
-            case "unequipItem":
-              await this.handleUnequipItem(ws, msg);
-              break;
-            case "dropItem":
-              await this.handleDropItem(ws, msg);
-              break;
-            case "pickupItem":
-              await this.handlePickupItem(ws, msg);
               break;
             default:
               Logger.warn(`Tipo de mensagem desconhecido: ${msg.type}`);
