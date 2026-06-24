@@ -28,7 +28,12 @@ import { handleMove, handleMoveDir } from "../handlers/move.handler";
 import { HandlerContext } from "../handlers/HandlerContext";
 import { PacketSender } from "../senders/PacketSender";
 import { handleChat } from "../handlers/chat.handler";
-import { handleAttack, handleStartAutoAttack, handleStopAutoAttack } from "../handlers/attack.handler";
+import {
+  handleAttack,
+  handleStartAutoAttack,
+  handleStopAutoAttack,
+} from "../handlers/attack.handler";
+import { handleLoot, handleTakeLoot } from "../handlers/loot.handler";
 
 /**
  * Direções possíveis para movimento estilo Tibia.
@@ -104,10 +109,10 @@ export class WebSocketServer {
               break;
 
             case "loot":
-              await this.handleLoot(ws, msg);
+              await handleLoot(ws, player, msg, ctx);
               break;
             case "takeLoot":
-              await this.handleTakeLoot(ws, msg);
+              await handleTakeLoot(ws, player, msg, ctx);
               break;
             case "useItem":
               await this.handleUseItem(ws, msg);
@@ -239,97 +244,6 @@ export class WebSocketServer {
       if (dx + dy > 2) {
         await processChatCommand("/bye", player, this.world);
         Logger.warn(`Auto-bye: ${player.name} se afastou de ${talkingNpc.name}`);
-      }
-    }
-  }
-
-  private async handleLoot(ws: WebSocket, msg: { corpseId: string }): Promise<void> {
-    const player = this.clients.get(ws);
-    if (!player) return;
-
-    const { corpseId } = msg;
-    Logger.system(`[Loot] handleLoot chamado para corpse ${corpseId}`);
-    const corpse = this.world.corpses.find((c) => c.id === corpseId);
-    if (!corpse) {
-      ws.send(JSON.stringify({ type: "lootError", message: "Corpse not found" }));
-      return;
-    }
-
-    const dx = Math.abs(corpse.position.x - player.position.x);
-    const dy = Math.abs(corpse.position.y - player.position.y);
-    if (dx + dy > 2) {
-      ws.send(JSON.stringify({ type: "lootError", message: "Too far from corpse" }));
-      return;
-    }
-
-    ws.send(
-      JSON.stringify({
-        type: "lootWindow",
-        corpseId: corpse.id,
-        items: corpse.loot.map((item) => ({
-          itemId: item.itemId,
-          amount: item.amount,
-          itemName: ItemRegistry.get(item.itemId)?.name || item.itemId,
-        })),
-      }),
-    );
-  }
-
-  private async handleTakeLoot(
-    ws: WebSocket,
-    msg: { corpseId: string; takeAll: boolean; itemIndex?: number },
-  ): Promise<void> {
-    const player = this.clients.get(ws);
-    if (!player) return;
-
-    const corpse = this.world.corpses.find((c) => c.id === msg.corpseId);
-    if (!corpse) {
-      ws.send(JSON.stringify({ type: "lootError", message: "Corpse not found" }));
-      return;
-    }
-
-    const dx = Math.abs(corpse.position.x - player.position.x);
-    const dy = Math.abs(corpse.position.y - player.position.y);
-    if (dx + dy > 2) {
-      ws.send(JSON.stringify({ type: "lootError", message: "Too far from corpse" }));
-      return;
-    }
-
-    if (msg.takeAll) {
-      for (const item of corpse.loot) {
-        player.addItem(item.itemId, item.amount);
-        Logger.loot(
-          `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
-        );
-        Logger.system(
-          `[INVENTORY DEBUG] Após addItem, inventário de ${player.name}: ${JSON.stringify(Array.from(player.inventory.entries()))}`,
-        );
-      }
-      this.world.removeCorpse(corpse);
-      this.broadcastDespawn(corpse.id);
-      ws.send(JSON.stringify({ type: "lootTaken", corpseId: corpse.id }));
-      this.sendInventory(ws, player);
-    } else if (msg.itemIndex !== undefined) {
-      const item = corpse.loot[msg.itemIndex];
-      if (item) {
-        player.addItem(item.itemId, item.amount);
-        Logger.loot(
-          `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
-        );
-        Logger.system(
-          `[INVENTORY DEBUG] Após addItem individual, inventário: ${JSON.stringify(Array.from(player.inventory.entries()))}`,
-        );
-        corpse.loot.splice(msg.itemIndex, 1);
-        if (corpse.loot.length === 0) {
-          this.world.removeCorpse(corpse);
-          this.broadcastDespawn(corpse.id);
-        }
-        ws.send(
-          JSON.stringify({ type: "lootTaken", corpseId: corpse.id, itemIndex: msg.itemIndex }),
-        );
-        this.sendInventory(ws, player);
-      } else {
-        ws.send(JSON.stringify({ type: "lootError", message: "Item not found" }));
       }
     }
   }
