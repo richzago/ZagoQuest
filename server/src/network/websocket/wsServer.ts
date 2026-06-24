@@ -32,6 +32,7 @@ import {
 } from "../handlers/move.handler";
 import { HandlerContext } from "../handlers/HandlerContext";
 import { PacketSender } from "../senders/PacketSender";
+import { handleChat } from "../handlers/chat.handler";
 
 /**
  * Direções possíveis para movimento estilo Tibia.
@@ -100,7 +101,7 @@ export class WebSocketServer {
               handleStopAutoAttack(ws, player, msg, ctx);
               break;
             case "chat":
-              await this.handleChat(ws, msg);
+              await handleChat(ws, player, msg, ctx);
               break;
             case "attack":
               await this.handleAttack(ws, msg);
@@ -242,29 +243,6 @@ export class WebSocketServer {
         await processChatCommand("/bye", player, this.world);
         Logger.warn(`Auto-bye: ${player.name} se afastou de ${talkingNpc.name}`);
       }
-    }
-  }
-
-  private async handleChat(ws: WebSocket, msg: { message: string }): Promise<void> {
-    const player = this.clients.get(ws);
-    if (!player) return;
-
-    let { message } = msg;
-    message = message.trim().toLowerCase();
-
-    const interactionWords = ["hi", "oi", "olá", "hello", "bye", "tchau"];
-    if (interactionWords.includes(message)) {
-      const command = message === "bye" || message === "tchau" ? "/bye" : "/hi";
-      await processChatCommand(command, player, this.world);
-      return;
-    }
-
-    if (message.startsWith("/")) {
-      await processChatCommand(message, player, this.world);
-    } else {
-      const channel = (player as any).currentChannel || "local";
-      ChatSystem.sendToChannel(player, channel, message);
-      this.broadcastChat(player.name, message, channel);
     }
   }
 
@@ -855,7 +833,7 @@ export class WebSocketServer {
     }
   }
 
-  private broadcastChat(senderName: string, message: string, channel: string = "local"): void {
+  public broadcastChat(senderName: string, message: string, channel: string = "local"): void {
     const formatted = `[${channel.toUpperCase()}] ${senderName}: ${message}`;
     for (const [socket] of this.clients.entries()) {
       if (socket.readyState === WebSocket.OPEN)
