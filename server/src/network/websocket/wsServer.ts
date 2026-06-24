@@ -21,6 +21,9 @@ import { Corpse } from "../../game/entities/corpse";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { BankingSystem } from "../../game/systems/bankingSystem";
 import { ShopSystem } from "../../game/systems/shopSystem";
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
+import { ItemOnGround } from "../../game/entities/itemOnGround";
+import { generateId } from "../../shared/utils/idUtils";
 
 /**
  * Direções possíveis para movimento estilo Tibia.
@@ -133,6 +136,18 @@ export class WebSocketServer {
               break;
             case "stopAutoAttack":
               this.handleStopAutoAttack(ws, msg);
+              break;
+            case "equipItem":
+              await this.handleEquipItem(ws, msg);
+              break;
+            case "unequipItem":
+              await this.handleUnequipItem(ws, msg);
+              break;
+            case "dropItem":
+              await this.handleDropItem(ws, msg);
+              break;
+            case "pickupItem":
+              await this.handlePickupItem(ws, msg);
               break;
             default:
               Logger.warn(`Tipo de mensagem desconhecido: ${msg.type}`);
@@ -310,12 +325,10 @@ export class WebSocketServer {
 
     let { message } = msg;
     message = message.trim().toLowerCase();
-    Logger.warn(`[RECEBIDO] ${player.name}: ${message}`);
 
     const interactionWords = ["hi", "oi", "olá", "hello", "bye", "tchau"];
     if (interactionWords.includes(message)) {
       const command = message === "bye" || message === "tchau" ? "/bye" : "/hi";
-      Logger.warn(`[COMANDO NPC] ${command} de ${player.name}`);
       await processChatCommand(command, player, this.world);
       return;
     }
@@ -336,7 +349,6 @@ export class WebSocketServer {
     const targetId = msg.targetId;
     const target = this.world.monsters.find((m) => m.id === targetId);
     if (!target) {
-      Logger.warn(`Jogador ${player.name} tentou atacar monstro inexistente ${targetId}`);
       return;
     }
 
@@ -356,9 +368,9 @@ export class WebSocketServer {
     if (!player) return;
 
     const { corpseId } = msg;
+    Logger.system(`[Loot] handleLoot chamado para corpse ${corpseId}`);
     const corpse = this.world.corpses.find((c) => c.id === corpseId);
     if (!corpse) {
-      Logger.warn(`Jogador ${player.name} tentou lootear corpse inexistente ${corpseId}`);
       ws.send(JSON.stringify({ type: "lootError", message: "Corpse not found" }));
       return;
     }
@@ -366,7 +378,6 @@ export class WebSocketServer {
     const dx = Math.abs(corpse.position.x - player.position.x);
     const dy = Math.abs(corpse.position.y - player.position.y);
     if (dx + dy > 2) {
-      Logger.warn(`Jogador ${player.name} muito longe do corpse ${corpseId}`);
       ws.send(JSON.stringify({ type: "lootError", message: "Too far from corpse" }));
       return;
     }
@@ -515,40 +526,112 @@ export class WebSocketServer {
     }
   }
 
+  /**
+   * Processa o drop de um item no chão.
+   * Suporta tanto itens do inventário quanto itens equipados.
+   * @param ws - WebSocket do cliente.
+   * @param msg - Objeto com `itemId`, `amount` (opcional), `x` e `y` (posição no mundo).
+   */
   private async handleDropItem(
     ws: WebSocket,
-    msg: { itemId: string; amount?: number },
+    msg: { itemId: string; amount?: number; x: number; y: number },
   ): Promise<void> {
     const player = this.clients.get(ws);
-    if (!player) return;
-
-    const { itemId, amount = 1 } = msg;
-    if (!player.hasItem(itemId, amount)) {
-      ws.send(JSON.stringify({ type: "dropError", message: "Quantidade insuficiente." }));
+    if (!player) {
+      ws.send(JSON.stringify({ type: "dropError", message: "Jogador não encontrado." }));
       return;
     }
 
-    player.removeItem(itemId, amount);
+    const { itemId, amount = 1, x, y } = msg;
+
+    // 1. Verifica distância máxima (Manhattan 2 tiles)
+    const dx = Math.abs(Math.floor(x) - Math.floor(player.position.x));
+    const dy = Math.abs(Math.floor(y) - Math.floor(player.position.y));
+    if (dx + dy > 2) {
+      ws.send(JSON.stringify({ type: "dropError", message: "Muito longe para dropar." }));
+      return;
+    }
+
+    // 2. Verifica se o jogador possui o item no inventário
+    if (!player.hasItem(itemId, amount)) {
+      // 2.1 Se não tiver no inventário, verifica se está equipado
+      let equippedSlot: EquipmentSlot | null = null;
+      for (const [slot, equippedItemId] of player.equipment.entries()) {
+        if (equippedItemId === itemId) {
+          equippedSlot = slot;
+          break;
+        }
+      }
+
+      if (equippedSlot !== null) {
+        // Desequipa o item (move para o inventário)
+        const unequipSuccess = player.unequipItem(equippedSlot);
+        if (!unequipSuccess) {
+          ws.send(
+            JSON.stringify({ type: "dropError", message: "Não foi possível desequipar o item." }),
+          );
+          return;
+        }
+        Logger.system(`${player.name} desequipou ${itemId} para dropar.`);
+      } else {
+        ws.send(JSON.stringify({ type: "dropError", message: "Você não possui este item." }));
+        return;
+      }
+    }
+
+    // 3. Remove do inventário (agora o item está no inventário, seja por já estar ou por ter sido desequipado)
+    if (!player.removeItem(itemId, amount)) {
+      ws.send(JSON.stringify({ type: "dropError", message: "Erro ao remover o item." }));
+      return;
+    }
+
+    // 4. Busca o nome do item
+    const itemDef = ItemRegistry.get(itemId);
+    const itemName = itemDef?.name || itemId;
+
+    // 5. Cria o item no chão
+    const newId = generateId();
+    const itemOnGround = new ItemOnGround(
+      newId,
+      itemId,
+      amount,
+      Math.floor(x),
+      Math.floor(y),
+      itemName,
+    );
+    this.world.addItemOnGround(itemOnGround);
+
+    // 6. Notifica todos os clientes sobre o novo item no chão
+    const wsServer = WebSocketServer.getInstance();
+    if (wsServer) {
+      wsServer.broadcastSpawnItemOnGround(itemOnGround);
+    }
+
+    // 7. Envia inventário e equipamento atualizados
     this.sendInventory(ws, player);
-    Logger.loot(`${player.name} descartou ${amount}x ${itemId}`);
+    this.sendEquipment(ws, player);
+
+    Logger.loot(
+      `${player.name} dropou ${amount}x ${itemId} em (${Math.floor(x)}, ${Math.floor(y)})`,
+    );
   }
 
   private async handleOpenShop(ws: WebSocket, msg: { npcId: string }): Promise<void> {
-    Logger.system(`[SHOP] handleOpenShop chamado com msg: ${JSON.stringify(msg)}`);
+    // Logger.system(`[SHOP] handleOpenShop chamado com msg: ${JSON.stringify(msg)}`);
     const player = this.clients.get(ws);
     if (!player) {
       Logger.error("[SHOP] Player não encontrado");
       return;
     }
     const npcId = msg.npcId;
-    Logger.system(`[SHOP] Procurando NPC com id ou nome: ${npcId}`);
+    // Logger.system(`[SHOP] Procurando NPC com id ou nome: ${npcId}`);
     const npc = this.world.npcs.find((n) => n.id === npcId || n.name.toLowerCase() === npcId);
     if (!npc) {
       Logger.error(`[SHOP] NPC não encontrado: ${npcId}`);
       ws.send(JSON.stringify({ type: "shopError", message: "NPC não encontrado." }));
       return;
     }
-    Logger.system(`[SHOP] NPC encontrado: ${npc.name}, type=${npc.npcType}`);
+    // Logger.system(`[SHOP] NPC encontrado: ${npc.name}, type=${npc.npcType}`);
     if (npc.npcType !== "merchant") {
       Logger.error(`[SHOP] NPC não é merchant: ${npc.npcType}`);
       ws.send(JSON.stringify({ type: "shopError", message: "NPC não é comerciante." }));
@@ -613,6 +696,121 @@ export class WebSocketServer {
     }
   }
 
+  /**
+   * Processa o comando de equipar um item do inventário.
+   * @param ws - WebSocket do cliente
+   * @param msg - Objeto com `itemId` (string)
+   */
+  private async handleEquipItem(ws: WebSocket, msg: { itemId: string }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) {
+      ws.send(JSON.stringify({ type: "error", message: "Jogador não encontrado." }));
+      return;
+    }
+
+    const { itemId } = msg;
+    const success = player.equipItem(itemId);
+    if (success) {
+      ws.send(
+        JSON.stringify({ type: "itemUsed", itemId, success: true, message: "Item equipado." }),
+      );
+      this.sendInventory(ws, player);
+      this.sendPlayerStats(ws, player);
+      this.sendEquipment(ws, player);
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: "itemUsed",
+          itemId,
+          success: false,
+          message: "Não foi possível equipar o item.",
+        }),
+      );
+    }
+  }
+
+  /**
+   * Processa o comando de desequipar item de um slot específico.
+   * @param ws - WebSocket do cliente
+   * @param msg - Objeto com `slot` (string)
+   */
+  private async handleUnequipItem(ws: WebSocket, msg: { slot: string }): Promise<void> {
+    const player = this.clients.get(ws);
+    if (!player) {
+      ws.send(JSON.stringify({ type: "error", message: "Jogador não encontrado." }));
+      return;
+    }
+
+    // Converte a string para o enum EquipmentSlot
+    const slotKey = msg.slot.toUpperCase() as keyof typeof EquipmentSlot;
+    const slot = EquipmentSlot[slotKey];
+
+    if (slot === undefined) {
+      ws.send(JSON.stringify({ type: "error", message: "Slot inválido." }));
+      Logger.warn(`[Unequip] Slot inválido recebido: ${msg.slot}`);
+      return;
+    }
+
+    const success = player.unequipItem(slot);
+    if (success) {
+      this.sendInventory(ws, player);
+      this.sendPlayerStats(ws, player);
+      this.sendEquipment(ws, player);
+      ws.send(
+        JSON.stringify({ type: "unequipResult", success: true, message: "Item desequipado." }),
+      );
+    } else {
+      ws.send(
+        JSON.stringify({ type: "unequipResult", success: false, message: "Falha ao desequipar." }),
+      );
+    }
+  }
+
+  /**
+   * Processa o pickup de um item do chão.
+   * @param ws - WebSocket do cliente.
+   * @param msg - Objeto com `itemId` (ID do item no chão).
+   */
+  private async handlePickupItem(ws: WebSocket, msg: { itemId: string }): Promise<void> {
+    Logger.system(`[Pickup] Recebido pickup para item ${msg.itemId}`);
+    const player = this.clients.get(ws);
+    if (!player) {
+      ws.send(JSON.stringify({ type: "error", message: "Jogador não encontrado." }));
+      return;
+    }
+
+    const itemOnGround = this.world.getItemOnGround(msg.itemId);
+    if (!itemOnGround) {
+      ws.send(JSON.stringify({ type: "pickupError", message: "Item não encontrado no chão." }));
+      return;
+    }
+
+    // 1. Verifica distância máxima (Manhattan 2 tiles)
+    const dx = Math.abs(itemOnGround.position.x - player.position.x);
+    const dy = Math.abs(itemOnGround.position.y - player.position.y);
+    if (dx + dy > 2) {
+      ws.send(JSON.stringify({ type: "pickupError", message: "Muito longe para pegar." }));
+      return;
+    }
+
+    // 2. Adiciona ao inventário do jogador
+    player.addItem(itemOnGround.itemId, itemOnGround.amount);
+
+    // 3. Remove do mundo
+    this.world.removeItemOnGround(itemOnGround);
+
+    // 4. Notifica todos os clientes para remover o item visualmente
+    const wsServer = WebSocketServer.getInstance();
+    if (wsServer) {
+      wsServer.broadcastDespawn(itemOnGround.id);
+    }
+
+    // 5. Envia inventário atualizado
+    this.sendInventory(ws, player);
+
+    Logger.loot(`${player.name} pegou ${itemOnGround.amount}x ${itemOnGround.itemId} do chão.`);
+  }
+
   private sendGold(ws: WebSocket, player: Player): void {
     ws.send(
       JSON.stringify({
@@ -621,6 +819,28 @@ export class WebSocketServer {
         bankGold: player.bankGold,
       }),
     );
+  }
+
+  /**
+   * Envia uma mensagem de spawn de um item no chão para todos os clientes.
+   * @param itemOnGround - Item no chão a ser spawnado.
+   */
+  public broadcastSpawnItemOnGround(itemOnGround: ItemOnGround): void {
+    const msg = JSON.stringify({
+      type: "spawn",
+      id: itemOnGround.id,
+      name: itemOnGround.itemName,
+      x: itemOnGround.position.x,
+      y: itemOnGround.position.y,
+      itemId: itemOnGround.itemId,
+      amount: itemOnGround.amount,
+      isItem: true, // ← indica que é um item, não um monstro/NPC
+    });
+    for (const [socket] of this.clients.entries()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(msg);
+      }
+    }
   }
 
   private async handleOpenBank(ws: WebSocket, msg: { npcId: string }): Promise<void> {
@@ -815,6 +1035,20 @@ export class WebSocketServer {
         break;
       }
     }
+  }
+
+  /**
+   * Envia ao cliente a lista de itens equipados (como array de { slot, itemId }).
+   * Formato consistente com o inventário (array de objetos).
+   */
+  private sendEquipment(ws: WebSocket, player: Player): void {
+    const itemsArray = Array.from(player.equipment.entries()).map(([slot, itemId]) => ({
+      slot,
+      itemId,
+    }));
+    const payload = JSON.stringify({ type: "equipment", items: itemsArray });
+    // Logger.system(`[EQUIPMENT] Enviando: ${payload}`); // ← LOG
+    ws.send(payload);
   }
 
   public static getInstance(): WebSocketServer {
