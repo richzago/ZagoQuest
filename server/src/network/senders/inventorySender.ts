@@ -9,6 +9,7 @@
 import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { BaseSender } from "./base/baseSender";
+import { Logger } from "../../game/core/logger/logger";
 
 export class InventorySender extends BaseSender {
   /**
@@ -41,15 +42,21 @@ export class InventorySender extends BaseSender {
    * Envia o equipamento atual do jogador.
    */
   public sendEquipment(player: Player): void {
-    const slots: Record<string, string | null> = {};
+    const items: { slot: string; itemId: string }[] = [];
+
     for (const [slot, itemId] of player.equipment.entries()) {
-      slots[slot] = itemId;
+      items.push({ slot, itemId });
     }
 
-    this.send({
+    const payload = {
       type: "equipment",
-      slots,
-    });
+      items,
+    };
+
+    Logger.system(`[SERVER] Enviando equipment: ${JSON.stringify(payload)}`);
+
+    // 🔥 Passa o objeto, não uma string
+    this.send(payload);
   }
 
   /**

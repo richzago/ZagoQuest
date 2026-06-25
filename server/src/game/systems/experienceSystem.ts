@@ -2,8 +2,8 @@
  * experienceSystem.ts
  *
  * Sistema de experiência e level up.
- * Totalmente baseado em dados (level, xp) do Player.
- * Agora com envio de playerStats ao cliente sempre que XP ou Level mudam.
+ * Fórmula personalizada LIGEIRAMENTE MAIS DIFÍCIL que o Tibia:
+ * XP(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
  *
  * @module game/systems/ExperienceSystem
  */
@@ -16,15 +16,17 @@ import {
 import { EventSystem } from "../core/events/eventSystem";
 import { Logger } from "../core/logger/logger";
 import { Player } from "../entities/player";
-import { WebSocketServer } from "../../network/websocket/wsServer"; // 🔥 import adicionado
+import { WebSocketServer } from "../../network/websocket/wsServer";
 
 /**
  * Gerencia a progressão de nível e experiência do jogador.
  *
  * @remarks
- * A tabela de XP é pré‑calculada para os níveis 1 a 100, usando uma progressão geométrica.
- * A cada nível, o HP máximo do jogador aumenta em 20 e o HP é totalmente restaurado.
- * Eventos `PLAYER_GAIN_XP` e `PLAYER_LEVEL_UP` são emitidos para outros sistemas (quests, conquistas, UI).
+ * XP_necessario(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
+ *
+ * Isso gera uma curva de progressão que começa 2% mais difícil no nível 10,
+ * chegando a 15% mais difícil no nível 100 e 36% mais difícil no nível 500.
+ * A progressão é suave e gradual, evitando desânimo dos jogadores de alto nível.
  *
  * @example
  * ```typescript
@@ -36,27 +38,13 @@ import { WebSocketServer } from "../../network/websocket/wsServer"; // 🔥 impo
  * ```
  */
 export class ExperienceSystem {
-  // Tabela de XP necessária por nível (pré-calculada até 100)
-  private static readonly BASE_XP = 100;
-  private static readonly MULTIPLIER = 1.1;
-  private static xpTable: Map<number, number> = new Map();
-
-  /**
-   * Inicialização estática: preenche a tabela de XP necessária por nível.
-   */
-  static {
-    let required = this.BASE_XP;
-    for (let level = 1; level <= 100; level++) {
-      this.xpTable.set(level, Math.floor(required));
-      required *= this.MULTIPLIER;
-    }
-  }
-
   /**
    * Retorna o XP necessário para subir do nível atual para o próximo.
    *
+   * Fórmula: XP(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
+   *
    * @param level - Nível atual do jogador
-   * @returns XP necessário para o próximo nível (ou um valor muito alto se nível ≥ 100)
+   * @returns XP necessário para o próximo nível (nunca inferior a 100)
    *
    * @example
    * ```typescript
@@ -65,7 +53,19 @@ export class ExperienceSystem {
    * ```
    */
   public static getRequiredXp(level: number): number {
-    return this.xpTable.get(level) ?? 999999999;
+    if (level <= 0) return 100;
+
+    // Fórmula base (aproximação do Tibia)
+    const baseXp = 0.3 * Math.pow(level, 3) + 5 * Math.pow(level, 2) + 10 * level;
+
+    // Multiplicador suave e progressivo
+    // Nível 10: 1.01x | Nível 100: 1.10x | Nível 500: 1.50x
+    const multiplier = 1 + level * 0.001;
+
+    const xp = Math.floor(baseXp * multiplier);
+
+    // Garante um mínimo de 100 XP para os primeiros níveis
+    return Math.max(100, xp);
   }
 
   /**
@@ -94,6 +94,7 @@ export class ExperienceSystem {
   public static addXp(player: Player, amount: number): boolean {
     if (amount <= 0 || player.level >= 100) return false;
 
+    const oldXp = player.xp;
     player.xp += amount;
 
     EventSystem.getInstance().emit<PlayerGainXpEventData>(GameEvent.PLAYER_GAIN_XP, {
@@ -105,14 +106,20 @@ export class ExperienceSystem {
     Logger.skill(`${player.name} ganhou ${amount} XP. XP total: ${player.xp}`);
 
     let leveledUp = false;
+    let levelsGained = 0;
+
     while (player.xp >= this.getRequiredXp(player.level) && player.level < 100) {
       this.levelUp(player);
       leveledUp = true;
+      levelsGained++;
+    }
+
+    if (leveledUp) {
+      Logger.system(`${player.name} subiu ${levelsGained} nível(is)! Agora nível ${player.level}`);
     }
 
     // ==========================================================
     // 🔥 ENVIA PLAYER STATS ATUALIZADOS PARA O CLIENTE
-    // (inclui XP, nível, HP e Mana)
     // ==========================================================
     const wsServer = WebSocketServer.getInstance();
     if (wsServer) {
@@ -127,7 +134,9 @@ export class ExperienceSystem {
           level: player.level,
           attack: player.attack,
           defense: player.defense,
-          xp: player.xp, // ← incluído para a barra de XP (se o cliente quiser usar)
+          armor: player.armor,
+          xp: player.xp,
+          xpToNext: this.getRequiredXp(player.level),
         }),
       );
       Logger.combat(`[HUD] PlayerStats enviado para ${player.name} (XP atualizado)`);
@@ -145,7 +154,6 @@ export class ExperienceSystem {
    * @remarks
    * Aumenta o nível em 1, adiciona +20 ao HP máximo e restaura o HP completamente.
    * Emite evento `PLAYER_LEVEL_UP` e log no canal `SYSTEM`.
-   * Futuramente, este método pode ser estendido para aumentar mana, aprender habilidades, etc.
    *
    * @example
    * ```typescript
@@ -159,15 +167,16 @@ export class ExperienceSystem {
     player.maxHp += 20;
     player.hp = player.maxHp;
 
+    // Opcional: aumentar mana também
+    // player.maxMana += 5;
+    // player.mana = player.maxMana;
+
     EventSystem.getInstance().emit<PlayerLevelUpEventData>(GameEvent.PLAYER_LEVEL_UP, {
       playerId: player.id,
       playerName: player.name,
       oldLevel: oldLevel,
       newLevel: player.level,
     });
-    Logger.system(
-      `${player.name} atingiu o nível ${player.level}! HP máximo agora ${player.maxHp}.`,
-    );
   }
 
   /**

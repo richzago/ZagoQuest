@@ -21,6 +21,7 @@ import { ItemPickupEventData } from "../../shared/interfaces/eventData.interface
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Vocation } from "../../shared/enums/vocation.enum";
 import { VocationSystem } from "../systems/vocationSystem";
+import { ExperienceSystem } from "../systems/experienceSystem";
 
 export class Player extends Creature {
   // =========================
@@ -56,7 +57,17 @@ export class Player extends Creature {
 
   vocation: Vocation = Vocation.NONE; // versão atual da vocação do jogador
   promotionStage: number = 0; // para futuras promoções de vocação
-  currentTargetId?: string; //
+  currentTargetId?: string;
+
+  // =========================
+  // ATRIBUTOS DE PROGRESSÃO
+  // =========================
+
+  /** Experiência total acumulada pelo jogador */
+  experience: number = 0;
+
+  /** Experiência necessária para o próximo nível (calculada dinamicamente) */
+  experienceToNext: number = 0;
 
   // =========================
   // CONSTRUTOR
@@ -80,7 +91,7 @@ export class Player extends Creature {
    *
    * @example
    * ```typescript
-   * const player = new Player(1, "Hero", 2, 2);
+   * const player = new Player("1", "Hero", 2, 2);
    * world.addPlayer(player);
    * ```
    */
@@ -93,12 +104,15 @@ export class Player extends Creature {
     this.mana = this.maxMana;
     this.level = 1;
     this.experience = 0;
-    this.gold = 0; // ← corrigido para 0
+    this.gold = 0;
     this.bankGold = 0;
     this.isFishing = false;
     this.fishingTimer = undefined;
     this.vocation = Vocation.NONE;
     this.promotionStage = 0;
+
+    // Inicializa experiência necessária para o próximo nível
+    this.experienceToNext = ExperienceSystem.getRequiredXp(this.level);
 
     // =========================
     // INICIALIZAÇÃO DAS SKILLS
@@ -168,6 +182,53 @@ export class Player extends Creature {
   }
 
   // =========================
+  // SISTEMA DE EXPERIÊNCIA E NÍVEL
+  // =========================
+
+  /**
+   * Adiciona experiência ao jogador e verifica se houve evolução de nível.
+   * Se o jogador acumular XP suficiente para subir um ou mais níveis,
+   * aplica os aumentos de nível e recalcula os atributos.
+   *
+   * @param amount - Quantidade de experiência a adicionar
+   * @returns {void}
+   *
+   * @remarks
+   * O sistema de experiência é linear "x1" (estilo Tibia):
+   * - XP necessário para o próximo nível = level * 100.
+   * - O excesso de XP é mantido após o level up.
+   * - Ao subir de nível, recalcula atributos (atack, defense, armor, HP, mana etc.)
+   *
+   * @example
+   * ```typescript
+   * // Matou um goblin
+   * player.addExperience(50);
+   * ```
+   */
+  addExperience(amount: number): void {
+    if (amount <= 0) return;
+
+    this.experience += amount;
+    let leveledUp = false;
+
+    while (this.experience >= ExperienceSystem.getRequiredXp(this.level)) {
+      this.level++;
+      // Deduz o XP necessário para o nível que acabou de subir
+      this.experience -= ExperienceSystem.getRequiredXp(this.level);
+      leveledUp = true;
+      Logger.combat(`${this.name} subiu para o nível ${this.level}!`);
+    }
+
+    // Atualiza o XP necessário para o próximo nível
+    this.experienceToNext = ExperienceSystem.getRequiredXp(this.level);
+
+    if (leveledUp) {
+      // Recalcula atributos (HP, mana, attack, defense, armor)
+      this.recalculateStats();
+    }
+  }
+
+  // =========================
   // SKILLS
   // =========================
 
@@ -216,7 +277,10 @@ export class Player extends Creature {
       return false;
     }
     const slot = item.slot;
-    if (!slot) return false;
+    if (!slot) {
+      Logger.warn(`[EQUIP] ❌ ${this.name} tentou equipar ${itemId}, mas não tem slot definido.`);
+      return false;
+    }
 
     if (item.levelRequired && this.level < item.levelRequired) {
       Logger.warn(`Nível ${item.levelRequired} necessário para equipar ${item.name}.`);

@@ -111,6 +111,7 @@ export async function handleEquipItem(
   msg: ClientEquipItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
+  Logger.system(`[EQUIP] Recebido equipItem de ${player.name}: itemId=${msg.itemId}`);
   const success = player.equipItem(msg.itemId);
   if (success) {
     ctx.packetSender.inventory.sendInventory(player);
@@ -153,6 +154,9 @@ export async function handleDropItem(
   msg: ClientDropItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
+  Logger.system(
+    `[DROP] Recebido dropItem de ${player.name}: itemId=${msg.itemId}, amount=${msg.amount || 1}, x=${msg.x}, y=${msg.y}`,
+  );
   const { itemId, amount = 1, x, y } = msg;
 
   const dx = Math.abs(Math.floor(x) - Math.floor(player.position.x));
