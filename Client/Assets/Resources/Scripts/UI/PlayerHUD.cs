@@ -1,3 +1,4 @@
+// Assets/Resources/Scripts/UI/PlayerHUD.cs
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -18,6 +19,9 @@ public class PlayerHUD : MonoBehaviour
     public TextMeshProUGUI positionText;
     public TextMeshProUGUI fpsText;
 
+    // 🔥 Armazenar o xpToNext
+    private int currentXpToNext = 100;
+
     private NetworkManager networkManager;
 
     void Start()
@@ -25,11 +29,17 @@ public class PlayerHUD : MonoBehaviour
         networkManager = NetworkManager.Instance;
         if (networkManager == null) return;
 
+        // 🔥 Evento antigo (compatibilidade com HUD)
         networkManager.OnPlayerStats += UpdateStats;
+
+        // 🔥 NOVO: evento com PlayerStatsData
+        NetworkManager.OnPlayerStatsFull += UpdateStatsFull;
+
         networkManager.OnInit += (id, pos) =>
         {
             if (playerNameText != null) playerNameText.text = "Richard";
         };
+
         networkManager.OnPositionReceived += (pos) =>
         {
             if (positionText != null) positionText.text = $"({pos.x:F1}, {pos.y:F1})";
@@ -42,6 +52,7 @@ public class PlayerHUD : MonoBehaviour
             fpsText.text = $"FPS: {Mathf.Round(1f / Time.unscaledDeltaTime)}";
     }
 
+    // 🔥 MANTIDO: para compatibilidade com o evento antigo
     void UpdateStats(int hp, int maxHp, int mana, int maxMana, int level, int attack, int defense, int xp)
     {
         // HP
@@ -62,33 +73,47 @@ public class PlayerHUD : MonoBehaviour
         if (manaText != null)
             manaText.text = $"{mana}/{maxMana}";
 
-        // XP
+        // XP (usando o valor armazenado)
         if (xpSlider != null)
         {
-            int xpNeeded = GetXpForNextLevel(level);
-            xpSlider.maxValue = xpNeeded;
+            xpSlider.maxValue = currentXpToNext;
             xpSlider.value = xp;
         }
         if (xpText != null)
-        {
-            int xpNeeded = GetXpForNextLevel(level);
-            xpText.text = $"{xp}/{xpNeeded}";
-        }
+            xpText.text = $"{xp}/{currentXpToNext}";
 
         // Level
         if (levelText != null)
             levelText.text = $"Nv. {level}";
     }
 
-    private int GetXpForNextLevel(int level)
+    // 🔥 NOVO: recebe PlayerStatsData diretamente
+    void UpdateStatsFull(PlayerStatsData stats)
     {
-        // Fórmula simples: 100 * level (ajuste conforme sua fórmula do servidor)
-        return 100 * level;
+        if (stats == null) return;
+
+        // Armazena o xpToNext para usar na barra
+        currentXpToNext = stats.xpToNext;
+
+        // Reutiliza o método existente
+        UpdateStats(
+            stats.hp,
+            stats.maxHp,
+            stats.mana,
+            stats.maxMana,
+            stats.level,
+            stats.attack,
+            stats.defense,
+            stats.xp
+        );
     }
 
     void OnDestroy()
     {
         if (networkManager != null)
+        {
             networkManager.OnPlayerStats -= UpdateStats;
+        }
+        NetworkManager.OnPlayerStatsFull -= UpdateStatsFull;
     }
 }

@@ -1,15 +1,19 @@
+// Assets/Resources/Scripts/Core/GameManager.cs
 using UnityEngine;
-using System.Collections.Generic; // ← necessário para List e Queue
+using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
+    // 🔥 NOVO: Armazenar os stats do jogador
+    public PlayerStatsData PlayerStats { get; set; }
+
     private bool[,] collisionMatrix;
     private int mapWidth;
     private int mapHeight;
 
-    // Direções para pathfinding (4 ou 8 direções? Usaremos 4 para movimentação simples)
+    // Direções para pathfinding (4 direções)
     private readonly Vector2Int[] neighbors = new Vector2Int[]
     {
         Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
