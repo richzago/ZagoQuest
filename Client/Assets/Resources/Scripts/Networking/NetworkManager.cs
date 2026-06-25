@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using NativeWebSocket;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+// using ZagoQuest.Networking;
+// using ZagoQuest.Networking.Handlers;
+// using ZagoQuest.Networking.Parser;
 
 /// <summary>
 /// Gerencia a conexão WebSocket com o servidor, enviando comandos e recebendo eventos.
@@ -28,6 +34,7 @@ public class NetworkManager : MonoBehaviour
     public event Action<bool, string, int, int> OnBankResult;
     public event Action<Dictionary<EquipmentSlot, string>> OnEquipmentUpdate;
 
+    public static event System.Action<PlayerStatsData> OnPlayerStatsFull;
     private string lastPlayerId;
     private Vector2? lastInitPosition;
 
@@ -37,6 +44,7 @@ public class NetworkManager : MonoBehaviour
 
     private async void Start()
     {
+        // context = new NetworkContext(this);
         if (DragDropManager.Instance == null)
         {
             GameObject go = new GameObject("DragDropManager");
@@ -82,186 +90,264 @@ public class NetworkManager : MonoBehaviour
     }
 
     // =========================
-    // RECEPÇÃO DE MENSAGENS
+    // RECEPÇÃO DE MENSAGENS (com Newtonsoft.Json)
     // =========================
+
+    /// <summary>
+    /// Remove aspas externas e desescapa strings JSON.
+    /// </summary>
+    private string UnescapeJsonString(string message)
+    {
+        // Se a mensagem começa e termina com aspas, é uma string JSON escapada
+        if (message.StartsWith("\"") && message.EndsWith("\""))
+        {
+            // Usa o Newtonsoft para desserializar a string interna
+            try
+            {
+                string inner = JsonConvert.DeserializeObject<string>(message);
+                return inner;
+            }
+            catch
+            {
+                // Fallback: remover aspas manualmente
+                return message.Substring(1, message.Length - 2).Replace("\\\"", "\"");
+            }
+        }
+        return message;
+    }
 
     private void OnMessageReceived(byte[] bytes)
     {
         string message = System.Text.Encoding.UTF8.GetString(bytes);
-        // Debug.Log($"[RAW] Mensagem recebida: {message}"); // ← LOG CRU
-        var simpleMsg = JsonUtility.FromJson<SimpleMessage>(message);
-        if (simpleMsg == null) return;
+        // Debug.Log($"[RAW] Mensagem recebida: {message}");
 
-        switch (simpleMsg.type)
+        try
         {
-            case "init":
-                var initMsg = JsonUtility.FromJson<InitMessage>(message);
-                lastPlayerId = initMsg.playerId;
-                lastInitPosition = new Vector2(initMsg.x, initMsg.y);
-                OnInit?.Invoke(initMsg.playerId, lastInitPosition.Value);
-                isConnected = true;
-                break;
+            JToken token = JToken.Parse(message);
 
-            case "position":
-                var posMsg = JsonUtility.FromJson<PositionMessage>(message);
-                OnPositionReceived?.Invoke(new Vector2(posMsg.x, posMsg.y));
-                break;
+            // 🔥 Se não for um objeto, loga e ignora
+            if (token.Type != JTokenType.Object)
+            {
+                Debug.LogWarning($"[IGNORADO] Mensagem não é objeto JSON: {message} (tipo: {token.Type})");
+                return;
+            }
 
-            case "spawn":
-                var spawnMsg = JsonUtility.FromJson<SpawnMessage>(message);
-                // Se for um item no chão (isItem == true)
-                if (spawnMsg.isItem)
-                {
-                    EntityManager.Instance?.SpawnItemOnGround(
-                        spawnMsg.id,
-                        spawnMsg.itemId,
-                        spawnMsg.name,
-                        spawnMsg.x,
-                        spawnMsg.y,
-                        spawnMsg.amount
-                    );
-                }
-                else
-                {
-                    EntityManager.Instance?.SpawnEntity(
-                        spawnMsg.id,
-                        spawnMsg.name,
-                        spawnMsg.x,
-                        spawnMsg.y,
-                        spawnMsg.hp,
-                        spawnMsg.npcType
-                    );
-                }
-                break;
+            JObject json = (JObject)token;
+            string type = json["type"]?.ToString();
+            if (string.IsNullOrEmpty(type)) return;
 
-            case "move":
-                var moveMsg = JsonUtility.FromJson<MoveEntityMessage>(message);
-                EntityManager.Instance?.MoveEntity(moveMsg.id, moveMsg.x, moveMsg.y);
-                break;
+            switch (type)
+            {
+                case "init":
+                    var initMsg = json.ToObject<InitMessage>();
+                    lastPlayerId = initMsg.playerId;
+                    lastInitPosition = new Vector2(initMsg.x, initMsg.y);
+                    OnInit?.Invoke(initMsg.playerId, lastInitPosition.Value);
+                    isConnected = true;
+                    break;
 
-            case "despawn":
-                var despawnMsg = JsonUtility.FromJson<DespawnMessage>(message);
-                // Debug.Log($"[CLIENT] Despawn recebido para ID {despawnMsg.id}");
-                EntityManager.Instance?.DespawnEntity(despawnMsg.id);
-                break;
+                case "position":
+                    var posMsg = json.ToObject<PositionMessage>();
+                    OnPositionReceived?.Invoke(new Vector2(posMsg.x, posMsg.y));
+                    break;
 
-            case "damage":
-                // Debug.Log("[Dano] Mensagem DAMAGE recebida!");
-                HandleDamageMessage(message);
-                break;
-
-            case "chat":
-                var chatMsg = JsonUtility.FromJson<ChatMessageReceived>(message);
-                ChatUI.Instance?.AddMessage(chatMsg.message);
-                break;
-
-            case "lootWindow":
-                var lootMsg = JsonUtility.FromJson<LootWindowMessage>(message);
-                LootUI.Instance?.ShowLootWindow(lootMsg.corpseId, lootMsg.items);
-                break;
-
-            case "lootTaken":
-                LootUI.Instance?.CloseLootWindow();
-                break;
-
-            case "lootError":
-                var lootErrorMsg = JsonUtility.FromJson<LootErrorMessage>(message);
-                // Debug.LogError($"Erro ao lootear: {lootErrorMsg.message}");
-                break;
-
-            case "inventory":
-                var invMsg = JsonUtility.FromJson<InventoryMessage>(message);
-                var itemsDict = new Dictionary<string, int>();
-                if (invMsg.items != null)
-                {
-                    foreach (var item in invMsg.items)
-                        itemsDict[item.itemId] = item.amount;
-                }
-                OnInventoryReceived?.Invoke(invMsg.gold, itemsDict);
-                break;
-
-            case "itemUsed":
-                var itemUsedMsg = JsonUtility.FromJson<ItemUsedMessage>(message);
-                OnItemUsed?.Invoke(itemUsedMsg.itemId, itemUsedMsg.success, itemUsedMsg.message);
-                break;
-
-            case "playerStats":
-                var statsMsg = JsonUtility.FromJson<PlayerStatsMessage>(message);
-                OnPlayerStats?.Invoke(
-                    statsMsg.hp, statsMsg.maxHp, statsMsg.mana, statsMsg.maxMana,
-                    statsMsg.level, statsMsg.attack, statsMsg.defense, statsMsg.xp
-                );
-                break;
-
-
-            // --- Economia ---
-            case "shopWindow":
-                var shopMsg = JsonUtility.FromJson<ShopWindowMessage>(message);
-                OnShopWindow?.Invoke(shopMsg.npcId, shopMsg.items);
-                break;
-
-            case "buyResult":
-                var buyResultMsg = JsonUtility.FromJson<BuyResultMessage>(message);
-                OnBuyResult?.Invoke(buyResultMsg.success, buyResultMsg.message);
-                break;
-
-            case "bankWindow":
-                var bankWinMsg = JsonUtility.FromJson<BankWindowMessage>(message);
-                OnBankWindow?.Invoke(bankWinMsg.bankGold, bankWinMsg.gold);
-                break;
-
-            case "bankResult":
-                var bankResMsg = JsonUtility.FromJson<BankResultMessage>(message);
-                OnBankResult?.Invoke(bankResMsg.success, bankResMsg.message, bankResMsg.bankGold, bankResMsg.gold);
-                break;
-
-            case "shopError":
-                var shopErrMsg = JsonUtility.FromJson<ShopErrorMessage>(message);
-                Debug.LogError($"Erro na loja: {shopErrMsg.message}");
-                ChatUI.Instance?.AddMessage($"Loja: {shopErrMsg.message}");
-                break;
-
-            case "bankError":
-                var bankErrMsg = JsonUtility.FromJson<BankErrorMessage>(message);
-                Debug.LogError($"Erro no banco: {bankErrMsg.message}");
-                ChatUI.Instance?.AddMessage($"Banco: {bankErrMsg.message}");
-                break;
-
-            case "autoAttackStopped":
-                var stopMsg = JsonUtility.FromJson<AutoAttackStoppedMessage>(message);
-                TargetSelector.Instance?.ClearTarget();
-                break;
-
-            case "equipment":
-                Debug.Log("[EQUIPMENT] Case equipment executado!");
-                var equipMsg = JsonUtility.FromJson<EquipmentMessage>(message);
-                var equipDict = new Dictionary<EquipmentSlot, string>();
-                if (equipMsg.items != null)
-                {
-                    foreach (var item in equipMsg.items)
+                case "spawn":
+                    var spawnMsg = json.ToObject<SpawnMessage>();
+                    if (spawnMsg.isItem)
                     {
-                        if (Enum.TryParse<EquipmentSlot>(item.slot, true, out var slot))
-                            equipDict[slot] = item.itemId;
+                        EntityManager.Instance?.SpawnItemOnGround(
+                            spawnMsg.id,
+                            spawnMsg.itemId,
+                            spawnMsg.name,
+                            spawnMsg.x,
+                            spawnMsg.y,
+                            spawnMsg.amount
+                        );
                     }
-                }
-                OnEquipmentUpdate?.Invoke(equipDict);
-                break;
-            case "unequipResult":
-                var unequipResult = JsonUtility.FromJson<UnequipResultMessage>(message);
-                Debug.Log($"[Unequip] {unequipResult.message}");
-                break;
+                    else
+                    {
+                        EntityManager.Instance?.SpawnEntity(
+                            spawnMsg.id,
+                            spawnMsg.name,
+                            spawnMsg.x,
+                            spawnMsg.y,
+                            spawnMsg.hp,
+                            spawnMsg.npcType
+                        );
+                    }
+                    break;
 
-            case "dropError":
-                var dropErr = JsonUtility.FromJson<DropErrorMessage>(message);
-                Debug.LogError($"[Drop] Erro: {dropErr.message}");
-                if (ChatUI.Instance != null)
-                    ChatUI.Instance.AddMessage($"Erro: {dropErr.message}");
-                break;
-            default:
+                case "move":
+                    var moveMsg = json.ToObject<MoveEntityMessage>();
+                    EntityManager.Instance?.MoveEntity(moveMsg.id, moveMsg.x, moveMsg.y);
+                    break;
+
+                case "despawn":
+                    var despawnMsg = json.ToObject<DespawnMessage>();
+                    EntityManager.Instance?.DespawnEntity(despawnMsg.id);
+                    break;
+
+                case "damage":
+                    HandleDamageMessage(message);
+                    break;
+
+                case "chat":
+                    var chatMsg = json.ToObject<ChatMessageReceived>();
+                    ChatUI.Instance?.AddMessage(chatMsg.message);
+                    break;
+
+                case "lootWindow":
+                    var lootMsg = json.ToObject<LootWindowMessage>();
+                    LootUI.Instance?.ShowLootWindow(lootMsg.corpseId, lootMsg.items);
+                    break;
+
+                case "lootTaken":
+                    LootUI.Instance?.CloseLootWindow();
+                    break;
+
+                case "lootError":
+                    var lootErrorMsg = json.ToObject<LootErrorMessage>();
+                    break;
+
+                case "inventory":
+                    var invMsg = json.ToObject<InventoryMessage>();
+                    var itemsDict = new Dictionary<string, int>();
+                    if (invMsg.items != null)
+                    {
+                        foreach (var item in invMsg.items)
+                            itemsDict[item.itemId] = item.amount;
+                    }
+                    OnInventoryReceived?.Invoke(invMsg.gold, itemsDict);
+                    break;
+
+                case "itemUsed":
+                    var itemUsedMsg = json.ToObject<ItemUsedMessage>();
+                    OnItemUsed?.Invoke(itemUsedMsg.itemId, itemUsedMsg.success, itemUsedMsg.message);
+                    break;
+
+                case "playerStats":
+                    var stats = json.ToObject<PlayerStatsData>();
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.PlayerStats = stats;
+                    OnPlayerStats?.Invoke(
+                        stats.hp, stats.maxHp,
+                        stats.mana, stats.maxMana,
+                        stats.level, stats.attack, stats.defense,
+                        stats.xp
+                    );
+                    OnPlayerStatsFull?.Invoke(stats);
+                    break;
+
+                case "shopWindow":
+                    var shopMsg = json.ToObject<ShopWindowMessage>();
+                    OnShopWindow?.Invoke(shopMsg.npcId, shopMsg.items);
+                    break;
+
+                case "buyResult":
+                    var buyResultMsg = json.ToObject<BuyResultMessage>();
+                    OnBuyResult?.Invoke(buyResultMsg.success, buyResultMsg.message);
+                    break;
+
+                case "bankWindow":
+                    var bankWinMsg = json.ToObject<BankWindowMessage>();
+                    OnBankWindow?.Invoke(bankWinMsg.bankGold, bankWinMsg.gold);
+                    break;
+
+                case "bankResult":
+                    var bankResMsg = json.ToObject<BankResultMessage>();
+                    OnBankResult?.Invoke(bankResMsg.success, bankResMsg.message, bankResMsg.bankGold, bankResMsg.gold);
+                    break;
+
+                case "shopError":
+                    var shopErrMsg = json.ToObject<ShopErrorMessage>();
+                    Debug.LogError($"Erro na loja: {shopErrMsg.message}");
+                    ChatUI.Instance?.AddMessage($"Loja: {shopErrMsg.message}");
+                    break;
+
+                case "bankError":
+                    var bankErrMsg = json.ToObject<BankErrorMessage>();
+                    Debug.LogError($"Erro no banco: {bankErrMsg.message}");
+                    ChatUI.Instance?.AddMessage($"Banco: {bankErrMsg.message}");
+                    break;
+
+                case "autoAttackStopped":
+                    var stopMsg = json.ToObject<AutoAttackStoppedMessage>();
+                    TargetSelector.Instance?.ClearTarget();
+                    break;
+
+                case "equipment":
+                    Debug.Log($"[RAW] Mensagem equipment (bruta): '{message}'");
+                    Debug.Log($"[RAW] Tamanho: {message?.Length ?? 0}");
+                    Debug.Log($"[RAW] Primeiro char: {(message != null && message.Length > 0 ? message[0] : ' ')}");
+                    try
+                    {
+                        // 🔥 CORRIGIDO: renomeei a variável para 'equipJson' para evitar conflito com 'json' do escopo externo
+                        JObject equipJson = JObject.Parse(message);
+                        string equipType = equipJson["type"]?.ToString();
+                        if (equipType != "equipment")
+                        {
+                            Debug.LogWarning($"[EQUIPMENT] Tipo inesperado: {equipType}");
+                            break;
+                        }
+
+                        JArray itemsArray = equipJson["items"] as JArray;
+                        var equipDict = new Dictionary<EquipmentSlot, string>();
+
+                        if (itemsArray != null)
+                        {
+                            foreach (var item in itemsArray)
+                            {
+                                string slotStr = item["slot"]?.ToString();
+                                string itemId = item["itemId"]?.ToString();
+                                if (!string.IsNullOrEmpty(slotStr) && !string.IsNullOrEmpty(itemId))
+                                {
+                                    if (Enum.TryParse<EquipmentSlot>(slotStr, true, out var slot))
+                                    {
+                                        equipDict[slot] = itemId;
+                                        Debug.Log($"[EQUIPMENT] Slot: {slot}, Item: {itemId}");
+                                    }
+                                    else
+                                    {
+                                        Debug.LogWarning($"[EQUIPMENT] Slot inválido: {slotStr}");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[EQUIPMENT] items é nulo ou não é um array!");
+                        }
+
+                        OnEquipmentUpdate?.Invoke(equipDict);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[EQUIPMENT] Erro ao parsear JSON: {e.Message}\n{e.StackTrace}");
+                    }
+                    break;
+
+                case "unequipResult":
+                    var unequipResult = json.ToObject<UnequipResultMessage>();
+                    // Debug.Log($"[Unequip] {unequipResult.message}");
+                    break;
+
+                case "dropError":
+                    var dropErr = json.ToObject<DropErrorMessage>();
+                    Debug.LogError($"[Drop] Erro: {dropErr.message}");
+                    if (ChatUI.Instance != null)
+                        ChatUI.Instance.AddMessage($"Erro: {dropErr.message}");
+                    break;
+
+                default:
 #if UNITY_EDITOR
-                Debug.LogWarning($"Tipo de mensagem não tratado: {simpleMsg.type}");
+                    Debug.LogWarning($"Tipo de mensagem não tratado: {type}");
 #endif
-                break;
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[NetworkManager] Erro ao processar mensagem: {e.Message}\n{e.StackTrace}");
         }
     }
 
@@ -269,13 +355,10 @@ public class NetworkManager : MonoBehaviour
     // HANDLER DE DANO
     // =========================
 
-    /// <summary>
-    /// Processa a mensagem de dano: atualiza a barra de vida e exibe o dano flutuante.
-    /// </summary>
     private void HandleDamageMessage(string rawMessage)
     {
-        // Debug.Log("[Dano] HandleDamageMessage executado!");
-        var damageMsg = JsonUtility.FromJson<DamageMessage>(rawMessage);
+        var damageMsg = JsonConvert.DeserializeObject<DamageMessage>(rawMessage);
+        if (damageMsg == null) return;
 
         EntityManager.Instance?.UpdateMonsterHp(damageMsg.targetId, damageMsg.newHp, damageMsg.maxHp);
 
@@ -288,10 +371,8 @@ public class NetworkManager : MonoBehaviour
             return;
         }
 
-        // 🔥 IF COM CHAVES
         if (damageMsg.damage > 0 && NameplateManager.Instance != null)
         {
-            // Debug.Log($"[Dano] Chamando ShowFloatingText com dano: {damageMsg.damage}");
             NameplateManager.Instance.ShowFloatingText(
                 targetGo.transform.position,
                 damageMsg.damage.ToString(),
@@ -305,7 +386,7 @@ public class NetworkManager : MonoBehaviour
     }
 
     // =========================
-    // ENVIO DE MENSAGENS
+    // ENVIO DE MENSAGENS (JsonUtility continua ok para envio)
     // =========================
 
     private bool CanSend() => websocket != null && websocket.State == WebSocketState.Open;
@@ -421,33 +502,26 @@ public class NetworkManager : MonoBehaviour
     // EQUIPAMENTO
     // =========================
 
-    /// <summary>
-    /// Envia comando para equipar um item do inventário.
-    /// </summary>
     public void SendEquipItem(string itemId)
     {
-        if (!CanSend()) return;
+        Debug.Log($"[NetworkManager] 🚀 SendEquipItem chamado para {itemId}");
+        if (!CanSend())
+        {
+            Debug.LogWarning("[NetworkManager] ⚠️ Não foi possível enviar: WebSocket não está aberto!");
+            return;
+        }
         var msg = new EquipItemMessage { type = "equipItem", itemId = itemId };
         string json = JsonUtility.ToJson(msg);
-        // Debug.Log($"[Network] Enviando equipItem: {json}"); // ← LOG
+        Debug.Log($"[Network] Enviando equipItem: {json}");
         websocket.SendText(json);
     }
 
-    /// <summary>
-    /// Envia comando para desequipar um item de um slot específico.
-    /// </summary>
     public void SendUnequipItem(EquipmentSlot slot)
     {
         if (!CanSend()) return;
         var msg = new UnequipItemMessage { type = "unequipItem", slot = slot.ToString() };
-        string json = JsonUtility.ToJson(msg);
-        // Debug.Log($"[Network] Enviando unequipItem: {json}"); // ← LOG
-        websocket.SendText(json);
+        websocket.SendText(JsonUtility.ToJson(msg));
     }
-
-    // =========================
-    // DROP E PICKUP DE ITENS
-    // =========================
 
     public void SendDropItem(string itemId, int amount, int x, int y)
     {
@@ -460,7 +534,9 @@ public class NetworkManager : MonoBehaviour
             x = x,
             y = y
         };
-        websocket.SendText(JsonUtility.ToJson(msg));
+        string json = JsonUtility.ToJson(msg);
+        Debug.Log($"[NETWORK] 📤 Enviando dropItem: {json}");
+        websocket.SendText(json);
     }
 
     public void SendPickupItem(string itemOnGroundId)
@@ -475,16 +551,15 @@ public class NetworkManager : MonoBehaviour
     }
 
     // =========================
-    // CLASSES DE MENSAGEM
+    // CLASSES DE MENSAGEM (serializáveis)
     // =========================
 
-    [Serializable] private class SimpleMessage { public string type; }
-    [Serializable] private class InitMessage { public string type; public string playerId; public float x; public float y; }
-    [Serializable] private class PositionMessage { public string type; public float x; public float y; }
-
-    [Serializable] private class MoveEntityMessage { public string type; public string id; public float x; public float y; }
+    [Serializable] public class SimpleMessage { public string type; }
+    [Serializable] public class InitMessage { public string type; public string playerId; public float x; public float y; }
+    [Serializable] public class PositionMessage { public string type; public float x; public float y; }
+    [Serializable] public class MoveEntityMessage { public string type; public string id; public float x; public float y; }
     [Serializable]
-    private class SpawnMessage
+    public class SpawnMessage
     {
         public string type;
         public string id;
@@ -494,49 +569,46 @@ public class NetworkManager : MonoBehaviour
         public int hp;
         public int maxHp;
         public string npcType;
-        public bool isItem;      // ← NOVO
-        public string itemId;    // ← NOVO
-        public int amount;       // ← NOVO
+        public bool isItem;
+        public string itemId;
+        public int amount;
     }
-    [Serializable] private class DamageMessage { public string type; public string targetId; public int newHp; public int maxHp; public int damage; }
-    [Serializable] private class ChatMessageReceived { public string type; public string message; }
-    [Serializable] private class LootWindowMessage { public string type; public string corpseId; public LootItem[] items; }
-    [Serializable] private class LootErrorMessage { public string type; public string message; }
-    [Serializable] private class InventoryMessage { public string type; public int gold; public InventoryItem[] items; public InventoryEquipment[] equipment; }
-    [Serializable] private class ItemUsedMessage { public string type; public string itemId; public bool success; public string message; }
-    [Serializable] private class PlayerStatsMessage { public string type; public int hp; public int maxHp; public int mana; public int maxMana; public int level; public int attack; public int defense; public int xp; }
-
+    [Serializable] public class DamageMessage { public string type; public string targetId; public int newHp; public int maxHp; public int damage; }
+    [Serializable] public class ChatMessageReceived { public string type; public string message; }
+    [Serializable] public class LootWindowMessage { public string type; public string corpseId; public LootItem[] items; }
+    [Serializable] public class LootErrorMessage { public string type; public string message; }
+    [Serializable] public class InventoryMessage { public string type; public int gold; public InventoryItem[] items; public InventoryEquipment[] equipment; }
+    [Serializable] public class ItemUsedMessage { public string type; public string itemId; public bool success; public string message; }
     [Serializable] public class ShopItem { public string itemId; public string name; public int price; public int stock; }
-    [Serializable] private class ShopWindowMessage { public string type; public string npcId; public ShopItem[] items; }
-    [Serializable] private class BuyResultMessage { public string type; public bool success; public string message; }
-    [Serializable] private class BankWindowMessage { public string type; public string npcId; public int bankGold; public int gold; }
-    [Serializable] private class BankResultMessage { public string type; public bool success; public string message; public int bankGold; public int gold; }
-    [Serializable] private class GoldUpdateMessage { public string type; public int gold; public int bankGold; }
+    [Serializable] public class ShopWindowMessage { public string type; public string npcId; public ShopItem[] items; }
+    [Serializable] public class BuyResultMessage { public string type; public bool success; public string message; }
+    [Serializable] public class BankWindowMessage { public string type; public string npcId; public int bankGold; public int gold; }
+    [Serializable] public class BankResultMessage { public string type; public bool success; public string message; public int bankGold; public int gold; }
+    [Serializable] public class GoldUpdateMessage { public string type; public int gold; public int bankGold; }
+    [Serializable] public class ShopErrorMessage { public string type; public string message; }
+    [Serializable] public class BankErrorMessage { public string type; public string message; }
+    [Serializable] public class AutoAttackStoppedMessage { public string type; public string reason; }
 
-    [Serializable] private class ShopErrorMessage { public string type; public string message; }
-    [Serializable] private class BankErrorMessage { public string type; public string message; }
-    [Serializable] private class AutoAttackStoppedMessage { public string type; public string reason; }
-
-    // Classes de envio
-    [Serializable] private class MoveMessage { public string type; public float x, y; }
-    [Serializable] private class ChatMessage { public string type; public string message; }
-    [Serializable] private class AttackMessage { public string type; public string targetId; }
-    [Serializable] private class LootMessage { public string type; public string corpseId; }
-    [Serializable] private class TakeLootMessage { public string type; public string corpseId; public bool takeAll; public int itemIndex; }
-    [Serializable] private class UseItemMessage { public string type; public string itemId; }
-    [Serializable] private class StartAutoAttackMessage { public string type; public string targetId; }
-    [Serializable] private class StopAutoAttackMessage { public string type; }
-    [Serializable] private class OpenShopMessage { public string type; public string npcId; }
-    [Serializable] private class OpenBankMessage { public string type; public string npcId; }
-    [Serializable] private class BuyItemMessage { public string type; public string npcId; public string itemId; public int amount; }
-    [Serializable] private class DepositMessage { public string type; public int amount; }
-    [Serializable] private class WithdrawMessage { public string type; public int amount; }
+    // Envio
+    [Serializable] public class MoveMessage { public string type; public float x, y; }
+    [Serializable] public class ChatMessage { public string type; public string message; }
+    [Serializable] public class AttackMessage { public string type; public string targetId; }
+    [Serializable] public class LootMessage { public string type; public string corpseId; }
+    [Serializable] public class TakeLootMessage { public string type; public string corpseId; public bool takeAll; public int itemIndex; }
+    [Serializable] public class UseItemMessage { public string type; public string itemId; }
+    [Serializable] public class StartAutoAttackMessage { public string type; public string targetId; }
+    [Serializable] public class StopAutoAttackMessage { public string type; }
+    [Serializable] public class OpenShopMessage { public string type; public string npcId; }
+    [Serializable] public class OpenBankMessage { public string type; public string npcId; }
+    [Serializable] public class BuyItemMessage { public string type; public string npcId; public string itemId; public int amount; }
+    [Serializable] public class DepositMessage { public string type; public int amount; }
+    [Serializable] public class WithdrawMessage { public string type; public int amount; }
 
     [Serializable] public class LootItem { public string itemId; public int amount; public string itemName; }
     [Serializable] public class InventoryItem { public string itemId; public int amount; }
     [Serializable] public class InventoryEquipment { public string slot; public string itemId; }
-    [Serializable] private class EquipItemMessage { public string type; public string itemId; }
-    [Serializable] private class UnequipItemMessage { public string type; public string slot; }
+    [Serializable] public class EquipItemMessage { public string type; public string itemId; }
+    [Serializable] public class UnequipItemMessage { public string type; public string slot; }
 
     [Serializable]
     public class EquipmentItem
@@ -546,14 +618,14 @@ public class NetworkManager : MonoBehaviour
     }
 
     [Serializable]
-    private class EquipmentMessage
+    public class EquipmentMessage
     {
         public string type;
         public EquipmentItem[] items;
     }
 
     [Serializable]
-    private class UnequipResultMessage
+    public class UnequipResultMessage
     {
         public string type;
         public bool success;
@@ -561,7 +633,7 @@ public class NetworkManager : MonoBehaviour
     }
 
     [Serializable]
-    private class DropItemMessage
+    public class DropItemMessage
     {
         public string type;
         public string itemId;
@@ -571,27 +643,27 @@ public class NetworkManager : MonoBehaviour
     }
 
     [Serializable]
-    private class PickupItemMessage
+    public class PickupItemMessage
     {
         public string type;
         public string itemId;
     }
 
     [Serializable]
-    private class MoveDirMessage
+    public class MoveDirMessage
     {
         public string type;
         public string dir;
     }
 
     [Serializable]
-    private class DespawnMessage
+    public class DespawnMessage
     {
         public string type; public string id;
     }
 
     [Serializable]
-    private class DropErrorMessage
+    public class DropErrorMessage
     {
         public string type;
         public string message;

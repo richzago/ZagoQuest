@@ -43,8 +43,10 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
         if (!isSubscribed)
         {
+            // 🔥 CORRIGIDO: usar NetworkManager.Instance
             NetworkManager.Instance.OnEquipmentUpdate += OnEquipmentUpdateHandler;
             isSubscribed = true;
+            Debug.Log($"[EquipmentSlotUI] Inscrito no evento para {slotType}");
         }
     }
 
@@ -52,8 +54,10 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
     {
         if (isSubscribed && NetworkManager.Instance != null)
         {
+            // 🔥 CORRIGIDO: usar NetworkManager.Instance
             NetworkManager.Instance.OnEquipmentUpdate -= OnEquipmentUpdateHandler;
             isSubscribed = false;
+            Debug.Log($"[EquipmentSlotUI] Desinscrito do evento para {slotType}");
         }
     }
 
@@ -82,6 +86,7 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
             return;
         }
 
+        // 🔥 Nome do item
         if (slotText != null)
         {
             string shortName = itemId.Contains("/") ? itemId.Substring(itemId.LastIndexOf('/') + 1) : itemId;
@@ -89,27 +94,31 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
             slotText.text = shortName;
             slotText.gameObject.SetActive(true);
         }
-        else
+
+        // 🔥 Ícone do item (placeholder)
+        if (itemIcon != null)
         {
-            GameObject go = new GameObject("SlotText_Dynamic");
-            go.transform.SetParent(transform);
-            go.transform.localPosition = Vector3.zero;
-            go.transform.localScale = Vector3.one;
-            slotText = go.AddComponent<TextMeshProUGUI>();
-            slotText.text = itemId;
-            slotText.fontSize = 14;
-            slotText.color = Color.white;
-            slotText.alignment = TextAlignmentOptions.Center;
-            RectTransform rt = slotText.rectTransform;
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(5, 5);
-            rt.offsetMax = new Vector2(-5, -5);
-            slotText.gameObject.SetActive(true);
-            Debug.LogWarning($"[EquipmentSlotUI] slotText era nulo, criado dinamicamente para {slotType}");
+            // Tenta carregar um sprite do Resources (ex: "Icons/" + itemId)
+            // Se não tiver, usa um quadrado branco.
+            Sprite sprite = Resources.Load<Sprite>($"Icons/{itemId}") ??
+                            Resources.Load<Sprite>("Icons/default");
+            if (sprite != null)
+                itemIcon.sprite = sprite;
+            else
+            {
+                // Fallback: criar um sprite simples
+                Texture2D tex = new Texture2D(64, 64);
+                Color[] colors = new Color[64 * 64];
+                for (int i = 0; i < colors.Length; i++) colors[i] = Color.gray;
+                tex.SetPixels(colors);
+                tex.Apply();
+                itemIcon.sprite = Sprite.Create(tex, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f));
+            }
+            itemIcon.color = Color.white;
+            itemIcon.enabled = true;
         }
 
-        if (itemIcon != null) itemIcon.color = Color.white;
+        Debug.Log($"[EquipmentSlotUI] Item definido: {itemId} no slot {slotType}");
     }
 
     public void ClearItem()
@@ -122,8 +131,9 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
         }
         if (itemIcon != null)
         {
-            itemIcon.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
             itemIcon.sprite = null;
+            itemIcon.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+            itemIcon.enabled = false;
         }
     }
 
@@ -140,18 +150,44 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
     public void OnDrop(PointerEventData eventData)
     {
-        if (!DragDropManager.Instance.IsDragging()) return;
+        Debug.Log($"[EquipmentSlotUI] 🟢 OnDrop chamado! slot={slotType}");
+
+        // Verifica se o DragDropManager existe
+        if (DragDropManager.Instance == null)
+        {
+            Debug.LogError("[EquipmentSlotUI] DragDropManager.Instance é nulo!");
+            return;
+        }
+
+        if (!DragDropManager.Instance.IsDragging())
+        {
+            Debug.LogWarning("[EquipmentSlotUI] Não está arrastando nenhum item.");
+            return;
+        }
 
         string draggedItemId = DragDropManager.Instance.GetDraggedItemId();
-        if (string.IsNullOrEmpty(draggedItemId)) return;
+        if (string.IsNullOrEmpty(draggedItemId))
+        {
+            Debug.LogWarning("[EquipmentSlotUI] draggedItemId vazio!");
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
 
-        // 🔥 Equipa o item arrastado
-        NetworkManager.Instance?.SendEquipItem(draggedItemId);
+        // Verifica se o NetworkManager existe
+        if (NetworkManager.Instance == null)
+        {
+            Debug.LogError("[EquipmentSlotUI] NetworkManager.Instance é nulo!");
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
+
+        Debug.Log($"[EquipmentSlotUI] Drop recebido: {draggedItemId} → equipando no slot {slotType}");
+        NetworkManager.Instance.SendEquipItem(draggedItemId);
         DragDropManager.Instance.EndDrag();
     }
 
     // =========================
-    // DRAG & DROP
+    // DRAG & DROP (arrastar item equipado para fora)
     // =========================
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -165,17 +201,28 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        Debug.Log("[EquipmentSlotUI] Finalizou arraste");
-
-        // Se não foi dropado em nenhum slot, drop no chão
-        if (eventData.pointerEnter == null || eventData.pointerEnter.GetComponent<IDropHandler>() == null)
+        Debug.Log($"[EquipmentSlotUI] Finalizou arraste de {currentItemId}");
+        if (string.IsNullOrEmpty(currentItemId))
         {
-            Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
-            DragDropManager.Instance.DropOnGround(worldPos);
+            DragDropManager.Instance?.EndDrag();
             return;
         }
 
-        if (DragDropManager.Instance.IsDragging())
+        // 🔥 CORRIGIDO: pointerCurrentRaycast é struct, acesse diretamente .gameObject
+        GameObject target = eventData.pointerCurrentRaycast.gameObject;
+        if (target != null && target.GetComponent<InventorySlot>() != null)
+        {
+            // Já tratado pelo InventorySlot.OnDrop
+            Debug.Log("[EquipmentSlotUI] Drop sobre InventorySlot → desequipamento será tratado lá.");
             DragDropManager.Instance.EndDrag();
+            return;
+        }
+
+        // Soltou no chão
+        Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
+        worldPos.z = 0;
+        Debug.Log($"[EquipmentSlotUI] Drop no chão: {currentItemId} em ({worldPos.x:F0}, {worldPos.y:F0})");
+        DragDropManager.Instance.DropOnGround(worldPos);
+        DragDropManager.Instance.EndDrag();
     }
 }

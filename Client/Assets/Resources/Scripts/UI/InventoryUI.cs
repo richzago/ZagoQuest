@@ -103,6 +103,7 @@ public class InventoryUI : MonoBehaviour
 
     private void RefreshUI()
     {
+        Debug.Log($"[InventoryUI] 🧹 RefreshUI: {items.Count} itens para criar.");
         if (goldText != null)
             goldText.text = $"{currentGold} gold";
 

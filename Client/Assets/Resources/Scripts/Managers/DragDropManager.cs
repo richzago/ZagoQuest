@@ -23,17 +23,23 @@ public class DragDropManager : MonoBehaviour
 
     private void Awake()
     {
-        Debug.Log("[DragDropManager] Awake executado.");
+        Debug.Log("[DragDropManager] 🟣 Awake executado.");
 
         if (Instance != null && Instance != this)
         {
-            Debug.LogWarning("[DragDropManager] Instância já existe. Destruindo duplicata.");
+            Debug.LogWarning("[DragDropManager] ⚠️ Instância já existe. Destruindo duplicata.");
             Destroy(gameObject);
             return;
         }
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        Debug.Log("[DragDropManager] ✅ Singleton configurado.");
+    }
+
+    private void Start()
+    {
+        Debug.Log("[DragDropManager] 🟢 Start executado. Pronto para receber drags.");
     }
 
     // =========================
@@ -42,21 +48,23 @@ public class DragDropManager : MonoBehaviour
 
     public void StartDrag(string itemId, Component source)
     {
+        Debug.Log($"[DragDropManager] 🟢 StartDrag: itemId={itemId}, source={source?.GetType().Name}, isDragging={isDragging}");
+
         if (string.IsNullOrEmpty(itemId))
         {
-            Debug.LogError("[DragDropManager] itemId vazio!");
+            Debug.LogError("[DragDropManager] ❌ itemId vazio!");
             return;
         }
 
         if (source == null)
         {
-            Debug.LogError("[DragDropManager] source nulo!");
+            Debug.LogError("[DragDropManager] ❌ source nulo!");
             return;
         }
 
         if (isDragging)
         {
-            Debug.LogWarning($"[DragDropManager] Finalizando arraste anterior ({draggedItemId})");
+            Debug.LogWarning($"[DragDropManager] ⚠️ Finalizando arraste anterior ({draggedItemId})");
             EndDrag();
         }
 
@@ -64,14 +72,18 @@ public class DragDropManager : MonoBehaviour
         sourceComponent = source;
         isDragging = true;
 
-        Debug.Log($"[DragDropManager] Iniciou arraste de '{itemId}' de {source.GetType().Name}");
+        Debug.Log($"[DragDropManager] ✅ Iniciou arraste de '{itemId}' de {source.GetType().Name}");
     }
 
     public void EndDrag()
     {
-        if (!isDragging) return;
+        if (!isDragging)
+        {
+            Debug.Log("[DragDropManager] ⚠️ EndDrag chamado mas não está arrastando.");
+            return;
+        }
 
-        Debug.Log($"[DragDropManager] Finalizou arraste de '{draggedItemId}'");
+        Debug.Log($"[DragDropManager] 🔴 Finalizou arraste de '{draggedItemId}'");
         draggedItemId = null;
         sourceComponent = null;
         isDragging = false;
@@ -80,7 +92,7 @@ public class DragDropManager : MonoBehaviour
     public void CancelDrag()
     {
         if (!isDragging) return;
-        Debug.Log($"[DragDropManager] Arraste cancelado: '{draggedItemId}'");
+        Debug.Log($"[DragDropManager] ❌ Arraste cancelado: '{draggedItemId}'");
         draggedItemId = null;
         sourceComponent = null;
         isDragging = false;
@@ -90,20 +102,51 @@ public class DragDropManager : MonoBehaviour
     // PROPRIEDADES DE CONSULTA
     // =========================
 
-    public bool IsDragging() => isDragging && !string.IsNullOrEmpty(draggedItemId);
-    public string GetDraggedItemId() => draggedItemId;
-    public Component GetSourceComponent() => sourceComponent;
-    public bool IsFromEquipment() => sourceComponent is EquipmentSlotUI;
-    public bool IsFromInventory() => sourceComponent is InventorySlot;
+    public bool IsDragging()
+    {
+        bool dragging = isDragging && !string.IsNullOrEmpty(draggedItemId);
+        Debug.Log($"[DragDropManager] 🔍 IsDragging: {dragging} (isDragging={isDragging}, draggedItemId={draggedItemId})");
+        return dragging;
+    }
+
+    public string GetDraggedItemId()
+    {
+        Debug.Log($"[DragDropManager] 🔍 GetDraggedItemId: {draggedItemId}");
+        return draggedItemId;
+    }
+
+    public Component GetSourceComponent()
+    {
+        Debug.Log($"[DragDropManager] 🔍 GetSourceComponent: {sourceComponent?.GetType().Name}");
+        return sourceComponent;
+    }
+
+    public bool IsFromEquipment()
+    {
+        bool result = sourceComponent is EquipmentSlotUI;
+        Debug.Log($"[DragDropManager] 🔍 IsFromEquipment: {result}");
+        return result;
+    }
+
+    public bool IsFromInventory()
+    {
+        bool result = sourceComponent is InventorySlot;
+        Debug.Log($"[DragDropManager] 🔍 IsFromInventory: {result}");
+        return result;
+    }
 
     public EquipmentSlotUI GetSourceEquipmentSlot()
     {
-        return sourceComponent as EquipmentSlotUI;
+        var slot = sourceComponent as EquipmentSlotUI;
+        Debug.Log($"[DragDropManager] 🔍 GetSourceEquipmentSlot: {(slot != null ? slot.slotType.ToString() : "null")}");
+        return slot;
     }
 
     public InventorySlot GetSourceInventorySlot()
     {
-        return sourceComponent as InventorySlot;
+        var slot = sourceComponent as InventorySlot;
+        Debug.Log($"[DragDropManager] 🔍 GetSourceInventorySlot: {(slot != null ? "InventorySlot" : "null")}");
+        return slot;
     }
 
     // =========================
@@ -112,18 +155,23 @@ public class DragDropManager : MonoBehaviour
 
     public void DropOnEquipmentSlot(EquipmentSlot slotType)
     {
+        Debug.Log($"[DragDropManager] 📥 DropOnEquipmentSlot: slotType={slotType}, draggedItemId={draggedItemId}");
+
         if (!IsDragging())
         {
-            Debug.LogWarning("[DragDropManager] Drop sem item arrastado.");
+            Debug.LogWarning("[DragDropManager] ⚠️ Drop sem item arrastado.");
             return;
         }
 
+        Debug.Log($"[DragDropManager] 📤 Enviando equipItem: {draggedItemId} para {slotType}");
         NetworkManager.Instance?.SendEquipItem(draggedItemId);
         EndDrag();
     }
 
     public void DropOnInventorySlot()
     {
+        Debug.Log($"[DragDropManager] 📥 DropOnInventorySlot: draggedItemId={draggedItemId}, source={sourceComponent?.GetType().Name}");
+
         if (!IsDragging()) return;
 
         if (IsFromEquipment())
@@ -131,14 +179,14 @@ public class DragDropManager : MonoBehaviour
             EquipmentSlotUI sourceSlot = GetSourceEquipmentSlot();
             if (sourceSlot != null)
             {
-                Debug.Log($"[DragDropManager] Drop no inventário: desequipando {sourceSlot.slotType}");
+                Debug.Log($"[DragDropManager] 📤 Desequipando de {sourceSlot.slotType} para o inventário.");
                 NetworkManager.Instance?.SendUnequipItem(sourceSlot.slotType);
                 EndDrag();
             }
         }
         else
         {
-            Debug.Log("[DragDropManager] Drop no inventário (reorganização futura)");
+            Debug.Log("[DragDropManager] 🧩 Drop no inventário (reorganização futura)");
             EndDrag();
         }
     }
@@ -148,13 +196,19 @@ public class DragDropManager : MonoBehaviour
     /// </summary>
     public void DropOnGround(Vector3 worldPosition)
     {
-        if (!IsDragging()) return;
+        Debug.Log($"[DragDropManager] 🌍 DropOnGround: draggedItemId={draggedItemId}, worldPos=({worldPosition.x:F1}, {worldPosition.y:F1})");
+
+        if (!IsDragging())
+        {
+            Debug.LogWarning("[DragDropManager] ⚠️ DropOnGround sem item arrastado.");
+            return;
+        }
 
         // Converte a posição do mundo para tile (arredondando)
         int tileX = Mathf.RoundToInt(worldPosition.x);
         int tileY = Mathf.RoundToInt(worldPosition.y);
 
-        Debug.Log($"[DragDropManager] Drop no chão: {draggedItemId} em ({tileX}, {tileY})");
+        Debug.Log($"[DragDropManager] 📤 Enviando dropItem: {draggedItemId} em ({tileX}, {tileY})");
         NetworkManager.Instance?.SendDropItem(draggedItemId, 1, tileX, tileY);
         EndDrag();
     }
