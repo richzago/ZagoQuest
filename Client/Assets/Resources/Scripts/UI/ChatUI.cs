@@ -84,7 +84,7 @@ public class ChatUI : MonoBehaviour
 
         if (text.StartsWith("/"))
         {
-            NetworkManager.Instance.SendChat(text);
+            NetworkManager.Instance.Chat.SendChat(text);
         }
         else
         {
@@ -95,7 +95,7 @@ public class ChatUI : MonoBehaviour
                 "guild" => "/gmsg " + text,
                 _ => text
             };
-            NetworkManager.Instance.SendChat(prefixed);
+            NetworkManager.Instance.Chat.SendChat(prefixed);
         }
 
         inputField.text = "";

@@ -38,7 +38,7 @@ public class EquipmentUI : MonoBehaviour
         // 🔥 CORRIGIDO: usar NetworkManager.Instance
         if (NetworkManager.Instance != null)
         {
-            NetworkManager.Instance.OnEquipmentUpdate += OnEquipmentUpdate;
+
             Debug.Log("[EquipmentUI] Inscrito no evento OnEquipmentUpdate via Instance.");
         }
         else
@@ -49,11 +49,7 @@ public class EquipmentUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        // 🔥 CORRIGIDO: usar NetworkManager.Instance
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance.OnEquipmentUpdate -= OnEquipmentUpdate;
-        }
+
     }
 
     /// <summary>

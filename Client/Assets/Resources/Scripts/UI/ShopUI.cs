@@ -39,9 +39,6 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        // 🔥 Mantém evento para compatibilidade (opcional)
-        networkManager.OnShopWindow += ShowShopEvent;
-        networkManager.OnBuyResult += ShowBuyResultEvent;
 
         if (closeButton != null)
             closeButton.onClick.AddListener(() => CloseShop());
@@ -131,10 +128,6 @@ public class ShopUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (networkManager != null)
-        {
-            networkManager.OnShopWindow -= ShowShopEvent;
-            networkManager.OnBuyResult -= ShowBuyResultEvent;
-        }
+
     }
 }

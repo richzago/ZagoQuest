@@ -17,7 +17,6 @@ namespace ZagoQuest.Networking
         public BankUI BankUI { get; }
         public PlayerHUD PlayerHUD { get; }
         public StatusManager StatusManager { get; }
-        public PlayerController PlayerController { get; }
 
         public NetworkContext(NetworkManager networkManager)
         {
@@ -36,7 +35,6 @@ namespace ZagoQuest.Networking
             BankUI = BankUI.Instance;
             PlayerHUD = PlayerHUD.Instance;
             StatusManager = StatusManager.Instance;
-            PlayerController = PlayerController.Instance;
         }
 
     }

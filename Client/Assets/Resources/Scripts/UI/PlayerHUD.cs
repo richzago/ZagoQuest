@@ -38,21 +38,7 @@ public class PlayerHUD : MonoBehaviour
         networkManager = NetworkManager.Instance;
         if (networkManager == null) return;
 
-        // 🔥 Evento antigo (compatibilidade com HUD)
-        networkManager.OnPlayerStats += UpdateStats;
 
-        // 🔥 NOVO: evento com PlayerStatsData
-        NetworkManager.OnPlayerStatsFull += UpdateStatsFull;
-
-        networkManager.OnInit += (id, pos) =>
-        {
-            if (playerNameText != null) playerNameText.text = "Richard";
-        };
-
-        networkManager.OnPositionReceived += (pos) =>
-        {
-            if (positionText != null) positionText.text = $"({pos.x:F1}, {pos.y:F1})";
-        };
     }
 
     private void Update()
@@ -119,10 +105,6 @@ public class PlayerHUD : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (networkManager != null)
-        {
-            networkManager.OnPlayerStats -= UpdateStats;
-        }
-        NetworkManager.OnPlayerStatsFull -= UpdateStatsFull;
+
     }
 }

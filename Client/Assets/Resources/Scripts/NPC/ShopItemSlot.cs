@@ -40,7 +40,7 @@ public class ShopItemSlot : MonoBehaviour
     {
         if (networkManager != null && !string.IsNullOrEmpty(npcId))
         {
-            networkManager.SendBuyItem(npcId, item.itemId, 1);
+            networkManager.Shop.SendBuyItem(npcId, item.itemId, 1);
         }
     }
 }

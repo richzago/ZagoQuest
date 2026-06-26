@@ -26,10 +26,10 @@ public class ClickInteract : MonoBehaviour
         // Debug.Log($"🖱️ Clique no NPC: {npcId}");
 
         if (npc.npcId == "merchant")
-            NetworkManager.Instance.SendOpenShop(npcId);
+            NetworkManager.Instance.Shop.SendOpenShop(npcId);
         else if (npc.npcId == "banker")
-            NetworkManager.Instance.SendOpenBank(npcId);
+            NetworkManager.Instance.Bank.SendOpenBank(npcId);
         else
-            NetworkManager.Instance.SendChat("/hi");
+            NetworkManager.Instance.Chat.SendChat("/hi");
     }
 }

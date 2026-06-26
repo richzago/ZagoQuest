@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
+
 public class PlayerController : MonoBehaviour
 {
     public static PlayerController Instance { get; private set; }
@@ -14,6 +15,7 @@ public class PlayerController : MonoBehaviour
     private NetworkManager networkManager;
     private Vector2Int currentGridPosition;
     private bool isReady = false;
+    private bool hasRetried = false;
 
     private InputAction moveNorth, moveSouth, moveEast, moveWest;
     private InputAction moveNortheast, moveNorthwest, moveSoutheast, moveSouthwest;
@@ -24,9 +26,19 @@ public class PlayerController : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
 
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+
+            Destroy(gameObject);
+            return;
+        }
+
+        // Configura as InputActions
         moveNorth = new InputAction("North", binding: "<Keyboard>/w");
         moveSouth = new InputAction("South", binding: "<Keyboard>/s");
         moveEast = new InputAction("East", binding: "<Keyboard>/d");
@@ -44,10 +56,13 @@ public class PlayerController : MonoBehaviour
         moveNorthwest.performed += _ => SendDirection("northwest");
         moveSoutheast.performed += _ => SendDirection("southeast");
         moveSouthwest.performed += _ => SendDirection("southwest");
+
+        Debug.Log("[PlayerController] ✅ InputActions configuradas.");
     }
 
     private void OnEnable()
     {
+        Debug.Log("[PlayerController] OnEnable - Habilitando InputActions");
         moveNorth.Enable();
         moveSouth.Enable();
         moveEast.Enable();
@@ -72,17 +87,30 @@ public class PlayerController : MonoBehaviour
 
     private void Start()
     {
+        Debug.Log($"[PlayerController] 🟢 Start executado! Time: {Time.time:F2}");
+
+        // Tenta obter o NetworkManager
+        TryGetNetworkManager();
+    }
+
+    private void TryGetNetworkManager()
+    {
         networkManager = NetworkManager.Instance;
+        Debug.Log($"[PlayerController] 🔍 TryGetNetworkManager - networkManager = {(networkManager != null ? "EXISTE" : "NULL")}");
+
         if (networkManager == null)
         {
-            Debug.LogError("PlayerController: NetworkManager não encontrado!");
+            Debug.LogWarning("[PlayerController] NetworkManager ainda não disponível. Tentando novamente em 0.5s...");
+            if (!hasRetried)
+            {
+                hasRetried = true;
+                Invoke(nameof(TryGetNetworkManager), 0.5f);
+            }
             return;
         }
 
-        // 🔥 Removidas as inscrições nos eventos do NetworkManager.
-        // Os handlers (InitHandler, PositionHandler) agora chamam diretamente
-        // os métodos públicos OnServerInit e OnPositionReceived via NetworkContext.
-        // A posição inicial é obtida via TryGetInitPosition.
+        Debug.Log("[PlayerController] ✅ NetworkManager encontrado!");
+
         if (networkManager.TryGetInitPosition(out _, out Vector2 pos))
             OnServerInit(null, pos);
     }
@@ -91,20 +119,15 @@ public class PlayerController : MonoBehaviour
     // MÉTODOS PÚBLICOS CHAMADOS PELOS HANDLERS
     // =========================
 
-    /// <summary>
-    /// Chamado pelo InitHandler para definir a posição inicial.
-    /// </summary>
     public void OnServerInit(string _, Vector2 pos)
     {
+        Debug.Log($"[PlayerController] 📍 OnServerInit - posição recebida: ({pos.x}, {pos.y})");
         currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
         transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
         isReady = true;
-        Debug.Log("PlayerController: pronto para mover.");
+        Debug.Log("[PlayerController] ✅ pronto para mover.");
     }
 
-    /// <summary>
-    /// Chamado pelo PositionHandler para atualizar a posição.
-    /// </summary>
     public void OnPositionReceived(Vector2 pos)
     {
         currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
@@ -118,9 +141,21 @@ public class PlayerController : MonoBehaviour
 
     private void SendDirection(string dir)
     {
-        if (!isReady) return;
-        if (networkManager == null || !networkManager.isConnected) return;
-        networkManager.SendMoveDir(dir);
+        Debug.Log($"[PlayerController] 🎮 SendDirection: {dir}, isReady={isReady}, networkManager={(networkManager != null ? "EXISTE" : "NULL")}");
+
+        if (!isReady)
+        {
+            Debug.LogWarning($"[PlayerController] ⚠️ SendDirection ignorado: isReady = false");
+            return;
+        }
+
+        if (networkManager == null || !networkManager.isConnected)
+        {
+            Debug.LogWarning($"[PlayerController] ⚠️ SendDirection ignorado: networkManager = {networkManager != null}, isConnected = {networkManager?.isConnected ?? false}");
+            return;
+        }
+
+        networkManager.Movement.SendMoveDir(dir);
     }
 
     // =========================
@@ -146,7 +181,7 @@ public class PlayerController : MonoBehaviour
         Vector2Int dir = nextTile - currentGridPosition;
         string dirStr = DirectionToString(dir);
         if (dirStr != null)
-            networkManager.SendMoveDir(dirStr);
+            networkManager.Movement.SendMoveDir(dirStr);
         else
             ProcessMoveQueue();
     }
@@ -170,13 +205,8 @@ public class PlayerController : MonoBehaviour
         EnqueueDirection(direction);
     }
 
-    // =========================
-    // LIMPEZA
-    // =========================
-
     private void OnDestroy()
     {
-        // 🔥 Não há mais inscrições em eventos do NetworkManager.
-        // Nada a remover aqui.
+        // Limpeza - nada necessário
     }
 }

@@ -35,8 +35,7 @@ public class BankUI : MonoBehaviour
             return;
         }
 
-        networkManager.OnBankWindow += ShowBankWindowEvent;
-        networkManager.OnBankResult += UpdateBankResultEvent;
+
 
         if (closeButton != null)
             closeButton.onClick.AddListener(() => CloseBank());
@@ -101,10 +100,6 @@ public class BankUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (networkManager != null)
-        {
-            networkManager.OnBankWindow -= ShowBankWindowEvent;
-            networkManager.OnBankResult -= UpdateBankResultEvent;
-        }
+
     }
 }

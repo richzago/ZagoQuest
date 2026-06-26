@@ -90,7 +90,7 @@ public class LootUI : MonoBehaviour
     private void TakeAllLoot()
     {
         if (!string.IsNullOrEmpty(currentCorpseId))
-            networkManager.SendTakeLoot(currentCorpseId, true);
+            networkManager.Inventory.SendTakeLoot(currentCorpseId, true);
     }
 
     // =========================
@@ -102,7 +102,8 @@ public class LootUI : MonoBehaviour
         if (!string.IsNullOrEmpty(currentCorpseId))
         {
             Debug.Log($"[LootUI] Pegando item {index} do corpse {currentCorpseId}");
-            networkManager.SendTakeLoot(currentCorpseId, false, index);
+            networkManager.Inventory.SendTakeLoot(currentCorpseId, false, index);
+
         }
     }
 

@@ -110,7 +110,7 @@ public class TargetSelector : MonoBehaviour
     void OnDestroy()
     {
         if (NetworkManager.Instance != null && currentTarget != null)
-            NetworkManager.Instance.SendStopAutoAttack();
+            NetworkManager.Instance.Combat.SendStopAutoAttack();
     }
 
     // =========================
@@ -150,7 +150,7 @@ public class TargetSelector : MonoBehaviour
                 if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
                 {
                     Debug.Log($"[TargetSelector] Clique no corpse ID {corpse.corpseId}");
-                    NetworkManager.Instance.SendLoot(corpse.corpseId);
+                    NetworkManager.Instance.Inventory.SendLoot(corpse.corpseId);
                 }
                 else
                 {
@@ -166,7 +166,7 @@ public class TargetSelector : MonoBehaviour
                 if (item != null && !string.IsNullOrEmpty(item.groundItemId))
                 {
                     Debug.Log($"[TargetSelector] Clicou no item {item.itemName} (ID: {item.groundItemId})");
-                    NetworkManager.Instance.SendPickupItem(item.groundItemId);
+                    NetworkManager.Instance.Inventory.SendPickupItem(item.groundItemId);
                 }
                 else
                 {
@@ -206,20 +206,20 @@ public class TargetSelector : MonoBehaviour
     public void SelectTarget(string targetId)
     {
         if (currentTarget != null)
-            NetworkManager.Instance.SendStopAutoAttack();
+            NetworkManager.Instance.Combat.SendStopAutoAttack();
 
         currentTargetId = targetId;
         currentTarget = EntityManager.Instance.GetGameObject(targetId);
 
         ShowOutline(currentTarget.transform);
-        NetworkManager.Instance.SendStartAutoAttack(targetId);
+        NetworkManager.Instance.Combat.SendStartAutoAttack(targetId);
     }
 
     public void ClearTarget()
     {
         if (!string.IsNullOrEmpty(currentTargetId))
         {
-            NetworkManager.Instance.SendStopAutoAttack();
+            NetworkManager.Instance.Combat.SendStopAutoAttack();
             currentTargetId = null;
             currentTarget = null;
         }

@@ -12,7 +12,9 @@ namespace ZagoQuest.Networking.Handlers
             var pos = new Vector2(initMsg.x, initMsg.y);
             context.NetworkManager.SetInitData(initMsg.playerId, pos);
             context.NetworkManager.SetConnected(true);
-            context.PlayerController?.OnServerInit(initMsg.playerId, pos);
+
+
+            PlayerController.Instance?.OnServerInit(initMsg.playerId, pos);
         }
     }
 }

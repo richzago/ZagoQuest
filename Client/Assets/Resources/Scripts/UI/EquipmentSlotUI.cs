@@ -35,16 +35,12 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
     private void SubscribeToNetworkEvents()
     {
-        if (NetworkManager.Instance == null)
-        {
-            Debug.LogWarning($"[EquipmentSlotUI] NetworkManager indisponível para {slotType}");
-            return;
-        }
+
 
         if (!isSubscribed)
         {
             // 🔥 CORRIGIDO: usar NetworkManager.Instance
-            NetworkManager.Instance.OnEquipmentUpdate += OnEquipmentUpdateHandler;
+
             isSubscribed = true;
             Debug.Log($"[EquipmentSlotUI] Inscrito no evento para {slotType}");
         }
@@ -54,8 +50,7 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
     {
         if (isSubscribed && NetworkManager.Instance != null)
         {
-            // 🔥 CORRIGIDO: usar NetworkManager.Instance
-            NetworkManager.Instance.OnEquipmentUpdate -= OnEquipmentUpdateHandler;
+
             isSubscribed = false;
             Debug.Log($"[EquipmentSlotUI] Desinscrito do evento para {slotType}");
         }
@@ -144,8 +139,6 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
     public void OnPointerClick(PointerEventData eventData)
     {
         if (string.IsNullOrEmpty(currentItemId)) return;
-        Debug.Log($"[EquipmentSlotUI] Clique no slot {slotType} → desequipando {currentItemId}");
-        NetworkManager.Instance?.SendUnequipItem(slotType);
     }
 
     public void OnDrop(PointerEventData eventData)
@@ -182,7 +175,6 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
         }
 
         Debug.Log($"[EquipmentSlotUI] Drop recebido: {draggedItemId} → equipando no slot {slotType}");
-        NetworkManager.Instance.SendEquipItem(draggedItemId);
         DragDropManager.Instance.EndDrag();
     }
 

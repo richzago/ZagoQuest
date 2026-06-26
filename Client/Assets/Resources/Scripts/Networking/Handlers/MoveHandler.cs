@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 using ZagoQuest.Networking.Messages;
 
 namespace ZagoQuest.Networking.Handlers
@@ -8,7 +9,10 @@ namespace ZagoQuest.Networking.Handlers
         public void Handle(JObject json, NetworkContext context)
         {
             var moveMsg = json.ToObject<MoveEntityMessage>();
-            context.EntityManager?.MoveEntity(moveMsg.id, moveMsg.x, moveMsg.y);
+            if (context.EntityManager != null)
+                context.EntityManager.MoveEntity(moveMsg.id, moveMsg.x, moveMsg.y);
+            else
+                Debug.LogWarning("[MoveHandler] EntityManager indisponível.");
         }
     }
 }

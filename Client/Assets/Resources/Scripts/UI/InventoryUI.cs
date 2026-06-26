@@ -58,9 +58,6 @@ public class InventoryUI : MonoBehaviour
             return;
         }
 
-        // 🔥 Mantém os eventos para compatibilidade (opcional)
-        networkManager.OnInventoryReceived += HandleInventoryEvent;
-        networkManager.OnItemUsed += HandleItemUsed;
 
         if (inventoryPanel == null)
         {
@@ -156,7 +153,7 @@ public class InventoryUI : MonoBehaviour
     private void OnSlotDoubleClicked(string itemId)
     {
         Debug.Log($"[InventoryUI] Duplo clique em {itemId} → tentando equipar.");
-        NetworkManager.Instance.SendEquipItem(itemId);
+
     }
 
     // =========================
@@ -165,11 +162,8 @@ public class InventoryUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (networkManager != null)
-        {
-            networkManager.OnInventoryReceived -= HandleInventoryEvent;
-            networkManager.OnItemUsed -= HandleItemUsedEvent;
-        }
+
+
         if (toggleInventoryAction != null)
         {
             toggleInventoryAction.performed -= ctx => ToggleInventory();

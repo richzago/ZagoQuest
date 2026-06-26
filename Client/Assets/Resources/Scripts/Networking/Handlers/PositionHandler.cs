@@ -9,7 +9,8 @@ namespace ZagoQuest.Networking.Handlers
         public void Handle(JObject json, NetworkContext context)
         {
             var posMsg = json.ToObject<PositionMessage>();
-            context.PlayerController?.OnPositionReceived(new Vector2(posMsg.x, posMsg.y));
+
+            PlayerController.Instance?.OnPositionReceived(new Vector2(posMsg.x, posMsg.y));
         }
     }
 }

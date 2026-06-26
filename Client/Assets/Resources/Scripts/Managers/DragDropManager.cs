@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[DefaultExecutionOrder(-200)] // Inicializa antes de tudo
+
 public class DragDropManager : MonoBehaviour
 {
     // =========================
@@ -27,7 +27,7 @@ public class DragDropManager : MonoBehaviour
 
         if (Instance != null && Instance != this)
         {
-            Debug.LogWarning("[DragDropManager] ⚠️ Instância já existe. Destruindo duplicata.");
+
             Destroy(gameObject);
             return;
         }
@@ -164,7 +164,7 @@ public class DragDropManager : MonoBehaviour
         }
 
         Debug.Log($"[DragDropManager] 📤 Enviando equipItem: {draggedItemId} para {slotType}");
-        NetworkManager.Instance?.SendEquipItem(draggedItemId);
+        NetworkManager.Instance?.Inventory.SendEquipItem(draggedItemId);
         EndDrag();
     }
 
@@ -180,7 +180,7 @@ public class DragDropManager : MonoBehaviour
             if (sourceSlot != null)
             {
                 Debug.Log($"[DragDropManager] 📤 Desequipando de {sourceSlot.slotType} para o inventário.");
-                NetworkManager.Instance?.SendUnequipItem(sourceSlot.slotType);
+                NetworkManager.Instance?.Inventory.SendUnequipItem(sourceSlot.slotType);
                 EndDrag();
             }
         }
@@ -209,7 +209,7 @@ public class DragDropManager : MonoBehaviour
         int tileY = Mathf.RoundToInt(worldPosition.y);
 
         Debug.Log($"[DragDropManager] 📤 Enviando dropItem: {draggedItemId} em ({tileX}, {tileY})");
-        NetworkManager.Instance?.SendDropItem(draggedItemId, 1, tileX, tileY);
+        NetworkManager.Instance?.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY);
         EndDrag();
     }
 }

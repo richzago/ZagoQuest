@@ -76,7 +76,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             if (networkManager != null)
             {
                 Debug.Log($"[InventorySlot] 🖱️ Usando item: {itemId}");
-                networkManager.UseItem(itemId);
+                networkManager.Inventory.UseItem(itemId);
             }
             return;
         }
@@ -162,7 +162,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             if (sourceSlot != null)
             {
                 Debug.Log($"[InventorySlot] ⬅️ Desequipando de {sourceSlot.slotType} para o inventário.");
-                NetworkManager.Instance?.SendUnequipItem(sourceSlot.slotType);
+                NetworkManager.Instance?.Inventory.SendUnequipItem(sourceSlot.slotType);
                 DragDropManager.Instance.EndDrag();
             }
         }

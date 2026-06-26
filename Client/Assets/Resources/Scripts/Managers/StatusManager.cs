@@ -88,14 +88,14 @@ public class StatusManager : MonoBehaviour
         toggleStatusAction.performed += _ => TogglePanel();
         toggleStatusAction.Enable();
 
-        NetworkManager.OnPlayerStatsFull += OnPlayerStatsReceived;
+
     }
 
     private void OnDestroy()
     {
         toggleStatusAction.Disable();
         toggleStatusAction.performed -= _ => TogglePanel();
-        NetworkManager.OnPlayerStatsFull -= OnPlayerStatsReceived;
+
 
         if (closeButton != null)
             closeButton.onClick.RemoveListener(OnCloseButtonClicked);
@@ -129,7 +129,7 @@ public class StatusManager : MonoBehaviour
             UpdateUI(stats);
     }
 
-    
+
 
     private void UpdateUI(PlayerStatsData stats)
     {
