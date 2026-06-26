@@ -5,6 +5,8 @@ using UnityEngine.InputSystem;
 
 public class StatusManager : MonoBehaviour
 {
+    public static StatusManager Instance { get; private set; }
+
     [Header("Panel")]
     [SerializeField] private GameObject statusPanel;
 
@@ -29,6 +31,14 @@ public class StatusManager : MonoBehaviour
     private InputAction toggleStatusAction;
 
     public bool IsOpen => isOpen;
+
+    private void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+    }
 
     private void Start()
     {
@@ -113,11 +123,13 @@ public class StatusManager : MonoBehaviour
         }
     }
 
-    private void OnPlayerStatsReceived(PlayerStatsData stats)
+    public void OnPlayerStatsReceived(PlayerStatsData stats)
     {
         if (isOpen)
             UpdateUI(stats);
     }
+
+    
 
     private void UpdateUI(PlayerStatsData stats)
     {

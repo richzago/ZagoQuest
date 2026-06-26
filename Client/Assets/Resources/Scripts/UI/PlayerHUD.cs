@@ -1,10 +1,11 @@
-// Assets/Resources/Scripts/UI/PlayerHUD.cs
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
 public class PlayerHUD : MonoBehaviour
 {
+    public static PlayerHUD Instance { get; private set; }
+
     [Header("Barras")]
     public Slider hpSlider;
     public Slider manaSlider;
@@ -24,7 +25,15 @@ public class PlayerHUD : MonoBehaviour
 
     private NetworkManager networkManager;
 
-    void Start()
+    private void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+    }
+
+    private void Start()
     {
         networkManager = NetworkManager.Instance;
         if (networkManager == null) return;
@@ -46,14 +55,14 @@ public class PlayerHUD : MonoBehaviour
         };
     }
 
-    void Update()
+    private void Update()
     {
         if (fpsText != null)
             fpsText.text = $"FPS: {Mathf.Round(1f / Time.unscaledDeltaTime)}";
     }
 
     // 🔥 MANTIDO: para compatibilidade com o evento antigo
-    void UpdateStats(int hp, int maxHp, int mana, int maxMana, int level, int attack, int defense, int xp)
+    public void UpdateStats(int hp, int maxHp, int mana, int maxMana, int level, int attack, int defense, int xp)
     {
         // HP
         if (hpSlider != null)
@@ -88,7 +97,7 @@ public class PlayerHUD : MonoBehaviour
     }
 
     // 🔥 NOVO: recebe PlayerStatsData diretamente
-    void UpdateStatsFull(PlayerStatsData stats)
+    private void UpdateStatsFull(PlayerStatsData stats)
     {
         if (stats == null) return;
 
@@ -108,7 +117,7 @@ public class PlayerHUD : MonoBehaviour
         );
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
         if (networkManager != null)
         {

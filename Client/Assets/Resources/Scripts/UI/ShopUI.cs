@@ -2,9 +2,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
+using ZagoQuest.Networking.Messages;
 
 public class ShopUI : MonoBehaviour
 {
+    public static ShopUI Instance { get; private set; }
+
     [Header("References")]
     public GameObject shopPanel;
     public Transform itemsContainer;
@@ -15,7 +18,19 @@ public class ShopUI : MonoBehaviour
     private List<GameObject> itemSlots = new List<GameObject>();
     private string currentNpcId;
 
-    void Start()
+    // =========================
+    // CICLO DE VIDA
+    // =========================
+
+    private void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+    }
+
+    private void Start()
     {
         networkManager = NetworkManager.Instance;
         if (networkManager == null)
@@ -24,7 +39,10 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        networkManager.OnShopWindow += ShowShop;
+        // 🔥 Mantém evento para compatibilidade (opcional)
+        networkManager.OnShopWindow += ShowShopEvent;
+        networkManager.OnBuyResult += ShowBuyResultEvent;
+
         if (closeButton != null)
             closeButton.onClick.AddListener(() => CloseShop());
         else
@@ -36,9 +54,13 @@ public class ShopUI : MonoBehaviour
             Debug.LogError("ShopUI: shopPanel não atribuído!");
     }
 
-    private void ShowShop(string npcId, NetworkManager.ShopItem[] items)
+    // =========================
+    // MÉTODOS PÚBLICOS PARA HANDLERS
+    // =========================
+
+    public void ShowShopWindow(string npcId, ShopItem[] items)
     {
-        Debug.Log($"ShopUI.ShowShop chamado! npcId={npcId}, itens={items?.Length}");
+        Debug.Log($"ShopUI.ShowShopWindow: npcId={npcId}, itens={items?.Length}");
         if (items == null || items.Length == 0)
         {
             Debug.LogWarning("ShopUI: Nenhum item recebido, loja não será aberta.");
@@ -47,12 +69,10 @@ public class ShopUI : MonoBehaviour
 
         currentNpcId = npcId;
 
-        // Limpa slots antigos
         foreach (var slot in itemSlots)
             Destroy(slot);
         itemSlots.Clear();
 
-        // Cria novos slots
         foreach (var item in items)
         {
             if (shopItemPrefab == null) { Debug.LogError("ShopUI: shopItemPrefab não atribuído!"); return; }
@@ -75,15 +95,46 @@ public class ShopUI : MonoBehaviour
         }
     }
 
+    public void ShowBuyResult(bool success, string message)
+    {
+        if (ChatUI.Instance != null)
+            ChatUI.Instance.AddMessage($"Loja: {message}");
+    }
+
+    // =========================
+    // EVENTOS DO NETWORK (mantido para compatibilidade)
+    // =========================
+
+    private void ShowShopEvent(string npcId, ShopItem[] items) // ← agora usa ShopItem diretamente
+    {
+        ShowShopWindow(npcId, items);
+    }
+
+    private void ShowBuyResultEvent(bool success, string message)
+    {
+        ShowBuyResult(success, message);
+    }
+
+    // =========================
+    // FECHAR LOJA
+    // =========================
+
     private void CloseShop()
     {
         if (shopPanel != null)
             shopPanel.SetActive(false);
     }
 
+    // =========================
+    // LIMPEZA
+    // =========================
+
     private void OnDestroy()
     {
         if (networkManager != null)
-            networkManager.OnShopWindow -= ShowShop;
+        {
+            networkManager.OnShopWindow -= ShowShopEvent;
+            networkManager.OnBuyResult -= ShowBuyResultEvent;
+        }
     }
 }

@@ -2,16 +2,17 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine.InputSystem;
 
 public class InventoryUI : MonoBehaviour
 {
+    public static InventoryUI Instance { get; private set; }
+
     [Header("UI References")]
-    public GameObject slotPrefab;          // Prefab do slot (com InventorySlot)
-    public Transform slotsGrid;            // Objeto com GridLayoutGroup
-    public TextMeshProUGUI goldText;       // Texto do gold
-    public GameObject inventoryPanel;      // O painel que será aberto/fechado
+    public GameObject slotPrefab;
+    public Transform slotsGrid;
+    public TextMeshProUGUI goldText;
+    public GameObject inventoryPanel;
 
     private NetworkManager networkManager;
     private Dictionary<string, int> items = new Dictionary<string, int>();
@@ -25,13 +26,16 @@ public class InventoryUI : MonoBehaviour
     // CICLO DE VIDA
     // =========================
 
-    void Awake()
+    private void Awake()
     {
-        // Configura a tecla 'I' para abrir/fechar o inventário
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+
         toggleInventoryAction = new InputAction("ToggleInventory", binding: "<Keyboard>/i");
         toggleInventoryAction.performed += ctx =>
         {
-            // Se houver um input field selecionado (ex: chat), não abre o inventário
             if (UnityEngine.EventSystems.EventSystem.current != null)
             {
                 var selected = UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject;
@@ -42,10 +46,10 @@ public class InventoryUI : MonoBehaviour
         };
     }
 
-    void OnEnable() => toggleInventoryAction.Enable();
-    void OnDisable() => toggleInventoryAction.Disable();
+    private void OnEnable() => toggleInventoryAction.Enable();
+    private void OnDisable() => toggleInventoryAction.Disable();
 
-    void Start()
+    private void Start()
     {
         networkManager = NetworkManager.Instance ?? FindAnyObjectByType<NetworkManager>();
         if (networkManager == null)
@@ -54,7 +58,8 @@ public class InventoryUI : MonoBehaviour
             return;
         }
 
-        networkManager.OnInventoryReceived += HandleInventory;
+        // 🔥 Mantém os eventos para compatibilidade (opcional)
+        networkManager.OnInventoryReceived += HandleInventoryEvent;
         networkManager.OnItemUsed += HandleItemUsed;
 
         if (inventoryPanel == null)
@@ -80,10 +85,13 @@ public class InventoryUI : MonoBehaviour
     }
 
     // =========================
-    // EVENTOS DO NETWORK
+    // MÉTODOS PÚBLICOS PARA HANDLERS
     // =========================
 
-    private void HandleInventory(int gold, Dictionary<string, int> newItems)
+    /// <summary>
+    /// Chamado pelo InventoryHandler para atualizar o inventário.
+    /// </summary>
+    public void HandleInventory(int gold, Dictionary<string, int> newItems)
     {
         currentGold = gold;
         items = newItems;
@@ -91,10 +99,28 @@ public class InventoryUI : MonoBehaviour
             RefreshUI();
     }
 
-    private void HandleItemUsed(string itemId, bool success, string message)
+    /// <summary>
+    /// Chamado pelo ItemUsedHandler para exibir mensagem de uso de item.
+    /// </summary>
+    public void HandleItemUsed(string itemId, bool success, string message)
     {
         if (ChatUI.Instance != null)
             ChatUI.Instance.AddMessage($"Item: {message}");
+    }
+
+    // =========================
+    // EVENTOS DO NETWORK (mantido para compatibilidade)
+    // =========================
+
+    private void HandleInventoryEvent(int gold, Dictionary<string, int> newItems)
+    {
+        // 🔥 Redireciona para o método público
+        HandleInventory(gold, newItems);
+    }
+
+    private void HandleItemUsedEvent(string itemId, bool success, string message)
+    {
+        HandleItemUsed(itemId, success, message);
     }
 
     // =========================
@@ -103,16 +129,13 @@ public class InventoryUI : MonoBehaviour
 
     private void RefreshUI()
     {
-        Debug.Log($"[InventoryUI] 🧹 RefreshUI: {items.Count} itens para criar.");
         if (goldText != null)
             goldText.text = $"{currentGold} gold";
 
-        // Remove slots antigos
         foreach (var slot in slotObjects)
             Destroy(slot);
         slotObjects.Clear();
 
-        // Cria novos slots
         foreach (var kvp in items)
         {
             GameObject slot = Instantiate(slotPrefab, slotsGrid);
@@ -120,7 +143,6 @@ public class InventoryUI : MonoBehaviour
             if (slotScript != null)
             {
                 slotScript.Setup(kvp.Key, kvp.Value, networkManager);
-                // Assina o evento de duplo clique do slot
                 slotScript.OnDoubleClick += OnSlotDoubleClicked;
             }
             slotObjects.Add(slot);
@@ -131,10 +153,6 @@ public class InventoryUI : MonoBehaviour
     // INTERAÇÃO COM ITENS
     // =========================
 
-    /// <summary>
-    /// Chamado quando um slot é clicado duas vezes.
-    /// Tenta equipar o item (se for equipável).
-    /// </summary>
     private void OnSlotDoubleClicked(string itemId)
     {
         Debug.Log($"[InventoryUI] Duplo clique em {itemId} → tentando equipar.");
@@ -149,8 +167,8 @@ public class InventoryUI : MonoBehaviour
     {
         if (networkManager != null)
         {
-            networkManager.OnInventoryReceived -= HandleInventory;
-            networkManager.OnItemUsed -= HandleItemUsed;
+            networkManager.OnInventoryReceived -= HandleInventoryEvent;
+            networkManager.OnItemUsed -= HandleItemUsedEvent;
         }
         if (toggleInventoryAction != null)
         {

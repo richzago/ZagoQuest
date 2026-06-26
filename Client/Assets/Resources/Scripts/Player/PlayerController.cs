@@ -18,7 +18,11 @@ public class PlayerController : MonoBehaviour
     private InputAction moveNorth, moveSouth, moveEast, moveWest;
     private InputAction moveNortheast, moveNorthwest, moveSoutheast, moveSouthwest;
 
-    void Awake()
+    // =========================
+    // CICLO DE VIDA
+    // =========================
+
+    private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
@@ -42,19 +46,31 @@ public class PlayerController : MonoBehaviour
         moveSouthwest.performed += _ => SendDirection("southwest");
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
-        moveNorth.Enable(); moveSouth.Enable(); moveEast.Enable(); moveWest.Enable();
-        moveNortheast.Enable(); moveNorthwest.Enable(); moveSoutheast.Enable(); moveSouthwest.Enable();
+        moveNorth.Enable();
+        moveSouth.Enable();
+        moveEast.Enable();
+        moveWest.Enable();
+        moveNortheast.Enable();
+        moveNorthwest.Enable();
+        moveSoutheast.Enable();
+        moveSouthwest.Enable();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        moveNorth.Disable(); moveSouth.Disable(); moveEast.Disable(); moveWest.Disable();
-        moveNortheast.Disable(); moveNorthwest.Disable(); moveSoutheast.Disable(); moveSouthwest.Disable();
+        moveNorth.Disable();
+        moveSouth.Disable();
+        moveEast.Disable();
+        moveWest.Disable();
+        moveNortheast.Disable();
+        moveNorthwest.Disable();
+        moveSoutheast.Disable();
+        moveSouthwest.Disable();
     }
 
-    void Start()
+    private void Start()
     {
         networkManager = NetworkManager.Instance;
         if (networkManager == null)
@@ -63,14 +79,22 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        networkManager.OnInit += OnServerInit;
-        networkManager.OnPositionReceived += OnPositionReceived;
-
+        // 🔥 Removidas as inscrições nos eventos do NetworkManager.
+        // Os handlers (InitHandler, PositionHandler) agora chamam diretamente
+        // os métodos públicos OnServerInit e OnPositionReceived via NetworkContext.
+        // A posição inicial é obtida via TryGetInitPosition.
         if (networkManager.TryGetInitPosition(out _, out Vector2 pos))
             OnServerInit(null, pos);
     }
 
-    private void OnServerInit(string _, Vector2 pos)
+    // =========================
+    // MÉTODOS PÚBLICOS CHAMADOS PELOS HANDLERS
+    // =========================
+
+    /// <summary>
+    /// Chamado pelo InitHandler para definir a posição inicial.
+    /// </summary>
+    public void OnServerInit(string _, Vector2 pos)
     {
         currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
         transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
@@ -78,12 +102,19 @@ public class PlayerController : MonoBehaviour
         Debug.Log("PlayerController: pronto para mover.");
     }
 
-    private void OnPositionReceived(Vector2 pos)
+    /// <summary>
+    /// Chamado pelo PositionHandler para atualizar a posição.
+    /// </summary>
+    public void OnPositionReceived(Vector2 pos)
     {
         currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
         transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
         ProcessMoveQueue();
     }
+
+    // =========================
+    // MOVIMENTO
+    // =========================
 
     private void SendDirection(string dir)
     {
@@ -93,8 +124,9 @@ public class PlayerController : MonoBehaviour
     }
 
     // =========================
-    // Walk Queue
+    // WALK QUEUE
     // =========================
+
     private void EnqueueDirection(Vector2Int direction)
     {
         Vector2Int targetTile = currentGridPosition + direction;
@@ -138,12 +170,13 @@ public class PlayerController : MonoBehaviour
         EnqueueDirection(direction);
     }
 
+    // =========================
+    // LIMPEZA
+    // =========================
+
     private void OnDestroy()
     {
-        if (networkManager != null)
-        {
-            networkManager.OnInit -= OnServerInit;
-            networkManager.OnPositionReceived -= OnPositionReceived;
-        }
+        // 🔥 Não há mais inscrições em eventos do NetworkManager.
+        // Nada a remover aqui.
     }
 }

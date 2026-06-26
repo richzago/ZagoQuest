@@ -4,18 +4,29 @@ using TMPro;
 
 public class BankUI : MonoBehaviour
 {
+    public static BankUI Instance { get; private set; }
+
     [Header("References")]
     public GameObject bankPanel;
-    public TextMeshProUGUI goldText;
     public TextMeshProUGUI bankGoldText;
-    public TMP_InputField amountInput;
-    public Button depositButton;
-    public Button withdrawButton;
+    public TextMeshProUGUI inventoryGoldText;
     public Button closeButton;
 
     private NetworkManager networkManager;
 
-    void Start()
+    // =========================
+    // CICLO DE VIDA
+    // =========================
+
+    private void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+    }
+
+    private void Start()
     {
         networkManager = NetworkManager.Instance;
         if (networkManager == null)
@@ -24,84 +35,76 @@ public class BankUI : MonoBehaviour
             return;
         }
 
-        // Assina os eventos
-        networkManager.OnBankWindow += OpenBank;
-        networkManager.OnBankResult += UpdateBankUI;
+        networkManager.OnBankWindow += ShowBankWindowEvent;
+        networkManager.OnBankResult += UpdateBankResultEvent;
 
-        // Debug.Log("BankUI: inscrito nos eventos OnBankWindow e OnBankResult.");
-
-        // Configura botões
-        if (depositButton != null)
-            depositButton.onClick.AddListener(() =>
-            {
-                if (int.TryParse(amountInput.text, out int amount) && amount > 0)
-                    networkManager.SendDeposit(amount);
-                else
-                    Debug.LogWarning("Valor inválido para depósito.");
-            });
-        if (withdrawButton != null)
-            withdrawButton.onClick.AddListener(() =>
-            {
-                if (int.TryParse(amountInput.text, out int amount) && amount > 0)
-                    networkManager.SendWithdraw(amount);
-                else
-                    Debug.LogWarning("Valor inválido para saque.");
-            });
         if (closeButton != null)
-            closeButton.onClick.AddListener(() =>
-            {
-                if (bankPanel != null) bankPanel.SetActive(false);
-            });
-
-        // Garante que o painel comece desativado
+            closeButton.onClick.AddListener(() => CloseBank());
         if (bankPanel != null)
             bankPanel.SetActive(false);
         else
-            Debug.LogError("BankUI: bankPanel não atribuído no Inspector!");
+            Debug.LogError("BankUI: bankPanel não atribuído!");
     }
 
-    private void OpenBank(int bankGold, int currentGold)
-    {
-        Debug.Log($"BankUI.OpenBank chamado! bankGold={bankGold}, currentGold={currentGold}");
-        if (goldText != null)
-            goldText.text = $"💰 Gold: {currentGold}";
-        else
-            Debug.LogError("BankUI: goldText é nulo!");
+    // =========================
+    // MÉTODOS PÚBLICOS PARA HANDLERS
+    // =========================
 
+    public void ShowBankWindow(string npcId, int bankGold, int inventoryGold)
+    {
+        Debug.Log($"BankUI.ShowBankWindow: bankGold={bankGold}, inventoryGold={inventoryGold}");
         if (bankGoldText != null)
-            bankGoldText.text = $"🏦 Banco: {bankGold}";
-        else
-            Debug.LogError("BankUI: bankGoldText é nulo!");
-
+            bankGoldText.text = $"{bankGold} gold";
+        if (inventoryGoldText != null)
+            inventoryGoldText.text = $"{inventoryGold} gold";
         if (bankPanel != null)
-        {
             bankPanel.SetActive(true);
-            Debug.Log("BankUI: bankPanel ativado (SetActive true)");
-        }
-        else
-        {
-            Debug.LogError("BankUI: bankPanel é nulo, não foi possível ativar!");
-        }
     }
 
-    private void UpdateBankUI(bool success, string message, int bankGold, int currentGold)
+    public void UpdateBankResult(bool success, string message, int bankGold, int inventoryGold)
     {
-        Debug.Log($"BankUI.UpdateBankUI: success={success}, msg={message}, bank={bankGold}, gold={currentGold}");
-        if (success)
-        {
-            if (goldText != null) goldText.text = $"💰 Gold: {currentGold}";
-            if (bankGoldText != null) bankGoldText.text = $"🏦 Banco: {bankGold}";
-        }
         if (ChatUI.Instance != null)
             ChatUI.Instance.AddMessage($"Banco: {message}");
+        if (success)
+        {
+            if (bankGoldText != null)
+                bankGoldText.text = $"{bankGold} gold";
+            if (inventoryGoldText != null)
+                inventoryGoldText.text = $"{inventoryGold} gold";
+        }
     }
+
+    private void CloseBank()
+    {
+        if (bankPanel != null)
+            bankPanel.SetActive(false);
+    }
+
+    // =========================
+    // EVENTOS DO NETWORK (mantido para compatibilidade)
+    // =========================
+
+    private void ShowBankWindowEvent(int bankGold, int inventoryGold)
+    {
+        // O evento antigo não passava npcId, então usamos null
+        ShowBankWindow(null, bankGold, inventoryGold);
+    }
+
+    private void UpdateBankResultEvent(bool success, string message, int bankGold, int inventoryGold)
+    {
+        UpdateBankResult(success, message, bankGold, inventoryGold);
+    }
+
+    // =========================
+    // LIMPEZA
+    // =========================
 
     private void OnDestroy()
     {
         if (networkManager != null)
         {
-            networkManager.OnBankWindow -= OpenBank;
-            networkManager.OnBankResult -= UpdateBankUI;
+            networkManager.OnBankWindow -= ShowBankWindowEvent;
+            networkManager.OnBankResult -= UpdateBankResultEvent;
         }
     }
 }
