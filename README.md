@@ -70,3 +70,16 @@ Todo o código, assets e sistemas são propriedade exclusiva do autor do projeto
 ## 👤 Autor
 
 Richard Zago – ZagoQuest (2026)
+
+
+## Site de apresentação
+
+O frontend está em [`web/`](web/README.md), com layout responsivo, ilustrações locais e componentes interativos.
+
+```bash
+cd web
+npm ci --cache /workspace/.cache/npm
+npm run dev
+```
+
+Para gerar os arquivos para hospedagem estática, execute `npm run build` no diretório `web`. O resultado fica em `web/dist`. Executar esses comandos não publica o site na internet.
