@@ -2,6 +2,10 @@
 
 Site de apresentação responsivo em português, com Vite e JavaScript. Inclui ilustrações SVG locais, vocações interativas, FAQ, menu móvel e diálogos acessíveis. Não depende do servidor do jogo.
 
+## Prévia visual
+
+![Página inicial do site ZagoQuest](docs/site-preview.png)
+
 ## Executar
 
 Requer Node.js 22 ou superior (validado com Node.js 24).
