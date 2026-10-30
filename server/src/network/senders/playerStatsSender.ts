@@ -1,17 +1,13 @@
-// network/senders/playerStatsSender.ts
+// Network: apenas lê e serializa o estado do Player.
 import { WebSocket } from "ws";
-import { Player } from "../../game/entities/player";
+import type { Player } from "../../game/entities/player";
+import type { ServerPlayerStatsMessage } from "../messages/server/inventory.messages";
 import { BaseSender } from "./base/baseSender";
-import { ExperienceSystem } from "../../game/systems/experienceSystem";
 
 export class PlayerStatsSender extends BaseSender {
-  public sendPlayerStats(player: Player): void {
-    // Garante que as stats estão atualizadas
-    player.recalculateStats();
-
-    const nextLevelXp = ExperienceSystem.getRequiredXp(player.level);
-
-    this.send({
+  /** Formato consistente para conexão, ganho de XP e morte. */
+  public static toPayload(player: Player): ServerPlayerStatsMessage {
+    return {
       type: "playerStats",
       hp: player.hp,
       maxHp: player.maxHp,
@@ -21,13 +17,19 @@ export class PlayerStatsSender extends BaseSender {
       attack: player.attack,
       defense: player.defense,
       armor: player.armor,
+      xp: player.experience,
+      xpToNext: player.experienceToNext,
+      // Aliases temporários até a migração de todos os clientes.
       experience: player.experience,
-      experienceToNext: nextLevelXp,
-    });
+      experienceToNext: player.experienceToNext,
+    };
+  }
+
+  public sendPlayerStats(player: Player): void {
+    this.send(PlayerStatsSender.toPayload(player));
   }
 
   public static send(ws: WebSocket, player: Player): void {
-    const sender = new PlayerStatsSender(ws);
-    sender.sendPlayerStats(player);
+    new PlayerStatsSender(ws).sendPlayerStats(player);
   }
 }
