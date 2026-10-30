@@ -102,7 +102,13 @@ export class World {
    * Adiciona um monstro ao mundo.
    * @param monster - Monstro a ser adicionado
    */
-  addMonster(monster: Monster) {
+  addMonster(monster: Monster): void {
+    // Defesa adicional: a mesma entidade (ID) não pode entrar duas vezes.
+    // Spawns distintos podem compartilhar posição, pois têm IDs diferentes.
+    if (this.monsters.some((existing) => existing.id === monster.id)) {
+      Logger.warn(`Monstro com ID duplicado ignorado: ${monster.id}`);
+      return;
+    }
     this.monsters.push(monster);
     Logger.world(`Monster spawn: ${monster.name} em ${monster.position.x},${monster.position.y}`);
   }
