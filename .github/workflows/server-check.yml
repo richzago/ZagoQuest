@@ -2,7 +2,7 @@ name: Server build and XP tests
 
 on:
   push:
-    branches: [fix/backend-xp-progression, fix/backend-inventory-economy]
+    branches: [fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns]
   pull_request:
     branches: [refactor/backend-stabilization, fix/backend-xp-progression]
     paths:
