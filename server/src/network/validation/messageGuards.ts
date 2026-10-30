@@ -55,6 +55,11 @@ export class OrderedMessageQueue {
     return true;
   }
 
+  /** Shutdown awaits handlers already running before persisting the player. */
+  whenIdle(): Promise<void> {
+    return this.tail;
+  }
+
   get pending(): number {
     return this.queued;
   }
