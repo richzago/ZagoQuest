@@ -14,6 +14,7 @@ import { ItemRegistry } from "../../data/items/itemRegistry";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
+import { isValidItemId, isValidQuantity } from "../../game/systems/economyRules";
 import type {
   ClientUseItemMessage,
   ClientEquipItemMessage,
@@ -148,100 +149,92 @@ export async function handleUnequipItem(
   }
 }
 
+/**
+ * Drop seguro: valida quantidade e destino ANTES de tocar no inventário.
+ * Se o item estiver equipado, só permite dropar uma unidade.
+ */
 export async function handleDropItem(
   ws: WebSocket,
   player: Player,
   msg: ClientDropItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
-  Logger.system(
-    `[DROP] Recebido dropItem de ${player.name}: itemId=${msg.itemId}, amount=${msg.amount || 1}, x=${msg.x}, y=${msg.y}`,
-  );
   const { itemId, amount = 1, x, y } = msg;
-
-  const dx = Math.abs(Math.floor(x) - Math.floor(player.position.x));
-  const dy = Math.abs(Math.floor(y) - Math.floor(player.position.y));
-  if (dx + dy > 2) {
-    ctx.packetSender.inventory.sendDropError("Muito longe para dropar.");
+  if (!isValidItemId(itemId) || !isValidQuantity(amount) ||
+      !Number.isFinite(x) || !Number.isFinite(y)) {
+    ctx.packetSender.inventory.sendDropError("Dados de drop inválidos.");
     return;
   }
 
-  if (!player.hasItem(itemId, amount)) {
-    let equippedSlot: EquipmentSlot | null = null;
-    for (const [slot, equippedItemId] of player.equipment.entries()) {
-      if (equippedItemId === itemId) {
-        equippedSlot = slot;
-        break;
-      }
-    }
+  const tileX = Math.floor(x);
+  const tileY = Math.floor(y);
+  const distance = Math.abs(tileX - Math.floor(player.position.x)) +
+                   Math.abs(tileY - Math.floor(player.position.y));
 
-    if (equippedSlot !== null) {
-      const unequipSuccess = player.unequipItem(equippedSlot);
-      if (!unequipSuccess) {
-        ctx.packetSender.inventory.sendDropError("Não foi possível desequipar o item.");
-        return;
-      }
-      Logger.system(`${player.name} desequipou ${itemId} para dropar.`);
-    } else {
-      ctx.packetSender.inventory.sendDropError("Você não possui este item.");
-      return;
-    }
+  if (!ctx.world.isWithinBounds(tileX, tileY) || distance > 2) {
+    ctx.packetSender.inventory.sendDropError("Local de drop inválido ou distante.");
+    return;
+  }
+
+  const alreadyInBag = player.hasItem(itemId, amount);
+  const equippedSlot = [...player.equipment.entries()]
+    .find(([, equippedId]) => equippedId === itemId)?.[0];
+
+  // Nunca desequipar para depois descobrir que a quantidade era insuficiente.
+  if (!alreadyInBag && !(amount === 1 && equippedSlot !== undefined)) {
+    ctx.packetSender.inventory.sendDropError("Você não possui essa quantidade.");
+    return;
+  }
+
+  // Todos os dados do item ficam prontos antes da remoção.
+  let itemName = itemId;
+  try { itemName = ItemRegistry.get(itemId).name; } catch { /* item antigo sem definição */ }
+  const onGround = new ItemOnGround(generateId(), itemId, amount, tileX, tileY, itemName);
+
+  if (!alreadyInBag && equippedSlot !== undefined && !player.unequipItem(equippedSlot)) {
+    ctx.packetSender.inventory.sendDropError("Falha ao desequipar o item.");
+    return;
   }
 
   if (!player.removeItem(itemId, amount)) {
-    ctx.packetSender.inventory.sendDropError("Erro ao remover o item.");
+    ctx.packetSender.inventory.sendDropError("Falha ao remover o item.");
     return;
   }
 
-  const itemDef = ItemRegistry.get(itemId);
-  const itemName = itemDef?.name || itemId;
-
-  const newId = generateId();
-  const itemOnGround = new ItemOnGround(
-    newId,
-    itemId,
-    amount,
-    Math.floor(x),
-    Math.floor(y),
-    itemName,
-  );
-  ctx.world.addItemOnGround(itemOnGround);
-
-  // Usa broadcast service para notificar todos
-  ctx.broadcast.broadcastSpawnItemOnGround(itemOnGround);
+  ctx.world.addItemOnGround(onGround);
+  ctx.broadcast.broadcastSpawnItemOnGround(onGround);
   ctx.packetSender.inventory.sendInventory(player);
   ctx.packetSender.inventory.sendEquipment(player);
-
-  Logger.loot(`${player.name} dropou ${amount}x ${itemId} em (${Math.floor(x)}, ${Math.floor(y)})`);
+  Logger.loot(`${player.name} dropou ${amount}x ${itemId} em (${tileX},${tileY})`);
 }
 
+/** Pickup só despawna o item depois de adicioná-lo ao jogador com sucesso. */
 export async function handlePickupItem(
   ws: WebSocket,
   player: Player,
   msg: ClientPickupItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
-  Logger.system(`[Pickup] Recebido pickup para item ${msg.itemId}`);
-
-  const itemOnGround = ctx.world.getItemOnGround(msg.itemId);
-  if (!itemOnGround) {
+  const onGround = ctx.world.getItemOnGround(msg.itemId);
+  if (!onGround) {
     ctx.packetSender.inventory.sendPickupError("Item não encontrado no chão.");
     return;
   }
 
-  const dx = Math.abs(itemOnGround.position.x - player.position.x);
-  const dy = Math.abs(itemOnGround.position.y - player.position.y);
-  if (dx + dy > 2) {
+  const distance = Math.abs(onGround.position.x - player.position.x) +
+                   Math.abs(onGround.position.y - player.position.y);
+  if (distance > 2) {
     ctx.packetSender.inventory.sendPickupError("Muito longe para pegar.");
     return;
   }
 
-  player.addItem(itemOnGround.itemId, itemOnGround.amount);
-  ctx.world.removeItemOnGround(itemOnGround);
+  if (!player.addItem(onGround.itemId, onGround.amount)) {
+    ctx.packetSender.inventory.sendPickupError("Não foi possível adicionar este item.");
+    return;
+  }
 
-  // Usa broadcast service para remover o item do chão para todos
-  ctx.broadcast.broadcastDespawn(itemOnGround.id);
+  ctx.world.removeItemOnGround(onGround);
+  ctx.broadcast.broadcastDespawn(onGround.id);
   ctx.packetSender.inventory.sendInventory(player);
-
-  Logger.loot(`${player.name} pegou ${itemOnGround.amount}x ${itemOnGround.itemId} do chão.`);
+  Logger.loot(`${player.name} coletou ${onGround.amount}x ${onGround.itemId}.`);
 }
