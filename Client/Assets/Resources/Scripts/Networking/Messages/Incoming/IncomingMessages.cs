@@ -38,6 +38,15 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class UnequipResultMessage { public string type; public bool success; public string message; }
     [Serializable] public class DropErrorMessage { public string type; public string message; }
     [Serializable] public class DespawnMessage { public string type; public string id; }
+    // Contratos já emitidos pelo servidor, mas sem DTO explícito no Unity.
+    [Serializable] public class GoldMessage { public string type; public int gold; }
+    [Serializable] public class AttackFailedMessage { public string type; public string reason; }
+    [Serializable] public class AutoAttackStartedMessage { public string type; public string targetId; }
+    [Serializable] public class MonsterDiedMessage { public string type; public string monsterId; }
+    [Serializable] public class PickupErrorMessage { public string type; public string message; }
+    [Serializable] public class ErrorMessage { public string type; public string message; }
+    [Serializable] public class NetworkErrorMessage { public string type; public string message; }
+    [Serializable] public class LootTakenMessage { public string type; public string corpseId; public int? itemIndex; }
 
     // Subclasses
     [Serializable] public class LootItem { public string itemId; public int amount; public string itemName; }
