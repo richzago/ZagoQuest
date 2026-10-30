@@ -33,7 +33,9 @@ test("BankUI nunca credita gold localmente antes de bankResult do servidor", () 
 });
 
 test("scenebasic serializa input e botões corretos do BankManager", () => {
-  const scene = readUnity("scenebasic.unity");
+  // Windows git checkout pode converter LF em CRLF; normalizar antes de
+  // analisar os blocos Unity YAML (teste de contrato, não de line endings).
+  const scene = readUnity("scenebasic.unity").replace(/\r\n/g, "\n");
   const config = scene.match(/m_EditorClassIdentifier: Assembly-CSharp::BankUI[\s\S]{0,450}/)?.[0] ?? "";
   assert.match(config, /bankPanel: \{fileID: 876531502\}/);
   assert.match(config, /bankGoldText: \{fileID: 485166457\}/);
