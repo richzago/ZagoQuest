@@ -8,6 +8,7 @@ import type { HandlerContext } from "./HandlerContext";
 import { MovementSystem, type MoveResult } from "../../game/systems/movementSystem";
 import { Logger } from "../../game/core/logger/logger";
 import { processChatCommand } from "../../game/chat/chatCommands";
+import { FishingSystem } from "../../game/systems/fishingSystem";
 import type { ClientMoveMessage, ClientMoveDirMessage } from "../messages";
 
 /** Sempre envia a posição real; só transmite movimento aos outros se aceito. */
@@ -21,6 +22,9 @@ async function confirmMovement(
   ctx.packetSender.combat.sendPosition(x, y);
 
   if (result !== "moved") return;
+
+  // Uma movimentação real interrompe a pesca; pedidos recusados não.
+  if (player.isFishing) FishingSystem.cancelFishing(player);
 
   ctx.broadcast.broadcastMove(player.id, x, y, ws);
 
