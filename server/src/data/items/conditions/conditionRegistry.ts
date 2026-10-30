@@ -15,7 +15,9 @@ export class ConditionRegistry {
   private static conditions = new Map<string, ConditionDefinition>();
 
   static load(): void {
-    const filePath = join(__dirname, "conditions.json");
+    // JSON está em src/; tsc emite somente arquivos TypeScript em dist/.
+    // O servidor já usa process.cwd() para carregar outros dados do jogo.
+    const filePath = join(process.cwd(), "src", "data", "items", "conditions", "conditions.json");
     const raw = readFileSync(filePath, "utf-8");
     const data: ConditionDefinition[] = JSON.parse(raw);
     for (const def of data) {
