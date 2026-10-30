@@ -74,7 +74,7 @@ export function registerEventListeners(): void {
   });
 
   eventSystem.on<PlayerGainXpEventData>(GameEvent.PLAYER_GAIN_XP, (data) => {
-    Logger.skill(`${data.playerName} ganhou ${data.amount} XP (total: ${data.newTotalXp})`);
+    Logger.skill(`${data.playerName} ganhou ${data.amount} XP (progresso no nível: ${data.currentLevelXp})`);
   });
 
   // =========================
