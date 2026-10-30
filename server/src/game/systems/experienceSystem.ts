@@ -2,7 +2,7 @@
  * experienceSystem.ts
  *
  * Sistema de experiência e level up.
- * Fórmula personalizada LIGEIRAMENTE MAIS DIFÍCIL que o Tibia:
+ * Fórmula personalizada
  * XP(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
  *
  * @module game/systems/ExperienceSystem

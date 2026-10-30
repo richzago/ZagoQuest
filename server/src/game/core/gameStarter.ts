@@ -98,7 +98,7 @@ function startAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
 
         if (distance <= 1) {
           try {
-            CombatSystem.attack(player, target, world);
+            // CombatSystem.attack(player, target, world);
             const damageDealt = CombatSystem.attack(player, target, world);
             wsServer.broadcastDamage(target.id, target.hp, target.maxHp, damageDealt);
             if (target.hp <= 0) {

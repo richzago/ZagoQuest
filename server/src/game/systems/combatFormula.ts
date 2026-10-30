@@ -1,7 +1,5 @@
 /**
  * combatFormula.ts
- *
- * Fórmula de combate inspirada em Tibia.
  * - Dano base = atacante.attack - (defensor.defense + defensor.armor/2)
  * - Valor mínimo = 1 (sempre acerta pelo menos 1 de dano)
  * - Variação aleatória de ±20% no dano bruto antes do crítico.
@@ -19,7 +17,6 @@ import { Logger } from "../core/logger/logger";
  * Classe estática que contém a lógica de cálculo de dano do jogo.
  *
  * @remarks
- * A fórmula é inspirada em jogos clássicos como Tibia.
  * O dano final nunca é inferior a 1.
  *
  * @example

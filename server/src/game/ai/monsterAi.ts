@@ -113,10 +113,10 @@ export class MonsterAI {
     }
 
     const directions = [
-      { x: 1, y: 0 },
-      { x: -1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: -1 },
+      { x: 1, y: 0 }, // direita
+      { x: -1, y: 0 }, // esquerda
+      { x: 0, y: 1 }, // cima
+      { x: 0, y: -1 }, // baixo
     ];
     const move = directions[Math.floor(Math.random() * directions.length)];
     this.tryMove(monster, move.x, move.y, world);
