@@ -147,13 +147,21 @@ test("disconnected socket handler is drained before final shutdown", async () =>
     for (let i = 0; i < 8; i++) await Promise.resolve();
     assert.ok(release, "in-flight handler did not start");
 
-    const disconnected = once(socket, "close");
+    // The client's "close" event does not guarantee the server has received
+    // its own "close" event (notably on Windows). Observe both endpoints.
+    const serverWss = (f.game as unknown as {
+      wss: { clients: Set<WebSocket> };
+    }).wss;
+    const serverSocket = [...serverWss.clients][0];
+    assert.ok(serverSocket, "server-side socket was not registered");
+
+    const clientDisconnected = once(socket, "close");
+    const serverDisconnected = once(serverSocket, "close");
     socket.close();
-    await disconnected;
-    // Let the server-side socket close handler run and update the queues.
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    await Promise.all([clientDisconnected, serverDisconnected]);
+
     assert.equal(f.game.getBroadcastService().getClients().size, 0);
-    assert.equal(queues.has([...queues.keys()][0]), true, "pending queue should remain tracked");
+    assert.equal(queues.get(serverSocket), queue, "pending queue should remain tracked");
 
     let shutdownCompleted = false;
     const shutdown = f.game.close().then(() => { shutdownCompleted = true; });
