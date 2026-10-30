@@ -63,7 +63,7 @@ export class Player extends Creature {
   // ATRIBUTOS DE PROGRESSÃO
   // =========================
 
-  /** Experiência total acumulada pelo jogador */
+  /** XP disponível no nível atual; não é XP total histórico. */
   experience: number = 0;
 
   /** Experiência necessária para o próximo nível (calculada dinamicamente) */
@@ -186,46 +186,11 @@ export class Player extends Creature {
   // =========================
 
   /**
-   * Adiciona experiência ao jogador e verifica se houve evolução de nível.
-   * Se o jogador acumular XP suficiente para subir um ou mais níveis,
-   * aplica os aumentos de nível e recalcula os atributos.
-   *
-   * @param amount - Quantidade de experiência a adicionar
-   * @returns {void}
-   *
-   * @remarks
-   * O sistema de experiência é linear "x1" (estilo Tibia):
-   * - XP necessário para o próximo nível = level * 100.
-   * - O excesso de XP é mantido após o level up.
-   * - Ao subir de nível, recalcula atributos (atack, defense, armor, HP, mana etc.)
-   *
-   * @example
-   * ```typescript
-   * // Matou um goblin
-   * player.addExperience(50);
-   * ```
+   * Atalho para a única regra de XP do servidor, em ExperienceSystem.
+   * Mantém compatibilidade com as chamadas antigas a player.addExperience().
    */
   addExperience(amount: number): void {
-    if (amount <= 0) return;
-
-    this.experience += amount;
-    let leveledUp = false;
-
-    while (this.experience >= ExperienceSystem.getRequiredXp(this.level)) {
-      this.level++;
-      // Deduz o XP necessário para o nível que acabou de subir
-      this.experience -= ExperienceSystem.getRequiredXp(this.level);
-      leveledUp = true;
-      Logger.combat(`${this.name} subiu para o nível ${this.level}!`);
-    }
-
-    // Atualiza o XP necessário para o próximo nível
-    this.experienceToNext = ExperienceSystem.getRequiredXp(this.level);
-
-    if (leveledUp) {
-      // Recalcula atributos (HP, mana, attack, defense, armor)
-      this.recalculateStats();
-    }
+    ExperienceSystem.addXp(this, amount);
   }
 
   // =========================
