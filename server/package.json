@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node src/main.ts",
     "build": "tsc",
-    "test": "tsx --test tests/experience.test.ts tests/economy.test.ts tests/monsterSpawns.test.ts",
+    "test": "tsx --test tests/experience.test.ts tests/economy.test.ts tests/monsterSpawns.test.ts tests/scheduledTasks.test.ts",
     "start": "node dist/main.js",
     "docs:typedoc": "typedoc"
   },
