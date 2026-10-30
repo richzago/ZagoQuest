@@ -20,6 +20,8 @@ import {
   ConditionTickEventData,
 } from "../../../shared/interfaces/conditionEventData.interface";
 import { ConditionRegistry } from "../../../data/items/conditions/conditionRegistry";
+import type { World } from "../../world/World";
+import { CombatSystem } from "../combatSystem";
 
 /**
  * Gerencia as condições ativas de uma criatura.
@@ -39,8 +41,12 @@ import { ConditionRegistry } from "../../../data/items/conditions/conditionRegis
 export class ConditionManager {
   private conditions: Map<string, Condition> = new Map(); // conditionId -> Condition
   private lastUpdate = Date.now();
+  private world?: World;
 
   constructor(private owner: Creature) {}
+
+  /** Bind damage/death processing to the world that owns this creature. */
+  bindWorld(world: World): void { this.world = world; }
 
   /**
    * Aplica uma condição à entidade.
@@ -66,11 +72,13 @@ export class ConditionManager {
       // Reinicia a duração da condição existente
       existing.remainingTime = duration ?? definition.defaultDuration;
       existing.startTime = Date.now();
+      existing.source = source;
       Logger.combat(`${this.owner.name} já estava com ${definition.name}, duração renovada.`);
       return;
     }
 
     const condition = new Condition(definition, duration);
+    condition.source = source;
     this.conditions.set(conditionId, condition);
     condition.startPeriodicEffects(this.owner, (effect: ConditionEffect, target: Creature) => this.onTick(condition, effect, target));
 
@@ -165,10 +173,14 @@ export class ConditionManager {
    */
   private onTick(condition: Condition, effect: ConditionEffect, target: Creature): void {
     if (effect.type === "damage_over_time") {
-      const damage = effect.amount ?? 0;
+      // Detached creatures cannot produce death/XP/loot in a consistent World.
+      if (!this.world || !this.conditions.has(condition.definition.id) || target.hp <= 0) return;
       const damageType = effect.damageType;
-      target.takeDamage(damage);
+      const damage = CombatSystem.applyPeriodicDamage(
+        target, effect.amount ?? 0, this.world, condition.source, condition.definition.name,
+      );
 
+      if (damage <= 0) return;
       const tickData: ConditionTickEventData = {
         targetId: target.id,
         targetName: target.name,
