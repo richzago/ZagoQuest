@@ -8,8 +8,44 @@
 
 import { Request, Response } from "express";
 import { GuildService } from "../services/guildService";
+import type { AuthenticatedRequest } from "../middlewares/auth.middleware";
 
 export class GuildController {
+
+  /**
+   * Authenticate the caller as the owner of a character. Guild edits also
+   * verify that the URL selects the guild belonging to this character.
+   */
+  private static async authorizedCharacter(
+    req: Request,
+    res: Response,
+    requireGuild: boolean,
+  ): Promise<string | undefined> {
+    const accountId = (req as AuthenticatedRequest).user?.id;
+    if (!accountId) {
+      res.status(401).json({ error: "Sessão não autenticada" });
+      return;
+    }
+    const characterName = req.body?.characterName;
+    if (typeof characterName !== "string" || !characterName.trim()) {
+      res.status(400).json({ error: "characterName é obrigatório" });
+      return;
+    }
+    if (!(await GuildService.characterBelongsToAccount(characterName, accountId))) {
+      res.status(403).json({ error: "Personagem não pertence à conta" });
+      return;
+    }
+    if (requireGuild) {
+      const rawGuildName = req.params.guildName;
+      const guildName = Array.isArray(rawGuildName) ? rawGuildName[0] : rawGuildName;
+      const guild = await GuildService.getPlayerGuild(characterName);
+      if (!guildName || !guild || guild.name !== guildName) {
+        res.status(403).json({ error: "Guilda não autorizada" });
+        return;
+      }
+    }
+    return characterName;
+  }
   // ========== Rankings ==========
   static async getRankByLevel(req: Request, res: Response) {
     try {
@@ -58,64 +94,70 @@ export class GuildController {
     }
   }
 
-  static async updateDescription(req: Request, res: Response) {
+  static async updateDescription(req: Request, res: Response): Promise<void> {
     try {
-      const guildName = req.params.guildName;
-      const { characterName, description } = req.body;
-      if (!characterName || !description)
-        return res.status(400).json({ error: "characterName e description são obrigatórios" });
+      const characterName = await this.authorizedCharacter(req, res, true);
+      if (!characterName) return;
+      const { description } = req.body;
+      if (typeof description !== "string" || !description.trim()) {
+        res.status(400).json({ error: "description é obrigatória" });
+        return;
+      }
       await GuildService.setDescription(characterName, description);
       res.json({ message: "Descrição atualizada com sucesso" });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar guilda" });
     }
   }
 
-  static async updateProfileImage(req: Request, res: Response) {
+  static async updateProfileImage(req: Request, res: Response): Promise<void> {
     try {
-      const guildName = req.params.guildName;
-      const { characterName, imageUrl } = req.body;
-      if (!characterName || !imageUrl)
-        return res.status(400).json({ error: "characterName e imageUrl são obrigatórios" });
+      const characterName = await this.authorizedCharacter(req, res, true);
+      if (!characterName) return;
+      const { imageUrl } = req.body;
+      if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+        res.status(400).json({ error: "imageUrl é obrigatória" });
+        return;
+      }
       await GuildService.setProfileImage(characterName, imageUrl);
       res.json({ message: "Imagem de perfil atualizada com sucesso" });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar guilda" });
     }
   }
 
-  static async updateCoverImage(req: Request, res: Response) {
+  static async updateCoverImage(req: Request, res: Response): Promise<void> {
     try {
-      const guildName = req.params.guildName;
-      const { characterName, imageUrl } = req.body;
-      if (!characterName || !imageUrl)
-        return res.status(400).json({ error: "characterName e imageUrl são obrigatórios" });
+      const characterName = await this.authorizedCharacter(req, res, true);
+      if (!characterName) return;
+      const { imageUrl } = req.body;
+      if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+        res.status(400).json({ error: "imageUrl é obrigatória" });
+        return;
+      }
       await GuildService.setCoverImage(characterName, imageUrl);
       res.json({ message: "Imagem de capa atualizada com sucesso" });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar guilda" });
     }
   }
 
-  // ========== Criação de guilda ==========
-  /**
-   * Cria uma nova guilda (autenticado).
-   * @body characterName - Nome do personagem (quem está criando)
-   * @body guildName - Nome da guilda
-   * @body description - Descrição da guilda
-   */
-  static async create(req: Request, res: Response) {
+  static async create(req: Request, res: Response): Promise<void> {
     try {
-      const { characterName, guildName, description } = req.body;
-      if (!characterName || !guildName || !description) {
-        return res
-          .status(400)
-          .json({ error: "characterName, guildName e description são obrigatórios" });
+      const characterName = await this.authorizedCharacter(req, res, false);
+      if (!characterName) return;
+      const { guildName, description } = req.body;
+      if (typeof guildName !== "string" || !guildName.trim()
+          || typeof description !== "string" || !description.trim()) {
+        res.status(400).json({ error: "guildName e description são obrigatórios" });
+        return;
       }
       const guild = await GuildService.createGuild(characterName, guildName, description);
       res.status(201).json({ id: guild.id, name: guild.name, description: guild.description });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao criar guilda" });
     }
   }
+
+
 }
