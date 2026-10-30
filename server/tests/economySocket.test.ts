@@ -222,3 +222,52 @@ test("WebSocket: após reconectar, não reutiliza autorização anterior", async
     await f.close();
   }
 });
+
+test("WebSocket: closeBank fecha a sessão e impede depósito sem reabrir", async () => {
+  const f = await fixture();
+  try {
+    const ws = await f.connect();
+    await send(ws, { type: "openBank", npcId: f.banker.id }, "bankWindow");
+
+    // close não responde; a fila ordenada garante que será processado antes
+    // do próximo pacote de depósito.
+    ws.send(JSON.stringify({ type: "closeBank", npcId: f.banker.id }));
+    const denied = await send(ws, { type: "deposit", amount: 10 }, "bankResult");
+    assert.equal(denied.success, false);
+    assert.equal(f.player.gold, 100);
+    assert.equal(f.player.bankGold, 0);
+
+    await send(ws, { type: "openBank", npcId: f.banker.id }, "bankWindow");
+    const accepted = await send(ws, { type: "deposit", amount: 10 }, "bankResult");
+    assert.equal(accepted.success, true);
+    assert.equal(f.player.bankGold, 10);
+  } finally {
+    await f.close();
+  }
+});
+
+test("WebSocket: closeShop impede compra, mas closeBank antigo não cancela loja", async () => {
+  const f = await fixture();
+  try {
+    const ws = await f.connect();
+    await send(ws, { type: "openShop", npcId: f.merchant.id }, "shopWindow");
+
+    // Um close de outro serviço nunca pode apagar a sessão atual.
+    ws.send(JSON.stringify({ type: "closeBank", npcId: f.banker.id }));
+    const accepted = await send(ws, {
+      type: "buyItem", npcId: f.merchant.id, itemId: potion, amount: 1,
+    }, "buyResult");
+    assert.equal(accepted.success, true);
+    assert.equal(f.player.gold, 90);
+
+    ws.send(JSON.stringify({ type: "closeShop", npcId: f.merchant.id }));
+    const denied = await send(ws, {
+      type: "buyItem", npcId: f.merchant.id, itemId: potion, amount: 1,
+    }, "buyResult");
+    assert.equal(denied.success, false);
+    assert.equal(f.player.gold, 90);
+    assert.equal(f.merchant.shopItems![0].stock, 9);
+  } finally {
+    await f.close();
+  }
+});
