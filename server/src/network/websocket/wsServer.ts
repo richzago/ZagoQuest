@@ -106,7 +106,15 @@ export class WebSocketServer {
         Logger.system(`Cliente ${player.name} desconectado.`);
         this.broadcast.unregisterClient(ws);
         this.clients.delete(ws);
-        this.messageQueues.delete(ws);
+        // A disconnected socket can still have an async handler executing.
+        // Keep its queue visible to shutdown until the handler finishes.
+        if (queue.pending === 0) {
+          this.messageQueues.delete(ws);
+        } else {
+          void queue.whenIdle().then(() => {
+            if (this.messageQueues.get(ws) === queue) this.messageQueues.delete(ws);
+          });
+        }
       });
 
       // Trata mensagens em ordem. JSON.parse nunca recebe entrada não validada
