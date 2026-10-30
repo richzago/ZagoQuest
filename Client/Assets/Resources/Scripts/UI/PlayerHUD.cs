@@ -82,25 +82,26 @@ public class PlayerHUD : MonoBehaviour
             levelText.text = $"Nv. {level}";
     }
 
-    // 🔥 NOVO: recebe PlayerStatsData diretamente
-    private void UpdateStatsFull(PlayerStatsData stats)
+    /** Snapshot completo: mantém XP cumulativo e usa progresso apenas na barra. */
+    public void UpdateStats(PlayerStatsData stats)
     {
         if (stats == null) return;
 
-        // Armazena o xpToNext para usar na barra
-        currentXpToNext = stats.xpToNext;
+        currentXpToNext = Mathf.Max(1, stats.levelXpToNext);
 
-        // Reutiliza o método existente
+        // Reaproveita a atualização de HP, mana e level.
         UpdateStats(
-            stats.hp,
-            stats.maxHp,
-            stats.mana,
-            stats.maxMana,
-            stats.level,
-            stats.attack,
-            stats.defense,
-            stats.xp
+            stats.hp, stats.maxHp, stats.mana, stats.maxMana,
+            stats.level, stats.attack, stats.defense, stats.levelXp
         );
+
+        if (xpSlider != null)
+            xpSlider.value = stats.levelXpToNext > 0 ? stats.levelXp : 1;
+
+        if (xpText != null)
+            xpText.text = stats.levelXpToNext > 0
+                ? $\"{stats.levelXp:N0}/{stats.levelXpToNext:N0} (total: {stats.xp:N0})\"
+                : $\"XP total: {stats.xp:N0} (MAX)\";
     }
 
     private void OnDestroy()
