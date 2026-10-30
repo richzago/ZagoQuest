@@ -1,15 +1,10 @@
 /**
- * experienceSystem.ts
- *
- * Sistema de experiência e level up.
- * Fórmula personalizada
- * XP(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
- *
- * @module game/systems/ExperienceSystem
+ * Sistema de XP cumulativo: o total NUNCA é descontado em level-ups.
+ * A fórmula fica em data/experience/experienceConfig.ts.
  */
-
+import { EXPERIENCE_CONFIG, totalXpForLevel } from "../../data/experience/experienceConfig";
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
-import {
+import type {
   PlayerGainXpEventData,
   PlayerLevelUpEventData,
 } from "../../shared/interfaces/eventData.interface";
@@ -19,166 +14,127 @@ import type { Player } from "../entities/player";
 import { WebSocketServer } from "../../network/websocket/wsServer";
 import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 
-/**
- * Gerencia a progressão de nível e experiência do jogador.
- *
- * @remarks
- * XP_necessario(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
- *
- * Isso gera uma curva de progressão que começa 2% mais difícil no nível 10,
- * chegando a 15% mais difícil no nível 100 e 36% mais difícil no nível 500.
- * A progressão é suave e gradual, evitando desânimo dos jogadores de alto nível.
- *
- * @example
- * ```typescript
- * // Conceder XP ao matar um monstro
- * const leveledUp = ExperienceSystem.addXp(player, 150);
- * if (leveledUp) {
- *   console.log(`Parabéns! Você subiu para o nível ${player.level}`);
- * }
- * ```
- */
 export class ExperienceSystem {
-  public static readonly MAX_LEVEL = 100;
-  /**
-   * Retorna o XP necessário para subir do nível atual para o próximo.
-   *
-   * Fórmula: XP(level) = floor((0.3 * level^3 + 5 * level^2 + 10 * level) * (1 + level * 0.001))
-   *
-   * @param level - Nível atual do jogador
-   * @returns XP necessário para o próximo nível (nunca inferior a 100)
-   *
-   * @example
-   * ```typescript
-   * const required = ExperienceSystem.getRequiredXp(player.level);
-   * console.log(`Faltam ${required - player.xp} XP para o próximo nível.`);
-   * ```
-   */
-  public static getRequiredXp(level: number): number {
-    if (level <= 0) return 100;
+  static readonly MAX_LEVEL = EXPERIENCE_CONFIG.maxLevel;
 
-    // Fórmula base (aproximação do Tibia)
-    const baseXp = 0.3 * Math.pow(level, 3) + 5 * Math.pow(level, 2) + 10 * level;
+  /** XP acumulado exigido para ALCANÇAR determinado nível. */
+  static getTotalXpForLevel(level: number): number {
+    return totalXpForLevel(level);
+  }
 
-    // Multiplicador suave e progressivo
-    // Nível 10: 1.01x | Nível 100: 1.10x | Nível 500: 1.50x
-    const multiplier = 1 + level * 0.001;
+  /** Limite absoluto de XP para chegar ao próximo nível. */
+  static getRequiredXp(currentLevel: number): number {
+    return totalXpForLevel(Math.min(currentLevel + 1, this.MAX_LEVEL));
+  }
 
-    const xp = Math.floor(baseXp * multiplier);
+  /** XP ganho desde que o personagem alcançou o nível atual. */
+  static getLevelProgress(player: Player): number {
+    return player.experience - totalXpForLevel(player.level);
+  }
 
-    // Garante um mínimo de 100 XP para os primeiros níveis
-    return Math.max(100, xp);
+  /** XP exigido, apenas dentro do nível atual (para a barra da interface). */
+  static getLevelRequirement(level: number): number {
+    return level >= this.MAX_LEVEL ? 0 : this.getRequiredXp(level) - totalXpForLevel(level);
   }
 
   /**
-   * Concede XP usando a mesma regra para todos os jogadores.
-   * experience é o XP disponível no nível atual, NÃO o total histórico.
-   * No nível 100 o excedente é descartado e novas recompensas são ignoradas.
-   *
-   * @returns true quando ocorre pelo menos um level up.
+   * Recebe XP e avança todos os níveis alcançados.
+   * experience: XP acumulado atual (pode diminuir por morte).
+   * lifetimeExperience: XP ganho em toda a trajetória (nunca diminui).
    */
-  public static addXp(player: Player, amount: number): boolean {
+  static addXp(player: Player, amount: number): boolean {
     if (!Number.isSafeInteger(amount) || amount <= 0 || player.level >= this.MAX_LEVEL) {
       return false;
     }
 
+    const cap = totalXpForLevel(this.MAX_LEVEL);
     if (
       !Number.isSafeInteger(player.experience) ||
-      player.experience < 0 ||
-      !Number.isSafeInteger(player.experience + amount)
+      !Number.isSafeInteger(player.lifetimeExperience) ||
+      player.experience < totalXpForLevel(player.level) ||
+      player.experience > cap ||
+      player.lifetimeExperience < 0
     ) {
-      Logger.warn(`XP inválido para ${player.name}; progressão não alterada.`);
+      Logger.warn(`Estado de XP inválido para ${player.name}; recompensa rejeitada.`);
       return false;
     }
 
-    player.experience += amount;
+    const granted = Math.min(amount, cap - player.experience);
+    if (granted <= 0 || !Number.isSafeInteger(player.lifetimeExperience + granted)) return false;
+
+    // Soma uma única vez; o XP nunca é gasto quando sobe de nível.
+    player.experience += granted;
+    player.lifetimeExperience += granted;
+
     let levelsGained = 0;
-
-    while (player.level < this.MAX_LEVEL) {
-      const requiredXp = this.getRequiredXp(player.level);
-      if (player.experience < requiredXp) break;
-
-      // Primeiro desconta o custo do nível atual; depois avança.
-      player.experience -= requiredXp;
-      this.levelUp(player);
+    while (
+      player.level < this.MAX_LEVEL &&
+      player.experience >= this.getRequiredXp(player.level)
+    ) {
+      const oldLevel = player.level++;
       levelsGained++;
+      EventSystem.getInstance().emit<PlayerLevelUpEventData>(GameEvent.PLAYER_LEVEL_UP, {
+        playerId: player.id,
+        playerName: player.name,
+        oldLevel,
+        newLevel: player.level,
+      });
     }
 
-    if (player.level >= this.MAX_LEVEL) {
-      player.experience = 0;
-    }
-
-    player.experienceToNext =
-      player.level >= this.MAX_LEVEL ? 0 : this.getRequiredXp(player.level);
-
+    player.experienceToNext = this.getRequiredXp(player.level);
     if (levelsGained > 0) {
-      // A vocação define o ganho de HP/mana por nível.
       player.recalculateStats();
       player.hp = player.maxHp;
-      Logger.system(`${player.name} subiu ${levelsGained} nível(is)! Agora nível ${player.level}`);
+      Logger.system(`${player.name} subiu ${levelsGained} nível(is), agora level ${player.level}.`);
     }
 
     EventSystem.getInstance().emit<PlayerGainXpEventData>(GameEvent.PLAYER_GAIN_XP, {
       playerId: player.id,
       playerName: player.name,
-      amount,
-      currentLevelXp: player.experience,
+      amount: granted,
+      newTotalXp: player.experience,
+      lifetimeXp: player.lifetimeExperience,
     });
-    Logger.skill(`${player.name} ganhou ${amount} XP. Progresso no nível: ${player.experience}`);
+    Logger.skill(`${player.name} recebeu ${granted} XP (total: ${player.experience}).`);
 
-    const wsServer = WebSocketServer.getInstance();
-    if (wsServer) {
-      wsServer.sendToPlayer(player.id, JSON.stringify(PlayerStatsSender.toPayload(player)));
-    }
-
+    const ws = WebSocketServer.getInstance();
+    if (ws) ws.sendToPlayer(player.id, JSON.stringify(PlayerStatsSender.toPayload(player)));
     return levelsGained > 0;
   }
 
-  /** Registra uma subida de nível; atributos são recalculados ao fim do lote. */
-  private static levelUp(player: Player): void {
-    const oldLevel = player.level;
-    player.level++;
-
-    EventSystem.getInstance().emit<PlayerLevelUpEventData>(GameEvent.PLAYER_LEVEL_UP, {
-      playerId: player.id,
-      playerName: player.name,
-      oldLevel,
-      newLevel: player.level,
-    });
+  /**
+   * Penalidade simples de morte: perde 10% do progresso DO NÍVEL ATUAL.
+   * Não reduz o nível nem altera lifetimeExperience. Um sistema de delevel
+   * pode ser implementado separadamente quando definirmos essa regra.
+   */
+  static applyDeathPenalty(player: Player, ratio = 0.1): number {
+    if (!Number.isFinite(ratio) || ratio < 0 || ratio > 1) return 0;
+    const progress = Math.max(0, this.getLevelProgress(player));
+    const lost = Math.floor(progress * ratio);
+    player.experience -= lost;
+    return lost;
   }
 
-  /**
-   * Calcula o XP recebido ao matar um monstro, levando em conta a diferença de nível.
-   *
-   * @param monsterLevel - Nível do monstro (vindo do JSON)
-   * @param playerLevel - Nível do jogador
-   * @param baseXp - XP base do monstro (vindo do JSON)
-   * @returns XP final ajustado (nunca inferior a 1)
-   *
-   * @remarks
-   * As regras de multiplicador:
-   * - Se monstro for 5 ou mais níveis acima do jogador: XP × 1.5 (bônus)
-   * - Se monstro for 5 ou mais níveis abaixo do jogador: XP × 0.5 (penalidade)
-   * - Caso contrário: XP base
-   *
-   * O resultado é sempre arredondado para baixo e garantido ≥ 1.
-   *
-   * @example
-   * ```typescript
-   * // Monstro nível 10, jogador nível 6, baseXP 100 → dif = 4 → XP = 100
-   * // Monstro nível 15, jogador nível 8, baseXP 100 → dif = 7 → XP = 150
-   * const xp = ExperienceSystem.calculateMonsterXp(15, 8, 100); // 150
-   * ```
-   */
-  public static calculateMonsterXp(
-    monsterLevel: number,
-    playerLevel: number,
-    baseXp: number,
-  ): number {
+  /** Converte o progresso de saves antigos, preservando nível e percentual. */
+  static migrateLegacyXp(level: number, oldProgress: number): number {
+    const base = totalXpForLevel(level);
+    if (level >= this.MAX_LEVEL) return base;
+
+    // Antiga fórmula: XP dentro de cada nível, não acumulativo.
+    const oldRequired = Math.max(
+      100,
+      Math.floor(
+        (0.3 * level ** 3 + 5 * level ** 2 + 10 * level) * (1 + level * 0.001),
+      ),
+    );
+    const fraction = Math.min(0.999999, Math.max(0, oldProgress / oldRequired || 0));
+    return base + Math.floor(fraction * this.getLevelRequirement(level));
+  }
+
+  /** Multiplica o XP básico do monstro em função da diferença de nível. */
+  static calculateMonsterXp(monsterLevel: number, playerLevel: number, baseXp: number): number {
     const diff = monsterLevel - playerLevel;
-    let multiplier = 1.0;
-    if (diff >= 5) multiplier = 1.5;
-    else if (diff <= -5) multiplier = 0.5;
+    const multiplier = diff >= 5 ? 1.5 : diff <= -5 ? 0.5 : 1;
     return Math.max(1, Math.floor(baseXp * multiplier));
   }
 }
