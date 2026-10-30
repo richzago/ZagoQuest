@@ -1,434 +1,98 @@
-# 🎮 ZagoQuest
-
-MMORPG 2D inspirado em Tibia, desenvolvido com Node.js e TypeScript, utilizando uma arquitetura data-driven focada em escalabilidade, manutenção e futura integração com cliente gráfico.
-
----
-
-# 🚀 Tecnologias
-
-- **Node.js**
-- **TypeScript**
-- **Express**
-- **TypeORM**
-- **PostgreSQL**
-- **Zod**
-- **bcrypt**
-- **JWT**
-- **WebSocket** _(planejado)_
-- **Unity** _(cliente futuro)_
-
----
-
-# 📁 Estrutura do Projeto
-
-```txt
-src/
-│
-├── api/
-│   ├── controllers/
-│   ├── middlewares/
-│   ├── routes/
-│   └── services/
-│
-├── game/
-│   ├── ai/
-│   ├── chat/
-│   ├── combat/
-│   ├── core/
-│   ├── entities/
-│   ├── loaders/
-│   ├── rendering/
-│   ├── systems/
-│   └── world/
-│
-├── data/
-│   ├── monsters/
-│   ├── items/
-│   ├── npcs/
-│   ├── spawns/
-│   ├── skills/
-│   └── maps/
-│
-├── shared/
-│   ├── enums/
-│   ├── interfaces/
-│   ├── schemas/
-│   └── types/
-│
-└── main.ts
-```
-
----
-
-# 🧠 Arquitetura
-
-O projeto segue uma arquitetura **data-driven**, onde a maior parte do conteúdo do jogo é definida através de arquivos JSON.
-
-Exemplos:
-
-- Monstros
-- Itens
-- NPCs
-- Loot
-- Spawns
-- Skills
-- Mapas
-
-Isso permite adicionar conteúdo sem alterar código-fonte.
-
----
-
-# ✅ Sistemas Implementados
-
-## Mundo
-
-- Geração de mapa
-- Tiles
-- Colisão
-- Viewport
-- Renderização ASCII
-
-## Entidades
-
-- Players
-- Monstros
-- NPCs
-- Corpos (Corpses)
-
-## IA
-
-- Aggro
-- Chase
-- Target Loss
-- Flee System
-- Cooldown de ataque
-
-## Combate
-
-- Ataque corpo a corpo
-- Defesa
-- Armadura
-- Crítico
-- Fórmulas de dano
-
-## Progressão
-
-- Sistema de experiência
-- Level Up
-- Skills por uso
-- Evolução de atributos
-
-## Loot
-
-- Loot Table
-- Drop de itens
-- Corpses
-- Coleta de loot
-
-## Inventário
-
-- Inventário
-- Equipamentos
-- Slots de equipamento
-
-## Equipamentos
-
-- Weapon
-- Shield
-- Armor
-- Legs
-- Boots
-
-## Persistência
-
-- Salvamento de jogadores
-- Carregamento automático
-- JSON Storage
-
-## NPCs
-
-- Comerciante
-- Banqueiro
-
-## Chat
-
-- Local Chat
-- World Chat
-- Trade Chat
-- Mensagens privadas
-- Sistema de denúncias
-
-## Eventos
-
-- Event System
-- Eventos desacoplados
-
-## Logs
-
-- Sistema de logs por canal
-- Arquivos separados
-- Rotação preparada
-- Níveis de log
-- Debug Mode
-
----
-
-## 🔌 API REST
-
-Base URL:
-
-```txt
-http://localhost:3000/api
-```
-
----
-
-## 📌 Endpoints gerais
-
-| Método | Endpoint                         | Descrição          |
-| ------ | -------------------------------- | ------------------ |
-| POST   | `/accounts`                      | Criar conta        |
-| POST   | `/sessions`                      | Login              |
-| POST   | `/characters`                    | Criar personagem   |
-| GET    | `/characters/account/:accountId` | Listar personagens |
-
----
-
-## 🏰 Endpoints de Guildas
-
-Base URL:
-
-```txt
-http://localhost:3000/api/guilds
-```
-
-| Método | Rota                          | Autenticação   | Descrição                                         |
-| ------ | ----------------------------- | -------------- | ------------------------------------------------- |
-| GET    | `/rank/level?page=1&limit=10` | ❌              | Lista guildas por nível (desc) e EXP (desempate). |
-| GET    | `/rank/kills?page=1&limit=10` | ❌              | Ranking de guildas por kills (PvP).               |
-| GET    | `/list?page=1&limit=100`      | ❌              | Lista todas as guildas.                           |
-| GET    | `/:guildName`                 | ❌              | Detalhes completos de uma guilda.                 |
-| POST   | `/`                           | ✅ Bearer token | Cria uma nova guilda.                             |
-| PUT    | `/:guildName/description`     | ✅ Bearer token | Atualiza descrição (apenas líder).                |
-| PUT    | `/:guildName/profile-image`   | ✅ Bearer token | Atualiza imagem de perfil (apenas líder).         |
-| PUT    | `/:guildName/cover-image`     | ✅ Bearer token | Atualiza imagem de capa (apenas líder).           |
-
-## 🧪 Exemplo - Criar Guilda
-
-```http
-POST http://localhost:3000/api/guilds
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "characterName": "Richard",
-  "guildName": "Os Bravos",
-  "description": "Uma guilda focada em PvP e exploração."
-}
-
-{
-  "id": "uuid",
-  "name": "Os Bravos",
-  "description": "Uma guilda focada em PvP e exploração."
-}
-
----
-
-## 🔐 Autenticação
-
-Rotas protegidas exigem:
-
-```txt
-Authorization: Bearer <token>
-```
-
-O token é obtido via:
-
-```txt
-POST /api/sessions
-```
-
----
-
-## 🧪 Exemplo - Criar Conta
-
-```json
-{
-  "email": "player@email.com",
-  "cellphone": "+5511999999999",
-  "fullName": "Player Example",
-  "cpf": "12345678909",
-  "birthDate": "1990-01-01",
-  "password": "123456",
-  "confirmPassword": "123456",
-  "address": "Street Example, 123"
-}
-```
-
----
-
-## 🔑 Exemplo - Login
-
-```json
-POST /api/sessions
-
-{
-  "email": "player@email.com",
-  "password": "123456"
-}
-```
-
-Resposta:
-
-```json
-{
-  "token": "jwt-token",
-  "accountId": "account-id"
-}
-```
-
----
-
-## 🧭 Observação
-
-As rotas de guilda estão em constante evolução e fazem parte do sistema social do ZagoQuest (PvP, ranking e progressão de guildas).
-
----
-
-# 🎮 Comandos do Jogo
-
-| Tecla | Ação          |
-| ----- | ------------- |
-| W     | Norte         |
-| A     | Oeste         |
-| S     | Sul           |
-| D     | Leste         |
-| Q     | Noroeste      |
-| E     | Nordeste      |
-| Z     | Sudoeste      |
-| C     | Sudeste       |
-| F     | Atacar        |
-| G     | Coletar Loot  |
-| I     | Inventário    |
-| P     | Status        |
-| L     | Skills        |
-| R     | Pescar        |
-| X     | Salvar e Sair |
-
----
-
-# 🖥️ Executando o Projeto
-
-## Instalar dependências
-
-```bash
-npm install
-```
-
-## Configurar ambiente
-
-Crie um arquivo:
-
-```txt
-.env
-```
-
-Utilizando como base:
-
-```txt
-.env.example
-```
-
-Configure:
-
-- Banco PostgreSQL
-- JWT Secret
-- Porta da API
-
----
-
-## Rodar servidor
-
-```bash
+# ZagoQuest — Servidor (Node.js + TypeScript)
+
+Backend de um MMORPG 2D inspirado em Tibia. A API REST usa Express, TypeORM e PostgreSQL; o mundo e o combate são autoritativos no servidor; a comunicação em tempo real usa WebSocket (`ws`) com um cliente Unity/C# em desenvolvimento.
+
+> **Estado:** protótipo de desenvolvimento, **não pronto para servidores públicos**. A branch principal pode não conter os PRs de estabilização: as melhorias estão empilhadas em PRs **draft** e ainda precisam de merge, validação local e smoke tests Unity. Consulte a [auditoria no Notion](https://app.notion.com/p/409ec07d7c4f8158ae8cf46c4b10ac2c).
+
+## Tecnologias
+
+- Node.js 22, TypeScript, Express, WebSocket (`ws`)
+- PostgreSQL, TypeORM, JWT, bcrypt, Zod
+- Tiled Map Editor (mapas JSON), cliente Unity/C# (repositório `Client/`)
+
+## Organização
+
+| Pasta | Responsabilidade |
+| --- | --- |
+| `src/api/` | Rotas REST, controllers, serviços, autenticação e persistência TypeORM |
+| `src/data/` | Registries e configurações JSON de itens, monstros, NPCs e skills |
+| `src/game/ai/` | Comportamentos de monstros e NPCs |
+| `src/game/combat/` | Combate, ataques, cooldowns e condições |
+| `src/game/core/` | Game loop, eventos, lifecycle e shutdown |
+| `src/game/entities/` | Player, Monster, Npc e demais entidades |
+| `src/game/initialization/` e `src/game/loaders/` | Construção do World e leitura de Tiled/JSON/banco |
+| `src/game/systems/` | Experiência, economia, morte, loot e outros sistemas |
+| `src/game/world/` | Tiles, ocupação, entidades e regras do mundo |
+| `src/network/` | Servidor WS, validação, handlers, senders, broadcasts |
+| `src/shared/` | Interfaces, enums e schemas |
+| `tests/` | Testes unitários, de contratos e integrações WS |
+| `../Client/` | Projeto Unity, C# e handlers de rede |
+
+O fluxo principal é `main.ts → registries → API/DB → WorldFactory → WebSocket → HTTP listen → game loop`. Durante o shutdown, o servidor interrompe novos comandos, aguarda handlers, salva e fecha recursos.
+
+## Desenvolvimento local
+
+Instale Node.js 22 e PostgreSQL. No Windows 11 (PowerShell), a partir da pasta `server/`:
+
+```powershell
+Copy-Item .env.example .env
+npm ci
+npm run build
+npm test
 npm run dev
 ```
 
----
+Configure o `.env` com `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET`, `API_PORT` e opcionalmente `CHARACTER_NAME`.
 
-# 📌 Roadmap
+**Atenção ao schema:** nas branches de refatoração, `DB_SYNCHRONIZE` é desligado por padrão e só funciona explicitamente com ambos `NODE_ENV=development` e `DB_SYNCHRONIZE=true`. Nunca use essa opção em produção. Consulte [DATABASE_RUNTIME.md](../docs/DATABASE_RUNTIME.md); migrations continuam pendentes.
 
-## Próximos Sistemas
+O carregamento dos assets ainda usa caminhos relativos ao diretório de trabalho; execute no diretório `server/` durante o desenvolvimento. Empacotamento sem `src/data` requer trabalho adicional.
 
-### Mundo
+## API e WebSocket
 
-- [ ] Integração com Tiled
-- [ ] Importador JSON de mapas
-- [ ] Sistema de regiões
-- [ ] Houses
+A API normalmente usa `http://localhost:3000/api` (conforme `API_PORT`).
 
-### Combate
+| Método | Rota | Autenticação |
+| --- | --- | --- |
+| POST | `/accounts` | Pública |
+| POST | `/sessions` | Pública: emite JWT |
+| POST | `/characters` | JWT: cria personagem na própria conta |
+| GET | `/characters/account/:accountId` | JWT: apenas a própria conta |
+| GET | `/guilds/rank/level`, `/guilds/rank/kills`, `/guilds/list` | Pública |
+| GET | `/guilds/:guildName` | Pública |
+| POST | `/guilds` | JWT e personagem pertencente à conta |
+| PUT | `/guilds/:guildName/description` | JWT, personagem próprio e cargo autorizado |
+| PUT | `/guilds/:guildName/profile-image`, `/guilds/:guildName/cover-image` | JWT, personagem próprio e cargo autorizado |
 
-- [ ] Spell System
-- [ ] Conditions
-- [ ] Damage Types
-- [ ] Vocações
+O WebSocket compartilha o HTTP e recebe comandos do Unity validados no servidor. **Limitação crítica:** a sessão WS ainda usa o personagem inicial do mundo (`world.players[0]`) e não autentica conta/characterId. O servidor bloqueia duas conexões simultâneas para o mesmo player, mas isso **não é autenticação**. Use apenas ambiente local até concluir login e sessões multiplayer.
 
-### IA
+## Sistemas implementados no protótipo
 
-- [ ] Pathfinding (A\*)
-- [ ] Threat System
-- [ ] Boss AI
+World com tiles/colisão e spawns do Tiled, monstros e NPCs, IA com aggro/perseguição/fuga, combate e condições, XP/skills, loot/cadáveres, inventário/equipamentos, banco/loja, chat, registries data-driven, API, persistência PostgreSQL e canais de logs.
 
-### Multiplayer
+O cliente Unity existe, mas a integração completa e o fluxo de sessão/autenticação ainda necessitam validação. Algumas funcionalidades são parciais e não devem ser anunciadas como prontas para multiplayer.
 
-- [ ] WebSocket Server
-- [ ] Sincronização em tempo real
-- [ ] Cliente Unity
+## Testes e documentação
 
-### Social
+```bash
+npm ci
+npm run build
+npm test
+```
 
-- [ ] Party System
-- [ ] Guild System
-- [ ] Friends List
+CI em GitHub Actions executa build e a suíte de regressão. Testes Node simulados **não substituem** PostgreSQL real nem Play Mode/Build do Unity.
 
----
+Documentos por tema em `../docs/`: [API_AUTHORIZATION.md](../docs/API_AUTHORIZATION.md), [GUILD_CREATION_TRANSACTION.md](../docs/GUILD_CREATION_TRANSACTION.md), [CONDITION_DAMAGE.md](../docs/CONDITION_DAMAGE.md), [WS_DISCONNECT_DRAIN.md](../docs/WS_DISCONNECT_DRAIN.md), [WORLD_MAP_LIFECYCLE.md](../docs/WORLD_MAP_LIFECYCLE.md), [NPC_TILED_CONFIGURATION.md](../docs/NPC_TILED_CONFIGURATION.md) e [WORLD_SNAPSHOT.md](../docs/WORLD_SNAPSHOT.md).
 
-# 🎯 Objetivo
+## Pendências para produção
 
-Construir um MMORPG moderno inspirado em Tibia e Ravendawn, utilizando tecnologias atuais, arquitetura escalável e conteúdo totalmente orientado a dados.
+1. Autenticar sessão WebSocket por JWT e **characterId de propriedade da conta**, com reconexão segura e contrato Unity.
+2. Resolver a fonte de verdade entre personagem em memória e gravações REST/PG; impedir autosave de sobrescrever operações econômicas.
+3. Criar migrations TypeORM versionadas; testar criação/migração/rollback em PostgreSQL real.
+4. Persistir todos os jogadores ativos com consistência, não somente o personagem inicial.
+5. Validar JSONs de dados e Tiled, caminhos dos assets, timeouts e recuperação de falhas.
+6. Passar smoke tests Unity, integração REST/WS/PG e testes de carga antes de abrir o servidor.
 
----
+Checklist executável: [BACKEND_VALIDATION_CHECKLIST.md](../docs/BACKEND_VALIDATION_CHECKLIST.md).
 
-# 📄 Licença
-
-Definir futuramente.
-
----
-
-# 🙌 Créditos
-
-Desenvolvido por **Richard Zago**.
-
-**Projeto:** ZagoQuest
-
-# 📊 Estado Atual
-
-Versão: Alpha 0.1
-
-✔ Mundo
-✔ Monstros
-✔ NPCs
-✔ Combate
-✔ Loot
-✔ Inventário
-✔ Equipamentos
-✔ Persistência
-✔ API REST
-
-🚧 Em desenvolvimento
-
-- Tiled
-- WebSocket
-- Cliente Unity
-- Magias
-- Pathfinding
+**Licença:** verificar a licença efetiva do repositório antes de redistribuir; não inferir a partir do README antigo.
