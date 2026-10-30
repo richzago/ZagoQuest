@@ -126,3 +126,49 @@ test("listener de dano do CombatEventBridge não sobrevive ao WebSocketServer", 
     await closeHttp(f.server);
   }
 });
+
+
+test("disconnected socket handler is drained before final shutdown", async () => {
+  const f = await fixture();
+  const socket = await f.connect();
+  const queues = (f.game as unknown as {
+    messageQueues: Map<WebSocket, OrderedMessageQueue>;
+  }).messageQueues;
+  const queue = [...queues.values()][0];
+  assert.ok(queue);
+
+  let release: (() => void) | undefined;
+  let completed = false;
+  try {
+    queue.enqueue(async () => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      completed = true;
+    });
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    assert.ok(release, "in-flight handler did not start");
+
+    const disconnected = once(socket, "close");
+    socket.close();
+    await disconnected;
+    // Let the server-side socket close handler run and update the queues.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(f.game.getBroadcastService().getClients().size, 0);
+    assert.equal(queues.has([...queues.keys()][0]), true, "pending queue should remain tracked");
+
+    let shutdownCompleted = false;
+    const shutdown = f.game.close().then(() => { shutdownCompleted = true; });
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    assert.equal(shutdownCompleted, false);
+    assert.equal(completed, false);
+
+    release!();
+    await shutdown;
+    assert.equal(completed, true);
+    assert.equal(queues.size, 0);
+  } finally {
+    release?.();
+    if (socket.readyState !== WebSocket.CLOSED) socket.terminate();
+    await f.game.close();
+    await closeHttp(f.server);
+  }
+});
