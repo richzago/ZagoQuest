@@ -2,7 +2,7 @@ name: Server build and regression tests
 
 on:
   push:
-    branches: [fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns]
+    branches: [fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks]
   pull_request:
     branches: [refactor/backend-stabilization, fix/backend-xp-progression]
     paths:
