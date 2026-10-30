@@ -113,10 +113,17 @@ export class MapLoader {
 
         // -------------------- PLAYER SPAWN --------------------
         if (layer.name === "PlayerSpawn") {
-          // Procura um objeto que represente o jogador (nome "Knight" ou type "player")
-          const playerObj = layer.objects?.find(
-            (obj) => obj.name === "Knight" || obj.type === "player",
-          );
+          // Tiled stores custom properties separately from the object's own
+          // "type" field. Accept both, plus the conventional object name.
+          const playerObj = layer.objects?.find((obj) => {
+            const customType = obj.properties?.find(
+              (property) => property.name === "type",
+            )?.value;
+            const name = obj.name?.trim().toLowerCase();
+            return name === "knight" || name === "player" ||
+              obj.type?.trim().toLowerCase() === "player" ||
+              customType === "player";
+          });
           if (playerObj) {
             const tileX = Math.floor(playerObj.x / mapData.tilewidth);
             const tileY = Math.floor(playerObj.y / mapData.tileheight);
@@ -124,7 +131,7 @@ export class MapLoader {
             Logger.world(`Spawn do jogador em (${tileX}, ${tileY})`);
           } else {
             Logger.warn(
-              "[MapLoader] Layer 'PlayerSpawn' não contém objeto 'Knight' ou type 'player'.",
+              "[MapLoader] PlayerSpawn sem objeto Knight/player ou propriedade type=player.",
             );
           }
         }
