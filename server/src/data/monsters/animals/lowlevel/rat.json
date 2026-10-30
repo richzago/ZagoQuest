@@ -7,7 +7,7 @@
     "speed": 20
   },
   "combat": { 
-    "xp": 15,
+    "xp": 4,
     "damageMin": 1,
     "damageMax": 3,
     "damageType": "physical",
