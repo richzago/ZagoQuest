@@ -13,7 +13,7 @@ import { Logger } from "./logger/logger";
 import { World } from "../world/World";
 import { Player } from "../entities/player";
 import { WebSocketServer } from "../../network/websocket/wsServer";
-import { CombatSystem } from "../combat/combatSystem";
+import { PlayerAttackSystem } from "../combat/playerAttackSystem";
 import { Monster } from "../entities/monster";
 
 export function startGameLoops(world: World, player: Player, wsServer: WebSocketServer): void {
@@ -102,10 +102,10 @@ function startAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
 
         if (distance <= 1) {
           try {
-            // CombatSystem.attack(player, target, world);
-            const damageDealt = CombatSystem.attack(player, target, world);
-            wsServer.broadcastDamage(target.id, target.hp, target.maxHp, damageDealt);
-            if (target.hp <= 0) {
+            // Compartilha alcance/cooldown com ataque manual; o dano é
+            // propagado UMA vez por CombatEventBridge (COMBAT_DAMAGE).
+            const result = PlayerAttackSystem.tryAttack(player, target, world);
+            if (result.ok && target.hp <= 0) {
               player.currentTargetId = undefined;
               wsServer.sendToPlayer?.(
                 player.id,
