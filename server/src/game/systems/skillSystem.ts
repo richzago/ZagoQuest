@@ -14,7 +14,8 @@ import { EventSystem } from "../core/events/eventSystem";
 import { Logger } from "../core/logger/logger";
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillLevelUpEventData } from "../../shared/interfaces/skill.interface";
-import { WebSocketServer } from "../../network/websocket/wsServer"; // 🔥 import adicionado
+import { WebSocketServer } from "../../network/websocket/wsServer";
+import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 
 export class SkillSystem {
   static addProgress(player: Player, skill: SkillType, amount: number): void {
@@ -51,16 +52,7 @@ export class SkillSystem {
       if (wsServer) {
         wsServer.sendToPlayer(
           player.id,
-          JSON.stringify({
-            type: "playerStats",
-            hp: player.hp,
-            maxHp: player.maxHp,
-            mana: player.mana,
-            maxMana: player.maxMana,
-            level: player.level,
-            attack: player.attack,
-            defense: player.defense,
-          }),
+          JSON.stringify(PlayerStatsSender.toPayload(player)),
         );
         Logger.combat(`[HUD] PlayerStats enviado para ${player.name} (skill level up)`);
       }
