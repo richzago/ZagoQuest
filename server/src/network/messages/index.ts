@@ -35,6 +35,8 @@ import type {
   ClientOpenBankMessage,
   ClientDepositMessage,
   ClientWithdrawMessage,
+  ClientCloseBankMessage,
+  ClientCloseShopMessage,
 } from "./client";
 
 import type {
@@ -98,7 +100,9 @@ export type ClientMessage =
   | ClientBuyItemMessage
   | ClientOpenBankMessage
   | ClientDepositMessage
-  | ClientWithdrawMessage;
+  | ClientWithdrawMessage
+  | ClientCloseBankMessage
+  | ClientCloseShopMessage;
 
 /**
  * Union de todas as mensagens que o servidor pode enviar ao cliente.
