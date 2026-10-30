@@ -274,3 +274,15 @@ test("a falha no callback de erro não interrompe o processamento da fila", asyn
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.deepEqual(events, [2]);
 });
+
+test("takeLoot aceita payload de pegar tudo sem índice e rejeita sentinela negativa do Unity antigo", () => {
+  const takeAll = { type: "takeLoot", corpseId: "corpse-1", takeAll: true };
+  assert.equal(parseClientMessage(JSON.stringify(takeAll)).ok, true);
+  const oldUnity = { ...takeAll, itemIndex: -1 };
+  assert.deepEqual(parseClientMessage(JSON.stringify(oldUnity)), {
+    ok: false, reason: "invalid_message",
+  });
+  assert.equal(parseClientMessage(JSON.stringify({
+    ...takeAll, takeAll: false, itemIndex: 0,
+  })).ok, true);
+});

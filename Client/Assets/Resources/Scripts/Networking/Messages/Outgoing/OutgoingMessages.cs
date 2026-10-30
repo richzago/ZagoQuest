@@ -8,6 +8,8 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class AttackMessage { public string type; public string targetId; }
     [Serializable] public class LootMessage { public string type; public string corpseId; }
     [Serializable] public class TakeLootMessage { public string type; public string corpseId; public bool takeAll; public int itemIndex; }
+    // Take-all does not send itemIndex: the server requires non-negative indices when supplied.
+    [Serializable] public class TakeAllLootMessage { public string type; public string corpseId; public bool takeAll; }
     [Serializable] public class UseItemMessage { public string type; public string itemId; }
     [Serializable] public class StartAutoAttackMessage { public string type; public string targetId; }
     [Serializable] public class StopAutoAttackMessage { public string type; }

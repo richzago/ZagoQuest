@@ -195,3 +195,14 @@ test("DTOs Unity incluem todos os tipos de retorno adicional", () => {
     "NetworkErrorMessage",
   ]) assert.ok(dto.includes(`class ${name}`), `DTO ausente: ${name}`);
 });
+
+test("takeLoot Unity omite itemIndex ao pegar tudo e mantém índice válido no individual", () => {
+  // A inspeção dos C# é estática; a serialização real será validada no Unity.
+  const dto = unity("Networking/Messages/Outgoing/OutgoingMessages.cs");
+  const sender = unity("Networking/Senders/InventorySender.cs");
+  assert.match(dto, /class TakeAllLootMessage \{[^}]*takeAll;\s*\}/);
+  assert.doesNotMatch(dto.match(/class TakeAllLootMessage \{[^}]*\}/)?.[0] ?? "", /itemIndex/);
+  assert.match(sender, /if \(takeAll\)[\s\S]*?new TakeAllLootMessage/);
+  assert.match(sender, /if \(itemIndex < 0\)/);
+  assert.match(sender, /new TakeLootMessage[\s\S]*?itemIndex = itemIndex/);
+});
