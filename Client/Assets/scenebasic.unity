@@ -14521,6 +14521,9 @@ MonoBehaviour:
   bankGoldText: {fileID: 485166457}
   inventoryGoldText: {fileID: 1401860594}
   closeButton: {fileID: 1073030955}
+  amountInput: {fileID: 1065404751}
+  depositButton: {fileID: 1398836788}
+  withdrawButton: {fileID: 1587952425}
 --- !u!1 &1724066093
 GameObject:
   m_ObjectHideFlags: 0
