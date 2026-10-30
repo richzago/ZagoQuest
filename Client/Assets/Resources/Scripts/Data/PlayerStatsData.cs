@@ -13,5 +13,8 @@ public class PlayerStatsData
     public int defense;
     public int armor;
     public int xp;
-    public int xpToNext;
+    public int xpToNext;        // XP acumulado exigido pelo próximo level
+    public int levelXp;         // Progresso dentro deste level
+    public int levelXpToNext;   // XP exigido dentro deste level
+    public int lifetimeXp;      // Tudo o que o personagem já ganhou
 }
