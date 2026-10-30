@@ -12,8 +12,7 @@
  * - Criar ou carregar o jogador persistido via `PlayerLoader`.
  * - Adicionar o jogador ao mundo.
  *
- * **NOTA:** Não há sistema de respawn automático nesta versão. Monstros que morrem não renascem.
- * Isso pode ser adicionado futuramente como um sistema separado baseado em eventos.
+ * O DeathSystem gerencia respawn e cadáveres após a morte de monstros.
  *
  * @module game/initialization/worldFactory
  */
@@ -26,6 +25,7 @@ import { join } from "path";
 import { MonsterLoader } from "../loaders/monsterLoader";
 import { PlayerLoader } from "../loaders/playerLoader";
 import { NpcLoader } from "../loaders/npcLoader";
+import type { MapLoadResult } from "../loaders/mapLoader";
 
 /**
  * Cria o mundo e o jogador utilizando exclusivamente dados do Tiled.
@@ -44,7 +44,7 @@ import { NpcLoader } from "../loaders/npcLoader";
  * 7. Carrega ou cria o jogador via `PlayerLoader`.
  * 8. Adiciona o jogador ao mundo.
  *
- * **Nota:** Não há sistema de respawn. Monstros mortos não renascem.
+ * **Nota:** o respawn dos monstros é gerenciado pelo DeathSystem.
  *
  * @example
  * ```typescript
@@ -66,38 +66,25 @@ export async function createWorldAndPlayer(
   // Posição inicial padrão (fallback)
   let playerSpawn = { x: 2, y: 2 };
 
+  let mapResult: MapLoadResult | undefined;
   try {
-    // =========================
-    // 2. Carregar mapa do Tiled
-    // =========================
-    const mapResult = MapLoader.loadMap(world, mapPath);
+    // Only map reading/parsing errors qualify for the procedural fallback.
+    mapResult = MapLoader.loadMap(world, mapPath);
     Logger.world(`Mapa carregado do Tiled: ${mapPath}`);
-
-    // Define posição do jogador se existir na layer "PlayerSpawn"
-    if (mapResult.playerSpawn) {
-      playerSpawn = mapResult.playerSpawn;
-    }
-
-    // Spawnar monstros (se houver objetos na layer "MonsterSpawn")
-    if (mapResult.monsters.length > 0) {
-      MonsterLoader.spawnMonsters(world, mapResult.monsters);
-    }
-
-    // Spawnar NPCs (se houver objetos na layer "NPCSpawn")
-    if (mapResult.npcs && mapResult.npcs.length > 0) {
-      NpcLoader.loadNpcsFromTiled(world, mapResult.npcs);
-    }
-    // Se não houver NPCs no Tiled, simplesmente não carrega nenhum.
-  } catch (err: any) {
-    // =====================================================
-    // FALLBACK: Mapa procedural (caso o JSON do Tiled não exista)
-    // =====================================================
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     Logger.warn(
-      `Não foi possível carregar o mapa Tiled (${mapPath}): ${err.message}. Usando mapa procedural.`,
+      `Não foi possível carregar o mapa Tiled (${mapPath}): ${reason}. Usando mapa procedural.`,
     );
-    // Gera um mundo simples 20x10, todos tiles caminháveis, exceto uma parede em (5,5)
     world.generateMap(20, 10);
-    // No mapa procedural não há spawn definido para NPCs ou monstros.
+  }
+
+  if (mapResult) {
+    playerSpawn = mapResult.playerSpawn ?? playerSpawn;
+    // Entity loader errors must propagate. Silently switching to the fallback
+    // would hide a broken registry/NPC config and leave a partially loaded World.
+    if (mapResult.monsters.length) MonsterLoader.spawnMonsters(world, mapResult.monsters);
+    if (mapResult.npcs?.length) NpcLoader.loadNpcsFromTiled(world, mapResult.npcs);
   }
 
   // =========================
