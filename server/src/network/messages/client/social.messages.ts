@@ -52,3 +52,18 @@ export interface ClientWithdrawMessage {
   type: "withdraw";
   amount: number;
 }
+
+/**
+ * Fecha somente a sessão bancária do NPC informado.
+ * O npcId impede que um painel antigo encerre a sessão de outro NPC.
+ */
+export interface ClientCloseBankMessage {
+  type: "closeBank";
+  npcId: string;
+}
+
+/** Fecha somente a loja atualmente aberta para este NPC. */
+export interface ClientCloseShopMessage {
+  type: "closeShop";
+  npcId: string;
+}
