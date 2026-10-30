@@ -22,6 +22,7 @@ const direction = z.enum([
 ]);
 
 // Every entry in handlers/index.ts must have a matching runtime schema here.
+// closeBank/closeShop require the exact NPC ID to avoid stale UI races.
 // strictObject rejects unexpected fields, including client-supplied identities.
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("move"), x: tileCoordinate, y: tileCoordinate }),
@@ -60,6 +61,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("openBank"), npcId: identifier }),
   z.strictObject({ type: z.literal("deposit"), amount: positiveAmount }),
   z.strictObject({ type: z.literal("withdraw"), amount: positiveAmount }),
+  z.strictObject({ type: z.literal("closeBank"), npcId: identifier }),
+  z.strictObject({ type: z.literal("closeShop"), npcId: identifier }),
 ]);
 
 export type ParseMessageResult =
