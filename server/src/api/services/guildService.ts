@@ -23,6 +23,12 @@ export class GuildService {
   private static memberRepo = AppDataSource.getRepository(GuildMember);
   private static characterRepo = AppDataSource.getRepository(Character);
 
+  /** Verify ownership against the database, never against a client-supplied name alone. */
+  static async characterBelongsToAccount(characterName: string, accountId: string): Promise<boolean> {
+    const character = await this.characterRepo.findOneBy({ name: characterName, accountId });
+    return character !== null;
+  }
+
   // ========== Métodos auxiliares ==========
   private static async addLog(guildId: string, action: string): Promise<void> {
     const guild = await this.guildRepo.findOne({ where: { id: guildId } });
