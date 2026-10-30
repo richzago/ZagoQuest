@@ -14,6 +14,7 @@ import type {
   ClientOpenBankMessage,
   ClientDepositMessage,
   ClientWithdrawMessage,
+  ClientCloseBankMessage,
 } from "../messages";
 
 /** Abre o banco apenas quando existe um banqueiro vivo, próximo e no mundo. */
@@ -90,4 +91,17 @@ export async function handleWithdraw(
       player.bankGold, player.gold,
     );
   }
+}
+
+/**
+ * O fechamento é idempotente. Um closeBank atrasado NÃO fecha a loja
+ * que o jogador abriu depois, nem o banco de outro NPC.
+ */
+export function handleCloseBank(
+  _ws: WebSocket,
+  player: Player,
+  msg: ClientCloseBankMessage,
+  _ctx: HandlerContext,
+): void {
+  NpcInteractionSystem.closeIfActive(player, "banker", msg.npcId);
 }
