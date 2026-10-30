@@ -12,7 +12,7 @@ import {
 
 export class ShopSystem {
   /** Compra usando a carteira primeiro; complementa com o banco. */
-  static buyItem(player: Player, npc: Npc, itemId: string, quantity = 1): boolean {
+  static buyItem(player: Player, npc: Npc, itemId: string, quantity: number): boolean {
     if (!isValidItemId(itemId) || !isValidQuantity(quantity)) return false;
     const item = npc.shopItems?.find((entry) => entry.itemId === itemId);
     if (!item || !Number.isSafeInteger(item.buyPrice) || item.buyPrice < 0 ||
@@ -43,7 +43,7 @@ export class ShopSystem {
   }
 
   /** Venda concede gold somente após a remoção real do inventário. */
-  static sellItem(player: Player, npc: Npc, itemId: string, quantity = 1): boolean {
+  static sellItem(player: Player, npc: Npc, itemId: string, quantity: number): boolean {
     if (!isValidItemId(itemId) || !isValidQuantity(quantity)) return false;
     const item = npc.shopItems?.find((entry) => entry.itemId === itemId);
     if (!item || !Number.isSafeInteger(item.sellPrice) || item.sellPrice < 0 ||
