@@ -136,7 +136,10 @@ public class StatusManager : MonoBehaviour
         if (stats == null) return;
 
         levelText.text = $"Level: {stats.level}";
-        experienceText.text = $"XP: {stats.xp} / {stats.xpToNext}";
+        // XP acumulado permanece ao upar; a barra usa apenas o avanço neste level.
+        experienceText.text = stats.levelXpToNext > 0
+            ? $"XP: {stats.xp:N0} | Próximo: {stats.levelXp:N0}/{stats.levelXpToNext:N0} | Histórico: {stats.lifetimeXp:N0}"
+            : $"XP: {stats.xp:N0} | Level máximo | Histórico: {stats.lifetimeXp:N0}";
         hpText.text = $"HP: {stats.hp} / {stats.maxHp}";
         manaText.text = $"Mana: {stats.mana} / {stats.maxMana}";
         attackText.text = $"Attack: {stats.attack}";
@@ -155,8 +158,8 @@ public class StatusManager : MonoBehaviour
         }
         if (experienceSlider != null)
         {
-            experienceSlider.maxValue = stats.xpToNext;
-            experienceSlider.value = stats.xp;
+            experienceSlider.maxValue = Mathf.Max(1, stats.levelXpToNext);
+            experienceSlider.value = stats.levelXpToNext > 0 ? stats.levelXp : 1;
         }
     }
 }
