@@ -9,6 +9,7 @@ import { MovementSystem, type MoveResult } from "../../game/systems/movementSyst
 import { Logger } from "../../game/core/logger/logger";
 import { processChatCommand } from "../../game/chat/chatCommands";
 import { FishingSystem } from "../../game/systems/fishingSystem";
+import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import type { ClientMoveMessage, ClientMoveDirMessage } from "../messages";
 
 /** Sempre envia a posição real; só transmite movimento aos outros se aceito. */
@@ -22,6 +23,10 @@ async function confirmMovement(
   ctx.packetSender.combat.sendPosition(x, y);
 
   if (result !== "moved") return;
+
+  // A loja/banco devem perder autorização assim que o jogador se afasta,
+  // inclusive em movimento por WASD e diagonal; o cliente não decide isso.
+  NpcInteractionSystem.invalidateIfOutOfRange(player, ctx.world);
 
   // Uma movimentação real interrompe a pesca; pedidos recusados não.
   if (player.isFishing) FishingSystem.cancelFishing(player);
