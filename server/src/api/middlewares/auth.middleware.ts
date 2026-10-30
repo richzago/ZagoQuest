@@ -1,43 +1,30 @@
-/**
- * auth.middleware.ts
- *
- * Middleware de autenticação para rotas protegidas.
- * Verifica se o cabeçalho Authorization contém um token JWT válido.
- * Se válido, decodifica o token e anexa os dados do usuário (user) à requisição (req.user).
- * Caso contrário, retorna 401 (não autorizado).
- *
- * @module api/middlewares/AuthMiddleware
- *
- * @example
- * ```typescript
- * // Uso em uma rota
- * router.get("/perfil", authMiddleware, (req, res) => {
- *   const userId = (req as any).user.id;
- *   res.json({ userId });
- * });
- * ```
- */
-
-import { Request, Response, NextFunction } from "express";
+/** Authenticate HTTP requests and expose the verified account identity. */
+import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  /**
-   * Extrai o token do cabeçalho Authorization.
-   * Formato esperado: `Bearer <token>`
-   */
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: "Token não fornecido" });
+export type AuthenticatedRequest = Request & {
+  user?: { id: string; email?: string };
+};
 
-  const token = authHeader.split(" ")[1];
+export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const match = /^Bearer (\S+)$/i.exec(req.headers.authorization ?? "");
+  if (!match) {
+    res.status(401).json({ error: "Token não fornecido ou malformado" });
+    return;
+  }
 
   try {
-    // Verifica a assinatura e decodifica o token usando a chave secreta do .env
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    // Armazena os dados decodificados em req.user (útil para rotas que precisam do accountId)
-    (req as any).user = decoded;
-    next(); // Prossegue para o próximo middleware ou rota
+    const payload = jwt.verify(match[1], process.env.JWT_SECRET!);
+    // A valid signature is insufficient if the account identity is absent.
+    if (typeof payload === "string" || typeof payload.id !== "string" || !payload.id.trim()) {
+      throw new Error("Token sem identidade de conta");
+    }
+    (req as AuthenticatedRequest).user = {
+      id: payload.id,
+      email: typeof payload.email === "string" ? payload.email : undefined,
+    };
+    next();
   } catch {
     res.status(401).json({ error: "Token inválido" });
   }
-};
+}
