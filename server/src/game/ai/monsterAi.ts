@@ -35,6 +35,9 @@ export class MonsterAI {
    * Atualiza o comportamento do monstro a cada tick do game loop.
    */
   update(monster: Monster, world: World): void {
+    // Uma criatura morta não pode voltar a perseguir ou atacar.
+    if (monster.hp <= 0 || monster.deathProcessed) return;
+
     // Procura alvo (aggro) – raio 6 tiles
     if (!monster.target) {
       const nearbyPlayers = world.getPlayersInRange(
