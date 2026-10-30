@@ -45,6 +45,7 @@ namespace ZagoQuest.Networking.Handlers
             Register("equipment", new EquipmentHandler());
             Register("unequipResult", new UnequipResultHandler());
             Register("dropError", new DropErrorHandler());
+            Register("networkError", new NetworkErrorHandler());
 
             _registered = true;
         }
