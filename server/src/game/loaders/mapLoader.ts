@@ -17,6 +17,7 @@ import { Tile } from "../world/tile";
 import { Logger } from "../core/logger/logger";
 import { readFileSync } from "fs";
 import { TiledMap, TiledObject } from "../../shared/interfaces/map.interface";
+import type { NpcSpawnData } from "../../shared/interfaces/spawn.interface";
 
 /**
  * Resultado do carregamento do mapa: posição inicial do jogador e lista de monstros a serem criados.
@@ -35,7 +36,7 @@ export interface MapLoadResult {
     radius?: number;
   }>;
   /** (Reservado para NPCs) */
-  npcs?: Array<{ x: number; y: number; npcId: string }>;
+  npcs?: NpcSpawnData[];
 }
 
 export class MapLoader {
@@ -184,7 +185,16 @@ export class MapLoader {
             const x = Math.floor(obj.x / mapData.tilewidth);
             const y = Math.floor(obj.y / mapData.tileheight);
             result.npcs = result.npcs || [];
-            result.npcs.push({ x, y, npcId: String(npcId) });
+            const property = (name: string): number | undefined => {
+              const value = obj.properties?.find((p) => p.name === name)?.value;
+              return typeof value === "number" && Number.isSafeInteger(value) ? value : undefined;
+            };
+            result.npcs.push({
+              x, y, npcId: String(npcId),
+              radius: property("radius"),
+              interactionRadius: property("interactionRadius"),
+              moveCooldown: property("moveCooldown"),
+            });
             Logger.world(`[MapLoader] Spawn de NPC '${npcId}' em (${x}, ${y})`);
           }
         }
