@@ -17,6 +17,7 @@ import { Player } from "../entities/player";
 import { Monster } from "../entities/monster";
 import { World } from "../world/World";
 import { ExperienceSystem } from "./experienceSystem";
+import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 import { LootSystem } from "./lootSystem";
 import { Corpse } from "../entities/corpse";
 import { EventSystem } from "../core/events/eventSystem";
@@ -68,26 +69,10 @@ export class DeathSystem {
     player.hp = player.maxHp;
     Logger.system(`${player.name} renasceu em (0,0) com HP total.`);
 
-    // ==========================================================
-    // ENVIA PLAYER STATS ATUALIZADOS PARA O CLIENTE
-    // ==========================================================
+    // A morte alterou XP e HP: envia o snapshot completo.
     const wsServer = WebSocketServer.getInstance();
     if (wsServer) {
-      wsServer.sendToPlayer(
-        player.id,
-        JSON.stringify({
-          type: "playerStats",
-          hp: player.hp,
-          maxHp: player.maxHp,
-          mana: player.mana,
-          maxMana: player.maxMana,
-          level: player.level,
-          attack: player.attack,
-          defense: player.defense,
-          xp: player.xp,
-        }),
-      );
-      Logger.combat(`[HUD] PlayerStats enviado para ${player.name} (respawn)`);
+      wsServer.sendToPlayer(player.id, JSON.stringify(PlayerStatsSender.toPayload(player)));
     }
   }
 
@@ -106,25 +91,7 @@ export class DeathSystem {
       ExperienceSystem.addXp(killer, xpGained);
       Logger.skill(`${killer.name} ganhou ${xpGained} XP por matar ${monster.name}.`);
 
-      // Atualiza o HUD do jogador com o novo XP
-      const wsServer = WebSocketServer.getInstance();
-      if (wsServer) {
-        wsServer.sendToPlayer(
-          killer.id,
-          JSON.stringify({
-            type: "playerStats",
-            hp: killer.hp,
-            maxHp: killer.maxHp,
-            mana: killer.mana,
-            maxMana: killer.maxMana,
-            level: killer.level,
-            attack: killer.attack,
-            defense: killer.defense,
-            xp: killer.xp,
-          }),
-        );
-        Logger.combat(`[HUD] PlayerStats enviado para ${killer.name} (ganhou XP)`);
-      }
+      // ExperienceSystem.addXp já enviou o snapshot de stats ao cliente.
     }
 
     // ==========================================================
