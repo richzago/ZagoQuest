@@ -70,7 +70,6 @@ export class Player extends Creature {
   lifetimeExperience: number = 0;
 
   /** XP total exigido para chegar ao próximo nível (valor absoluto). */
-  // Experiência necessária para o próximo nível (calculada dinamicamente) */
   experienceToNext: number = 0;
 
   // =========================
