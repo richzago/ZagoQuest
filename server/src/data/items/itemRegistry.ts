@@ -17,6 +17,8 @@ export class ItemRegistry {
    */
   static loadAll(basePath: string): void {
     Logger.system(`Carregando itens a partir de: ${basePath}`);
+    // Reload must not retain definitions removed from disk.
+    this.items.clear();
     this.loadDirectory(basePath);
     Logger.system(`ItemRegistry: ${this.items.size} itens carregados.`);
     const sample = Array.from(this.items.keys()).slice(0, 5);
@@ -32,23 +34,38 @@ export class ItemRegistry {
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
       if (entry.isDirectory()) {
+        // This directory contains ConditionDefinition, not ItemType.
+        // ConditionRegistry owns it; it must not pollute item lookups.
+        if (entry.name === "conditions") continue;
         this.loadDirectory(fullPath);
       } else if (entry.isFile() && entry.name.endsWith(".json")) {
         try {
           const raw = readFileSync(fullPath, "utf-8");
+          if (!raw.trim()) {
+            Logger.warn(`[ItemRegistry] Arquivo JSON vazio (definição pendente): ${fullPath}`);
+            continue;
+          }
           const data = JSON.parse(raw);
           // Suporta tanto um único item quanto um array
           const itemsArray = Array.isArray(data) ? data : [data];
           for (const item of itemsArray) {
-            if (!item.id) {
-              Logger.error(`Item sem ID no arquivo ${fullPath}`);
+            if (!item || typeof item.id !== "string" || !item.id.trim() ||
+                !["currency", "consumable", "equipment", "quest", "loot"].includes(item.type)) {
+              Logger.error(`Definição inválida de item (id/type) em ${fullPath}`);
               continue;
             }
-            // Registra pelo ID completo
+            // Canonical ID always takes precedence over any short alias.
+            if (this.items.has(item.id)) {
+              Logger.error(`ID duplicado de item "${item.id}" no arquivo ${fullPath}; ignorado.`);
+              continue;
+            }
             this.items.set(item.id, item);
 
-            // Registra também pelo nome base do arquivo (sem extensão)
-            const shortId = basename(entry.name, ".json");
+            // Array JSONs may contain many different items; using the file name
+            // as their shared alias ("fish", "baits") selects the wrong item.
+            const shortId = Array.isArray(data)
+              ? item.id.split("/").pop()!
+              : basename(entry.name, ".json");
             if (shortId !== item.id) {
               if (this.items.has(shortId)) {
                 Logger.warn(
