@@ -91,7 +91,13 @@ export class World {
    * Adiciona um jogador ao mundo.
    * @param player - Jogador a ser adicionado
    */
-  addPlayer(player: Player) {
+  addPlayer(player: Player): void {
+    // Impede registrar o mesmo personagem duas vezes no mundo.
+    if (this.players.some((existing) => existing.id === player.id)) {
+      Logger.warn(`Player com ID duplicado ignorado: ${player.id}`);
+      return;
+    }
+
     player.conditionManager.bindDamage((target, amount, source, name) =>
       CombatSystem.applyPeriodicDamage(target, amount, this, source, name));
     this.players.push(player);
