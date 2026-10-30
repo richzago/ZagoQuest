@@ -41,7 +41,10 @@ export class WebSocketServer {
   private broadcast: BroadcastService;
   private combatEvents: CombatEventBridge;
   private clients: Map<WebSocket, Player> = new Map();
-  private static instance: WebSocketServer;
+  private readonly messageQueues = new Map<WebSocket, OrderedMessageQueue>();
+  private stopping = false;
+  private closePromise?: Promise<void>;
+  private static instance: WebSocketServer | undefined;
 
   constructor(server: HttpServer, world: World) {
     WebSocketServer.instance = this;
@@ -58,6 +61,10 @@ export class WebSocketServer {
   private init(): void {
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       Logger.system(`Cliente conectado: ${req.socket.remoteAddress}`);
+      if (this.stopping) {
+        ws.close(1001, "Servidor encerrando.");
+        return;
+      }
 
       // IMPORTANTE: não existe autenticação de socket ainda. Enquanto o jogo
       // é single-player, impedimos DOIS sockets de controlar world.players[0].
@@ -79,6 +86,7 @@ export class WebSocketServer {
       const queue = new OrderedMessageQueue((error) => {
         Logger.error(`[NETWORK] Falha no handler: ${String(error)}`);
       });
+      this.messageQueues.set(ws, queue);
       let invalidPackets = 0;
       const MAX_INVALID_PACKETS = 3;
 
@@ -98,12 +106,13 @@ export class WebSocketServer {
         Logger.system(`Cliente ${player.name} desconectado.`);
         this.broadcast.unregisterClient(ws);
         this.clients.delete(ws);
+        this.messageQueues.delete(ws);
       });
 
       // Trata mensagens em ordem. JSON.parse nunca recebe entrada não validada
       // por tamanho; os handlers nunca recebem objetos fora do schema.
       ws.on("message", (data, isBinary) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
+        if (this.stopping || ws.readyState !== WebSocket.OPEN) return;
 
         if (isBinary) {
           ws.close(1003, "Apenas JSON texto e permitido.");
@@ -144,7 +153,7 @@ export class WebSocketServer {
         // Um socket não pode enfileirar trabalho ilimitado enquanto o banco
         // ou um handler assíncrono estiver lento.
         if (!queue.enqueue(async () => {
-          if (ws.readyState !== WebSocket.OPEN || this.clients.get(ws) !== player) return;
+          if (this.stopping || ws.readyState !== WebSocket.OPEN || this.clients.get(ws) !== player) return;
           await handler(ws, player, parsed.message, ctx);
         })) {
           Logger.warn(`[NETWORK] Fila cheia para ${player.name}.`);
@@ -158,6 +167,46 @@ export class WebSocketServer {
       PlayerStatsSender.send(ws, player);
       WorldStateSender.send(ws, this.world);
     });
+  }
+
+  /**
+   * Stops accepting WebSocket commands, drains handlers already running,
+   * disconnects clients and closes the upgrade server. Idempotent.
+   *
+   * Must run BEFORE final autosave, so handlers cannot mutate player state
+   * after it is persisted. The HTTP server is closed separately by lifecycle.
+   */
+  public close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
+    this.stopping = true;
+
+    this.closePromise = (async () => {
+      // Snapshot the active queues. A disconnected socket may be removed
+      // from the map while its last handler is still finishing.
+      const pendingHandlers = [...this.messageQueues.values()]
+        .map((queue) => queue.whenIdle());
+      await Promise.all(pendingHandlers);
+
+      for (const client of this.wss.clients) {
+        client.terminate();
+      }
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          this.wss.close((error?: Error) => {
+            if (error) reject(error);
+            else resolve();
+          });
+        });
+      } finally {
+        this.combatEvents.dispose();
+        this.messageQueues.clear();
+        this.clients.clear();
+        if (WebSocketServer.instance === this) WebSocketServer.instance = undefined;
+      }
+    })();
+
+    return this.closePromise;
   }
 
   // =========================
@@ -204,7 +253,7 @@ export class WebSocketServer {
   // SINGLETON
   // =========================
 
-  public static getInstance(): WebSocketServer {
+  public static getInstance(): WebSocketServer | undefined {
     return WebSocketServer.instance;
   }
 
