@@ -80,3 +80,15 @@ export interface ServerLootErrorMessage {
   type: "lootError";
   message: string;
 }
+
+/** Erro genérico enviado por InventorySender.sendError. */
+export interface ServerErrorMessage {
+  type: "error";
+  message: string;
+}
+
+/** Erro de validação de comandos antes de executar handlers WebSocket. */
+export interface ServerNetworkErrorMessage {
+  type: "networkError";
+  message: string;
+}
