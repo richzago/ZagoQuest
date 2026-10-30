@@ -3,10 +3,13 @@ import { WebSocket } from "ws";
 import type { Player } from "../../game/entities/player";
 import type { ServerPlayerStatsMessage } from "../messages/server/inventory.messages";
 import { BaseSender } from "./base/baseSender";
+import { totalXpForLevel, EXPERIENCE_CONFIG } from "../../data/experience/experienceConfig";
 
 export class PlayerStatsSender extends BaseSender {
   /** Formato consistente para conexão, ganho de XP e morte. */
   public static toPayload(player: Player): ServerPlayerStatsMessage {
+    const levelStart = totalXpForLevel(player.level);
+    const next = player.experienceToNext;
     return {
       type: "playerStats",
       hp: player.hp,
@@ -18,7 +21,10 @@ export class PlayerStatsSender extends BaseSender {
       defense: player.defense,
       armor: player.armor,
       xp: player.experience,
-      xpToNext: player.experienceToNext,
+      xpToNext: next,
+      levelXp: player.level >= EXPERIENCE_CONFIG.maxLevel ? 0 : player.experience - levelStart,
+      levelXpToNext: player.level >= EXPERIENCE_CONFIG.maxLevel ? 0 : next - levelStart,
+      lifetimeXp: player.lifetimeExperience,
       // Aliases temporários até a migração de todos os clientes.
       experience: player.experience,
       experienceToNext: player.experienceToNext,
