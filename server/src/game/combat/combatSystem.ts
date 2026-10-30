@@ -28,6 +28,45 @@ import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 
 export class CombatSystem {
   /**
+   * Periodic damage uses the same events and death processing as attacks.
+   * DoT does not roll critical damage or grant an additional skill use.
+   */
+  static applyPeriodicDamage(
+    target: Creature,
+    amount: number,
+    world: World,
+    source?: Creature,
+    conditionName = "Condição",
+  ): number {
+    if (!Number.isFinite(amount) || amount <= 0 || target.hp <= 0) return 0;
+    if (target instanceof Monster &&
+        (target.deathProcessed || !world.monsters.includes(target))) return 0;
+
+    const damage = Math.min(Math.floor(amount), target.hp);
+    if (damage <= 0) return 0;
+    target.hp -= damage;
+
+    EventSystem.getInstance().emit<CombatDamageEventData>(GameEvent.COMBAT_DAMAGE, {
+      world,
+      targetMaxHp: target.maxHp,
+      attackerId: source?.id ?? `condition:${conditionName}`,
+      attackerName: source?.name ?? conditionName,
+      targetId: target.id,
+      targetName: target.name,
+      damage,
+      targetHpAfter: target.hp,
+    });
+
+    if (target.hp <= 0) DeathSystem.handleDeath(target, source, world);
+
+    if (target instanceof Player) {
+      const ws = WebSocketServer.getInstance();
+      if (ws) ws.sendToPlayer(target.id, JSON.stringify(PlayerStatsSender.toPayload(target)));
+    }
+    return damage;
+  }
+
+  /**
    * Realiza um ataque entre duas entidades e retorna o dano causado..
    *
    * @param attacker - Quem ataca (deve implementar CombatStats e Damageable)
