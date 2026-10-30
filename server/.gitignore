@@ -13,3 +13,9 @@ data/accounts/
 .env
 docs/typedoc/
 typedoc/
+
+# Gerados por builds antigos do TypeScript sem outDir
+src/**/*.js
+tests/**/*.js
+ascii/**/*.js
+*.tsbuildinfo
