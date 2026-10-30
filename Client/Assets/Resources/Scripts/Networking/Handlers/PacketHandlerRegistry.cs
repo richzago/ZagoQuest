@@ -47,6 +47,15 @@ namespace ZagoQuest.Networking.Handlers
             Register("dropError", new DropErrorHandler());
             Register("networkError", new NetworkErrorHandler());
 
+            // Mensagens já enviadas pelo servidor, antes sem handler Unity.
+            var feedback = new ServerFeedbackHandler();
+            Register("gold", feedback);
+            Register("attackFailed", feedback);
+            Register("pickupError", feedback);
+            Register("error", feedback);
+            Register("autoAttackStarted", feedback);
+            Register("monsterDied", feedback);
+
             _registered = true;
         }
     }
