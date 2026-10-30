@@ -1,6 +1,6 @@
 # ZagoQuest — checklist de validação e próximas correções
 
-Esta lista é parte da [Auditoria viva do servidor](https://app.notion.com/p/409ec07d7c4f8158ae8cf46c4b10ac2c) e acompanha os PRs [#1–#22](https://github.com/richzago/ZagoQuest/pulls). Marcar **implementado na branch** não equivale a **validado em produção**.
+Esta lista é parte da [Auditoria viva do servidor](https://app.notion.com/p/409ec07d7c4f8158ae8cf46c4b10ac2c) e acompanha os PRs [#1–#23](https://github.com/richzago/ZagoQuest/pulls). Marcar **implementado na branch** não equivale a **validado em produção**.
 
 ## Fase 1 — Preparar ambiente de revisão (Windows 11)
 
@@ -9,13 +9,13 @@ Esta lista é parte da [Auditoria viva do servidor](https://app.notion.com/p/409
 - [ ] Baixar a branch mais recente **sem fazer merge**:
   ```powershell
   git fetch origin
-  git switch --track origin/docs/backend-current-architecture
+  git switch --track origin/fix/backend-world-factory-error-boundaries
   cd server
   npm ci
   npm run build
   npm test
   ```
-- [ ] Confirmar CI verde no SHA final do PR #22, sem confundir runs antigos de commits anteriores.
+- [ ] Confirmar CI verde no SHA final do PR #23, sem confundir runs antigos de commits anteriores.
 - [ ] Configurar `server/.env` local: `NODE_ENV=development`, `DB_SYNCHRONIZE=true` **somente local**, credenciais PostgreSQL e segredo JWT forte.
 - [ ] Executar `npm run dev`; validar bootstrap, erro de porta ocupada, Ctrl+C, autosave final e fechamento dos sockets sem exceção.
 - [ ] Testar `npm run build && npm start` a partir da pasta `server`, confirmando que os assets necessários continuam disponíveis.
@@ -50,7 +50,8 @@ Esta lista é parte da [Auditoria viva do servidor](https://app.notion.com/p/409
 - [ ] **P1:** desenhar migrations TypeORM versionadas, testar num clone do PostgreSQL, com rollback e dados legados.
 - [ ] **P1:** salvar/carregar todos os players autenticados, evitando perda ou duplicação em reconexões e operações paralelas.
 - [ ] **P1:** validar JSONB de inventário, equipamentos, skills, XP, gold e posição antes da aplicação ao runtime.
-- [ ] **P1:** validar estrutura do Tiled JSON e falta de layer Collision; isolar erros de MapLoader versus Monster/NpcLoader.
+- [x] Isolar falhas de MapLoader versus Monster/NpcLoader — implementado no PR #23, ainda sem merge.
+- [ ] **P1:** validar estrutura do Tiled JSON e falta de layer Collision com dados reais; testar políticas de fallback.
 - [ ] **P1:** resolver caminhos de dados/assets para rodar `dist` sem depender incidentalmente do diretório `src`.
 - [ ] **P2:** controlar duração de condições e ticks com clock determinístico e testes, eliminando discrepâncias setInterval/game loop.
 - [ ] **P2:** planejar timeout de shutdown e recuperação segura de tarefas bloqueadas.
