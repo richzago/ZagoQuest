@@ -2,9 +2,9 @@ name: Server build and XP tests
 
 on:
   push:
-    branches: [fix/backend-xp-progression]
+    branches: [fix/backend-xp-progression, fix/backend-inventory-economy]
   pull_request:
-    branches: [refactor/backend-stabilization]
+    branches: [refactor/backend-stabilization, fix/backend-xp-progression]
     paths:
       - "server/**"
       - ".github/workflows/server-check.yml"
