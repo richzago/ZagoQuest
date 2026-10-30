@@ -13,6 +13,55 @@ import path from "path";
 import { Logger } from "../../game/core/logger/logger";
 import { MonsterType } from "../../shared/interfaces/monster.interface";
 
+
+/** A TypeScript interface does not validate external JSON at runtime. */
+function invalidMonsterField(value: unknown): string | undefined {
+  const isRecord = (entry: unknown): entry is Record<string, unknown> =>
+    entry !== null && typeof entry === "object" && !Array.isArray(entry);
+  const nonEmpty = (entry: unknown): entry is string =>
+    typeof entry === "string" && entry.trim().length > 0;
+  const nonNegative = (entry: unknown): entry is number =>
+    typeof entry === "number" && Number.isFinite(entry) && entry >= 0;
+
+  if (!isRecord(value)) return "root";
+  if (!nonEmpty(value.id)) return "id";
+  if (!nonEmpty(value.name)) return "name";
+  if (value.level !== undefined &&
+      (typeof value.level !== "number" || !Number.isSafeInteger(value.level) || value.level < 1)) return "level";
+  if (!isRecord(value.stats)) return "stats";
+  if (typeof value.stats.hp !== "number" || !Number.isFinite(value.stats.hp) || value.stats.hp <= 0) return "stats.hp";
+  if (value.stats.speed !== undefined && !nonNegative(value.stats.speed)) return "stats.speed";
+  if (value.stats.mana !== undefined && !nonNegative(value.stats.mana)) return "stats.mana";
+  if (!isRecord(value.combat)) return "combat";
+  if (!nonNegative(value.combat.xp)) return "combat.xp";
+  if (!nonNegative(value.combat.damageMin)) return "combat.damageMin";
+  if (!nonNegative(value.combat.damageMax) || value.combat.damageMax < value.combat.damageMin) return "combat.damageMax";
+  if (!isRecord(value.ai)) return "ai";
+  if (value.ai.type !== "aggressive" && value.ai.type !== "passive" && value.ai.type !== "flee") return "ai.type";
+  if (value.ai.fleeHp !== undefined && !nonNegative(value.ai.fleeHp)) return "ai.fleeHp";
+  if (value.ai.attackCooldown !== undefined &&
+      (typeof value.ai.attackCooldown !== "number" ||
+       !Number.isFinite(value.ai.attackCooldown) || value.ai.attackCooldown <= 0)) return "ai.attackCooldown";
+  if (!isRecord(value.visual)) return "visual";
+  if (!nonEmpty(value.visual.symbol)) return "visual.symbol";
+  if (value.loot !== undefined) {
+    if (!Array.isArray(value.loot)) return "loot";
+    for (let i = 0; i < value.loot.length; i++) {
+      const entry: unknown = value.loot[i];
+      if (!isRecord(entry)) return "loot[" + i + "]";
+      if (!nonEmpty(entry.itemId)) return "loot[" + i + "].itemId";
+      // Loot chance uses a 0..100000 scale in existing game data, not 0..1.
+      if (!nonNegative(entry.chance)) return "loot[" + i + "].chance";
+      if (entry.min !== undefined &&
+          (typeof entry.min !== "number" || !Number.isSafeInteger(entry.min) || entry.min < 0)) return "loot[" + i + "].min";
+      if (entry.max !== undefined &&
+          (typeof entry.max !== "number" || !Number.isSafeInteger(entry.max) || entry.max < 0 ||
+           (typeof entry.min === "number" && entry.max < entry.min))) return "loot[" + i + "].max";
+    }
+  }
+  return undefined;
+}
+
 export class MonsterRegistry {
   /** Cache dos monstros carregados (caminho completo → dados) */
   private static cache = new Map<string, MonsterType>();
@@ -23,10 +72,9 @@ export class MonsterRegistry {
    * Carrega recursivamente todos os arquivos `.json` da pasta `data/monsters`.
    * Deve ser chamado uma vez durante a inicialização do servidor.
    */
-  static loadAll(): void {
-    // JSONs são dados-fonte: tsc copia TS para dist/, mas NÃO copia JSONs.
-    // Usar process.cwd() (pasta server/) funciona em npm run dev e npm start.
-    const baseDir = path.join(process.cwd(), "src", "data", "monsters");
+  static loadAll(baseDir = path.join(process.cwd(), "src", "data", "monsters")): void {
+    // JSONs permanecem em src/data mesmo quando executamos dist/main.js.
+    // O argumento opcional permite testar o catálogo numa pasta temporária.
     if (!fs.existsSync(baseDir)) {
       throw new Error(`[MonsterRegistry] Pasta de dados não encontrada: ${baseDir}`);
     }
@@ -44,7 +92,17 @@ export class MonsterRegistry {
         } else if (entry.isFile() && entry.name.endsWith(".json")) {
           try {
             const raw = fs.readFileSync(fullPath, "utf-8");
-            const data: MonsterType = JSON.parse(raw);
+            if (!raw.trim()) {
+              Logger.warn("[MonsterRegistry] JSON vazio (definição pendente): " + fullPath);
+              continue;
+            }
+            const parsed: unknown = JSON.parse(raw);
+            const invalidField = invalidMonsterField(parsed);
+            if (invalidField) {
+              Logger.error("[MonsterRegistry] Definição inválida em " + fullPath + ": campo " + invalidField);
+              continue;
+            }
+            const data = parsed as MonsterType;
             // Caminho relativo a partir da baseDir (ex: "animals/lowlevel/rat")
             let relativePath = fullPath
               .replace(baseDir, "")
