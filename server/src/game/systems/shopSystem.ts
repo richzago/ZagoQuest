@@ -6,6 +6,7 @@ import type { Player } from "../entities/player";
 import type { Npc } from "../entities/npc";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { Logger } from "../core/logger/logger";
+import { getCoinValue, isCoin } from "./currencySystem";
 import {
   canCreditGold, isValidGoldBalance, isValidItemId, isValidQuantity,
 } from "./economyRules";
@@ -18,6 +19,11 @@ export class ShopSystem {
     if (!item || !Number.isSafeInteger(item.buyPrice) || item.buyPrice < 0 ||
         !isValidGoldBalance(player.gold) || !isValidGoldBalance(player.bankGold) ||
         !player.canAddItem(itemId, quantity)) return false;
+
+    // Coletar uma moeda já credita seu valor diretamente na carteira.
+    // Se um NPC vendesse uma moeda abaixo desse valor, o jogador conseguiria
+    // criar gold ilimitado comprando-a repetidamente.
+    if (isCoin(itemId) && item.buyPrice < getCoinValue(itemId)) return false;
 
     // Multiplicação pode gerar Infinity ou um inteiro impreciso.
     const cost = item.buyPrice * quantity;
