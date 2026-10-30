@@ -80,7 +80,7 @@ export class World {
 
   /** Corpos de monstros mortos (contêm loot) */
   corpses: Corpse[] = [];
-  /** Pontos de spawn de monstros (definidos pelos loaders, mas não usados para respawn nesta versão) */
+  /** Pontos fixos do Tiled (um por objeto), referenciados pelo spawnPointId do monstro. */
   spawnPoints: MonsterSpawnData[] = [];
 
   public itemsOnGround: ItemOnGround[] = [];
