@@ -76,6 +76,7 @@ export class DeathSystem {
       victim.deathProcessed = true;
     }
 
+    if (victim instanceof Player || victim instanceof Monster) victim.conditionManager.clear();
     Logger.combat(`💀 ${victim.name} morreu.`);
 
     if (victim instanceof Player) {
