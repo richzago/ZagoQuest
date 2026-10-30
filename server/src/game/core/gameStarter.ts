@@ -17,9 +17,11 @@ import { CombatSystem } from "../combat/combatSystem";
 import { Monster } from "../entities/monster";
 
 export function startGameLoops(world: World, player: Player, wsServer: WebSocketServer): void {
-  setupGracefulShutdown(player);
+  // Inicia os timers antes do shutdown, para que Ctrl+C consiga interrompê-los
+  // e esperar um eventual autosave antes de salvar o estado final.
+  const scheduledTasks = startScheduledTasks(player);
+  setupGracefulShutdown(player, scheduledTasks);
   startAutoAttackLoop(world, wsServer);
-  startScheduledTasks(player);
   Logger.system("Loops do jogo iniciados (IA, auto attack, autosave, guildas).");
 }
 
