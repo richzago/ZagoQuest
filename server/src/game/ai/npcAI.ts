@@ -36,6 +36,7 @@ export class NpcAI {
     private originY: number,
     private radius: number = 2,
     moveCooldownMs: number = 3000,
+    private readonly interactionRadius: number = 3,
   ) {
     this.moveCooldownMs = moveCooldownMs;
   }
@@ -70,7 +71,7 @@ export class NpcAI {
         const dx = Math.abs(player.position.x - npc.position.x);
         const dy = Math.abs(player.position.y - npc.position.y);
         const distance = dx + dy; // distância Manhattan
-        if (distance > 3) {
+        if (distance > this.interactionRadius) {
           // Jogador se afastou → encerra conversa
           npc.isTalking = false;
           npc.talkingToPlayerId = undefined;
