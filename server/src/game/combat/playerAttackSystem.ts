@@ -12,27 +12,32 @@ import { CombatSystem } from "../combat/combatSystem";
 
 export const PLAYER_ATTACK_COOLDOWN_MS = 1000;
 
+export type AttackFailureReason =
+  "Atacante morto" | "Alvo não encontrado" | "Alvo já está morto" |
+  "Alvo muito longe" | "Ataque em cooldown";
+
 export type PlayerAttackResult =
   | { ok: true; damage: number }
-  | { ok: false; reason: "Atacante morto" | "Alvo não encontrado" | "Alvo já está morto" | "Alvo muito longe" | "Ataque em cooldown" };
+  | { ok: false; reason: AttackFailureReason };
 
 export class PlayerAttackSystem {
-  static tryAttack(player: Player, monster: Monster | undefined, world: World): PlayerAttackResult {
-    if (player.hp <= 0) return { ok: false, reason: "Atacante morto" };
-    if (!monster || !world.monsters.includes(monster)) {
-      return { ok: false, reason: "Alvo não encontrado" };
-    }
-    if (monster.hp <= 0 || monster.deathProcessed) {
-      return { ok: false, reason: "Alvo já está morto" };
-    }
+  /** Utilizada também na seleção de alvo para auto attack (sem atacar). */
+  static validateTarget(player: Player, monster: Monster | undefined, world: World): AttackFailureReason | undefined {
+    if (player.hp <= 0) return "Atacante morto";
+    if (!monster || !world.monsters.includes(monster)) return "Alvo não encontrado";
+    if (monster.hp <= 0 || monster.deathProcessed) return "Alvo já está morto";
 
     const positions = [player.position.x, player.position.y,
       monster.position.x, monster.position.y];
     if (!positions.every(Number.isSafeInteger) ||
         Math.hypot(player.position.x - monster.position.x,
-          player.position.y - monster.position.y) > 1.5) {
-      return { ok: false, reason: "Alvo muito longe" };
-    }
+          player.position.y - monster.position.y) > 1.5) return "Alvo muito longe";
+    return undefined;
+  }
+
+  static tryAttack(player: Player, monster: Monster | undefined, world: World): PlayerAttackResult {
+    const failure = this.validateTarget(player, monster, world);
+    if (failure) return { ok: false, reason: failure };
 
     if (!player.cooldownManager.isReady("attack")) {
       return { ok: false, reason: "Ataque em cooldown" };
@@ -40,7 +45,7 @@ export class PlayerAttackSystem {
 
     // Só ataques válidos consomem cooldown. Ataque manual e auto compartilham.
     player.cooldownManager.addCooldown("attack", PLAYER_ATTACK_COOLDOWN_MS);
-    const damage = CombatSystem.attack(player, monster, world);
+    const damage = CombatSystem.attack(player, monster!, world);
     return { ok: true, damage };
   }
 }
