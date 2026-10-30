@@ -63,10 +63,14 @@ export class Player extends Creature {
   // ATRIBUTOS DE PROGRESSÃO
   // =========================
 
-  /** XP disponível no nível atual; não é XP total histórico. */
+  /** XP acumulado atual: não é gasto quando o jogador sobe de nível. */
   experience: number = 0;
 
-  /** Experiência necessária para o próximo nível (calculada dinamicamente) */
+  /** Todo XP recebido ao longo da vida, inclusive o perdido em mortes. */
+  lifetimeExperience: number = 0;
+
+  /** XP total exigido para chegar ao próximo nível (valor absoluto). */
+  // Experiência necessária para o próximo nível (calculada dinamicamente) */
   experienceToNext: number = 0;
 
   // =========================
@@ -104,6 +108,7 @@ export class Player extends Creature {
     this.mana = this.maxMana;
     this.level = 1;
     this.experience = 0;
+    this.lifetimeExperience = 0;
     this.gold = 0;
     this.bankGold = 0;
     this.isFishing = false;
