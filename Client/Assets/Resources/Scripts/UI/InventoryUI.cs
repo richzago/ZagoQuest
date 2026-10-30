@@ -97,6 +97,17 @@ public class InventoryUI : MonoBehaviour
     }
 
     /// <summary>
+    /// Atualização isolada de saldo: NÃO substitui o inventário por um vazio.
+    /// Chamado pelo ServerFeedbackHandler ao receber {type:"gold"}.
+    /// </summary>
+    public void UpdateGold(int gold)
+    {
+        currentGold = gold;
+        if (goldText != null)
+            goldText.text = $"{currentGold} gold";
+    }
+
+    /// <summary>
     /// Chamado pelo ItemUsedHandler para exibir mensagem de uso de item.
     /// </summary>
     public void HandleItemUsed(string itemId, bool success, string message)
