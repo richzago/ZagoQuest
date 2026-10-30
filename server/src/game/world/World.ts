@@ -12,8 +12,7 @@
  * - Buscar jogadores em alcance (para IA de monstros)
  * - Limpar monstros mortos periodicamente
  *
- * **NOTA:** Esta versão não contém referência ao sistema de spawn/respawn legado (ASCII).
- * O respawn de monstros deve ser implementado futuramente via eventos ou sistema específico.
+ * O respawn é coordenado pelo DeathSystem usando os spawn points carregados do Tiled.
  *
  * @module game/world/World
  */
@@ -41,9 +40,7 @@ import { CombatSystem } from "../combat/combatSystem";
  * - Verificar colisões (posição ocupada).
  * - Limpar monstros mortos periodicamente.
  *
- * O sistema de spawn não está presente nesta versão – os monstros são criados
- * apenas uma vez pelos loaders (`MonsterLoader`). O respawn pode ser adicionado
- * como um sistema separado no futuro.
+ * MonsterLoader cria os spawns iniciais e DeathSystem agenda o respawn.
  *
  * @example
  * ```typescript
@@ -200,9 +197,15 @@ export class World {
    * world.generateMap(20, 10);
    * ```
    */
-  generateMap(width: number, height: number) {
+  generateMap(width: number, height: number): void {
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+        width <= 0 || height <= 0) {
+      throw new Error("Dimensões do mundo devem ser inteiros positivos.");
+    }
     this.width = width;
     this.height = height;
+    // A second fallback map must not retain tiles or collision from the first.
+    this.tiles.clear();
 
     // Cria todos os tiles como caminháveis
     for (let x = 0; x < width; x++) {
@@ -371,7 +374,8 @@ export class World {
    * Verifica se uma coordenada está dentro dos limites do mundo (baseado em tiles).
    */
   isWithinBounds(x: number, y: number): boolean {
-    return x >= 0 && x < this.width && y >= 0 && y < this.height;
+    return Number.isSafeInteger(x) && Number.isSafeInteger(y) &&
+      x >= 0 && x < this.width && y >= 0 && y < this.height;
   }
 
   /**
