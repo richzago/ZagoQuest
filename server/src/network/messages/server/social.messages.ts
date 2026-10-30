@@ -29,7 +29,7 @@ export interface ServerBankWindowMessage {
   type: "bankWindow";
   npcId: string;
   bankGold: number;
-  inventoryGold: number;
+  gold: number; // Nome real do campo no BankSender e BankUI do Unity.
 }
 
 export interface ServerBankResultMessage {
@@ -37,7 +37,7 @@ export interface ServerBankResultMessage {
   success: boolean;
   message: string;
   bankGold: number;
-  inventoryGold: number;
+  gold: number; // Nome real do campo no BankSender e BankUI do Unity.
 }
 
 export interface ServerBankErrorMessage {
