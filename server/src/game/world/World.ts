@@ -28,6 +28,7 @@ import { Corpse } from "../entities/corpse";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { MonsterSpawnData } from "../../shared/interfaces/spawn.interface";
 import { ItemOnGround } from "../entities/itemOnGround";
+import { CombatSystem } from "../combat/combatSystem";
 
 /**
  * Representa o mundo do jogo, contendo todas as entidades, tiles e sistemas auxiliares.
@@ -94,7 +95,8 @@ export class World {
    * @param player - Jogador a ser adicionado
    */
   addPlayer(player: Player) {
-    player.conditionManager.bindWorld(this);
+    player.conditionManager.bindDamage((target, amount, source, name) =>
+      CombatSystem.applyPeriodicDamage(target, amount, this, source, name));
     this.players.push(player);
     Logger.world(`Player adicionado: ${player.name} (${player.id})`);
   }
@@ -110,7 +112,8 @@ export class World {
       Logger.warn(`Monstro com ID duplicado ignorado: ${monster.id}`);
       return;
     }
-    monster.conditionManager.bindWorld(this);
+    monster.conditionManager.bindDamage((target, amount, source, name) =>
+      CombatSystem.applyPeriodicDamage(target, amount, this, source, name));
     this.monsters.push(monster);
     Logger.world(`Monster spawn: ${monster.name} em ${monster.position.x},${monster.position.y}`);
   }
@@ -120,7 +123,8 @@ export class World {
    * @param npc - NPC a ser adicionado
    */
   addNpc(npc: Npc) {
-    npc.conditionManager.bindWorld(this);
+    npc.conditionManager.bindDamage((target, amount, source, name) =>
+      CombatSystem.applyPeriodicDamage(target, amount, this, source, name));
     this.npcs.push(npc);
     Logger.world(`NPC spawn: ${npc.name} em ${npc.position.x},${npc.position.y}`);
   }
