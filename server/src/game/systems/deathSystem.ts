@@ -40,6 +40,32 @@ import { generateId } from "../../shared/utils/idUtils";
 const DEFAULT_CORPSE_LIFETIME = 15000; // 15 segundos
 
 export class DeathSystem {
+  /** Respawns and corpse expirations belong to their World, not to the process. */
+  private static pendingTimers = new WeakMap<World, Set<ReturnType<typeof setTimeout>>>();
+
+  private static scheduleWorldTimeout(world: World, action: () => void, delay: number): void {
+    let timers = this.pendingTimers.get(world);
+    if (!timers) {
+      timers = new Set();
+      this.pendingTimers.set(world, timers);
+    }
+    const group = timers;
+    const timer = setTimeout(() => {
+      group.delete(timer);
+      action();
+    }, delay);
+    group.add(timer);
+  }
+
+  /** Shutdown must not respawn monsters or send despawns after closing WebSocket. */
+  static cancelPendingTimers(world: World): void {
+    const timers = this.pendingTimers.get(world);
+    if (!timers) return;
+    for (const timer of timers) clearTimeout(timer);
+    timers.clear();
+    this.pendingTimers.delete(world);
+  }
+
   static handleDeath(victim: Damageable, killer: Damageable | undefined, world: World): void {
     if (victim.hp > 0) return;
 
@@ -162,7 +188,7 @@ export class DeathSystem {
     // ==========================================================
     // 7. UM RESPAWN PARA ESTA VIDA (já protegida em handleDeath)
     // ==========================================================
-    setTimeout(() => {
+    this.scheduleWorldTimeout(world, () => {
       if (!world.isWithinBounds(monster.spawnX, monster.spawnY)) {
         Logger.warn(`[Respawn] Ponto fora do mapa: ${monster.name}.`);
         return;
@@ -218,7 +244,7 @@ export class DeathSystem {
     ws: WebSocketServer | undefined,
     lifetime: number,
   ): void {
-    setTimeout(() => {
+    this.scheduleWorldTimeout(world, () => {
       // Corpo já saqueado não deve gerar um segundo broadcast de despawn.
       if (!world.corpses.includes(corpse)) return;
       world.removeCorpse(corpse);
