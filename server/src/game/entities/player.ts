@@ -22,6 +22,7 @@ import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Vocation } from "../../shared/enums/vocation.enum";
 import { VocationSystem } from "../systems/vocationSystem";
 import { ExperienceSystem } from "../systems/experienceSystem";
+import { canCreditGold, isValidGoldBalance, isValidItemId, isValidQuantity } from "../systems/economyRules";
 
 export class Player extends Creature {
   // =========================
@@ -302,83 +303,60 @@ export class Player extends Creature {
   // =========================
 
   /**
-   * Adiciona uma quantidade de um item ao inventário.
-   * Se for moeda, converte diretamente para gold (não entra no inventário).
-   * Dispara evento ITEM_PICKUP.
-   *
-   * @param itemId - ID do item (ex: "consumable/health_potion" ou "currency/gold_coin")
-   * @param amount - Quantidade a adicionar
-   * @returns {void}
-   *
-   * @example
-   * ```typescript
-   * player.addItem("consumable/health_potion", 1); // item normal
-   * player.addItem("currency/gold_coin", 10);     // converte para gold
-   * ```
+   * Verifica se uma quantidade CABE no inventário antes de qualquer mutação.
+   * Para moedas, valida a conversão em gold (não ocupam inventário).
    */
-  addItem(itemId: string, amount: number): void {
-    const current = this.inventory.get(itemId) || 0;
+  canAddItem(itemId: string, amount: number): boolean {
+    if (!isValidItemId(itemId) || !isValidQuantity(amount)) return false;
 
     if (isCoin(itemId)) {
-      const totalGold = getCoinValue(itemId) * amount;
-      this.gold += totalGold;
-      Logger.loot(
-        `${this.name} recebeu ${amount}x ${itemId} (${totalGold} gold). Total gold: ${this.gold}`,
-      );
-      return;
+      const gold = getCoinValue(itemId) * amount;
+      return Number.isSafeInteger(gold) && canCreditGold(this.gold, gold);
     }
 
-    this.inventory.set(itemId, current + amount);
-
-    EventSystem.getInstance().emit<ItemPickupEventData>(GameEvent.ITEM_PICKUP, {
-      playerId: this.id,
-      playerName: this.name,
-      itemId: itemId,
-      amount: amount,
-    });
-
-    Logger.loot(`${this.name} recebeu ${amount}x ${itemId}`);
+    const current = this.inventory.get(itemId) ?? 0;
+    return Number.isSafeInteger(current) &&
+      current >= 0 &&
+      Number.isSafeInteger(current + amount);
   }
 
   /**
-   * Remove uma quantidade de um item do inventário.
-   *
-   * @param itemId - ID do item
-   * @param amount - Quantidade a remover
-   * @returns `true` se havia quantidade suficiente e removeu, `false` caso contrário
-   *
-   * @example
-   * ```typescript
-   * if (player.removeItem("consumable/health_potion", 1)) {
-   *   // usou a poção
-   * }
-   * ```
+   * Adiciona itens ou converte moedas em gold.
+   * Retorna false SEM alterar nada quando a entrada é inválida/ultrapassa limites.
    */
-  removeItem(itemId: string, amount: number): boolean {
-    const current = this.inventory.get(itemId) || 0;
-    if (current < amount) return false;
-    const newAmount = current - amount;
-    if (newAmount === 0) this.inventory.delete(itemId);
-    else this.inventory.set(itemId, newAmount);
+  addItem(itemId: string, amount: number): boolean {
+    if (!this.canAddItem(itemId, amount)) return false;
+
+    if (isCoin(itemId)) {
+      const gold = getCoinValue(itemId) * amount;
+      if (!this.addGold(gold)) return false;
+      Logger.loot(`${this.name} recebeu ${amount}x ${itemId} (${gold} gold).`);
+      return true;
+    }
+
+    this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + amount);
+    EventSystem.getInstance().emit<ItemPickupEventData>(GameEvent.ITEM_PICKUP, {
+      playerId: this.id, playerName: this.name, itemId, amount,
+    });
+    Logger.loot(`${this.name} recebeu ${amount}x ${itemId}`);
     return true;
   }
 
-  /**
-   * Verifica se o jogador possui pelo menos uma quantidade de um item.
-   *
-   * @param itemId - ID do item
-   * @param amount - Quantidade necessária
-   * @returns `true` se possui, `false` caso contrário
-   *
-   * @example
-   * ```typescript
-   * if (player.hasItem("consumable/health_potion", 1)) {
-   *   // pode usar a poção
-   * }
-   * ```
-   */
+  /** Remove apenas quantidades positivas existentes; nunca cria itens por subtração. */
+  removeItem(itemId: string, amount: number): boolean {
+    if (!this.hasItem(itemId, amount)) return false;
+
+    const remaining = this.inventory.get(itemId)! - amount;
+    if (remaining === 0) this.inventory.delete(itemId);
+    else this.inventory.set(itemId, remaining);
+    return true;
+  }
+
+  /** Não considera zero/negativos ou frações como uma quantidade possuída. */
   hasItem(itemId: string, amount: number): boolean {
-    return (this.inventory.get(itemId) || 0) >= amount;
+    if (!isValidItemId(itemId) || !isValidQuantity(amount)) return false;
+    const current = this.inventory.get(itemId) ?? 0;
+    return Number.isSafeInteger(current) && current >= amount;
   }
 
   /**
@@ -432,36 +410,17 @@ export class Player extends Creature {
   // GERENCIAMENTO DE GOLD
   // =========================
 
-  /**
-   * Adiciona gold ao jogador (em mãos).
-   *
-   * @param amount - Quantidade a adicionar
-   * @returns {void}
-   *
-   * @example
-   * ```typescript
-   * player.addGold(100);
-   * ```
-   */
-  addGold(amount: number): void {
+  /** Credita gold válido, respeitando o limite do banco PostgreSQL. */
+  addGold(amount: number): boolean {
+    if (!isValidQuantity(amount) || !canCreditGold(this.gold, amount)) return false;
     this.gold += amount;
+    return true;
   }
 
-  /**
-   * Remove gold do jogador (em mãos).
-   *
-   * @param amount - Quantidade a remover
-   * @returns `true` se havia saldo suficiente, `false` caso contrário
-   *
-   * @example
-   * ```typescript
-   * if (player.removeGold(50)) {
-   *   // comprou algo
-   * }
-   * ```
-   */
+  /** Debita gold válido, sem permitir saldos negativos ou quantidades negativas. */
   removeGold(amount: number): boolean {
-    if (this.gold < amount) return false;
+    if (!isValidQuantity(amount) || !isValidGoldBalance(this.gold) || this.gold < amount)
+      return false;
     this.gold -= amount;
     return true;
   }
