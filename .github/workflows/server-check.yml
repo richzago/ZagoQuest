@@ -2,9 +2,9 @@ name: Server build and regression tests
 
 on:
   push:
-    branches: [fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks, fix/backend-movement, fix/backend-network-validation, fix/backend-economy-interactions, fix/backend-network-contracts, refactor/backend-combat-events, refactor/backend-lifecycle, fix/backend-api-account-authorization, fix/backend-guild-account-authorization]
+    branches: [fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks, fix/backend-movement, fix/backend-network-validation, fix/backend-economy-interactions, fix/backend-network-contracts, refactor/backend-combat-events, refactor/backend-lifecycle, fix/backend-api-account-authorization, fix/backend-guild-account-authorization, fix/backend-db-runtime-safety]
   pull_request:
-    branches: [refactor/backend-stabilization, fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks, fix/backend-movement, fix/backend-network-validation, fix/backend-economy-interactions, fix/backend-network-contracts, refactor/backend-combat-events, refactor/backend-lifecycle, fix/backend-api-account-authorization]
+    branches: [refactor/backend-stabilization, fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks, fix/backend-movement, fix/backend-network-validation, fix/backend-economy-interactions, fix/backend-network-contracts, refactor/backend-combat-events, refactor/backend-lifecycle, fix/backend-api-account-authorization, fix/backend-guild-account-authorization]
     paths:
       - "server/**"
       - ".github/workflows/server-check.yml"
