@@ -94,6 +94,7 @@ export class World {
    * @param player - Jogador a ser adicionado
    */
   addPlayer(player: Player) {
+    player.conditionManager.bindWorld(this);
     this.players.push(player);
     Logger.world(`Player adicionado: ${player.name} (${player.id})`);
   }
@@ -109,6 +110,7 @@ export class World {
       Logger.warn(`Monstro com ID duplicado ignorado: ${monster.id}`);
       return;
     }
+    monster.conditionManager.bindWorld(this);
     this.monsters.push(monster);
     Logger.world(`Monster spawn: ${monster.name} em ${monster.position.x},${monster.position.y}`);
   }
@@ -118,6 +120,7 @@ export class World {
    * @param npc - NPC a ser adicionado
    */
   addNpc(npc: Npc) {
+    npc.conditionManager.bindWorld(this);
     this.npcs.push(npc);
     Logger.world(`NPC spawn: ${npc.name} em ${npc.position.x},${npc.position.y}`);
   }
