@@ -263,8 +263,10 @@ export class Player extends Creature {
     }
 
     const currentItemId = this.equipment.get(slot);
-    if (currentItemId) {
-      this.addItem(currentItemId, 1);
+    if (currentItemId && !this.addItem(currentItemId, 1)) {
+      // A troca falhou: devolve ao inventário o equipamento recém-removido.
+      this.addItem(itemId, 1);
+      return false;
     }
 
     this.equipment.set(slot, itemId);
@@ -286,11 +288,10 @@ export class Player extends Creature {
       return false;
     }
 
-    // Remove o item do slot
+    // Primeiro garante espaço; não deixa o equipamento desaparecer.
+    if (!this.canAddItem(itemId, 1)) return false;
+    if (!this.addItem(itemId, 1)) return false;
     this.equipment.delete(slot);
-
-    // Devolve o item ao inventário
-    this.addItem(itemId, 1);
 
     // Recalcula os atributos (attack, defense, armor)
     this.recalculateStats();
@@ -318,6 +319,36 @@ export class Player extends Creature {
     return Number.isSafeInteger(current) &&
       current >= 0 &&
       Number.isSafeInteger(current + amount);
+  }
+
+  /**
+   * Valida um lote de loot ANTES de coletá-lo; considera itens repetidos
+   * e moedas diferentes que serão convertidas para a mesma carteira.
+   */
+  canAddItems(items: ReadonlyArray<{ itemId: string; amount: number }>): boolean {
+    const pending = new Map<string, number>();
+    let goldToAdd = 0;
+
+    for (const { itemId, amount } of items) {
+      if (!isValidItemId(itemId) || !isValidQuantity(amount)) return false;
+      if (isCoin(itemId)) {
+        const coinGold = amount * getCoinValue(itemId);
+        goldToAdd += coinGold;
+        if (!Number.isSafeInteger(goldToAdd)) return false;
+      } else {
+        const total = (pending.get(itemId) ?? 0) + amount;
+        if (!Number.isSafeInteger(total)) return false;
+        pending.set(itemId, total);
+      }
+    }
+
+    if (!canCreditGold(this.gold, goldToAdd)) return false;
+    for (const [itemId, amount] of pending) {
+      const current = this.inventory.get(itemId) ?? 0;
+      if (!Number.isSafeInteger(current) || current < 0 ||
+          !Number.isSafeInteger(current + amount)) return false;
+    }
+    return true;
   }
 
   /**
