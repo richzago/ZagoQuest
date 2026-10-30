@@ -23,7 +23,8 @@ import { CombatDamageEventData } from "../../shared/interfaces/eventData.interfa
 import { GameEvent } from "../../shared/enums/gameEvent.enum";
 import { Damageable } from "../../shared/interfaces/damageable.interface";
 import { Creature } from "../entities/creature";
-import { WebSocketServer } from "../../network/websocket/wsServer"; // 🔥 IMPORT ADICIONADO
+import { WebSocketServer } from "../../network/websocket/wsServer";
+import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 
 export class CombatSystem {
   /**
@@ -96,19 +97,7 @@ export class CombatSystem {
     if (target instanceof Player) {
       const wsServer = WebSocketServer.getInstance();
       if (wsServer) {
-        wsServer.sendToPlayer(
-          target.id,
-          JSON.stringify({
-            type: "playerStats",
-            hp: target.hp,
-            maxHp: target.maxHp,
-            mana: target.mana,
-            maxMana: target.maxMana,
-            level: target.level,
-            attack: target.attack,
-            defense: target.defense,
-          }),
-        );
+        wsServer.sendToPlayer(target.id, JSON.stringify(PlayerStatsSender.toPayload(target)));
       }
     }
 
