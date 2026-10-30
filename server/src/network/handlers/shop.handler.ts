@@ -1,85 +1,88 @@
 /**
- * shop.handler.ts
- *
- * Handlers relacionados à loja de NPCs.
- *
- * @module network/handlers/shop
+ * Handlers de loja: o cliente solicita, mas quem autoriza é o servidor.
+ * O NPC precisa existir, ser comerciante e estar a <= 2 tiles do jogador.
+ * Uma compra requer que a janela daquela loja tenha sido aberta antes.
  */
-
-import { WebSocket } from "ws";
-import { Player } from "../../game/entities/player";
-import { HandlerContext } from "./HandlerContext";
+import type { WebSocket } from "ws";
+import type { Player } from "../../game/entities/player";
+import type { HandlerContext } from "./HandlerContext";
 import { Logger } from "../../game/core/logger/logger";
 import { ShopSystem } from "../../game/systems/shopSystem";
+import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import type { ClientOpenShopMessage, ClientBuyItemMessage } from "../messages";
 
-/**
- * Abre a janela da loja do NPC merchant.
- */
+/** Um item antigo/experimental não deve derrubar a janela inteira. */
+function itemDisplayName(itemId: string): string {
+  try {
+    return ItemRegistry.get(itemId).name;
+  } catch {
+    return itemId;
+  }
+}
+
+/** Abre uma loja e registra a interação apenas depois de validar o catálogo. */
 export async function handleOpenShop(
-  ws: WebSocket,
+  _ws: WebSocket,
   player: Player,
   msg: ClientOpenShopMessage,
   ctx: HandlerContext,
 ): Promise<void> {
+  // Compatibilidade com chamadas antigas por nome. A resposta sempre informa
+  // o ID real da entidade, que será exigido no buyItem.
+  const target = typeof msg.npcId === "string" ? msg.npcId.toLowerCase() : "";
   const npc = ctx.world.npcs.find(
-    (n) => n.id === msg.npcId || n.name.toLowerCase() === msg.npcId.toLowerCase(),
+    (candidate) => candidate.id === msg.npcId || candidate.name.toLowerCase() === target,
   );
-  if (!npc) {
-    ctx.packetSender.shop.sendShopError("NPC não encontrado.");
-    return;
-  }
 
-  if (npc.npcType !== "merchant") {
-    ctx.packetSender.shop.sendShopError("NPC não é comerciante.");
-    return;
-  }
-
-  if (!npc.shopItems || npc.shopItems.length === 0) {
-    ctx.packetSender.shop.sendShopError("Comerciante não tem itens.");
+  if (!npc || npc.npcType !== "merchant" || !npc.shopItems?.length ||
+      !NpcInteractionSystem.open(player, ctx.world, npc, "merchant")) {
+    // A tentativa inválida não pode conservar outra sessão econômica antiga.
+    NpcInteractionSystem.close(player);
+    ctx.packetSender.shop.sendShopError("Comerciante inválido, sem itens ou muito distante.");
     return;
   }
 
   const items = npc.shopItems.map((item) => ({
     itemId: item.itemId,
-    name: ItemRegistry.get(item.itemId)?.name || item.itemId,
-    price: item.buyPrice,
+    name: itemDisplayName(item.itemId),
+    price: item.buyPrice, // O preço vem do NPC do servidor, não do cliente.
     stock: item.stock ?? -1,
   }));
 
   ctx.packetSender.shop.sendShopWindow(npc.id, items);
-  Logger.system(`Loja aberta para ${player.name} (NPC: ${npc.name})`);
+  Logger.system(`Loja aberta para ${player.name} (NPC: ${npc.name}).`);
 }
 
-/**
- * Processa a compra de um item.
- */
+/** A compra verifica novamente a sessão, o NPC, a distância e o estoque. */
 export async function handleBuyItem(
-  ws: WebSocket,
+  _ws: WebSocket,
   player: Player,
   msg: ClientBuyItemMessage,
   ctx: HandlerContext,
 ): Promise<void> {
-  const npc = ctx.world.npcs.find((n) => n.id === msg.npcId);
-  if (!npc || npc.npcType !== "merchant") {
-    ctx.packetSender.shop.sendBuyResult(false, "Comerciante inválido.");
+  const npc = NpcInteractionSystem.getActive(
+    player, ctx.world, "merchant", msg.npcId,
+  );
+  if (!npc) {
+    ctx.packetSender.shop.sendBuyResult(
+      false, "Abra a loja próximo do comerciante antes de comprar.",
+    );
     return;
   }
 
   const success = ShopSystem.buyItem(player, npc, msg.itemId, msg.amount);
-  if (success) {
+  if (!success) {
     ctx.packetSender.shop.sendBuyResult(
-      true,
-      `Comprou ${msg.amount}x ${ItemRegistry.get(msg.itemId)?.name || msg.itemId}.`,
+      false, "Não foi possível comprar. Verifique gold, quantidade ou estoque.",
     );
-    ctx.packetSender.inventory.sendInventory(player);
-    ctx.packetSender.inventory.sendPlayerStats(player);
-    ctx.packetSender.inventory.sendGold(player);
-  } else {
-    ctx.packetSender.shop.sendBuyResult(
-      false,
-      "Não foi possível comprar. Verifique gold ou estoque.",
-    );
+    return;
   }
+
+  ctx.packetSender.shop.sendBuyResult(
+    true, `Comprou ${msg.amount}x ${itemDisplayName(msg.itemId)}.`,
+  );
+  ctx.packetSender.inventory.sendInventory(player);
+  ctx.packetSender.inventory.sendPlayerStats(player);
+  ctx.packetSender.inventory.sendGold(player);
 }
