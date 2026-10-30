@@ -1,4 +1,5 @@
 import { BaseSender } from "./base/baseSender";
+import type { ServerBankWindowMessage, ServerBankResultMessage, ServerBankErrorMessage } from "../messages/server/social.messages";
 
 export class BankSender extends BaseSender {
   /**
@@ -10,7 +11,7 @@ export class BankSender extends BaseSender {
       npcId,
       bankGold,
       gold,
-    });
+    } satisfies ServerBankWindowMessage);
   }
 
   /**
@@ -23,10 +24,10 @@ export class BankSender extends BaseSender {
       message,
       bankGold,
       gold,
-    });
+    } satisfies ServerBankResultMessage);
   }
 
   sendBankError(message: string): void {
-    this.send({ type: "bankError", message });
+    this.send({ type: "bankError", message } satisfies ServerBankErrorMessage);
   }
 }
