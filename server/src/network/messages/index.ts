@@ -67,6 +67,8 @@ import type {
   ServerLootWindowMessage,
   ServerLootTakenMessage,
   ServerLootErrorMessage,
+  ServerErrorMessage,
+  ServerNetworkErrorMessage,
 } from "./server/inventory.messages";
 
 import type {
@@ -135,4 +137,6 @@ export type ServerMessage =
   | ServerShopErrorMessage
   | ServerBankWindowMessage
   | ServerBankResultMessage
-  | ServerBankErrorMessage;
+  | ServerBankErrorMessage
+  | ServerErrorMessage
+  | ServerNetworkErrorMessage;
