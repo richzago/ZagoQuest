@@ -118,6 +118,12 @@ public class ShopUI : MonoBehaviour
 
     private void CloseShop()
     {
+        // Um fechamento atrasado carrega o ID desta janela (não o NPC atual
+        // escolhido pelo servidor). Isso protege a sessão de outro serviço.
+        if (shopPanel != null && shopPanel.activeSelf && !string.IsNullOrEmpty(currentNpcId))
+            networkManager?.Shop?.SendCloseShop(currentNpcId);
+
+        currentNpcId = null;
         if (shopPanel != null)
             shopPanel.SetActive(false);
     }
