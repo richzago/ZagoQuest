@@ -15,7 +15,7 @@ import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillState } from "../../shared/interfaces/playerSave.interface";
 import { Vocation } from "../../shared/enums/vocation.enum";
-import { v4 as uuidv4 } from "uuid";
+import { Logger } from "../core/logger/logger";
 
 export class DatabasePersistence {
   private static characterRepo = AppDataSource.getRepository(Character);
@@ -32,11 +32,17 @@ export class DatabasePersistence {
     // Cria jogador usando o UUID do banco
     const player = new Player(character.id, character.name, character.posX, character.posY);
     player.level = character.level;
-    player.experience = character.xp;
-    player.experienceToNext =
-      player.level >= ExperienceSystem.MAX_LEVEL
-        ? 0
-        : ExperienceSystem.getRequiredXp(player.level);
+    if (character.xpVersion === 2) {
+      player.experience = character.xp;
+      player.lifetimeExperience = Math.max(character.lifetimeXp, character.xp);
+    } else {
+      // Saves antigos guardavam XP só do nível: converte pelo percentual atual.
+      // Não é possível recuperar XP histórico exato de saves antigos.
+      player.experience = ExperienceSystem.migrateLegacyXp(character.level, character.xp);
+      player.lifetimeExperience = player.experience;
+      Logger.warn(`[XP] ${character.name}: save legado convertido para XP cumulativo.`);
+    }
+    player.experienceToNext = ExperienceSystem.getRequiredXp(player.level);
     player.hp = character.hp;
     player.maxHp = character.maxHp;
     player.mana = character.mana;
@@ -86,6 +92,8 @@ export class DatabasePersistence {
     // Atualiza campos
     character.level = player.level;
     character.xp = player.experience;
+    character.lifetimeXp = player.lifetimeExperience;
+    character.xpVersion = 2;
     character.hp = player.hp;
     character.maxHp = player.maxHp;
     character.mana = player.mana;
