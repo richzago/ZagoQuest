@@ -1,90 +1,60 @@
 /**
- * move.handler.ts
- *
- * Handlers relacionados ao movimento.
- *
- * @module network/handlers/move
+ * Handlers de movimentação: apenas recebem mensagens e enviam confirmações.
+ * Regras de velocidade, distância e colisão ficam no MovementSystem.
  */
-
-import { WebSocket } from "ws";
-import { Player } from "../../game/entities/player";
-import { HandlerContext } from "./HandlerContext";
+import type { WebSocket } from "ws";
+import type { Player } from "../../game/entities/player";
+import type { HandlerContext } from "./HandlerContext";
+import { MovementSystem, type MoveResult } from "../../game/systems/movementSystem";
 import { Logger } from "../../game/core/logger/logger";
 import { processChatCommand } from "../../game/chat/chatCommands";
 import type { ClientMoveMessage, ClientMoveDirMessage } from "../messages";
-import type { Direction } from "../messages/client/movement.messages";
 
-const directionOffsets: Record<Direction, { dx: number; dy: number }> = {
-  north: { dx: 0, dy: 1 },
-  south: { dx: 0, dy: -1 },
-  east: { dx: 1, dy: 0 },
-  west: { dx: -1, dy: 0 },
-  northeast: { dx: 1, dy: 1 },
-  northwest: { dx: -1, dy: 1 },
-  southeast: { dx: 1, dy: -1 },
-  southwest: { dx: -1, dy: -1 },
-};
+/** Sempre envia a posição real; só transmite movimento aos outros se aceito. */
+async function confirmMovement(
+  ws: WebSocket,
+  player: Player,
+  ctx: HandlerContext,
+  result: MoveResult,
+): Promise<void> {
+  const { x, y } = player.position;
+  ctx.packetSender.combat.sendPosition(x, y);
 
-/**
- * Processa movimento por coordenadas (legado - chat/click move).
- */
+  if (result !== "moved") return;
+
+  ctx.broadcast.broadcastMove(player.id, x, y, ws);
+
+  // O afastamento do NPC vale para WASD e para coordenadas igualmente.
+  const npc = ctx.world.npcs.find(
+    (candidate) => candidate.isTalking && candidate.talkingToPlayerId === player.id,
+  );
+  if (npc) {
+    const distance = Math.abs(npc.position.x - x) + Math.abs(npc.position.y - y);
+    if (distance > 2) {
+      await processChatCommand("/bye", player, ctx.world);
+      Logger.system(`[MOVEMENT] ${player.name} encerrou conversa com ${npc.name} (distância).`);
+    }
+  }
+}
+
+/** Movimento absoluto: aceita apenas um tile adjacente, não teleporte. */
 export async function handleMove(
   ws: WebSocket,
   player: Player,
   msg: ClientMoveMessage,
   ctx: HandlerContext,
 ): Promise<void> {
-  const { x, y } = msg;
-
-  if (ctx.world.isPositionWalkable(x, y, player.id)) {
-    player.position.x = x;
-    player.position.y = y;
-    ctx.packetSender.combat.sendPosition(x, y);
-
-    // Usa broadcast service para notificar todos
-    ctx.broadcast.broadcastMove(player.id, x, y, ws);
-  } else {
-    ctx.packetSender.combat.sendPosition(player.position.x, player.position.y);
-  }
-
-  const talkingNpc = ctx.world.npcs.find((n) => n.isTalking && n.talkingToPlayerId === player.id);
-  if (talkingNpc) {
-    const dx = Math.abs(talkingNpc.position.x - player.position.x);
-    const dy = Math.abs(talkingNpc.position.y - player.position.y);
-    if (dx + dy > 2) {
-      await processChatCommand("/bye", player, ctx.world);
-      Logger.warn(`Auto-bye: ${player.name} se afastou de ${talkingNpc.name}`);
-    }
-  }
+  const result = MovementSystem.moveTo(player, ctx.world, msg.x, msg.y);
+  await confirmMovement(ws, player, ctx, result);
 }
 
-/**
- * Processa movimento por direção (estilo Tibia – grid).
- */
-export function handleMoveDir(
+/** Movimento direcional: aplica as mesmas regras de "move". */
+export async function handleMoveDir(
   ws: WebSocket,
   player: Player,
   msg: ClientMoveDirMessage,
   ctx: HandlerContext,
-): void {
-  const { dir } = msg;
-  const offset = directionOffsets[dir];
-  if (!offset) {
-    Logger.warn(`Direção inválida: ${dir}`);
-    return;
-  }
-
-  const newX = player.position.x + offset.dx;
-  const newY = player.position.y + offset.dy;
-
-  if (ctx.world.isPositionWalkable(newX, newY, player.id)) {
-    player.position.x = newX;
-    player.position.y = newY;
-    ctx.packetSender.combat.sendPosition(newX, newY);
-
-    // Usa broadcast service para notificar todos
-    ctx.broadcast.broadcastMove(player.id, newX, newY, ws);
-  } else {
-    ctx.packetSender.combat.sendPosition(player.position.x, player.position.y);
-  }
+): Promise<void> {
+  const result = MovementSystem.moveDirection(player, ctx.world, msg.dir);
+  await confirmMovement(ws, player, ctx, result);
 }
