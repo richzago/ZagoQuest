@@ -12,7 +12,7 @@ namespace ZagoQuest.Networking.Handlers
                 context.GameManager.PlayerStats = stats;
 
             // Atualiza HUD e Status diretamente
-            context.PlayerHUD?.UpdateStats(stats.hp, stats.maxHp, stats.mana, stats.maxMana, stats.level, stats.attack, stats.defense, stats.xp);
+            context.PlayerHUD?.UpdateStats(stats);
             context.StatusManager?.OnPlayerStatsReceived(stats);
         }
     }
