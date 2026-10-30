@@ -4,7 +4,7 @@ on:
   push:
     branches: [fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks, fix/backend-movement, fix/backend-network-validation]
   pull_request:
-    branches: [refactor/backend-stabilization, fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks]
+    branches: [refactor/backend-stabilization, fix/backend-xp-progression, fix/backend-inventory-economy, fix/backend-monster-spawns, fix/backend-scheduled-tasks, fix/backend-movement]
     paths:
       - "server/**"
       - ".github/workflows/server-check.yml"
