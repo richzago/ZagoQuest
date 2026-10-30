@@ -45,12 +45,12 @@ export class NpcLoader {
    * A IA do NPC pode ser configurada de duas formas (prioridade):
    * 1. Se o spawn tiver as propriedades `radius`, `interactionRadius` e/ou `moveCooldown`, esses valores serão usados.
    * 2. Caso contrário, se o JSON do NPC possuir um objeto `ai`, seus valores serão usados (para compatibilidade).
-   * 3. No mais, valores padrão são aplicados: radius=2, interactionRadius=2, moveCooldown=3000.
+   * 3. No mais: radius=5, interactionRadius=3, moveCooldown=1500.
    */
   static loadNpcsFromTiled(world: World, spawns: NpcSpawnData[]): void {
     // Valores padrão
     const DEFAULT_RADIUS = 5;
-    const DEFAULT_INTERACTION_RADIUS = 2;
+    const DEFAULT_INTERACTION_RADIUS = 3;
     const DEFAULT_MOVE_COOLDOWN = 1500; // 1500 ms
 
     for (const spawn of spawns) {
@@ -88,28 +88,22 @@ export class NpcLoader {
         const originX = spawn.x;
         const originY = spawn.y;
 
-        // Lê propriedades do objeto do Tiled (caso existam)
-        // Como o parâmetro `spawn` não carrega as propriedades originais, precisaríamos de uma
-        // interface que inclua `properties`. Mas `NpcSpawnData` atualmente não carrega isso.
-        // Para simplificar, vamos ler do arquivo JSON do NPC se houver configuração de IA,
-        // ou usar valores padrão. Se você quiser ler diretamente do Tiled, precisará enriquecer
-        // o `MapLoader` para retornar também as propriedades customizadas.
-        // Por ora, usamos o campo `data.ai` (do JSON do NPC) como fonte.
-        // Mas para respeitar sua solicitação de movimento "suave e parando com jogador próximo",
-        // mesmo sem propriedades no Tiled, vamos criar a IA com valores padrão.
-        let radius = DEFAULT_RADIUS;
-        let interactionRadius = DEFAULT_INTERACTION_RADIUS;
-        let moveCooldown = DEFAULT_MOVE_COOLDOWN;
-
-        // Se o JSON do NPC tiver um objeto `ai`, prioriza os valores dele (para compatibilidade)
-        if (data.ai) {
-          radius = data.ai.radius ?? radius;
-          interactionRadius = data.ai.interactionRadius ?? interactionRadius;
-          moveCooldown = data.ai.moveCooldown ?? moveCooldown;
-        }
-
-        // Cria a IA do NPC com os parâmetros definidos
-        npc.ai = new NpcAI(originX, originY, radius, moveCooldown);
+        // Tiled object overrides JSON defaults. Reject invalid numbers.
+        const nonNegative = (value: unknown, fallback: number): number =>
+          typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+            ? value : fallback;
+        const positive = (value: unknown, fallback: number): number =>
+          typeof value === "number" && Number.isSafeInteger(value) && value > 0
+            ? value : fallback;
+        const jsonAI = data.ai ?? {};
+        const radius = nonNegative(spawn.radius, nonNegative(jsonAI.radius, DEFAULT_RADIUS));
+        const interactionRadius = nonNegative(
+          spawn.interactionRadius, nonNegative(jsonAI.interactionRadius, DEFAULT_INTERACTION_RADIUS),
+        );
+        const moveCooldown = positive(
+          spawn.moveCooldown, positive(jsonAI.moveCooldown, DEFAULT_MOVE_COOLDOWN),
+        );
+        npc.ai = new NpcAI(originX, originY, radius, moveCooldown, interactionRadius);
 
         world.addNpc(npc);
         Logger.world(
