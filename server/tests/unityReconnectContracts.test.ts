@@ -35,3 +35,24 @@ test("Unity stops reconnection when NetworkManager is destroyed", () => {
   assert.match(manager, /if \(!_shuttingDown && !isConnected/);
   assert.match(manager, /if \(Instance == this\) Instance = null/);
 });
+
+test("spawn resolves EntityManager on reception instead of capturing an Awake-time singleton", () => {
+  const context = unity("Networking/Context/NetworkContext.cs");
+  const spawn = unity("Networking/Handlers/SpawnHandler.cs");
+  assert.match(context, /public EntityManager EntityManager\s*=>\s*global::EntityManager\.Instance/);
+  assert.doesNotMatch(context, /EntityManager\s*=\s*EntityManager\.Instance/);
+  assert.match(spawn, /var manager = context\.EntityManager/);
+  assert.match(spawn, /\[SpawnHandler\] Recebido:/);
+  assert.match(spawn, /\[SpawnHandler\] EntityManager ausente/);
+  assert.match(spawn, /manager\.GetGameObject\(spawnMsg\.id\)/);
+});
+
+test("network clears old entities on close, never after a new socket opens", () => {
+  const manager = unity("Networking/NetworkManager.cs");
+  const onOpen = manager.split("socket.OnOpen += () =>")[1]?.split("socket.OnError +=")[0] ?? "";
+  const onClose = manager.split("socket.OnClose += (reason) =>")[1]?.split("socket.OnMessage +=")[0] ?? "";
+  assert.ok(onOpen.length > 0 && onClose.length > 0);
+  assert.doesNotMatch(onOpen, /ClearNetworkEntities\(/);
+  assert.match(onClose, /EntityManager\.Instance\?\.ClearNetworkEntities\(\)/);
+  assert.match(onClose, /isConnected = false/);
+});

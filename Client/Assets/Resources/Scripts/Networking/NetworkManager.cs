@@ -133,8 +133,8 @@ public class NetworkManager : MonoBehaviour
             _lastPlayerId = null;
             _lastInitPosition = null;
 
-            // Descartar entidades da sessão antiga antes do snapshot inicial.
-            EntityManager.Instance?.ClearNetworkEntities();
+            // Não limpar no OnOpen: o snapshot inicial pode estar na fila
+            // de mensagens quando a confirmação de abertura é processada.
             _context = new NetworkContext(this);
 
             Movement = new MovementSender(socket);
@@ -156,6 +156,9 @@ public class NetworkManager : MonoBehaviour
             if (!ReferenceEquals(_websocket, socket) || _shuttingDown) return;
             Debug.LogWarning($"[NetworkManager] Desconectado: {reason}. Nova tentativa em {ReconnectDelaySeconds}s.");
             isConnected = false;
+            // A sessão antiga acabou: remover entidades ANTES de receber
+            // qualquer snapshot do novo socket (nunca no OnOpen).
+            EntityManager.Instance?.ClearNetworkEntities();
             _nextReconnectAttempt = Time.unscaledTime + ReconnectDelaySeconds;
         };
 

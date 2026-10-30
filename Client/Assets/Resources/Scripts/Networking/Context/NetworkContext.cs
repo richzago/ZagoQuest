@@ -6,7 +6,8 @@ namespace ZagoQuest.Networking
     {
         public NetworkManager NetworkManager { get; }
         public GameManager GameManager { get; }
-        public EntityManager EntityManager { get; }
+        // Resolve at packet arrival: Awake ordering must not drop world entities.
+        public EntityManager EntityManager => global::EntityManager.Instance;
         public ChatUI ChatUI { get; }
         public LootUI LootUI { get; }
         public TargetSelector TargetSelector { get; }
@@ -26,7 +27,6 @@ namespace ZagoQuest.Networking
 
             // Todos os singletons
             GameManager = GameManager.Instance;
-            EntityManager = EntityManager.Instance;
             ChatUI = ChatUI.Instance;
             LootUI = LootUI.Instance;
             TargetSelector = TargetSelector.Instance;
