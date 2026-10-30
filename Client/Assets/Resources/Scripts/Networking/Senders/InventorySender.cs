@@ -82,15 +82,36 @@ namespace ZagoQuest.Networking.Senders
 
         public void SendTakeLoot(string corpseId, bool takeAll = true, int itemIndex = -1)
         {
-            var msg = new TakeLootMessage
+            if (takeAll)
+            {
+                // JsonUtility serializa todos os campos públicos. Não enviar index=-1
+                // num pacote takeAll, pois o schema do servidor rejeita índices negativos.
+                var msg = new TakeAllLootMessage
+                {
+                    type = "takeLoot",
+                    corpseId = corpseId,
+                    takeAll = true
+                };
+                Debug.Log($"[InventorySender] Pegando todo o loot de {corpseId}");
+                Send(msg);
+                return;
+            }
+
+            if (itemIndex < 0)
+            {
+                Debug.LogWarning($"[InventorySender] Índice inválido ao pegar loot individual: {itemIndex}");
+                return;
+            }
+
+            var singleItem = new TakeLootMessage
             {
                 type = "takeLoot",
                 corpseId = corpseId,
-                takeAll = takeAll,
+                takeAll = false,
                 itemIndex = itemIndex
             };
-            Debug.Log($"[InventorySender] Pegando loot de {corpseId} (takeAll={takeAll}, index={itemIndex})");
-            Send(msg);
+            Debug.Log($"[InventorySender] Pegando loot de {corpseId} (index={itemIndex})");
+            Send(singleItem);
         }
     }
 }
