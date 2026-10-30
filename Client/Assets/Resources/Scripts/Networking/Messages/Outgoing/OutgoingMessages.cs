@@ -13,6 +13,9 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class StopAutoAttackMessage { public string type; }
     [Serializable] public class OpenShopMessage { public string type; public string npcId; }
     [Serializable] public class OpenBankMessage { public string type; public string npcId; }
+    // O ID vincula o fechamento à janela aberta; impede cancelar outra sessão.
+    [Serializable] public class CloseBankMessage { public string type; public string npcId; }
+    [Serializable] public class CloseShopMessage { public string type; public string npcId; }
     [Serializable] public class BuyItemMessage { public string type; public string npcId; public string itemId; public int amount; }
     [Serializable] public class DepositMessage { public string type; public int amount; }
     [Serializable] public class WithdrawMessage { public string type; public int amount; }
