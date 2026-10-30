@@ -26,6 +26,7 @@ import { ChatSystem } from "./chatSystem";
 import { Logger } from "../core/logger/logger";
 import { GuildService } from "../../api/services/guildService";
 import { Npc } from "../entities/npc";
+import { NpcInteractionSystem } from "../systems/npcInteractionSystem";
 
 /**
  * Processa uma linha de comando que começa com '/'.
@@ -117,6 +118,9 @@ export async function processChatCommand(
   // =========================
 
   if (cmd === "hi" || cmd === "oi" || cmd === "olá" || cmd === "hello") {
+    // Um novo cumprimento inicia outro contexto de diálogo. É necessário
+    // abrir a janela da loja/banco novamente para autorizar transações.
+    NpcInteractionSystem.close(player);
     Logger.warn(`Executando /hi para ${player.name}. NPCs próximos: ...`);
     // Procura o NPC mais próximo (em até 2 tiles)
     let closestNpc: Npc | null = null;
@@ -150,6 +154,8 @@ export async function processChatCommand(
   }
 
   if (cmd === "bye" || cmd === "tchau") {
+    // Despedida revoga a autorização econômica mesmo sem NPC conversando.
+    NpcInteractionSystem.close(player);
     // Procura NPC com o qual o jogador está conversando
     for (const npc of world.npcs) {
       if (npc.talkingToPlayerId === player.id) {
