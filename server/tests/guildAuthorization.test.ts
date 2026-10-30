@@ -41,18 +41,19 @@ test("protected guild routes enforce JWT-owned characters and the guild selected
   GuildService.setCoverImage = async () => { calls.push("cover"); };
 
   try {
+    const createHandler = GuildController.create;
     const createOk = response();
-    await GuildController.create(req("account-a"), createOk.res);
+    await createHandler(req("account-a"), createOk.res);
     assert.equal(createOk.out.status, 201);
     assert.equal(calls.includes("create"), true);
 
     for (const accountId of [undefined, "account-b"]) {
       const denied = response();
-      await GuildController.create(req(accountId), denied.res);
+      await createHandler(req(accountId), denied.res);
       assert.equal(denied.out.status, accountId ? 403 : 401);
     }
     const foreignCharacter = response();
-    await GuildController.create(req("account-a", "Other"), foreignCharacter.res);
+    await createHandler(req("account-a", "Other"), foreignCharacter.res);
     assert.equal(foreignCharacter.out.status, 403);
     assert.equal(calls.filter(c => c === "create").length, 1);
 
@@ -62,17 +63,17 @@ test("protected guild routes enforce JWT-owned characters and the guild selected
       [GuildController.updateCoverImage, "cover"],
     ] as const) {
       const wrongGuild = response();
-      await handler.call(GuildController, req("account-a", "Owned", "OtherGuild"), wrongGuild.res);
+      await handler(req("account-a", "Owned", "OtherGuild"), wrongGuild.res);
       assert.equal(wrongGuild.out.status, 403);
       assert.equal(calls.filter(c => c === operation).length, 0);
 
       const wrongCharacter = response();
-      await handler.call(GuildController, req("account-a", "Other"), wrongCharacter.res);
+      await handler(req("account-a", "Other"), wrongCharacter.res);
       assert.equal(wrongCharacter.out.status, 403);
       assert.equal(calls.filter(c => c === operation).length, 0);
 
       const ownGuild = response();
-      await handler.call(GuildController, req("account-a"), ownGuild.res);
+      await handler(req("account-a"), ownGuild.res);
       assert.equal(ownGuild.out.status, 200);
       assert.equal(calls.filter(c => c === operation).length, 1);
     }
