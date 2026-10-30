@@ -57,7 +57,9 @@ export class CombatSystem {
     world: World,
   ): number {
     // ← AGORA RETORNA NUMBER
-    if (target.hp <= 0) return 0;
+    // Mortos não atacam; alvo morto não pode gerar dano/XP/evento extra.
+    if (attacker.hp <= 0 || target.hp <= 0) return 0;
+    if (target instanceof Monster && (target.deathProcessed || !world.monsters.includes(target))) return 0;
 
     // ----------------------------------------------------------
     // 1. Determina o tipo de dano e as resistências/weaknesses do alvo
@@ -84,7 +86,8 @@ export class CombatSystem {
       defenderResistances,
       defenderWeaknesses,
     );
-    const finalDamage = result.damage; // ← valor do dano calculado
+    // Overkill não deve reportar mais HP perdido do que o alvo tinha.
+    const finalDamage = Math.min(result.damage, target.hp);
 
     // ----------------------------------------------------------
     // 3. Aplica o dano ao alvo
@@ -105,6 +108,8 @@ export class CombatSystem {
     // 4. Emite evento de dano
     // ----------------------------------------------------------
     EventSystem.getInstance().emit<CombatDamageEventData>(GameEvent.COMBAT_DAMAGE, {
+      world,
+      targetMaxHp: target.maxHp,
       attackerId: attacker.id,
       attackerName: (attacker as any).name,
       targetId: target.id,
@@ -121,7 +126,7 @@ export class CombatSystem {
     // ----------------------------------------------------------
     // 5. Aplica efeito de ataque do monstro (ex: veneno)
     // ----------------------------------------------------------
-    if (attacker instanceof Monster && attacker.type.combat.attackEffect) {
+    if (target.hp > 0 && attacker instanceof Monster && attacker.type.combat.attackEffect) {
       const effect = attacker.type.combat.attackEffect;
       if (Math.random() < effect.chance && target instanceof Creature) {
         const duration = effect.duration;
