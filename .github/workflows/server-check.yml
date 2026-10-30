@@ -1,4 +1,4 @@
-name: Server build and XP tests
+name: Server build and regression tests
 
 on:
   push:
