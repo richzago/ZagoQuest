@@ -100,8 +100,8 @@ public class PlayerHUD : MonoBehaviour
 
         if (xpText != null)
             xpText.text = stats.levelXpToNext > 0
-                ? $\"{stats.levelXp:N0}/{stats.levelXpToNext:N0} (total: {stats.xp:N0})\"
-                : $\"XP total: {stats.xp:N0} (MAX)\";
+                ? $"{stats.levelXp:N0}/{stats.levelXpToNext:N0} (total: {stats.xp:N0})"
+                : $"XP total: {stats.xp:N0} (MAX)";
     }
 
     private void OnDestroy()
