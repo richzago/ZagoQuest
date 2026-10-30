@@ -45,6 +45,18 @@ export class WorldStateSender extends BaseSender {
       count++;
     }
 
+    // Match the exact spawn format already broadcast when a monster dies.
+    for (const corpse of world.corpses) {
+      this.send({
+        type: "spawn",
+        id: corpse.id,
+        name: "Corpse",
+        x: corpse.position.x,
+        y: corpse.position.y,
+      });
+      count++;
+    }
+
     // Envia itens no chão
     for (const item of world.itemsOnGround) {
       this.send({
