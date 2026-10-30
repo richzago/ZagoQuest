@@ -134,6 +134,7 @@ export class DeathSystem {
     // ==========================================================
     const eventSystem = EventSystem.getInstance();
     eventSystem.emit<MonsterDeathEventData>(GameEvent.MONSTER_DEATH, {
+      world,
       monsterId: monster.id,
       monsterName: monster.name,
       killerId: killer?.id,
