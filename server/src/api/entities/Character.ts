@@ -63,7 +63,7 @@ export class Character {
   @Column({ type: "int", default: 1 })
   level: number;
 
-  /** Experiência total acumulada (XP). */
+  /** XP disponível no nível atual (não é XP total histórico). */
   @Column({ type: "int", default: 0 })
   xp: number;
 
