@@ -9,7 +9,11 @@ namespace ZagoQuest.Networking.Handlers
         {
             var shopMsg = json.ToObject<ShopWindowMessage>();
             // 🔥 Chama diretamente a UI
-            context.ShopUI?.ShowShopWindow(shopMsg.npcId, shopMsg.items);
+            UnityEngine.Debug.Log($"[ShopWindowHandler] shopWindow recebido: npcId={shopMsg.npcId}");
+            if (context.ShopUI == null)
+                UnityEngine.Debug.LogError("[ShopWindowHandler] ShopUI.Instance ausente. Verifique ShopManager ativo na Hierarchy.");
+            else
+                context.ShopUI.ShowShopWindow(shopMsg.npcId, shopMsg.items);
         }
     }
 }

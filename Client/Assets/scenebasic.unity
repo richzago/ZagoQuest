@@ -14519,7 +14519,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BankUI
   bankPanel: {fileID: 876531502}
   bankGoldText: {fileID: 485166457}
-  inventoryGoldText: {fileID: 0}
+  inventoryGoldText: {fileID: 1401860594}
   closeButton: {fileID: 1073030955}
 --- !u!1 &1724066093
 GameObject:

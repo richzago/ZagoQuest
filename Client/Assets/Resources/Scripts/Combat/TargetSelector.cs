@@ -126,6 +126,7 @@ public class TargetSelector : MonoBehaviour
         if (hit.collider != null)
         {
             Debug.Log($"[TargetSelector] Clique em: {hit.collider.name}, tag: {hit.collider.tag}");
+            var npcInteract = hit.collider.GetComponentInParent<ClickInteract>();
 
             // ====================
             // 1. CLIQUE EM MONSTRO
@@ -158,7 +159,14 @@ public class TargetSelector : MonoBehaviour
                 }
             }
             // ====================
-            // 3. CLIQUE EM ITEM NO CHÃO (PICKUP)
+            // 3. CLIQUE EM NPC (mesmo Input System usado por loot/monstros)
+            // ====================
+            else if (npcInteract != null)
+            {
+                npcInteract.Interact();
+            }
+            // ====================
+            // 4. CLIQUE EM ITEM NO CHÃO (PICKUP)
             // ====================
             else if (hit.collider.CompareTag("ItemOnGround"))
             {
