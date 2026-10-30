@@ -32,6 +32,7 @@ async function bootstrap(): Promise<void> {
   let wsServer: WebSocketServer | undefined;
   let world: World | undefined;
   let gameLoops: GameLoopsHandle | undefined;
+  let disposeListeners: (() => void) | undefined;
 
   // Always close resources in the reverse direction of startup, even if
   // a later step fails; failed steps do not prevent a final DB close.
@@ -43,13 +44,17 @@ async function bootstrap(): Promise<void> {
     waitForJobs: async () => { if (gameLoops) await gameLoops.waitForTasks(); },
     flushAutosave: async () => { if (gameLoops) await gameLoops.flushAutosave(); },
     closeDatabase: async () => {
-      if (AppDataSource.isInitialized) await AppDataSource.destroy();
+      try {
+        if (AppDataSource.isInitialized) await AppDataSource.destroy();
+      } finally {
+        disposeListeners?.();
+      }
     },
   });
 
   try {
     Logger.system("ZagoQuest iniciando...");
-    registerEventListeners();
+    disposeListeners = registerEventListeners();
     ConditionRegistry.load();
     MonsterRegistry.loadAll();
 
