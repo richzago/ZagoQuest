@@ -68,7 +68,7 @@ export class Character {
   xp: number;
 
   /** XP recebido durante toda a trajetória, antes de penalidades de morte. */
-  @Column({ type: "int", default: 0 })
+  @Column({ type: "double precision", default: 0 })
   lifetimeXp: number;
 
   /** 1 = save legado com XP relativo; 2 = XP acumulativo. */
