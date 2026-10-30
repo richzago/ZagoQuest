@@ -53,16 +53,16 @@ app.use("/api/guilds", guildRoutes);
  * ```
  */
 export const startApi = async (): Promise<HttpServer> => {
+  // The bootstrap owns the process and all resources. Never call
+  // process.exit() inside this service: it would skip cleanup and final logs.
   try {
-    // Conecta ao PostgreSQL
-    await AppDataSource.initialize();
-    Logger.system("API conectada ao banco de dados (PostgreSQL) com sucesso!");
-
-    // Cria o servidor HTTP a partir do app Express
-    const server = createServer(app);
-    return server;
-  } catch (err: any) {
-    Logger.error(`Falha ao iniciar API: ${err.message}`);
-    process.exit(1);
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
+    Logger.system("API conectada ao PostgreSQL com sucesso.");
+    return createServer(app);
+  } catch (error) {
+    Logger.error(`Falha ao iniciar API: ${String(error)}`);
+    throw error;
   }
 };
