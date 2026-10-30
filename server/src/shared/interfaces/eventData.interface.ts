@@ -1,4 +1,8 @@
+import type { World } from "../../game/world/World";
+
 export interface MonsterDeathEventData {
+  /** Contexto interno (não serializado): isola notificações por mundo. */
+  world?: World;
   monsterId: string;
   monsterName: string;
   killerId?: string;
@@ -42,6 +46,9 @@ export interface ItemPickupEventData {
 }
 
 export interface CombatDamageEventData {
+  /** Contexto interno (não serializado): isola notificações por mundo. */
+  world?: World;
+  targetMaxHp: number;
   attackerId: string;
   attackerName: string;
   targetId: string;
