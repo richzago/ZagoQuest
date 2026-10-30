@@ -17,11 +17,15 @@ export class Monster extends Creature {
   ai: MonsterAI;
   target?: Creature;
 
-  // 🔥 NOVOS CAMPOS PARA RESPAWN
+  /** Identifica o ponto fixo do Tiled; não muda entre respawns. */
+  readonly spawnPointId?: string;
+  /** Impede recompensas/corpos/respawns duplicados se a morte for processada duas vezes. */
+  deathProcessed = false;
+
   spawnX: number;
   spawnY: number;
-  wanderRadius: number = 3;
-  respawnTime: number = 100000; // tempo em ms para respawn após morte
+  wanderRadius: number;
+  respawnTime: number; // Milissegundos entre morte e reaparecimento.
 
   constructor(
     id: string,
@@ -30,7 +34,8 @@ export class Monster extends Creature {
     y: number,
     ai: MonsterAI,
     wanderRadius: number = 3,
-    respawnTime: number = 10000, // ← parâmetro adicional
+    respawnTime: number = 10000,
+    spawnPointId?: string,
   ) {
     super(id, type.name, x, y);
     this.type = type;
@@ -45,8 +50,13 @@ export class Monster extends Creature {
     // define o ponto de origem e o raio de wander
     this.spawnX = x;
     this.spawnY = y;
-    this.wanderRadius = wanderRadius;
-    this.respawnTime = respawnTime;
+    this.spawnPointId = spawnPointId;
+
+    // Nunca agendar timer negativo/NaN: Node interpretaria como timeout mínimo.
+    this.wanderRadius = Number.isSafeInteger(wanderRadius) && wanderRadius >= 0
+      ? wanderRadius : 3;
+    this.respawnTime = Number.isSafeInteger(respawnTime) &&
+      respawnTime > 0 && respawnTime <= 2_147_483_647 ? respawnTime : 10000;
   }
 
   getMaxHp(): number {
