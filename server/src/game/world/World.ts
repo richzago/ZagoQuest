@@ -125,7 +125,11 @@ export class World {
    * Adiciona um NPC ao mundo.
    * @param npc - NPC a ser adicionado
    */
-  addNpc(npc: Npc) {
+  addNpc(npc: Npc): void {
+    if (this.npcs.some((existing) => existing.id === npc.id)) {
+      Logger.warn(`NPC com ID duplicado ignorado: ${npc.id}`);
+      return;
+    }
     npc.conditionManager.bindDamage((target, amount, source, name) =>
       CombatSystem.applyPeriodicDamage(target, amount, this, source, name));
     this.npcs.push(npc);

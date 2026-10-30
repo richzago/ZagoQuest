@@ -106,8 +106,10 @@ export class NpcAI {
 
     if (currentDist >= this.radius) {
       // Força retorno ao centro (direção que reduz a distância)
-      moveX = this.originX > npc.position.x ? 1 : -1;
-      moveY = this.originY > npc.position.y ? 1 : -1;
+      moveX = Math.sign(this.originX - npc.position.x);
+      moveY = Math.sign(this.originY - npc.position.y);
+      // Raio 0 mantém o NPC parado na origem, sem gastar cooldown.
+      if (moveX === 0 && moveY === 0) return;
     } else {
       // Movimento aleatório dentro do raio – só permite se o destino ficar dentro do raio
       const moves = [
@@ -130,6 +132,12 @@ export class NpcAI {
 
     const newX = npc.position.x + moveX;
     const newY = npc.position.y + moveY;
+    // O retorno diagonal ao spawn não pode cortar paredes ou entidades.
+    if (moveX !== 0 && moveY !== 0 && (
+      !world.isPositionWalkable(npc.position.x + moveX, npc.position.y, npc.id) ||
+      !world.isPositionWalkable(npc.position.x, npc.position.y + moveY, npc.id)
+    )) return;
+
     if (world.isPositionWalkable(newX, newY, npc.id)) {
       npc.move(moveX, moveY, world);
       this.lastMoveTime = now;

@@ -109,8 +109,10 @@ export class MonsterAI {
 
     // Se já está no limite, força retorno ao centro
     if (distToOrigin >= radius) {
-      const moveX = originX > monster.position.x ? 1 : -1;
-      const moveY = originY > monster.position.y ? 1 : -1;
+      const moveX = Math.sign(originX - monster.position.x);
+      const moveY = Math.sign(originY - monster.position.y);
+      // Raio 0 fixa o monstro na origem; não consumir cooldown num no-op.
+      if (moveX === 0 && moveY === 0) return;
       this.tryMove(monster, moveX, moveY, world);
       return;
     }
@@ -148,6 +150,12 @@ export class MonsterAI {
     // ==========================================================
     // 3. VALIDA A POSIÇÃO (caminhável e dentro dos limites)
     // ==========================================================
+    // Impede atravessar cantos em movimentos diagonais, como o jogador.
+    if (dx !== 0 && dy !== 0 && (
+      !world.isPositionWalkable(monster.position.x + dx, monster.position.y, monster.id) ||
+      !world.isPositionWalkable(monster.position.x, monster.position.y + dy, monster.id)
+    )) return;
+
     if (world.isPositionWalkable(newX, newY, monster.id)) {
       // Move o monstro
       monster.position.x = newX;
