@@ -150,6 +150,12 @@ export class MonsterAI {
     // ==========================================================
     // 3. VALIDA A POSIÇÃO (caminhável e dentro dos limites)
     // ==========================================================
+    // Impede atravessar cantos em movimentos diagonais, como o jogador.
+    if (dx !== 0 && dy !== 0 && (
+      !world.isPositionWalkable(monster.position.x + dx, monster.position.y, monster.id) ||
+      !world.isPositionWalkable(monster.position.x, monster.position.y + dy, monster.id)
+    )) return;
+
     if (world.isPositionWalkable(newX, newY, monster.id)) {
       // Move o monstro
       monster.position.x = newX;
