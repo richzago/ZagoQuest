@@ -28,6 +28,8 @@ function startAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
     try {
       // 1. Movimento e IA dos monstros
       for (const monster of world.monsters) {
+        // DeathSystem marcará a morte antes do cleanup do próximo tick.
+        if (monster.hp <= 0 || monster.deathProcessed) continue;
         try {
           const oldX = monster.position.x;
           const oldY = monster.position.y;
