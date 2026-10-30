@@ -11,7 +11,9 @@ export interface ServerInventoryMessage {
 
 export interface ServerEquipmentMessage {
   type: "equipment";
-  slots: Record<string, string | null>; // slot -> itemId ou null
+  // Formato real enviado por InventorySender e lido pelo Unity EquipmentHandler.
+  // O array permite serializar o Map<EquipmentSlot, itemId> de forma estável.
+  items: Array<{ slot: string; itemId: string }>;
 }
 
 export interface ServerPlayerStatsMessage {
