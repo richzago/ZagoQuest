@@ -22,7 +22,8 @@ export const COIN_VALUES: Record<string, number> = {
  * @returns true se for moeda, false caso contrário
  */
 export function isCoin(itemId: string): boolean {
-  return itemId in COIN_VALUES;
+  // "in" também consulta propriedades do protótipo (ex.: "toString").
+  return Object.prototype.hasOwnProperty.call(COIN_VALUES, itemId);
 }
 
 /**
@@ -31,5 +32,5 @@ export function isCoin(itemId: string): boolean {
  * @returns Valor numérico (1, 100, 10000) ou 0 se não for moeda
  */
 export function getCoinValue(itemId: string): number {
-  return COIN_VALUES[itemId] || 0;
+  return isCoin(itemId) ? COIN_VALUES[itemId] : 0;
 }
