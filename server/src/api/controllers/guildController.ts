@@ -96,7 +96,7 @@ export class GuildController {
 
   static async updateDescription(req: Request, res: Response): Promise<void> {
     try {
-      const characterName = await this.authorizedCharacter(req, res, true);
+      const characterName = await GuildController.authorizedCharacter(req, res, true);
       if (!characterName) return;
       const { description } = req.body;
       if (typeof description !== "string" || !description.trim()) {
@@ -112,7 +112,7 @@ export class GuildController {
 
   static async updateProfileImage(req: Request, res: Response): Promise<void> {
     try {
-      const characterName = await this.authorizedCharacter(req, res, true);
+      const characterName = await GuildController.authorizedCharacter(req, res, true);
       if (!characterName) return;
       const { imageUrl } = req.body;
       if (typeof imageUrl !== "string" || !imageUrl.trim()) {
@@ -128,7 +128,7 @@ export class GuildController {
 
   static async updateCoverImage(req: Request, res: Response): Promise<void> {
     try {
-      const characterName = await this.authorizedCharacter(req, res, true);
+      const characterName = await GuildController.authorizedCharacter(req, res, true);
       if (!characterName) return;
       const { imageUrl } = req.body;
       if (typeof imageUrl !== "string" || !imageUrl.trim()) {
@@ -144,7 +144,7 @@ export class GuildController {
 
   static async create(req: Request, res: Response): Promise<void> {
     try {
-      const characterName = await this.authorizedCharacter(req, res, false);
+      const characterName = await GuildController.authorizedCharacter(req, res, false);
       if (!characterName) return;
       const { guildName, description } = req.body;
       if (typeof guildName !== "string" || !guildName.trim()
