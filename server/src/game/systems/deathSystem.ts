@@ -43,6 +43,13 @@ export class DeathSystem {
   static handleDeath(victim: Damageable, killer: Damageable | undefined, world: World): void {
     if (victim.hp > 0) return;
 
+    if (victim instanceof Monster) {
+      // Morte deve acontecer UMA vez por entidade, mesmo com vários ataques no tick.
+      // Não processar um monstro que já foi removido deste mundo.
+      if (victim.deathProcessed || !world.monsters.includes(victim)) return;
+      victim.deathProcessed = true;
+    }
+
     Logger.combat(`💀 ${victim.name} morreu.`);
 
     if (victim instanceof Player) {
@@ -152,31 +159,40 @@ export class DeathSystem {
     }
 
     // ==========================================================
-    // 7. RESPAWN AUTOMÁTICO DO MONSTRO
+    // 7. UM RESPAWN PARA ESTA VIDA (já protegida em handleDeath)
     // ==========================================================
-    const respawnTime = monster.respawnTime;
     setTimeout(() => {
-      const monsterDef = MonsterRegistry.get(monster.type.id);
-      if (monsterDef) {
-        const newId = generateId();
-        const newMonster = new Monster(
-          newId,
-          monsterDef,
-          monster.spawnX,
-          monster.spawnY,
-          new MonsterAI(),
-          monster.wanderRadius,
-          monster.respawnTime,
-        );
-        world.addMonster(newMonster);
-        Logger.world(
-          `Monstro ${newMonster.name} respawnado em (${monster.spawnX}, ${monster.spawnY}) com ID ${newId}`,
-        );
-        if (ws) ws.broadcastSpawn(newMonster);
-      } else {
-        Logger.error(`[Respawn] Definição do monstro ${monster.name} não encontrada.`);
+      if (!world.isWithinBounds(monster.spawnX, monster.spawnY)) {
+        Logger.warn(`[Respawn] Ponto fora do mapa: ${monster.name}.`);
+        return;
       }
-    }, respawnTime);
+
+      // O ponto de spawn permanece estável mesmo que o monstro mude de ID.
+      // Caso outra entidade já tenha ocupado o mesmo ponto, não duplica.
+      if (monster.spawnPointId && world.monsters.some((alive) =>
+        alive.hp > 0 && alive.spawnPointId === monster.spawnPointId
+      )) return;
+
+      const definition = MonsterRegistry.get(monster.type.id);
+      if (!definition) {
+        Logger.error(`[Respawn] Monstro desconhecido: ${monster.type.id}`);
+        return;
+      }
+
+      const next = new Monster(
+        generateId(),
+        definition,
+        monster.spawnX,
+        monster.spawnY,
+        new MonsterAI(),
+        monster.wanderRadius,
+        monster.respawnTime,
+        monster.spawnPointId,
+      );
+      world.addMonster(next);
+      Logger.world(`[Respawn] ${next.name} (${next.id}) em (${next.spawnX},${next.spawnY}).`);
+      if (ws) ws.broadcastSpawn(next);
+    }, monster.respawnTime);
   }
 
   /**
@@ -202,7 +218,8 @@ export class DeathSystem {
     lifetime: number,
   ): void {
     setTimeout(() => {
-      // Remove o corpo do mundo (método de instância)
+      // Corpo já saqueado não deve gerar um segundo broadcast de despawn.
+      if (!world.corpses.includes(corpse)) return;
       world.removeCorpse(corpse);
       // Notifica os clientes (se o WebSocket existir)
       if (ws) {
