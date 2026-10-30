@@ -19,6 +19,7 @@ import { MAX_PACKET_BYTES, parseClientMessage } from "../validation/messageValid
 import { MessageRateLimiter, OrderedMessageQueue } from "../validation/messageGuards";
 import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { BroadcastService } from "./wsBroadcast";
+import { CombatEventBridge } from "./combatEventBridge";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { Corpse } from "../../game/entities/corpse";
 import { Monster } from "../../game/entities/monster";
@@ -38,6 +39,7 @@ export class WebSocketServer {
   private wss: WSServer;
   private world: World;
   private broadcast: BroadcastService;
+  private combatEvents: CombatEventBridge;
   private clients: Map<WebSocket, Player> = new Map();
   private static instance: WebSocketServer;
 
@@ -47,6 +49,9 @@ export class WebSocketServer {
     this.broadcast = new BroadcastService(world);
     // ws rejects oversized frames BEFORE JSON.parse or Zod can allocate objects.
     this.wss = new WSServer({ server, maxPayload: MAX_PACKET_BYTES, perMessageDeflate: false });
+    // Um listener por WebSocketServer, removido ao encerrar o transporte.
+    this.combatEvents = new CombatEventBridge(world, this);
+    this.wss.on("close", () => this.combatEvents.dispose());
     this.init();
   }
 
