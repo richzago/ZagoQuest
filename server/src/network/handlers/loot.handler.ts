@@ -64,34 +64,45 @@ export async function handleTakeLoot(
   }
 
   if (msg.takeAll) {
-    for (const item of corpse.loot) {
-      player.addItem(item.itemId, item.amount);
-      Logger.loot(
-        `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
-      );
+    // Uma única verificação para a lista inteira evita overflow agregado.
+    if (!player.canAddItems(corpse.loot)) {
+      ctx.packetSender.loot.sendLootError("Loot inválido ou sem espaço para coleta.");
+      return;
     }
-    ctx.world.removeCorpse(corpse);
 
-    // Usa broadcast service para remover o corpse para todos
+    // Nenhuma operação assíncrona entre validar e transferir os itens.
+    for (const item of corpse.loot) {
+      if (!player.addItem(item.itemId, item.amount)) {
+        ctx.packetSender.loot.sendLootError("Falha ao adicionar item do loot.");
+        return;
+      }
+    }
+
+    ctx.world.removeCorpse(corpse);
     ctx.broadcast.broadcastDespawn(corpse.id);
     ctx.packetSender.loot.sendLootTaken(corpse.id);
     ctx.packetSender.inventory.sendInventory(player);
-  } else if (msg.itemIndex !== undefined) {
-    const item = corpse.loot[msg.itemIndex];
-    if (item) {
-      player.addItem(item.itemId, item.amount);
-      Logger.loot(
-        `Jogador ${player.name} recebeu ${item.amount}x ${item.itemId} do corpse ${corpse.id}`,
-      );
-      corpse.loot.splice(msg.itemIndex, 1);
-      if (corpse.loot.length === 0) {
-        ctx.world.removeCorpse(corpse);
-        ctx.broadcast.broadcastDespawn(corpse.id);
-      }
-      ctx.packetSender.loot.sendLootTaken(corpse.id, msg.itemIndex);
-      ctx.packetSender.inventory.sendInventory(player);
-    } else {
-      ctx.packetSender.loot.sendLootError("Item not found");
-    }
+    return;
   }
+
+  // Índices de array também chegam do cliente e precisam ser inteiros válidos.
+  if (!Number.isSafeInteger(msg.itemIndex) || msg.itemIndex! < 0) {
+    ctx.packetSender.loot.sendLootError("Índice do loot inválido.");
+    return;
+  }
+
+  const item = corpse.loot[msg.itemIndex!];
+  if (!item || !player.addItem(item.itemId, item.amount)) {
+    ctx.packetSender.loot.sendLootError("Item indisponível ou sem espaço.");
+    return;
+  }
+
+  corpse.loot.splice(msg.itemIndex!, 1);
+  if (corpse.loot.length === 0) {
+    ctx.world.removeCorpse(corpse);
+    ctx.broadcast.broadcastDespawn(corpse.id);
+  }
+
+  ctx.packetSender.loot.sendLootTaken(corpse.id, msg.itemIndex);
+  ctx.packetSender.inventory.sendInventory(player);
 }
