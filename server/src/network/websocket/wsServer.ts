@@ -17,6 +17,7 @@ import { PacketSender } from "../senders";
 import { handlers, HandlerFn } from "../handlers/index";
 import { MAX_PACKET_BYTES, parseClientMessage } from "../validation/messageValidation";
 import { MessageRateLimiter, OrderedMessageQueue } from "../validation/messageGuards";
+import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { BroadcastService } from "./wsBroadcast";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { Corpse } from "../../game/entities/corpse";
@@ -87,6 +88,8 @@ export class WebSocketServer {
       });
 
       ws.on("close", () => {
+        // Nunca reutilizar uma sessão econômica após desconectar/reconectar.
+        NpcInteractionSystem.close(player);
         Logger.system(`Cliente ${player.name} desconectado.`);
         this.broadcast.unregisterClient(ws);
         this.clients.delete(ws);
