@@ -159,6 +159,24 @@ public class EntityManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Limpa somente entidades recebidas do servidor antigo para não manter
+    /// NPCs e monstros duplicados depois da reconexão. Não remove UI da cena.
+    /// </summary>
+    public void ClearNetworkEntities()
+    {
+        if (entities.Count == 0) return;
+        TargetSelector.Instance?.ClearTarget();
+        foreach (var pair in entities)
+        {
+            NameplateManager.Instance?.RemoveNameplate(pair.Key);
+            ItemNameManager.Instance?.HideItemName(pair.Key);
+            if (pair.Value != null) Destroy(pair.Value);
+        }
+        entities.Clear();
+        Debug.Log("[EntityManager] Entidades da conexão anterior limpas.");
+    }
+
     public void DespawnEntity(string id)
     {
         Debug.Log($"[EntityManager] DespawnEntity chamado para ID {id}. Existe? {entities.ContainsKey(id)}");

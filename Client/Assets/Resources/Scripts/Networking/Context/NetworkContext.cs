@@ -13,8 +13,10 @@ namespace ZagoQuest.Networking
         public NameplateManager NameplateManager { get; }
         public InventoryUI InventoryUI { get; }
         public EquipmentUI EquipmentUI { get; }
-        public ShopUI ShopUI { get; }
-        public BankUI BankUI { get; }
+        // Resolver ao receber o pacote: Awake do NetworkManager pode anteceder Awake da UI.
+        public ShopUI ShopUI => global::ShopUI.Instance;
+        // Resolver ao receber o pacote: Awake do NetworkManager pode anteceder Awake da UI.
+        public BankUI BankUI => global::BankUI.Instance;
         public PlayerHUD PlayerHUD { get; }
         public StatusManager StatusManager { get; }
 
@@ -31,8 +33,6 @@ namespace ZagoQuest.Networking
             NameplateManager = NameplateManager.Instance;
             InventoryUI = InventoryUI.Instance;
             EquipmentUI = EquipmentUI.Instance;
-            ShopUI = ShopUI.Instance;
-            BankUI = BankUI.Instance;
             PlayerHUD = PlayerHUD.Instance;
             StatusManager = StatusManager.Instance;
         }

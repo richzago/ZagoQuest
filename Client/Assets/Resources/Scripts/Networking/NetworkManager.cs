@@ -34,6 +34,11 @@ public class NetworkManager : MonoBehaviour
     private string _lastPlayerId;
     private Vector2? _lastInitPosition;
     private bool _handlersRegistered = false;
+    private bool _connecting = false;
+    private bool _shuttingDown = false;
+    private float _nextReconnectAttempt = 0f;
+    private const float ReconnectDelaySeconds = 2f;
+
 
     // =========================
     // CICLO DE VIDA
@@ -85,12 +90,23 @@ public class NetworkManager : MonoBehaviour
 #if !UNITY_WEBGL || UNITY_EDITOR
         _websocket?.DispatchMessageQueue();
 #endif
+        // Tentativas acontecem no ciclo de vida do Unity, sem criar timers globais.
+        if (!_shuttingDown && !isConnected && !_connecting &&
+            Time.unscaledTime >= _nextReconnectAttempt)
+        {
+            _ = Connect();
+        }
     }
 
     private async void OnDestroy()
     {
+        _shuttingDown = true;
+        if (Instance == this) Instance = null;
         if (_websocket != null && _websocket.State == WebSocketState.Open)
-            await _websocket.Close();
+        {
+            try { await _websocket.Close(); }
+            catch (Exception error) { Debug.LogWarning($"[NetworkManager] Erro ao fechar: {error.Message}"); }
+        }
     }
 
     // =========================
@@ -99,34 +115,76 @@ public class NetworkManager : MonoBehaviour
 
     private async Task Connect()
     {
-        Debug.Log($"[NetworkManager] 🔗 Connect iniciado. Time: {Time.time:F2}");
+        if (_connecting || _shuttingDown || isConnected) return;
+        _connecting = true;
+        Debug.Log($"[NetworkManager] 🔗 Conectando em {serverUrl}...");
 
-        _websocket = new WebSocket(serverUrl);
+        // A NativeWebSocket não permite reabrir um socket fechado:
+        // cada tentativa precisa de uma nova instância.
+        var socket = new WebSocket(serverUrl);
+        _websocket = socket;
 
-        _websocket.OnOpen += () =>
+        socket.OnOpen += () =>
         {
-            Debug.Log($"[NetworkManager] ✅ Conectado ao servidor. Time: {Time.time:F2}");
+            if (_shuttingDown || !ReferenceEquals(_websocket, socket)) return;
+            Debug.Log("[NetworkManager] ✅ Servidor conectado/reconectado.");
             isConnected = true;
+            _nextReconnectAttempt = 0f;
+            _lastPlayerId = null;
+            _lastInitPosition = null;
 
-            Movement = new MovementSender(_websocket);
-            Combat = new CombatSender(_websocket);
-            Inventory = new InventorySender(_websocket);
-            Chat = new ChatSender(_websocket);
-            Shop = new ShopSender(_websocket);
-            Bank = new BankSender(_websocket);
-            Debug.Log("[NetworkManager] ✅ Senders inicializados.");
+            // Descartar entidades da sessão antiga antes do snapshot inicial.
+            EntityManager.Instance?.ClearNetworkEntities();
+            _context = new NetworkContext(this);
+
+            Movement = new MovementSender(socket);
+            Combat = new CombatSender(socket);
+            Inventory = new InventorySender(socket);
+            Chat = new ChatSender(socket);
+            Shop = new ShopSender(socket);
+            Bank = new BankSender(socket);
+            Debug.Log("[NetworkManager] ✅ Senders e estado de rede renovados.");
         };
 
-        _websocket.OnError += (e) => Debug.LogError($"[NetworkManager] WebSocket erro: {e}");
-        _websocket.OnClose += (e) =>
+        socket.OnError += (error) =>
         {
-            Debug.Log($"[NetworkManager] Conexão fechada: {e}");
+            if (!ReferenceEquals(_websocket, socket)) return;
+            Debug.LogWarning($"[NetworkManager] Erro WebSocket: {error}");
+        };
+        socket.OnClose += (reason) =>
+        {
+            if (!ReferenceEquals(_websocket, socket) || _shuttingDown) return;
+            Debug.LogWarning($"[NetworkManager] Desconectado: {reason}. Nova tentativa em {ReconnectDelaySeconds}s.");
             isConnected = false;
+            _nextReconnectAttempt = Time.unscaledTime + ReconnectDelaySeconds;
         };
 
-        _websocket.OnMessage += OnMessageReceived;
-        await _websocket.Connect();
-        Debug.Log("[NetworkManager] WebSocket pronto.");
+        // Eventos enfileirados de sockets antigos não podem alterar a sessão atual.
+        socket.OnMessage += bytes =>
+        {
+            if (!_shuttingDown && ReferenceEquals(_websocket, socket))
+                OnMessageReceived(bytes);
+        };
+
+        try
+        {
+            await socket.Connect();
+            if (!_shuttingDown && ReferenceEquals(_websocket, socket))
+                Debug.Log("[NetworkManager] Handshake WebSocket concluído.");
+        }
+        catch (Exception error)
+        {
+            if (!_shuttingDown && ReferenceEquals(_websocket, socket))
+            {
+                isConnected = false;
+                _nextReconnectAttempt = Time.unscaledTime + ReconnectDelaySeconds;
+                Debug.LogWarning($"[NetworkManager] Conexão falhou: {error.Message}. Retentando.");
+            }
+        }
+        finally
+        {
+            _connecting = false;
+        }
     }
 
     // =========================

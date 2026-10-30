@@ -1,35 +1,41 @@
 using UnityEngine;
 
 /// <summary>
-/// Gerencia a interação por clique com NPCs.
-/// Para merchant e banker, envia comandos específicos (abrir loja/banco).
-/// Para outros NPCs, envia /hi via chat.
+/// Interação com NPC chamada pelo TargetSelector (novo Input System).
+/// Não usar OnMouseDown: dois mecanismos de clique poderiam enviar dois pedidos.
 /// </summary>
 public class ClickInteract : MonoBehaviour
 {
-    private NpcIdentity npcIdentity;
-
-    void Awake()
+    public void Interact()
     {
-        npcIdentity = GetComponent<NpcIdentity>();
-        // if (npcIdentity == null)
-        //     Debug.LogError($"ClickInteract: NpcIdentity não encontrado em {gameObject.name}");
-    }
+        var npc = GetComponent<NpcIdentity>();
+        if (npc == null || string.IsNullOrEmpty(npc.id))
+        {
+            Debug.LogWarning("[ClickInteract] NPC sem identidade de instância.");
+            return;
+        }
 
-    void OnMouseDown()
-    {
-        if (NetworkManager.Instance == null) return;
-        NpcIdentity npc = GetComponent<NpcIdentity>();
-        if (npc == null) return;
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected)
+        {
+            Debug.LogWarning("[ClickInteract] Não conectado ao servidor.");
+            return;
+        }
 
-        string npcId = npc.id;   //
-        // Debug.Log($"🖱️ Clique no NPC: {npcId}");
-
-        if (npc.npcId == "merchant")
-            NetworkManager.Instance.Shop.SendOpenShop(npcId);
-        else if (npc.npcId == "banker")
-            NetworkManager.Instance.Bank.SendOpenBank(npcId);
-        else
-            NetworkManager.Instance.Chat.SendChat("/hi");
+        Debug.Log($"[ClickInteract] Interação com {npc.npcId} (ID: {npc.id})");
+        switch (npc.npcId)
+        {
+            case "merchant":
+                if (network.Shop != null) network.Shop.SendOpenShop(npc.id);
+                else Debug.LogWarning("[ClickInteract] ShopSender ainda não está disponível.");
+                break;
+            case "banker":
+                if (network.Bank != null) network.Bank.SendOpenBank(npc.id);
+                else Debug.LogWarning("[ClickInteract] BankSender ainda não está disponível.");
+                break;
+            default:
+                network.Chat?.SendChat("/hi");
+                break;
+        }
     }
 }
