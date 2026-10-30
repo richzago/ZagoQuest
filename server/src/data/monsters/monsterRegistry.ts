@@ -24,11 +24,16 @@ export class MonsterRegistry {
    * Deve ser chamado uma vez durante a inicialização do servidor.
    */
   static loadAll(): void {
-    const baseDir = path.join(__dirname);
+    // JSONs são dados-fonte: tsc copia TS para dist/, mas NÃO copia JSONs.
+    // Usar process.cwd() (pasta server/) funciona em npm run dev e npm start.
+    const baseDir = path.join(process.cwd(), "src", "data", "monsters");
     if (!fs.existsSync(baseDir)) {
-      Logger.error(`[MonsterRegistry] Pasta não encontrada: ${baseDir}`);
-      return;
+      throw new Error(`[MonsterRegistry] Pasta de dados não encontrada: ${baseDir}`);
     }
+
+    // Recarregamento não deve acumular entradas desatualizadas.
+    this.cache.clear();
+    this.shortNameToFullId.clear();
 
     const walk = (dir: string) => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
