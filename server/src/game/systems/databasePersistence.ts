@@ -81,8 +81,8 @@ export class DatabasePersistence {
    * @param player - Instância do jogador
    */
   static async saveCharacter(player: Player): Promise<void> {
-    // Busca a entidade pelo nome (não pelo ID)
-    let character = await this.characterRepo.findOne({ where: { name: player.name } });
+    // UUID é a identidade estável; nomes podem mudar.
+    let character = await this.characterRepo.findOne({ where: { id: player.id } });
     if (!character) {
       character = this.characterRepo.create();
       character.id = player.id; // usa o UUID do jogador (que foi gerado via uuidv4)
