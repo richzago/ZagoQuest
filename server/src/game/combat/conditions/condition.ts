@@ -11,7 +11,7 @@ import {
   ConditionDefinition,
   ConditionEffect,
 } from "../../../shared/interfaces/condition.interface";
-import { Creature } from "../../entities/creature";
+import type { Creature } from "../../entities/creature";
 
 /**
  * Classe que representa uma condição ativa (poison, burn, stun, etc.).
@@ -36,6 +36,9 @@ export class Condition {
 
   /** Timestamp de quando a condição foi aplicada (ms) */
   public startTime: number;
+
+  /** Originator of the current effect; refreshed when reapplied. */
+  public source?: Creature;
 
   /** Timer para efeitos periódicos (ex: damage over time) */
   private tickTimer?: NodeJS.Timeout;
