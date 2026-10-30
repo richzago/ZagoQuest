@@ -10,6 +10,7 @@
 import { AppDataSource } from "../../api/data-source";
 import { Character } from "../../api/entities/Character";
 import { Player } from "../entities/player";
+import { ExperienceSystem } from "./experienceSystem";
 import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillState } from "../../shared/interfaces/playerSave.interface";
@@ -32,6 +33,10 @@ export class DatabasePersistence {
     const player = new Player(character.id, character.name, character.posX, character.posY);
     player.level = character.level;
     player.experience = character.xp;
+    player.experienceToNext =
+      player.level >= ExperienceSystem.MAX_LEVEL
+        ? 0
+        : ExperienceSystem.getRequiredXp(player.level);
     player.hp = character.hp;
     player.maxHp = character.maxHp;
     player.mana = character.mana;
