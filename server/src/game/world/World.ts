@@ -308,6 +308,8 @@ export class World {
     const allEntities = [...this.players, ...this.monsters, ...this.npcs];
     return allEntities.some((entity) => {
       if (entity.id === ignoredEntityId) return false;
+      // Monstros mortos aguardam cleanup; não devem bloquear o tile.
+      if (entity instanceof Monster && entity.hp <= 0) return false;
       return entity.position.x === x && entity.position.y === y;
     });
   }
