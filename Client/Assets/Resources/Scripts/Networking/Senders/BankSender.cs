@@ -22,6 +22,13 @@ namespace ZagoQuest.Networking.Senders
             Send(msg);
         }
 
+        /// <summary>Fecha a sessão do NPC desta janela, sem tocar outras sessões.</summary>
+        public void SendCloseBank(string npcId)
+        {
+            if (string.IsNullOrEmpty(npcId)) return;
+            Send(new CloseBankMessage { type = "closeBank", npcId = npcId });
+        }
+
         public void SendDeposit(int amount)
         {
             var msg = new DepositMessage
