@@ -26,7 +26,10 @@ public class ShopItemSlot : MonoBehaviour
         if (priceText != null)
             priceText.text = $"{item.price} gold";
         if (stockText != null)
-            stockText.text = item.stock > 0 ? $"Stock: {item.stock}" : "Out of stock";
+            // Contrato do servidor: -1 significa estoque ilimitado,
+            // 0 significa esgotado e valores positivos são a quantidade disponível.
+            stockText.text = item.stock < 0 ? "Estoque ilimitado"
+                : item.stock == 0 ? "Esgotado" : $"Estoque: {item.stock}";
 
         if (buyButton != null)
         {
