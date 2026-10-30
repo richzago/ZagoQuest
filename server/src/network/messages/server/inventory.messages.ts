@@ -23,6 +23,12 @@ export interface ServerPlayerStatsMessage {
   level: number;
   attack: number;
   defense: number;
+  armor: number;
+  xp: number;
+  xpToNext: number;
+  // Compatibilidade temporária com antigos consumidores.
+  experience?: number;
+  experienceToNext?: number;
 }
 
 export interface ServerGoldMessage {
