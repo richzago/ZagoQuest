@@ -101,12 +101,19 @@ export class DeathSystem {
 
     player.position = { x: 0, y: 0 };
     player.hp = player.maxHp;
+    player.currentTargetId = undefined;
     Logger.system(`${player.name} renasceu em (0,0) com HP total.`);
 
-    // A morte alterou XP e HP: envia o snapshot completo.
+    // Stats alone update HUD; the client also needs its authoritative position.
     const wsServer = WebSocketServer.getInstance();
     if (wsServer) {
       wsServer.sendToPlayer(player.id, JSON.stringify(PlayerStatsSender.toPayload(player)));
+      wsServer.sendToPlayer(player.id, JSON.stringify({
+        type: "position", x: player.position.x, y: player.position.y,
+      }));
+      wsServer.sendToPlayer(player.id, JSON.stringify({
+        type: "autoAttackStopped", reason: "Jogador morreu.",
+      }));
     }
   }
 
