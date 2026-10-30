@@ -54,6 +54,17 @@ export class NpcLoader {
     const DEFAULT_MOVE_COOLDOWN = 1500; // 1500 ms
 
     for (const spawn of spawns) {
+      // Mesma regra de integridade aplicada aos MonsterSpawn do Tiled.
+      if (!world.isWithinBounds(spawn.x, spawn.y) ||
+          !world.getTile(spawn.x, spawn.y)?.walkable) {
+        Logger.warn(`[NPC Loader] Spawn inválido para ${spawn.npcId} em (${spawn.x},${spawn.y}).`);
+        continue;
+      }
+      if (world.isPositionOccupied(spawn.x, spawn.y)) {
+        Logger.warn(`[NPC Loader] Spawn ocupado para ${spawn.npcId} em (${spawn.x},${spawn.y}).`);
+        continue;
+      }
+
       // Constrói o caminho para o arquivo JSON do NPC
       const npcFilePath = join(process.cwd(), "src", "data", "npc", `${spawn.npcId}.json`);
 
@@ -68,9 +79,15 @@ export class NpcLoader {
         const raw = readFileSync(npcFilePath, "utf-8");
         const data = JSON.parse(raw);
 
-        // Cria o NPC com os dados do arquivo, mas sobrescreve a posição com a do spawn
+        // O ID do JSON é a identidade do TIPO. O objeto Tiled identifica
+        // uma instância específica, inclusive entre duas lojas do mesmo tipo.
+        // Spawns antigos sem objectId mantêm o ID legado.
+        const templateId = String(data.id);
+        const instanceId = spawn.objectId !== undefined
+          ? `${templateId}@tiled:${spawn.objectId}`
+          : templateId;
         const npc = new Npc(
-          data.id.toString(),
+          instanceId,
           data.name,
           spawn.x,
           spawn.y,

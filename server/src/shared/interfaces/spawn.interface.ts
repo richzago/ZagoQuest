@@ -38,6 +38,8 @@ export interface NpcSpawnData {
   y: number;
   /** Identificador do NPC (ex: "merchant", "banker") – corresponde ao nome do arquivo JSON em data/npc/ */
   npcId: string;
+  /** Identificador do objeto no Tiled; usado para IDs estáveis de instâncias. */
+  objectId?: number;
   /** Optional AI overrides from the NPCSpawn object in Tiled. */
   radius?: number;
   interactionRadius?: number;

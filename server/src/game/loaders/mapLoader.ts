@@ -198,6 +198,7 @@ export class MapLoader {
             };
             result.npcs.push({
               x, y, npcId: String(npcId),
+              objectId: Number.isSafeInteger(obj.id) && obj.id > 0 ? obj.id : undefined,
               radius: property("radius"),
               interactionRadius: property("interactionRadius"),
               moveCooldown: property("moveCooldown"),
