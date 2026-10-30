@@ -271,3 +271,52 @@ test("WebSocket: closeShop impede compra, mas closeBank antigo não cancela loja
     await f.close();
   }
 });
+
+test("WebSocket: depositar e sacar emite bankResult e gold com saldos atualizados", async () => {
+  const f = await fixture();
+  try {
+    const ws = await f.connect();
+    f.player.bankGold = 30;
+
+    const opened = await send(ws, { type: "openBank", npcId: f.banker.id }, "bankWindow");
+    assert.deepEqual([opened.gold, opened.bankGold], [100, 30]);
+
+    // Instala as duas esperas ANTES de mandar o pacote para não perder respostas.
+    const depositResult = nextPacket(ws, "bankResult");
+    const depositGold = nextPacket(ws, "gold");
+    ws.send(JSON.stringify({ type: "deposit", amount: 25 }));
+    const [resultD, balanceD] = await Promise.all([depositResult, depositGold]);
+    assert.equal(resultD.success, true);
+    assert.deepEqual([resultD.gold, resultD.bankGold, balanceD.gold], [75, 55, 75]);
+
+    const withdrawResult = nextPacket(ws, "bankResult");
+    const withdrawGold = nextPacket(ws, "gold");
+    ws.send(JSON.stringify({ type: "withdraw", amount: 15 }));
+    const [resultW, balanceW] = await Promise.all([withdrawResult, withdrawGold]);
+    assert.equal(resultW.success, true);
+    assert.deepEqual([resultW.gold, resultW.bankGold, balanceW.gold], [90, 40, 90]);
+    assert.equal(f.player.gold + f.player.bankGold, 130);
+  } finally {
+    await f.close();
+  }
+});
+
+test("WebSocket: saques sem saldo, depósitos excessivos e quantia zero preservam saldos", async () => {
+  const f = await fixture();
+  try {
+    const ws = await f.connect();
+    await send(ws, { type: "openBank", npcId: f.banker.id }, "bankWindow");
+    const tooMuch = await send(ws, { type: "deposit", amount: 101 }, "bankResult");
+    const noBankGold = await send(ws, { type: "withdraw", amount: 1 }, "bankResult");
+    assert.equal(tooMuch.success, false);
+    assert.equal(noBankGold.success, false);
+    assert.deepEqual([f.player.gold, f.player.bankGold], [100, 0]);
+
+    // Mesmo um cliente adulterado não deve poder depositar zero.
+    const invalid = await send(ws, { type: "deposit", amount: 0 }, "networkError");
+    assert.equal(invalid.type, "networkError");
+    assert.deepEqual([f.player.gold, f.player.bankGold], [100, 0]);
+  } finally {
+    await f.close();
+  }
+});
