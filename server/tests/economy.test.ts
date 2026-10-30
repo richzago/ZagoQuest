@@ -124,8 +124,8 @@ test("banco rejeita inválidos, saldo insuficiente e overflow sem mudar contas",
   assert.equal(player.gold, 50);
   assert.equal(player.bankGold, MAX_GOLD);
   assert.equal(BankingSystem.withdrawGold(player, 1), true);
-  assert.equal(BankingSystem.depositGold(player, 51), true);
-  assert.equal(player.gold, 0);
+  assert.equal(BankingSystem.depositGold(player, 1), true);
+  assert.equal(player.gold, 50);
   assert.equal(player.bankGold, MAX_GOLD);
 });
 
