@@ -10,7 +10,7 @@ import { Logger } from "../../game/core/logger/logger";
 import { ShopSystem } from "../../game/systems/shopSystem";
 import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
-import type { ClientOpenShopMessage, ClientBuyItemMessage } from "../messages";
+import type { ClientOpenShopMessage, ClientBuyItemMessage, ClientCloseShopMessage } from "../messages";
 
 /** Um item antigo/experimental não deve derrubar a janela inteira. */
 function itemDisplayName(itemId: string): string {
@@ -85,4 +85,14 @@ export async function handleBuyItem(
   ctx.packetSender.inventory.sendInventory(player);
   ctx.packetSender.inventory.sendPlayerStats(player);
   ctx.packetSender.inventory.sendGold(player);
+}
+
+/** Fecha somente a loja que originou esta mensagem. */
+export function handleCloseShop(
+  _ws: WebSocket,
+  player: Player,
+  msg: ClientCloseShopMessage,
+  _ctx: HandlerContext,
+): void {
+  NpcInteractionSystem.closeIfActive(player, "merchant", msg.npcId);
 }
