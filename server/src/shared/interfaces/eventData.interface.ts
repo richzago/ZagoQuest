@@ -30,7 +30,7 @@ export interface PlayerGainXpEventData {
   playerId: string;
   playerName: string;
   amount: number;
-  newTotalXp: number;
+  currentLevelXp: number; // XP restante no nível após os level-ups
 }
 
 export interface ItemPickupEventData {
