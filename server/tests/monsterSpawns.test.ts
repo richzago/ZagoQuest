@@ -196,3 +196,17 @@ test("não processa morte de monstro que já foi retirado do mundo", (t) => {
     t.mock.timers.reset();
   }
 });
+
+
+test("IA de monstro morto não encontra alvo nem executa ações", () => {
+  const world = createWorld();
+  const player = new Player("player-nearby", "Nearby", 2, 2);
+  const monster = makeMonster("dead-monster");
+  world.addPlayer(player);
+  world.addMonster(monster);
+  monster.hp = 0;
+
+  monster.ai.update(monster, world);
+  assert.equal(monster.target, undefined);
+  assert.deepEqual(monster.position, { x: 2, y: 2 });
+});
