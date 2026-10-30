@@ -133,6 +133,10 @@ export class GuildService {
   /**
    * Cria uma nova guilda.
    */
+  /**
+   * Creates a guild atomically: gold debit, guild row, leader row and initial log.
+   * The character row lock serializes competing purchases for this character.
+   */
   static async createGuild(
     characterName: string,
     guildName: string,
@@ -141,40 +145,53 @@ export class GuildService {
     const validation = createGuildSchema.safeParse({ name: guildName, description });
     if (!validation.success) throw new Error(validation.error.issues[0].message);
 
-    const character = await this.characterRepo.findOne({ where: { name: characterName } });
-    if (!character) throw new Error("Personagem não encontrado.");
-    if (await this.getPlayerGuild(characterName)) throw new Error("Você já pertence a uma guilda.");
-    const existing = await this.guildRepo.findOne({ where: { name: guildName } });
-    if (existing) throw new Error("Já existe uma guilda com este nome.");
-    if (character.level < 100) throw new Error("Nível mínimo 100 para criar guilda.");
-    if (character.gold < 20000) throw new Error("Você precisa de 20.000 gold.");
-    character.gold -= 20000;
-    await this.characterRepo.save(character);
+    const guild = await AppDataSource.transaction(async (manager) => {
+      const characters = manager.getRepository(Character);
+      const guilds = manager.getRepository(Guild);
+      const members = manager.getRepository(GuildMember);
 
-    const newGuild = this.guildRepo.create({
-      name: guildName,
-      description,
-      level: 1,
-      exp: 0,
-      totalKills: 0,
+      const character = await characters.findOne({
+        where: { name: characterName },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!character) throw new Error("Personagem não encontrado.");
+      if (await members.findOne({
+        where: [{ characterId: character.id }, { characterName: character.name }],
+      })) throw new Error("Você já pertence a uma guilda.");
+      if (await guilds.findOne({ where: { name: guildName } })) {
+        throw new Error("Já existe uma guilda com este nome.");
+      }
+      if (character.level < 100) throw new Error("Nível mínimo 100 para criar guilda.");
+      if (character.gold < 20_000) throw new Error("Você precisa de 20.000 gold.");
+
+      character.gold -= 20_000;
+      await characters.save(character);
+
+      const now = new Date();
+      const created = await guilds.save(guilds.create({
+        name: guildName,
+        description,
+        level: 1,
+        exp: 0,
+        totalKills: 0,
+        logs: [`[${now.toISOString()}] Guilda criada por ${character.name}.`],
+      }));
+      await members.save(members.create({
+        guildId: created.id,
+        characterId: character.id,
+        characterName: character.name,
+        level: character.level,
+        isPremium: false,
+        role: "leader",
+        joinedAt: now,
+        lastSeen: now,
+      }));
+      return created;
     });
-    await this.guildRepo.save(newGuild);
 
-    const newMember = this.memberRepo.create({
-      guildId: newGuild.id,
-      characterId: character.id,
-      characterName: character.name,
-      level: character.level,
-      isPremium: false,
-      role: "leader",
-      joinedAt: new Date(),
-      lastSeen: new Date(),
-    });
-    await this.memberRepo.save(newMember);
-
-    await this.addLog(newGuild.id, `Guilda criada por ${characterName}.`);
+    // Log only after the entire transaction successfully commits.
     Logger.economy(`${characterName} criou a guilda ${guildName} por 20.000 gold.`);
-    return newGuild;
+    return guild;
   }
 
   static async disbandGuild(characterName: string): Promise<void> {
