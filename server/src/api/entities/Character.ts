@@ -63,9 +63,17 @@ export class Character {
   @Column({ type: "int", default: 1 })
   level: number;
 
-  /** XP disponível no nível atual (não é XP total histórico). */
+  /** XP acumulado atual (não é descontado no level up). */
   @Column({ type: "int", default: 0 })
   xp: number;
+
+  /** XP recebido durante toda a trajetória, antes de penalidades de morte. */
+  @Column({ type: "int", default: 0 })
+  lifetimeXp: number;
+
+  /** 1 = save legado com XP relativo; 2 = XP acumulativo. */
+  @Column({ type: "int", default: 1 })
+  xpVersion: number;
 
   /** Pontos de vida atuais. */
   @Column({ type: "int", default: 100 })
