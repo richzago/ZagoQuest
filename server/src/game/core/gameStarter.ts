@@ -7,8 +7,10 @@
  * @module game/core/gameStarter
  */
 
-import { setupGracefulShutdown } from "./shutdownHandler";
-import { startScheduledTasks } from "./scheduledTasks";
+import {
+  startScheduledTasks,
+  type ScheduledTaskDependencies,
+} from "./scheduledTasks";
 import { Logger } from "./logger/logger";
 import { World } from "../world/World";
 import { Player } from "../entities/player";
@@ -16,17 +18,81 @@ import { WebSocketServer } from "../../network/websocket/wsServer";
 import { PlayerAttackSystem } from "../combat/playerAttackSystem";
 import { Monster } from "../entities/monster";
 
-export function startGameLoops(world: World, player: Player, wsServer: WebSocketServer): void {
-  // Inicia os timers antes do shutdown, para que Ctrl+C consiga interrompê-los
-  // e esperar um eventual autosave antes de salvar o estado final.
-  const scheduledTasks = startScheduledTasks(player);
-  setupGracefulShutdown(player, scheduledTasks);
-  startAutoAttackLoop(world, wsServer);
-  Logger.system("Loops do jogo iniciados (IA, auto attack, autosave, guildas).");
+/** Keep game tick duration separate from autosave/guild schedules. */
+export const GAME_TICK_MS = 1_500;
+
+type Timer = ReturnType<typeof setInterval>;
+
+export interface GameLoopDependencies {
+  scheduleWorldTick?: (callback: () => void, intervalMs: number) => Timer;
+  cancelWorldTick?: (timer: Timer) => void;
+  scheduledTasks?: ScheduledTaskDependencies;
 }
 
-function startAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
-  setInterval(() => {
+export interface GameLoopsHandle {
+  /** Immediately stops new world ticks and scheduled autosaves/guild jobs. */
+  stop(): void;
+  /** Waits for an in-flight autosave, then writes a final snapshot once. */
+  flushAutosave(): Promise<void>;
+  /** Waits for an in-progress guild maintenance job before closing PostgreSQL. */
+  waitForTasks(): Promise<void>;
+}
+
+const activeWorlds = new WeakMap<World, GameLoopsHandle>();
+
+/**
+ * Start each world's loop only once. The main bootstrap owns signals/shutdown,
+ * NOT this scheduler. stop() also disables queued callbacks from old timers.
+ */
+export function startGameLoops(
+  world: World,
+  player: Player,
+  wsServer: WebSocketServer,
+  deps: GameLoopDependencies = {},
+): GameLoopsHandle {
+  const existing = activeWorlds.get(world);
+  if (existing) {
+    Logger.warn("[GAME] Mundo já possui loop ativo; reutilizando controller.");
+    return existing;
+  }
+
+  const tasks = startScheduledTasks(player, deps.scheduledTasks);
+  const schedule = deps.scheduleWorldTick ?? ((callback, ms) => setInterval(callback, ms));
+  const cancel = deps.cancelWorldTick ?? ((timer) => clearInterval(timer));
+  let stopped = false;
+  let worldTimer: Timer;
+
+  try {
+    worldTimer = schedule(() => {
+      if (!stopped) tickWorld(world, wsServer);
+    }, GAME_TICK_MS);
+  } catch (error) {
+    tasks.stop();
+    throw error;
+  }
+
+  const handle: GameLoopsHandle = {
+    stop(): void {
+      if (stopped) return;
+      stopped = true;
+      cancel(worldTimer);
+      tasks.stop();
+      if (activeWorlds.get(world) === handle) activeWorlds.delete(world);
+    },
+    flushAutosave: () => tasks.flushAutosave(),
+    waitForTasks: () => tasks.waitForIdle(),
+  };
+
+  activeWorlds.set(world, handle);
+  Logger.system("Loops do jogo iniciados (IA, auto attack, autosave, guildas).");
+  return handle;
+}
+
+/**
+ * Single synchronous game tick, extracted to make timer lifecycle explicit.
+ * Exceptions are already caught per entity and around the whole tick.
+ */
+export function tickWorld(world: World, wsServer: WebSocketServer): void {
     try {
       // 1. Movimento e IA dos monstros
       for (const monster of world.monsters) {
@@ -146,5 +212,4 @@ function startAutoAttackLoop(world: World, wsServer: WebSocketServer): void {
       Logger.error(`Erro crítico no loop principal: ${msg}`);
       if (stack) Logger.error(stack);
     }
-  }, 1500); // 1.5 segundos
 }
