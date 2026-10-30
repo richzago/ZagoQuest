@@ -10,6 +10,7 @@ import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { BaseSender } from "./base/baseSender";
 import { Logger } from "../../game/core/logger/logger";
+import type { ServerEquipmentMessage } from "../messages/server/inventory.messages";
 
 export class InventorySender extends BaseSender {
   /**
@@ -51,7 +52,7 @@ export class InventorySender extends BaseSender {
     const payload = {
       type: "equipment",
       items,
-    };
+    } satisfies ServerEquipmentMessage;
 
     Logger.system(`[SERVER] Enviando equipment: ${JSON.stringify(payload)}`);
 
