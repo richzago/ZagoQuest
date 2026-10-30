@@ -15,8 +15,9 @@ import {
 } from "../../shared/interfaces/eventData.interface";
 import { EventSystem } from "../core/events/eventSystem";
 import { Logger } from "../core/logger/logger";
-import { Player } from "../entities/player";
+import type { Player } from "../entities/player";
 import { WebSocketServer } from "../../network/websocket/wsServer";
+import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 
 /**
  * Gerencia a progressão de nível e experiência do jogador.
@@ -38,6 +39,7 @@ import { WebSocketServer } from "../../network/websocket/wsServer";
  * ```
  */
 export class ExperienceSystem {
+  public static readonly MAX_LEVEL = 100;
   /**
    * Retorna o XP necessário para subir do nível atual para o próximo.
    *
@@ -69,112 +71,78 @@ export class ExperienceSystem {
   }
 
   /**
-   * Adiciona experiência ao jogador e verifica a necessidade de level up.
+   * Concede XP usando a mesma regra para todos os jogadores.
+   * experience é o XP disponível no nível atual, NÃO o total histórico.
+   * No nível 100 o excedente é descartado e novas recompensas são ignoradas.
    *
-   * @param player - Jogador que receberá o XP
-   * @param amount - Quantidade de XP a adicionar
-   * @returns `true` se houve pelo menos um level up, `false` caso contrário
-   *
-   * @remarks
-   * Se o XP acumulado ultrapassar o necessário para o nível atual,
-   * o jogador sobe de nível (possivelmente múltiplas vezes) até que o XP
-   * acumulado seja inferior ao necessário para o próximo nível.
-   * Dispara evento `PLAYER_GAIN_XP` e (se houver level up) `PLAYER_LEVEL_UP`.
-   * O log é escrito no canal `SKILL`.
-   * Após qualquer alteração, envia `playerStats` atualizado para o cliente.
-   *
-   * @example
-   * ```typescript
-   * const leveledUp = ExperienceSystem.addXp(player, 500);
-   * if (leveledUp) {
-   *   // O jogador subiu de nível, atributos foram atualizados
-   * }
-   * ```
+   * @returns true quando ocorre pelo menos um level up.
    */
   public static addXp(player: Player, amount: number): boolean {
-    if (amount <= 0 || player.level >= 100) return false;
+    if (!Number.isSafeInteger(amount) || amount <= 0 || player.level >= this.MAX_LEVEL) {
+      return false;
+    }
 
-    const oldXp = player.xp;
-    player.xp += amount;
+    if (
+      !Number.isSafeInteger(player.experience) ||
+      player.experience < 0 ||
+      !Number.isSafeInteger(player.experience + amount)
+    ) {
+      Logger.warn(`XP inválido para ${player.name}; progressão não alterada.`);
+      return false;
+    }
+
+    player.experience += amount;
+    let levelsGained = 0;
+
+    while (player.level < this.MAX_LEVEL) {
+      const requiredXp = this.getRequiredXp(player.level);
+      if (player.experience < requiredXp) break;
+
+      // Primeiro desconta o custo do nível atual; depois avança.
+      player.experience -= requiredXp;
+      this.levelUp(player);
+      levelsGained++;
+    }
+
+    if (player.level >= this.MAX_LEVEL) {
+      player.experience = 0;
+    }
+
+    player.experienceToNext =
+      player.level >= this.MAX_LEVEL ? 0 : this.getRequiredXp(player.level);
+
+    if (levelsGained > 0) {
+      // A vocação define o ganho de HP/mana por nível.
+      player.recalculateStats();
+      player.hp = player.maxHp;
+      Logger.system(`${player.name} subiu ${levelsGained} nível(is)! Agora nível ${player.level}`);
+    }
 
     EventSystem.getInstance().emit<PlayerGainXpEventData>(GameEvent.PLAYER_GAIN_XP, {
       playerId: player.id,
       playerName: player.name,
-      amount: amount,
-      newTotalXp: player.xp,
+      amount,
+      currentLevelXp: player.experience,
     });
-    Logger.skill(`${player.name} ganhou ${amount} XP. XP total: ${player.xp}`);
+    Logger.skill(`${player.name} ganhou ${amount} XP. Progresso no nível: ${player.experience}`);
 
-    let leveledUp = false;
-    let levelsGained = 0;
-
-    while (player.xp >= this.getRequiredXp(player.level) && player.level < 100) {
-      this.levelUp(player);
-      leveledUp = true;
-      levelsGained++;
-    }
-
-    if (leveledUp) {
-      Logger.system(`${player.name} subiu ${levelsGained} nível(is)! Agora nível ${player.level}`);
-    }
-
-    // ==========================================================
-    // 🔥 ENVIA PLAYER STATS ATUALIZADOS PARA O CLIENTE
-    // ==========================================================
     const wsServer = WebSocketServer.getInstance();
     if (wsServer) {
-      wsServer.sendToPlayer(
-        player.id,
-        JSON.stringify({
-          type: "playerStats",
-          hp: player.hp,
-          maxHp: player.maxHp,
-          mana: player.mana,
-          maxMana: player.maxMana,
-          level: player.level,
-          attack: player.attack,
-          defense: player.defense,
-          armor: player.armor,
-          xp: player.xp,
-          xpToNext: this.getRequiredXp(player.level),
-        }),
-      );
-      Logger.combat(`[HUD] PlayerStats enviado para ${player.name} (XP atualizado)`);
+      wsServer.sendToPlayer(player.id, JSON.stringify(PlayerStatsSender.toPayload(player)));
     }
 
-    return leveledUp;
+    return levelsGained > 0;
   }
 
-  /**
-   * Aplica os efeitos de um level up.
-   *
-   * @param player - Jogador que subiu de nível
-   * @returns {void}
-   *
-   * @remarks
-   * Aumenta o nível em 1, adiciona +20 ao HP máximo e restaura o HP completamente.
-   * Emite evento `PLAYER_LEVEL_UP` e log no canal `SYSTEM`.
-   *
-   * @example
-   * ```typescript
-   * // Internamente chamado por addXp
-   * ExperienceSystem.levelUp(player);
-   * ```
-   */
+  /** Registra uma subida de nível; atributos são recalculados ao fim do lote. */
   private static levelUp(player: Player): void {
     const oldLevel = player.level;
     player.level++;
-    player.maxHp += 20;
-    player.hp = player.maxHp;
-
-    // Opcional: aumentar mana também
-    // player.maxMana += 5;
-    // player.mana = player.maxMana;
 
     EventSystem.getInstance().emit<PlayerLevelUpEventData>(GameEvent.PLAYER_LEVEL_UP, {
       playerId: player.id,
       playerName: player.name,
-      oldLevel: oldLevel,
+      oldLevel,
       newLevel: player.level,
     });
   }
