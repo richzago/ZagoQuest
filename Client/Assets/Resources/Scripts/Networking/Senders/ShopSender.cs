@@ -22,6 +22,13 @@ namespace ZagoQuest.Networking.Senders
             Send(msg);
         }
 
+        /// <summary>Fecha somente a loja correspondente a esta janela.</summary>
+        public void SendCloseShop(string npcId)
+        {
+            if (string.IsNullOrEmpty(npcId)) return;
+            Send(new CloseShopMessage { type = "closeShop", npcId = npcId });
+        }
+
         public void SendBuyItem(string npcId, string itemId, int amount)
         {
             var msg = new BuyItemMessage
