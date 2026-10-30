@@ -95,6 +95,19 @@ export class NpcInteractionSystem {
     }
   }
 
+  /**
+   * Fecha a janela declarada pelo cliente, sem afetar outro serviço aberto
+   * depois dela. Nunca confia no npcId para abrir ou autorizar operações.
+   */
+  static closeIfActive(player: Player, service: EconomyService, npcId: string): boolean {
+    const active = sessions.get(player);
+    if (!active || active.service !== service || active.npc.id !== npcId) {
+      return false;
+    }
+    sessions.delete(player);
+    return true;
+  }
+
   /** Despedida, desconexão ou troca explícita de contexto. Idempotente. */
   static close(player: Player): void {
     sessions.delete(player);
