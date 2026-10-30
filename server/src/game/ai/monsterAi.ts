@@ -109,8 +109,10 @@ export class MonsterAI {
 
     // Se já está no limite, força retorno ao centro
     if (distToOrigin >= radius) {
-      const moveX = originX > monster.position.x ? 1 : -1;
-      const moveY = originY > monster.position.y ? 1 : -1;
+      const moveX = Math.sign(originX - monster.position.x);
+      const moveY = Math.sign(originY - monster.position.y);
+      // Raio 0 fixa o monstro na origem; não consumir cooldown num no-op.
+      if (moveX === 0 && moveY === 0) return;
       this.tryMove(monster, moveX, moveY, world);
       return;
     }
