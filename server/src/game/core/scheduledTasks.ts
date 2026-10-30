@@ -34,6 +34,8 @@ export interface ScheduledTasksHandle {
   stop(): void;
   /** Para os timers, espera eventual autosave e salva o estado mais recente. */
   flushAutosave(): Promise<void>;
+  /** Espera um processamento de guildas já iniciado, antes de fechar o banco. */
+  waitForIdle(): Promise<void>;
 }
 
 // A aplicação atual possui um único mundo e um jogador inicial.
@@ -107,6 +109,12 @@ export function startScheduledTasks(
   }, SCHEDULED_INTERVALS.guildInactivity);
 
   const controller: ScheduledTasksHandle = {
+    async waitForIdle(): Promise<void> {
+      // O processo não deve destruir o DataSource com operações de guilda em curso.
+      // Falhas são logadas nos callbacks e propagadas ao shutdown.
+      if (guildInFlight) await guildInFlight;
+    },
+
     stop(): void {
       if (stopped) return;
       stopped = true;
