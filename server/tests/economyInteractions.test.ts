@@ -374,3 +374,19 @@ test("BankingSystem continua sendo independente de rede e autorização de NPC",
   assert.equal(BankingSystem.depositGold(a.player, 10), true);
   assert.deepEqual([a.player.gold, a.player.bankGold], [90, 10]);
 });
+
+
+test("tentativa de abrir um comerciante inválido revoga a sessão anterior do banco", async () => {
+  const a = setup();
+  const { ctx, events } = createContext(a.world);
+  await handleOpenBank(ws, a.player, { type: "openBank", npcId: a.banker.id }, ctx);
+  assert.equal(NpcInteractionSystem.getActive(a.player, a.world, "banker"), a.banker);
+
+  // Não permitir que janelas antigas autorizem operações depois de trocar
+  // para um serviço inexistente.
+  await handleOpenShop(ws, a.player, { type: "openShop", npcId: "unknown-merchant" }, ctx);
+  await handleDeposit(ws, a.player, { type: "deposit", amount: 10 }, ctx);
+  assert.equal(events.shopError.length, 1);
+  assert.equal(events.bankResult[0][0], false);
+  assert.equal(a.player.gold, 100);
+});
