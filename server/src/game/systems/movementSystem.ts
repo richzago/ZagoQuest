@@ -3,7 +3,7 @@
  *
  * O cliente pede UM passo; só o servidor decide se ele é permitido.
  * "move" (coordenada absoluta) e "moveDir" (direção) usam estas mesmas regras.
- * O relógio é injetável nos testes; no jogo usa Date.now().
+ * O relógio é injetável nos testes; no jogo usa performance.now() (monotônico).
  */
 import type { Player } from "../entities/player";
 import type { World } from "../world/World";
@@ -37,7 +37,7 @@ export class MovementSystem {
     world: World,
     x: unknown,
     y: unknown,
-    now: number = Date.now(),
+    now: number = performance.now(),
   ): MoveResult {
     const fromX = player.position.x;
     const fromY = player.position.y;
@@ -80,7 +80,7 @@ export class MovementSystem {
     player: Player,
     world: World,
     direction: unknown,
-    now: number = Date.now(),
+    now: number = performance.now(),
   ): MoveResult {
     if (
       typeof direction !== "string" ||
