@@ -13,6 +13,8 @@ public class BankUI : MonoBehaviour
     public Button closeButton;
 
     private NetworkManager networkManager;
+    // O servidor identifica a sessão pelo NPC; o painel precisa lembrar o ID.
+    private string currentNpcId;
 
     // =========================
     // CICLO DE VIDA
@@ -51,6 +53,7 @@ public class BankUI : MonoBehaviour
 
     public void ShowBankWindow(string npcId, int bankGold, int inventoryGold)
     {
+        currentNpcId = npcId;
         Debug.Log($"BankUI.ShowBankWindow: bankGold={bankGold}, inventoryGold={inventoryGold}");
         if (bankGoldText != null)
             bankGoldText.text = $"{bankGold} gold";
@@ -75,6 +78,11 @@ public class BankUI : MonoBehaviour
 
     private void CloseBank()
     {
+        // Só enviar close quando havia uma sessão aberta neste painel.
+        if (bankPanel != null && bankPanel.activeSelf && !string.IsNullOrEmpty(currentNpcId))
+            networkManager?.Bank?.SendCloseBank(currentNpcId);
+
+        currentNpcId = null;
         if (bankPanel != null)
             bankPanel.SetActive(false);
     }
