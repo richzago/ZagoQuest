@@ -53,9 +53,9 @@ export class DeathSystem {
   }
 
   private static handlePlayerDeath(player: Player, killer?: Damageable): void {
-    const xpLoss = Math.max(1, Math.floor(player.xp * 0.1));
-    player.xp = Math.max(0, player.xp - xpLoss);
-    Logger.skill(`${player.name} perdeu ${xpLoss} XP. XP restante: ${player.xp}`);
+    // Evita reduzir o nível nesta fase; o histórico de XP não é alterado.
+    const xpLoss = ExperienceSystem.applyDeathPenalty(player);
+    Logger.skill(`${player.name} perdeu ${xpLoss} XP. XP acumulado: ${player.xp}`);
 
     const eventSystem = EventSystem.getInstance();
     eventSystem.emit<PlayerDeathEventData>(GameEvent.PLAYER_DEATH, {
