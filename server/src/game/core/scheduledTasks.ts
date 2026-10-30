@@ -104,9 +104,19 @@ export function startScheduledTasks(
   const autosaveTimer = schedule(() => {
     if (!stopped && !saveInFlight) void runSave();
   }, SCHEDULED_INTERVALS.autosave);
-  const guildTimer = schedule(() => {
-    if (!stopped) runGuilds();
-  }, SCHEDULED_INTERVALS.guildInactivity);
+
+  // Se o segundo agendamento falhar, o autosave já foi registrado e precisa
+  // ser desfeito. Caso contrário, fica um timer órfão após falha no boot.
+  let guildTimer: Timer;
+  try {
+    guildTimer = schedule(() => {
+      if (!stopped) runGuilds();
+    }, SCHEDULED_INTERVALS.guildInactivity);
+  } catch (error) {
+    stopped = true;
+    cancel(autosaveTimer);
+    throw error;
+  }
 
   const controller: ScheduledTasksHandle = {
     async waitForIdle(): Promise<void> {

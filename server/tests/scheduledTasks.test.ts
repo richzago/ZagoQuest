@@ -306,3 +306,44 @@ test("falha anterior não impede última tentativa no shutdown", async () => {
     task.stop();
   }
 });
+
+test("falha ao registrar o timer de guildas cancela autosave e permite retry", async () => {
+  const handles = new Map<number, () => void>();
+  const canceled: number[] = [];
+  let attempts = 0;
+  let saves = 0;
+  const h = harness({
+    saveCharacter: async () => { saves++; },
+    schedule: (callback) => {
+      attempts++;
+      if (attempts === 2) throw new Error("Falha no agendamento de guildas");
+      handles.set(attempts, callback);
+      return attempts as unknown as Timer;
+    },
+    cancel: (timer) => {
+      const id = timer as unknown as number;
+      canceled.push(id);
+      handles.delete(id);
+    },
+  });
+
+  assert.throws(
+    () => startScheduledTasks(player(), h.deps),
+    /Falha no agendamento de guildas/,
+  );
+  assert.deepEqual(canceled, [1], "o primeiro timer precisa ser cancelado");
+  assert.equal(handles.size, 0, "nenhum timer pode sobreviver ao boot falho");
+
+  // Não deve bloquear uma próxima inicialização com dependências válidas.
+  const healthy = harness({ saveCharacter: async () => { saves++; } });
+  const recovered = startScheduledTasks(player(), healthy.deps);
+  try {
+    assert.equal(healthy.timers.size, 2);
+    healthy.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.equal(saves, 1);
+  } finally {
+    recovered.stop();
+  }
+  assert.equal(healthy.timers.size, 0);
+});
