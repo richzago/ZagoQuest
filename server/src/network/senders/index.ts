@@ -1,10 +1,10 @@
 import { WebSocket } from "ws";
-import { CombatSender } from "./CombatSender";
-import { InventorySender } from "./InventorySender";
-import { LootSender } from "./LootSender";
-import { ShopSender } from "./ShopSender";
-import { BankSender } from "./BankSender";
-import { ChatSender } from "./ChatSender";
+import { CombatSender } from "./combatSender";
+import { InventorySender } from "./inventorySender";
+import { LootSender } from "./lootSender";
+import { ShopSender } from "./shopSender";
+import { BankSender } from "./bankSender";
+import { ChatSender } from "./chatSender";
 import { InitialStateSender } from "./initialStateSender";
 import { PlayerStatsSender } from "./playerStatsSender";
 import { WorldStateSender } from "./worldStateSender";
