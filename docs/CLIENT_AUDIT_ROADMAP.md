@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **Marco de recuperação (31/10/2026): ROLLBACK DA C7.1.** Após regressões graves no Play Mode (janelas sobrepostas e cantos de mapa com artefatos), a `dev` deve voltar à árvore de código do [PR #110](https://github.com/richzago/ZagoQuest/pull/110), commit `ce506b69756124444a43e8ae03444187da8b396a`, revertendo inteiramente o [PR #111](https://github.com/richzago/ZagoQuest/pull/111) sem reescrever histórico. O PR #112 não integra a solução. **C7.1 cancelada na base atual; CR8 bloqueada.** Retornos da C7.1 (isWater Tiled, vara Weapon e isca Useful, docking e Camera.rect) permanecem como requisitos para implementação futura, não como funcionalidades entregues. Próximo marco: homologar a base restaurada no Unity Editor + build Windows; **somente depois criar uma branch nova** para o layout desejado e outra etapa de pesca, com testes e revisão visual antes de qualquer merge. As seções históricas anteriores documentam etapas passadas e não substituem este status.
+
+
 **Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA; C4 CONCLUÍDA/HOMOLOGADA (10/10 Unity); C5 aceita funcionalmente; C6 INTEGRADA PARCIALMENTE (#100/#101/#102) com P1 de drop distante/duplo EndDrag em correção e QA Unity pendente; C7 iniciará após correção do bloqueador, C8 futura.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
