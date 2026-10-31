@@ -20,6 +20,12 @@ public class PlayerHUD : MonoBehaviour
     public TextMeshProUGUI positionText;
     public TextMeshProUGUI fpsText;
 
+    public void SetPlayerName(string playerName)
+    {
+        if (playerNameText != null && !string.IsNullOrWhiteSpace(playerName))
+            playerNameText.text = playerName;
+    }
+
     // 🔥 Armazenar o xpToNext
     private int currentXpToNext = 100;
 
