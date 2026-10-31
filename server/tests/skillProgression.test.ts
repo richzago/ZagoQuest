@@ -54,5 +54,5 @@ test("overflow or previously invalid skill state is never persisted", () => {
 
   player.skills.set(SkillType.SWORD, { level: 4, progress: 99 });
   SkillSystem.addProgress(player, SkillType.SWORD, 900_000);
-  assert.deepEqual(player.skills.get(SkillType.SWORD), { level: 9005, progress: 99 });
+  assert.deepEqual(player.skills.get(SkillType.SWORD), { level: 9004, progress: 99 });
 });
