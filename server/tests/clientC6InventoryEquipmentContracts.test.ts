@@ -388,7 +388,7 @@ test("C6: Status não sobrepõe o login após autenticação e logout limpa sess
  const status=unity("Managers/StatusManager.cs");
  const network=unity("Networking/NetworkManager.cs");
  assert.match(login,/if \(network\.isConnected \|\| network\.HasCredentials\)/);
- assert.match(login,/new GUIContent\("⏻", "Sair da sessão"\)/);
+ assert.match(login,/new GameObject\("C6LogoutOverlay"/);
  assert.match(login,/network\.LogoutAuthenticatedSession\(\)/);
  assert.match(login,/StatusManager\.Instance\?\.ClosePanel\(\)/);
  assert.match(network,/public async Task LogoutAuthenticatedSession\(\)/);
