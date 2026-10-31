@@ -83,28 +83,15 @@ public class TargetSelector : MonoBehaviour
     void Update()
     {
         if (!autoFollowEnabled || currentTarget == null) return;
+        if (PlayerController.Instance == null || NetworkManager.Instance == null ||
+            !NetworkManager.Instance.isConnected) return;
         if (Time.time < nextFollowStepTime) return;
 
-        Vector2 playerPos = transform.position;
-        Vector2 targetPos = currentTarget.transform.position;
-        float distance = Vector2.Distance(playerPos, targetPos);
-
-        if (distance > 1.2f)
-        {
-            Vector2Int delta = new Vector2Int(
-                (int)Mathf.Sign(targetPos.x - playerPos.x),
-                (int)Mathf.Sign(targetPos.y - playerPos.y)
-            );
-            if (delta != Vector2Int.zero)
-            {
-                int steps = Mathf.FloorToInt(distance / 1.0f);
-                for (int i = 0; i < Mathf.Min(steps, 3); i++)
-                {
-                    PlayerController.Instance.RequestMoveDirection(delta);
-                }
-                nextFollowStepTime = Time.time + followStepInterval;
-            }
-        }
+        // O TargetSelector pode estar em outro GameObject da Hierarchy.
+        // Nunca calcular a distância usando o transform deste componente.
+        // PlayerController usa exclusivamente a última posição validada pelo Node.
+        PlayerController.Instance.RequestFollowTowards(currentTarget.transform.position);
+        nextFollowStepTime = Time.time + PlayerController.Instance.FollowIntervalSeconds;
     }
 
     void OnDestroy()
@@ -210,6 +197,13 @@ public class TargetSelector : MonoBehaviour
 
         currentTargetId = targetId;
         currentTarget = EntityManager.Instance.GetGameObject(targetId);
+
+        if (currentTarget == null)
+        {
+            ClearTarget();
+            Debug.LogWarning($"[TargetSelector] Alvo {targetId} não existe mais no cliente.");
+            return;
+        }
 
         ShowOutline(currentTarget.transform);
         NetworkManager.Instance.Combat.SendStartAutoAttack(targetId);

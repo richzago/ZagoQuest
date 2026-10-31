@@ -14,6 +14,7 @@ namespace ZagoQuest.Networking.Handlers
             // Atualiza HUD e Status diretamente
             context.PlayerHUD?.UpdateStats(stats);
             context.StatusManager?.OnPlayerStatsReceived(stats);
+            PlayerController.Instance?.SetMoveIntervalMs(stats.moveIntervalMs);
         }
     }
 }

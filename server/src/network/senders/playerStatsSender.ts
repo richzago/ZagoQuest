@@ -4,6 +4,7 @@ import type { Player } from "../../game/entities/player";
 import type { ServerPlayerStatsMessage } from "../messages/server/inventory.messages";
 import { BaseSender } from "./base/baseSender";
 import { totalXpForLevel, EXPERIENCE_CONFIG } from "../../data/experience/experienceConfig";
+import { getPlayerMoveIntervalMs } from "../../game/systems/movementSystem";
 
 export class PlayerStatsSender extends BaseSender {
   /** Formato consistente para conexão, ganho de XP e morte. */
@@ -17,6 +18,8 @@ export class PlayerStatsSender extends BaseSender {
       mana: player.mana,
       maxMana: player.maxMana,
       level: player.level,
+      // Ritmo permitido pelo servidor: Unity só agenda o próximo pedido.
+      moveIntervalMs: getPlayerMoveIntervalMs(player),
       attack: player.attack,
       defense: player.defense,
       armor: player.armor,
