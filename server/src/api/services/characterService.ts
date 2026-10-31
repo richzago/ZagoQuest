@@ -82,8 +82,9 @@ export class CharacterService {
       xp: 0,
       hp: 100,
       maxHp: 100,
-      mana: 0,
-      maxMana: 0,
+      // Alinhar a conta nova ao Player/Vocation.NONE (50/50 de mana).
+      mana: 50,
+      maxMana: 50,
       inventory: {},
       equipment: {},
       skills: {},
