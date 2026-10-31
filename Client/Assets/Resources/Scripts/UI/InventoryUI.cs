@@ -64,12 +64,19 @@ public class InventoryUI : MonoBehaviour
         }
 
         isInventoryOpen = false;
+        C6InventoryEquipmentLayout.Inventory(inventoryPanel, slotsGrid, goldText, CloseInventory);
         inventoryPanel.SetActive(false);
     }
 
     // =========================
     // CONTROLE DO PAINEL
     // =========================
+
+    public void CloseInventory()
+    {
+        isInventoryOpen = false;
+        if (inventoryPanel != null) inventoryPanel.SetActive(false);
+    }
 
     private void ToggleInventory()
     {
@@ -90,7 +97,7 @@ public class InventoryUI : MonoBehaviour
     public void HandleInventory(int gold, Dictionary<string, int> newItems)
     {
         currentGold = gold;
-        items = newItems;
+        items = newItems ?? new Dictionary<string, int>();
         if (isInventoryOpen)
             RefreshUI();
     }
@@ -103,7 +110,7 @@ public class InventoryUI : MonoBehaviour
     {
         currentGold = gold;
         if (goldText != null)
-            goldText.text = $"{currentGold} gold";
+            goldText.text = $"Ouro em mãos: {currentGold:N0} gold";
     }
 
     /// <summary>
@@ -137,12 +144,13 @@ public class InventoryUI : MonoBehaviour
     private void RefreshUI()
     {
         if (goldText != null)
-            goldText.text = $"{currentGold} gold";
+            goldText.text = $"Ouro em mãos: {currentGold:N0} gold";
 
         foreach (var slot in slotObjects)
             Destroy(slot);
         slotObjects.Clear();
 
+        if (slotPrefab == null || slotsGrid == null) return;
         foreach (var kvp in items)
         {
             GameObject slot = Instantiate(slotPrefab, slotsGrid);

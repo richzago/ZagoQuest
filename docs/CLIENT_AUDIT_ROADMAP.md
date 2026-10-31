@@ -150,3 +150,8 @@ PR / MERGE / PRÓXIMA AÇÃO:
 O desenvolvedor informou que os testes funcionais e visuais da C5 após o PR #98 deram certo **exceto dois refinamentos de design**: identificar `Saldo no banco` versus `Ouro em mãos` na tela Banker e **remover limites de estoque** do Merchant tanto do backend quanto da UI. O ajuste está no PR incremental `fix/c5-bank-labels-merchant-unlimited`, com economia segura preservada e testes completos. A primeira homologação C5 foi informada como satisfatória; os dois itens finais só ficam formalmente homologados após QA Unity.
 
 **C6 — Inventory/Equipment/HUD autorizada a iniciar:** separar dois eixos de investigação: (1) bugs de funcionalidade/lifecycle reais; (2) layout e legibilidade em Unity. Arquivos iniciais: `InventoryUI.cs`, `InventorySlot.cs`, `EquipmentUI.cs`, `EquipmentSlotUI.cs`, `PlayerHUD.cs`, `DragDropManager.cs`, `ZagoQuestUiTheme.cs`, `scenebasic.unity` e prefabs InventorySlot/ItemButton. Preservar transações autoritativas do Node (inventário/equip/drop) e os fluxos Player/Combat aprovados. Não confundir conteúdo visual ruim com dados inválidos. Criar doc `CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md` e PR próprio, com QA por Editor+Windows antes de fechar a fase.
+
+
+## 31/10/2026 — C6 redesign visual 1 (PR draft)
+
+Branch feat/client-c6-inventory-equipment-visual criada após PR #100; grade rolável 3 colunas, slots e fontes legíveis, painéis lado a lado, equipamento corporal, fallback sem alocação de sprite e drop para área vazia do inventário. Contratos continuam sob autoridade Node. CI estática e QA Unity Editor+Windows pendentes: NÃO declarar C6 homologada; não integrar à dev antes dos testes. Detalhes em CLIENT_C6_VISUAL_UI_PASS.md.
