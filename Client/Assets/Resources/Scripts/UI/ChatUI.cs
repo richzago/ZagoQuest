@@ -50,6 +50,7 @@ public class ChatUI : MonoBehaviour
         // Update só abre o campo, nunca envia ao mesmo tempo que onSubmit.
         inputField.lineType = TMP_InputField.LineType.SingleLine;
         inputField.onSubmit.AddListener(OnSubmit);
+        inputField.onSelect.AddListener(OnSelect);
         inputField.onDeselect.AddListener(OnDeselect);
         sendButton.onClick.AddListener(SendChat);
         if (localButton != null) localButton.onClick.AddListener(SelectLocal);
@@ -101,6 +102,7 @@ public class ChatUI : MonoBehaviour
     }
 
     private void OnSubmit(string _) => SendChat();
+    private void OnSelect(string _) => IsChatActive = true;
     private void OnDeselect(string _) => IsChatActive = false;
 
     private void SelectLocal() => SetChannel("local");
@@ -246,6 +248,7 @@ public class ChatUI : MonoBehaviour
         if (inputField != null)
         {
             inputField.onSubmit.RemoveListener(OnSubmit);
+            inputField.onSelect.RemoveListener(OnSelect);
             inputField.onDeselect.RemoveListener(OnDeselect);
         }
         if (sendButton != null) sendButton.onClick.RemoveListener(SendChat);
