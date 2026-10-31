@@ -18,8 +18,9 @@ export function isSafePlayerPosition(world: World, value: TilePosition): boolean
  * Não aceita fallback silencioso para (0,0) ou para coordenadas não válidas.
  */
 export function findSafePlayerPosition(world: World, preferred: TilePosition): TilePosition {
-  if (!Number.isSafeInteger(preferred.x) || !Number.isSafeInteger(preferred.y))
-    throw new Error("[PlayerSpawn] Spawn Tiled inválido (coordenadas não inteiras).");
+  if (!Number.isSafeInteger(preferred.x) || !Number.isSafeInteger(preferred.y) ||
+      !world.isWithinBounds(preferred.x, preferred.y))
+    throw new Error("[PlayerSpawn] Spawn Tiled inválido (fora do mapa ou coordenadas não inteiras).");
 
   // Busca ao redor do ponto indicado pelo Tiled. O jogo é grid-based.
   const maxRadius = Math.max(world.width + world.height, 0);
