@@ -101,9 +101,9 @@ test("Merchant usa catálogo ilimitado: UI oculta o campo legado e Node não lim
   const source = unity("NPC/ShopItemSlot.cs");
   assert.match(source, /stockText\.gameObject\.SetActive\(false\)/);
   assert.doesNotMatch(source, /item\.stock/);
-  const system = readFileSync(join(process.cwd(), "src/game/systems/shopSystem.ts"), "utf8");
+  const system = readFileSync(path.join(process.cwd(), "src/game/systems/shopSystem.ts"), "utf8");
   assert.doesNotMatch(system, /item\.stock/);
-  const handler = readFileSync(join(process.cwd(), "src/network/handlers/shop.handler.ts"), "utf8");
+  const handler = readFileSync(path.join(process.cwd(), "src/network/handlers/shop.handler.ts"), "utf8");
   assert.doesNotMatch(handler, /stock: item\.stock/);
 });
 
