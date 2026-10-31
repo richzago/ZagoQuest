@@ -46,7 +46,14 @@ export async function handleUseItem(
     // Food é duração de saciedade (regen por segundos), distinta de poção
     // instantânea. Tudo acontece no Node; o Unity não calcula HP/mana.
     if (item.foodSeconds !== undefined) {
-      if (!FoodRegenerationSystem.canEat(player, item.foodSeconds)) {
+      // Cada alimento define separadamente saciedade e o pequeno efeito
+      // regenerativo em JSON. Validamos ANTES de retirar a unidade.
+      const nowMs = Date.now();
+      const foodConfig = [
+        item.foodSeconds, nowMs, item.satietyPoints,
+        item.regenHpPerTick, item.regenManaPerTick, item.regenTickSeconds,
+      ] as const;
+      if (!FoodRegenerationSystem.canEat(player, ...foodConfig)) {
         ctx.packetSender.inventory.sendItemUsed(itemId, false,
           "Você está de barriga cheia ou precisa esperar a saciedade diminuir.");
         return;
@@ -56,9 +63,10 @@ export async function handleUseItem(
           "Você não possui este alimento.");
         return;
       }
-      FoodRegenerationSystem.feed(player, item.foodSeconds);
+      FoodRegenerationSystem.feed(player, ...foodConfig);
       ctx.packetSender.inventory.sendItemUsed(itemId, true,
-        `Você comeu ${item.name}. Saciedade: ${FoodRegenerationSystem.remainingSeconds(player)}s.`);
+        `Você comeu ${item.name}. Saciedade: ${FoodRegenerationSystem.currentSatiety(player)}/120. ` +
+        `Regeneração restante: ${FoodRegenerationSystem.remainingSeconds(player)}s.`);
       ctx.packetSender.inventory.sendInventory(player);
       // Nenhuma regeneração antecipada: os próximos ticks enviam stats reais.
       return;
