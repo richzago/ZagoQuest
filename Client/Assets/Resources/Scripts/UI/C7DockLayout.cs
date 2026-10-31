@@ -161,9 +161,9 @@ public sealed class C7DockLayout : MonoBehaviour
         if (layout == null) layout = panel.gameObject.AddComponent<LayoutElement>();
         // O mínimo preserva o espaço dos controles em janelas com grid fixo.
         // Nunca permitir que o usuário reduza Equipment até ocultar os slots.
-        layout.minHeight = key.Contains("Equipment") ? 380f :
+        layout.minHeight = key.Contains("Equipment") ? 460f :
             key.Contains("Fishing") ? 155f :
-            Mathf.Clamp(initialHeight * 0.73f, 220f, 410f);
+            Mathf.Clamp(initialHeight * 0.80f, 240f, 450f);
         layout.preferredHeight = Mathf.Clamp(
             PlayerPrefs.GetFloat(KeyPrefix + key + ".Height", initialHeight),
             layout.minHeight, 650f);
