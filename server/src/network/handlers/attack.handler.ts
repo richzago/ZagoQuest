@@ -32,7 +32,7 @@ export async function handleAttack(
   Logger.combat(`[MANUAL] ${player.name} causou ${result.damage} de dano em ${target!.name}.`);
 }
 
-/** Inicia auto attack se o alvo existe, está vivo e está dentro do alcance. */
+/** Seleciona alvo distante vivo; alcance é cobrado no tryAttack, nunca na seleção. */
 export function handleStartAutoAttack(
   _ws: WebSocket,
   player: Player,
@@ -40,7 +40,7 @@ export function handleStartAutoAttack(
   ctx: HandlerContext,
 ): void {
   const target = ctx.world.monsters.find((monster) => monster.id === msg.targetId);
-  const failure = PlayerAttackSystem.validateTarget(player, target, ctx.world);
+  const failure = PlayerAttackSystem.validateSelectableTarget(player, target, ctx.world);
   if (failure) {
     ctx.packetSender.combat.sendAutoAttackStopped(failure, msg.targetId);
     return;
