@@ -187,17 +187,19 @@ test("PostgreSQL real: sessão WebSocket JWT de duas contas, rejeição cruzada 
     assert.equal(code, 1008);
     assert.equal(game.getBroadcastService().getClients().size, 2);
 
+    // Outro jogador pode nascer num tile alternativo quando o inicial já está ocupado.
+    const otherStartX = world.players.find(p => p.id === b.id)!.position.x;
     first.send(JSON.stringify({ type: "moveDir", dir: "east" }));
     for (let tries = 0; tries < 120 && world.players.find(p => p.id === a.id)?.position.x !== 1; tries++) {
       await new Promise((r) => setTimeout(r, 10));
     }
     assert.equal(world.players.find(p => p.id === a.id)?.position.x, 1);
-    assert.equal(world.players.find(p => p.id === b.id)?.position.x, 0);
+    assert.equal(world.players.find(p => p.id === b.id)?.position.x, otherStartX);
 
     await game.close();
     const reloaded = await repo.findOneByOrFail({ id: a.id });
     assert.equal(reloaded.posX, 1, "logout/shutdown must flush position");
-    assert.equal((await repo.findOneByOrFail({ id: b.id })).posX, 0);
+    assert.equal((await repo.findOneByOrFail({ id: b.id })).posX, otherStartX);
   } finally {
     for (const ws of sockets) if (ws.readyState !== WebSocket.CLOSED) ws.terminate();
     await game.close();
