@@ -21,6 +21,11 @@ import { LessThan, MoreThan } from "typeorm";
 const INACTIVITY_LEADER_DAYS = 90;
 const INACTIVITY_MEMBER_DAYS = 60;
 
+/** Client-visible guild rule failure; database exceptions must remain internal. */
+export class GuildRuleError extends Error {
+  constructor(message: string) { super(message); this.name = "GuildRuleError"; }
+}
+
 export class GuildService {
   private static guildRepo = AppDataSource.getRepository(Guild);
   private static memberRepo = AppDataSource.getRepository(GuildMember);
@@ -146,7 +151,7 @@ export class GuildService {
     description: string,
   ): Promise<Guild> {
     const validation = createGuildSchema.safeParse({ name: guildName, description });
-    if (!validation.success) throw new Error(validation.error.issues[0].message);
+    if (!validation.success) throw new GuildRuleError(validation.error.issues[0].message);
 
     // Online: Player em memória é autoritativo. Offline: Character bloqueado no PG.
     const online = OnlinePlayerDirectory.findByName(characterName);
@@ -162,26 +167,26 @@ export class GuildService {
             where: { name: characterName },
             lock: { mode: "pessimistic_write" },
           });
-          if (!character) throw new Error("Personagem não encontrado.");
+          if (!character) throw new GuildRuleError("Personagem não encontrado.");
           if (online && online.id !== character.id)
-            throw new Error("Identidade do personagem online divergente.");
+            throw new GuildRuleError("Identidade do personagem online divergente.");
           if (await members.findOne({
             where: [{ characterId: character.id }, { characterName: character.name }],
-          })) throw new Error("Você já pertence a uma guilda.");
+          })) throw new GuildRuleError("Você já pertence a uma guilda.");
           if (await guilds.findOne({ where: { name: guildName } }))
-            throw new Error("Já existe uma guilda com este nome.");
+            throw new GuildRuleError("Já existe uma guilda com este nome.");
 
           const level = online?.level ?? character.level;
-          if (level < 100) throw new Error("Nível mínimo 100 para criar guilda.");
+          if (level < 100) throw new GuildRuleError("Nível mínimo 100 para criar guilda.");
           if (online) {
             if (!isValidGoldBalance(online.gold) || !online.reserveGold(20_000))
-              throw new Error("Você precisa de 20.000 gold.");
+              throw new GuildRuleError("Você precisa de 20.000 gold.");
             reserved = true;
             character.gold = online.gold; // saldo vivo, já com taxa reservada
             character.level = level;
           } else {
             if (!isValidGoldBalance(character.gold) || character.gold < 20_000)
-              throw new Error("Você precisa de 20.000 gold.");
+              throw new GuildRuleError("Você precisa de 20.000 gold.");
             character.gold -= 20_000;
           }
           await characters.save(character);
@@ -249,10 +254,10 @@ export class GuildService {
   // ========== Edição de metadados (apenas líder) ==========
   static async setDescription(characterName: string, description: string): Promise<void> {
     const guild = await this.getPlayerGuild(characterName);
-    if (!guild) throw new Error("Você não está em uma guilda.");
+    if (!guild) throw new GuildRuleError("Você não está em uma guilda.");
     const member = await this.memberRepo.findOne({ where: { guildId: guild.id, characterName } });
-    if (member?.role !== "leader") throw new Error("Apenas o líder pode alterar a descrição.");
-    if (description.length > 500) throw new Error("Descrição deve ter no máximo 500 caracteres.");
+    if (member?.role !== "leader") throw new GuildRuleError("Apenas o líder pode alterar a descrição.");
+    if (description.length > 500) throw new GuildRuleError("Descrição deve ter no máximo 500 caracteres.");
     const oldDesc = guild.description;
     guild.description = description;
     await this.guildRepo.save(guild);
@@ -261,10 +266,10 @@ export class GuildService {
 
   static async setProfileImage(characterName: string, imageUrl: string): Promise<void> {
     const guild = await this.getPlayerGuild(characterName);
-    if (!guild) throw new Error("Você não está em uma guilda.");
+    if (!guild) throw new GuildRuleError("Você não está em uma guilda.");
     const member = await this.memberRepo.findOne({ where: { guildId: guild.id, characterName } });
     if (member?.role !== "leader")
-      throw new Error("Apenas o líder pode alterar a imagem de perfil.");
+      throw new GuildRuleError("Apenas o líder pode alterar a imagem de perfil.");
     guild.profileImage = imageUrl;
     await this.guildRepo.save(guild);
     await this.addLog(guild.id, `Imagem de perfil atualizada.`);
@@ -272,9 +277,9 @@ export class GuildService {
 
   static async setCoverImage(characterName: string, imageUrl: string): Promise<void> {
     const guild = await this.getPlayerGuild(characterName);
-    if (!guild) throw new Error("Você não está em uma guilda.");
+    if (!guild) throw new GuildRuleError("Você não está em uma guilda.");
     const member = await this.memberRepo.findOne({ where: { guildId: guild.id, characterName } });
-    if (member?.role !== "leader") throw new Error("Apenas o líder pode alterar a imagem de capa.");
+    if (member?.role !== "leader") throw new GuildRuleError("Apenas o líder pode alterar a imagem de capa.");
     guild.coverImage = imageUrl;
     await this.guildRepo.save(guild);
     await this.addLog(guild.id, `Imagem de capa atualizada.`);
