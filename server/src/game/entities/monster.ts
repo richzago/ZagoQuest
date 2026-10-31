@@ -22,6 +22,20 @@ export class Monster extends Creature {
   /** Impede recompensas/corpos/respawns duplicados se a morte for processada duas vezes. */
   deathProcessed = false;
 
+  /**
+   * Danos REAIS sofridos durante esta vida, separados por ID do jogador.
+   * Uma vida nova nasce com o ledger vazio; nunca copiar no respawn.
+   */
+  readonly damageByPlayer: Map<string, number> = new Map();
+
+  recordPlayerDamage(playerId: string, damage: number): void {
+    if (!playerId || !Number.isSafeInteger(damage) || damage <= 0 ||
+        this.deathProcessed) return;
+    const previous = this.damageByPlayer.get(playerId) ?? 0;
+    if (Number.isSafeInteger(previous + damage))
+      this.damageByPlayer.set(playerId, previous + damage);
+  }
+
   spawnX: number;
   spawnY: number;
   wanderRadius: number;

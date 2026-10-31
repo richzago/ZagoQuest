@@ -58,7 +58,7 @@ test("fórmula aplica defesa, armadura, critical, resistência e fraqueza na ord
   assert.deepEqual(result, { damage: 34, isCritical: true });
 });
 
-test("dois atacantes: XP e corpse pertencem ao último golpe no desenho ATUAL", (t) => {
+test("dois atacantes: XP dividido por dano; corpse permanece do último golpe", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const world = createWorld();
   const first = new Player("first", "First", 2, 2);
@@ -83,13 +83,13 @@ test("dois atacantes: XP e corpse pertencem ao último golpe no desenho ATUAL", 
     assert.equal(monster.deathProcessed, true);
     assert.equal(world.corpses.length, 1);
     assert.equal(world.corpses[0].killerId, second.id);
-    assert.equal(first.experience, 0);
-    assert.equal(second.experience, 20);
+    assert.equal(first.experience, 10);
+    assert.equal(second.experience, 10);
     assert.equal(deathEvents.length, 1);
     assert.equal(deathEvents[0].killerId, second.id);
     assert.equal(CombatSystem.attack(first, monster, world), 0);
     assert.equal(world.corpses.length, 1);
-    assert.equal(second.experience, 20);
+    assert.equal(second.experience, 10);
   } finally {
     DeathSystem.cancelPendingTimers(world);
     EventSystem.getInstance().off(GameEvent.MONSTER_DEATH, onDeath);

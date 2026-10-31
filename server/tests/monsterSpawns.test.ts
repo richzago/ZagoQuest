@@ -111,6 +111,8 @@ test("matar o mesmo monstro duas vezes concede XP e loot só uma vez", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const world = createWorld();
   const killer = new Player("killer", "Tester", 2, 2);
+  // XP só é concedido a jogadores realmente registrados neste mundo.
+  world.addPlayer(killer);
   const monster = makeMonster("monster-1", "spawn-1", 30);
   world.addMonster(monster);
 
