@@ -184,3 +184,12 @@ Relato: EndDrag duplicado no InventorySlot/EquipmentSlot e `dropError` do Node p
 **Sequência:** CI PR Windows/Linux/PostgreSQL → merge na `dev` sem tocar main → reteste local Unity Editor/build dos casos críticos → somente com D1–D10 aprovados homologar C6 e avançar na implementação C7. A preparação de escopo e checklist da C7 pode começar em paralelo, mas não confundir planejamento com aceite Unity.
 
 Comandos locais: fechar Unity; git status; git stash push -u -m "backup Unity antes do fix C6 drop"; git fetch origin; git switch dev; git pull --ff-only origin dev; git log -1 --oneline; git status; git stash list. Nunca aplicar stash pop automaticamente.
+
+
+## Transição C6 P1 → C7 (31/10/2026)
+
+[PR #104](https://github.com/richzago/ZagoQuest/pull/104) **MERGED na dev** em `2626464c2a68dc6af6ce1d1b39429ab20867d1d3`, com CI pré-merge [#41231942100](https://github.com/richzago/ZagoQuest/actions/runs/41231942100) PASS Windows/Linux/PostgreSQL, **467/467 testes**. O cliente agora bloqueia drop fora da distância Manhattan 2, usa posição confirmada do PlayerController e termina arraste uma única vez; servidor continua autoritativo. A CI após merge [#41232067625](https://github.com/richzago/ZagoQuest/actions/runs/41232067625) foi iniciada; conferir conclusão. **C6 ainda exige o reteste Unity D1–D10 do relatório C6 seção 9**, portanto não declarar homologação.
+
+**C7 INICIADA como auditoria, sem implementação visual presumida:** novo [CLIENT_C7_UX_VISUAL_AUDIT.md](CLIENT_C7_UX_VISUAL_AUDIT.md) define áreas C7-A câmera/viewport, C7-B input/target sobre UI, C7-C legibilidade, C7-D Tiled/sprites/pesca (SEM UI se ausente), C7-E performance/reentrada e 12 testes C7-01–12. Riscos iniciais por inspeção: CameraFollow.Lerp sem deltaTime; TargetSelector.OverlapCircleAll em transform do seletor, possível centro errado; clique Physics2D em UI. Não mudar combate sem reprodução e preservar Node autoritativo. C8 continua separada.
+
+Comandos locais: fechar Unity; git status; git stash push -u -m "backup Unity antes do C7"; git fetch origin; git switch dev; git pull --ff-only origin dev; git log -1 --oneline; git status; git stash list. Não aplicar stash pop automaticamente.
