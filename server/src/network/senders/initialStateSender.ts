@@ -18,6 +18,7 @@ export class InitialStateSender extends BaseSender {
     this.send({
       type: "init",
       playerId: player.id,
+      playerName: player.name,
       x: player.position.x,
       y: player.position.y,
     });
