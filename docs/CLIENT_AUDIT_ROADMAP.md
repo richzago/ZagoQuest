@@ -1,6 +1,6 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado atualizado (31/10/2026): C0 e C1 CONCLUÍDAS; C2 ACEITA funcionalmente pelo desenvolvedor (spawn/despawn, cadáver, respawn e reconexão Alfa/Beta), com correção P2 do pool de textos flutuantes aguardando QA pontual; C3 INICIADA — Network/Auth. C8 conserva homologação E2E própria.**
+**Estado atualizado (31/10/2026): C0 e C1 CONCLUÍDAS; C2 aceita funcionalmente, pool FloatingText corrigido (QA pontual pendente); C3 teve PRs #92/#93 integrados, com aviso de login duplicado ainda pendente de QA Unity; C4 INICIADA — Player/Combat, conforme ordem confirmada. C5 vem depois da C4; C8 conserva homologação E2E própria.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 
