@@ -62,6 +62,7 @@ const startupTimeout = setTimeout(
 );
 
 let success = false;
+let shutdownTimeout: ReturnType<typeof setTimeout> | undefined;
 try {
   await booted;
   // Protected route should be served by the compiled REST transport.
@@ -74,9 +75,11 @@ try {
   assert.equal(child.kill("SIGTERM"), true, "Falha ao sinalizar shutdown.");
   const [exitCode] = await Promise.race([
     closed,
-    new Promise<never>((_, reject) => setTimeout(
-      () => reject(new Error("Shutdown do dist excedeu 15 segundos.")), 15_000,
-    )),
+    new Promise<never>((_, reject) => {
+      shutdownTimeout = setTimeout(
+        () => reject(new Error("Shutdown do dist excedeu 15 segundos.")), 15_000,
+      );
+    }),
   ]);
   assert.equal(exitCode, 0, "Shutdown deveria terminar sem erros.");
   assert.ok(stdout.includes("[SHUTDOWN] Finalizado com 0 erro(s)."));
@@ -92,6 +95,7 @@ try {
   console.log("DIST_SMOKE_OK: compiled Node, Tiled assets, PostgreSQL, HTTP 401, SIGTERM, final save.");
 } finally {
   clearTimeout(startupTimeout);
+  if (shutdownTimeout) clearTimeout(shutdownTimeout);
   if (child.exitCode === null) child.kill("SIGKILL");
   if (AppDataSource.isInitialized) await AppDataSource.destroy();
   if (!success) console.error("DIST_SMOKE_FAILED: examine CI job diagnostics (secrets hidden).");
