@@ -129,7 +129,7 @@ test("banco rejeita inválidos, saldo insuficiente e overflow sem mudar contas",
   assert.equal(player.bankGold, MAX_GOLD);
 });
 
-test("loja compra em carteira + banco e reduz estoque", () => {
+test("loja compra em carteira + banco sem consumir estoque legado", () => {
   const player = createPlayer();
   const npc = createMerchant();
   player.gold = 15;
@@ -138,10 +138,10 @@ test("loja compra em carteira + banco e reduz estoque", () => {
   assert.equal(player.gold, 0);
   assert.equal(player.bankGold, 35);
   assert.equal(player.inventory.get(potion), 3);
-  assert.equal(npc.shopItems![0].stock, 2);
+  assert.equal(npc.shopItems![0].stock, 5);
 });
 
-test("loja bloqueia valores inválidos, preço negativo e falta de estoque", () => {
+test("loja bloqueia valores inválidos, preço negativo e permite quantidades além do estoque legado", () => {
   const player = createPlayer();
   const npc = createMerchant();
   player.gold = 100;
@@ -149,15 +149,17 @@ test("loja bloqueia valores inválidos, preço negativo e falta de estoque", () 
     assert.equal(ShopSystem.buyItem(player, npc, potion, amount as number), false);
     assert.equal(ShopSystem.sellItem(player, npc, potion, amount as number), false);
   }
-  assert.equal(ShopSystem.buyItem(player, npc, potion, 6), false);
-  assert.equal(player.gold, 100);
-  assert.equal(player.inventory.size, 0);
+  // O campo stock dos fixtures legados já não limita nem diminui compras.
+  assert.equal(ShopSystem.buyItem(player, npc, potion, 6), true);
+  assert.equal(player.gold, 40);
+  assert.equal(player.inventory.get(potion), 6);
+  assert.equal(npc.shopItems![0].stock, 5);
   npc.shopItems![0].buyPrice = -10;
   assert.equal(ShopSystem.buyItem(player, npc, potion, 1), false);
-  assert.equal(player.gold, 100);
+  assert.equal(player.gold, 40);
 });
 
-test("loja rejeita pagamento com overflow e preserva dinheiro/estoque", () => {
+test("loja rejeita pagamento com overflow e preserva dinheiro", () => {
   const player = createPlayer();
   const npc = createMerchant();
   player.gold = MAX_GOLD;
