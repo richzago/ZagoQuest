@@ -19,7 +19,7 @@ test("C6: atalho I usa callback removível, ignora chat e libera InputAction/sin
  assert.match(s,/GetComponentInParent<TMP_InputField>\(\)/);
  assert.match(s,/if \(inventoryPanel == null\) return/);
  assert.doesNotMatch(s,/performed -= ctx => ToggleInventory/);
- assert.match(s,/network\.Inventory\.SendEquipItem\(itemId\)/);
+ assert.match(s,/network\.Inventory\.UseItem\(itemId\)/);
 });
 
 test("C6: snapshots de equipment limpam slots ausentes e não mantêm singleton obsoleto",()=>{
@@ -324,4 +324,28 @@ test("C6 layout: equipamento na direita central deixa topo direito para minimapa
  assert.match(layout,/equipmentRect\.anchoredPosition = new Vector2\(-12f, 0f\)/);
  assert.match(layout,/Dock\(panel, 360, 308\)/);
  assert.match(layout,/Dock\(panel, 276, 16\)/);
+});
+
+
+test("C6 regressão: duplo clique envia useItem para consumíveis E equipamentos",()=>{
+ const ui=unity("UI/InventoryUI.cs");
+ const slot=unity("Player/InventorySlot.cs");
+ const sender=unity("Networking/Senders/InventorySender.cs");
+ const backend=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
+ const handler=ui.slice(ui.indexOf("private void OnSlotDoubleClicked("),
+   ui.indexOf("// LIMPEZA",ui.indexOf("private void OnSlotDoubleClicked(")));
+ assert.match(handler,/network\.Inventory\.UseItem\(itemId\)/);
+ assert.doesNotMatch(handler,/SendEquipItem\(/);
+ assert.match(slot,/OnDoubleClick\?\.Invoke\(itemId\)/);
+ assert.match(slot,/network\.Inventory\.UseItem\(itemId\)/);
+ assert.match(slot,/network\.isConnected && network\.Inventory != null/);
+ assert.match(slot,/hasFirstClick && now - lastClickTime <= DOUBLE_CLICK_INTERVAL/);
+ assert.match(slot,/hasFirstClick = false; \/\/ um evento/);
+ assert.doesNotMatch(slot,/Duplo clique em.*→ equipar/);
+ assert.match(sender,/public void UseItem\(string itemId\)[\s\S]*?type = "useItem"/);
+ assert.match(backend,/if \(item\.type === "consumable"\)/);
+ assert.match(backend,/FoodRegenerationSystem\.feed\(player, item\.foodSeconds\)/);
+ assert.match(backend,/item\.effect\?\.healHp/);
+ assert.match(backend,/item\.effect\?\.healMana/);
+ assert.match(backend,/if \(item\.type === "equipment"\)[\s\S]*?player\.equipItem\(itemId\)/);
 });
