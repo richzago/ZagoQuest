@@ -11,6 +11,7 @@ import { createServer } from "node:net";
 import { AppDataSource } from "../src/api/data-source";
 import { Character } from "../src/api/entities/Character";
 
+async function main(): Promise<void> {
 if (process.env.RUN_PG_TESTS !== "true" ||
     process.env.DB_NAME !== "zagoquest_ci" ||
     process.env.NODE_ENV !== "development") {
@@ -100,3 +101,10 @@ try {
   if (AppDataSource.isInitialized) await AppDataSource.destroy();
   if (!success) console.error("DIST_SMOKE_FAILED: examine CI job diagnostics (secrets hidden).");
 }
+
+}
+
+void main().catch((error) => {
+  console.error("DIST_SMOKE_FAILED: " + (error instanceof Error ? error.message : String(error)));
+  process.exitCode = 1;
+});
