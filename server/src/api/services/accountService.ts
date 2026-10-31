@@ -22,6 +22,22 @@ export class InvalidCredentialsError extends Error {
   }
 }
 
+/** Expected invalid account input; safe to report as a client error. */
+export class InvalidAccountDataError extends Error {
+  constructor(message: string) { super(message); this.name = "InvalidAccountDataError"; }
+}
+
+/** Do not distinguish duplicated email vs CPF in public responses. */
+export class AccountConflictError extends Error {
+  constructor() { super("Dados de conta já cadastrados."); this.name = "AccountConflictError"; }
+}
+
+function isPostgresUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as { code?: unknown; driverError?: { code?: unknown } };
+  return candidate.code === "23505" || candidate.driverError?.code === "23505";
+}
+
 export class AccountService {
   /**
    * Cria uma nova conta.
@@ -45,7 +61,7 @@ export class AccountService {
    * console.log(result); // { id: "uuid", email: "jogador@email.com" }
    * ```
    */
-  static async createAccount(input: any) {
+  static async createAccount(input: unknown) {
     // 1. Valida os dados com o schema Zod
     const result = createAccountSchema.safeParse(input);
     if (!result.success) {
@@ -53,7 +69,7 @@ export class AccountService {
       const errors = result.error.issues
         .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
         .join("; ");
-      throw new Error(errors);
+      throw new InvalidAccountDataError(errors);
     }
 
     // 2. Extrai os dados já validados
@@ -62,7 +78,7 @@ export class AccountService {
 
     // 3. Verifica se o email já está cadastrado
     const existing = await accountRepo.findOneBy({ email });
-    if (existing) throw new Error("Email já cadastrado");
+    if (existing) throw new AccountConflictError();
 
     // 4. Gera o hash da senha (bcrypt, custo 10)
     const passwordHash = await bcrypt.hash(password, 10);
@@ -77,7 +93,13 @@ export class AccountService {
       passwordHash,
       address,
     });
-    await accountRepo.save(account);
+    try {
+      await accountRepo.save(account);
+    } catch (error) {
+      // Close the check-then-insert race for email/CPF unique constraints.
+      if (isPostgresUniqueViolation(error)) throw new AccountConflictError();
+      throw error;
+    }
 
     // 6. Retorna apenas o id e email (não expõe dados sensíveis)
     return { id: account.id, email: account.email };

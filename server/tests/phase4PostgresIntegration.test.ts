@@ -324,3 +324,39 @@ test("Fase 7 PostgreSQL + HTTP: guildas paginadas com limite, erro 400 e dados p
     await closeHttp(http);
   }
 });
+
+
+test("Fase 7 PostgreSQL + HTTP: cadastro trata duplicidade, CPF e concorrência sem vazar SQL", async () => {
+  const { startApi } = await import("../src/api/server");
+  const http = await startApi();
+  try {
+    await listenHttp(http, 0);
+    const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+    const create = (body: unknown) => fetch(base + "/api/accounts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const account = {
+      email: "phase7-signup@example.test", cellphone: "+5511999999999",
+      fullName: "Jogador de Teste", cpf: "52998224725", birthDate: "1990-01-01",
+      password: "senha-de-teste-123", confirmPassword: "senha-de-teste-123", address: "CI descartável",
+    };
+    const first = await create(account);
+    assert.equal(first.status, 201);
+    const firstBody = await first.json() as { id: string; email: string };
+    assert.equal(firstBody.email, account.email);
+    assert.equal(typeof firstBody.id, "string");
+
+    const repeatedEmail = await create(account);
+    assert.equal(repeatedEmail.status, 409);
+    const repeatedCpf = await create({ ...account, email: "different-signup@example.test" });
+    assert.equal(repeatedCpf.status, 409);
+    assert.deepEqual(await repeatedEmail.json(), await repeatedCpf.json());
+
+    const race = { ...account, email: "phase7-race@example.test", cpf: "11144477735" };
+    const results = await Promise.all([create(race), create(race)]);
+    assert.deepEqual(results.map(r => r.status).sort((a, b) => a - b), [201, 409]);
+    assert.equal(await AppDataSource.getRepository(Account).count({ where: { email: race.email } }), 1);
+  } finally { await closeHttp(http); }
+});

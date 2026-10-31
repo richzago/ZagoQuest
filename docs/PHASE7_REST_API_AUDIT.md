@@ -72,3 +72,12 @@ Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitu
 - Sucesso `200 {page, limit, total, data}` preservado; detalhes `404` continuam iguais; campo de histórico `logs` segue oculto.
 - Unit tests do controller e teste HTTP real com PostgreSQL efêmero cobrindo paginação válida e negativos.
 - Status deste PR depende de aprovação da CI e merge; nenhuma evidência manual Unity/PostgreSQL local nesta rodada.
+
+
+### PR #70 — erros seguros em POST /api/accounts (esta rodada)
+
+- Antes, `AccountController.create` respondia sempre HTTP 400 e devolvia `err.message`, incluindo exceções de PostgreSQL. `AccountService.createAccount` fazia pré-checagem de email, mas não distinguia violação de unicidade ocorrida na corrida entre `findOne` e `save`.
+- Agora: schema Zod inválido → 400 com erro de validação; email/CPF já existente → 409 com texto **genérico para ambos**; falhas internas de conexão/query → 500 genérico. `{id,email}` em 201 preservado.
+- Para concorrência, violação PostgreSQL SQLSTATE 23505 no `save` é reconhecida e convertida em 409. A restrição unique do banco continua sendo autoridade; não se cria lock em memória para registrar contas.
+- Testes novos: unitários do controller (201/400/409/500), HTTP real + PG16 descartável com email/CPF repetidos e duas solicitações concorrentes pelo mesmo cadastro. Cadastro usa o rate limit real do PR #68; o teste mantém 5 requisições por IP/hora.
+- Ainda pendente: política de tamanho de senhas vs bcrypt (limite de 72 bytes), normalização/case-insensitive de email com migração segura, limitação de payload JSON, erros de outros controllers e homologação local.
