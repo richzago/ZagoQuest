@@ -190,9 +190,9 @@ test("C7 regression PR #110: raycast UI transparente NÃO deve descartar ataque 
     rendererAlpha?: number; groupAlpha?: number; selectable?: boolean;
     draggable?: boolean };
   const blocks = (h: Hit): boolean => h.canvas !== "world" &&
+    (h.groupAlpha ?? 1) > 0.001 &&
     Boolean(h.selectable || h.draggable ||
-      (h.alpha > 0.001 && (h.rendererAlpha ?? 1) > 0.001 &&
-        (h.groupAlpha ?? 1) > 0.001));
+      (h.alpha > 0.001 && (h.rendererAlpha ?? 1) > 0.001));
   const transparent = {canvas:"overlay",alpha:0} as const;
   assert.equal(blocks(transparent), false, "HUD/ButtomLeft transparente não bloqueia");
   assert.equal(blocks({...transparent,selectable:true}), true, "botão transparente bloqueia");
@@ -202,6 +202,8 @@ test("C7 regression PR #110: raycast UI transparente NÃO deve descartar ataque 
     "barra HP worldspace não bloqueia");
   assert.equal(blocks({canvas:"overlay",alpha:1,groupAlpha:0}), false,
     "painel escondido por CanvasGroup não bloqueia");
+  assert.equal(blocks({canvas:"overlay",alpha:1,groupAlpha:0,selectable:true}), false,
+    "botão de painel completamente invisível não bloqueia");
   assert.equal(blocks({canvas:"overlay",alpha:1,rendererAlpha:0}), false,
     "Graphic com CanvasRenderer oculto não bloqueia");
   assert.equal([transparent, {canvas:"world",alpha:1} as Hit].some(blocks), false,
