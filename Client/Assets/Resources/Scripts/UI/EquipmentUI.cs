@@ -13,6 +13,9 @@ public class EquipmentUI : MonoBehaviour
     public Transform slotsContainer;
 
     private Dictionary<EquipmentSlot, EquipmentSlotUI> slotMap = new Dictionary<EquipmentSlot, EquipmentSlotUI>();
+    // O snapshot pode chegar pelo WS ANTES de Start mapear os slots da scene.
+    private Dictionary<EquipmentSlot, string> latestSnapshot;
+    private bool receivedSnapshot;
 
     private void Awake()
     {
@@ -43,6 +46,7 @@ public class EquipmentUI : MonoBehaviour
             }
         }
         Debug.Log($"[EquipmentUI] Total de slots mapeados: {slotMap.Count}");
+        if (receivedSnapshot) OnEquipmentUpdate(latestSnapshot);
         C6InventoryEquipmentLayout.Equipment(equipmentPanel, slotsContainer,
             () => { if (equipmentPanel != null) equipmentPanel.SetActive(false); });
 
@@ -83,7 +87,10 @@ public class EquipmentUI : MonoBehaviour
     // 🔥 Método público para forçar atualização (opcional)
     public void UpdateEquipment(Dictionary<EquipmentSlot, string> equipment)
     {
-        OnEquipmentUpdate(equipment);
+        if (equipment == null) return;
+        latestSnapshot = new Dictionary<EquipmentSlot, string>(equipment);
+        receivedSnapshot = true;
+        if (slotMap.Count > 0) OnEquipmentUpdate(latestSnapshot);
     }
 
     public void TogglePanel()
