@@ -62,7 +62,7 @@ npm run dev
 - `tests/characterSessionAuth.test.ts` — assinatura, expiração e propriedade da conta (PR #60).
 - `tests/authenticatedWebSocket.test.ts` — sockets Node reais, dois players, ausência de snapshot antes da autenticação, token/personagem inválidos, duplicação, broadcast, logout, reconexão, dreno no shutdown (sem PG; injeção de serviço).
 - `tests/networkSocket.test.ts`, `networkValidation.test.ts`, `networkContracts.test.ts`, `lifecycleSocket.test.ts` — payload, spam, comandos e cleanup legado.
-- `npm run test:pg` da Fase 4 testa economia SQL real, **não** ainda duas sessões WS com banco real.
+- `npm run test:pg` usa PostgreSQL 16 **descartável** e inclui cinco casos, dos quais um novo teste autentica **duas contas/duas sessões WebSocket reais com JWT**, rejeita conta alheia e confirma a posição salva no shutdown; os quatro casos anteriores testam gold, rollback e concorrência. Esse teste não é Play Mode Unity nem usa o banco do usuário.
 - **Ainda obrigatório para a saída da fase:** executar integração completa com **Unity + PostgreSQL** e duas contas no Windows do usuário, além de testar viewport, falhas de rede em instantes críticos e limpeza de timers sob muitas reconexões.
 
 ## Implantação incremental
@@ -70,3 +70,9 @@ npm run dev
 - PR #59 e #60: integrados na `dev`, testados em CI (gold SQL/pg + autenticação independente).
 - Este PR: mudança de protocolo **não deve ser mesclada até os testes Unity + PostgreSQL** com a nova UI. `main` intacta.
 - Depois do QA: corrigir problemas reportados, CI Windows/Linux, merge para `dev` sem `force-push`. Documentar o commit final no checklist e auditoria Notion.
+
+## Decisões adicionais e correções de QA
+
+- A API de criação de personagem ainda gera `posX/posY` padrão; ao autenticar, o Node confere posição segura, colisão e fallback do spawn Tiled antes de adicionar o jogador ao `World`. Se dois jogadores ocuparem o tile inicial, a posição válida real do segundo não precisa ser `(0,0)` — o teste compara a posição inicial resolvida e garante que outro jogador não a altera.
+- O cliente Unity segura `_awaitingAuthentication` enquanto espera o ACK. `OnOpen` não significa autenticação, nem dispara tentativas simultâneas de conexão. Uma credencial recusada não entra em loop agressivo de login automático.
+- O login por `SessionLoginDebugUI` é ferramenta de QA, não interface final de conta. Não armazenar senha/token em arquivo, variável serializada ou log.
