@@ -22,7 +22,7 @@ import {
   handleDropItem,
   handlePickupItem,
 } from "./inventory.handler";
-import { handleOpenShop, handleBuyItem, handleCloseShop } from "./shop.handler";
+import { handleOpenShop, handleBuyItem, handleSellItem, handleCloseShop } from "./shop.handler";
 import { handleOpenBank, handleDeposit, handleWithdraw, handleCloseBank } from "./bank.handler";
 
 /**
@@ -66,6 +66,7 @@ export const handlers: Record<string, HandlerFn> = {
   // Shop
   openShop: handleOpenShop,
   buyItem: handleBuyItem,
+  sellItem: handleSellItem,
   closeShop: handleCloseShop,
 
   // Bank
