@@ -119,6 +119,8 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        // O OnDrop do slot de equipamento já pode ter consumido o drag.
+        if (DragDropManager.Instance == null || !DragDropManager.Instance.IsDragging()) return;
         Debug.Log($"[InventorySlot] 🔴 OnEndDrag: {itemId}");
 
         if (string.IsNullOrEmpty(itemId))
@@ -128,7 +130,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         GameObject target = eventData.pointerCurrentRaycast.gameObject;
         if (target != null)
         {
-            EquipmentSlotUI slotUI = target.GetComponent<EquipmentSlotUI>();
+            EquipmentSlotUI slotUI = target.GetComponentInParent<EquipmentSlotUI>();
             if (slotUI != null)
             {
                 Debug.Log($"[InventorySlot] ✅ Drop sobre EquipmentSlotUI ({slotUI.slotType})");
@@ -137,7 +139,18 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             }
         }
 
-        // Se não foi sobre equipment, tenta dropar no chão
+        // Não mandar drop no mundo ao soltar sobre janela ou botão da UI.
+        if (target != null && target.GetComponentInParent<Canvas>() != null)
+        {
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
+        if (Camera.main == null)
+        {
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
+        // Se não foi sobre UI, tenta dropar no chão
         Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
         worldPos.z = 0;
         Debug.Log($"[InventorySlot] 🌍 Drop no chão em ({worldPos.x:F0}, {worldPos.y:F0})");
