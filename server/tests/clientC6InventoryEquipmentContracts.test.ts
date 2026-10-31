@@ -421,9 +421,11 @@ test("C6 UX: snapshot inicial inclui equipamento salvo e UX impede duplo equip",
  const handler=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
  assert.match(server,/new InventorySender\(ws\)\.sendEquipment\(current\)/);
  assert.match(server,/InventorySender\.send\(ws, current\)[\s\S]*?sendEquipment\(current\)[\s\S]*?PlayerStatsSender\.send/);
- assert.match(handler,/EQUIPMENT_GESTURE_GUARD_MS = 550/);
- assert.match(handler,/canEquipFromGesture\(player\)/);
+ assert.match(handler,/const success = player\.equipItem\(itemId\)/);
  const inv=unity("UI/InventoryUI.cs");
+ const ui=unity("UI/EquipmentUI.cs");
+ assert.match(ui,/latestSnapshot = new Dictionary<EquipmentSlot, string>\(equipment\)/);
+ assert.match(ui,/if \(receivedSnapshot\) OnEquipmentUpdate\(latestSnapshot\)/);
  assert.match(inv,/slot\.SetActive\(false\);\s*Destroy\(slot\)/);
  assert.match(inv,/EquipmentClickGuardSeconds/);
 });
