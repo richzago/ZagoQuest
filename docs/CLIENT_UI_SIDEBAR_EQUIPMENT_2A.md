@@ -25,7 +25,7 @@
 - **Input/raycast:** `TargetSelector.cs` e `IsPointerOverUi` **inalterados**. O `C8SidebarCanvas` fullscreen NÃO possui `Image`; somente `SidebarSurface` visível tem `raycastTarget=true`. Textos e cards usam `raycastTarget=false`. O `EquipmentPanel` real e os `EquipmentSlotUI` mantêm raycasts legítimos para drag/drop dentro da coluna.
 - **Sorting:** sidebar em `sortingOrder=110` (HUD antiga 0; pesca 420; login 500). Necessário para o EventSystem não entregar o drag/drop do equipamento para uma `Image` transparente da HUD antiga que ainda possa estar sobre a região. Fora da coluna não há `Graphic`, portanto não deveria afetar combate/loot.
 - **Resolução e acessibilidade:** permanece `CanvasScaler` C7 com F10 (100/115/130%). O espaço dinâmico esconde o aviso e reduz seu host em escalas altas para evitar retângulo invertido. Nenhum `Camera.rect`, zoom ou viewports alterados.
-- **Lifecycle:** sidebar some quando desconectada; uma conexão subsequente reutiliza o mesmo Canvas. `OnDestroy` devolve o painel original ao parent anterior antes de destruir a sidebar, evitando destruir os slots junto com o Canvas.
+- **Lifecycle:** sidebar some quando desconectada; uma conexão subsequente reutiliza o mesmo Canvas. `OnDestroy` devolve o painel original ao parent anterior **restaurando âncoras, offsets, pivot, escala, alça e X pré-existentes**, antes de destruir a sidebar, evitando tanto destruir os slots quanto criar um overlay de raycast em tela inteira.
 
 ## Alterações estritamente dentro da UI
 
