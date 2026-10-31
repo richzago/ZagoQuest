@@ -158,3 +158,46 @@ Protocolo estrito:
 ## 9. Integração técnica
 
 Branch feat/client-c7-camera-input-fishing-ux, base dev C6 commit 293c6ff; GitHub Actions Node Linux/Windows e PostgreSQL, tests/clientC7Fishing.test.ts e tests/clientC7UxContracts.test.ts; os testes de contrato da fase 7 NÃO abrem Unity. Merge apenas na dev depois que CI aprovar; main intocada. Conferir C7-13–C7-31 no PC antes de marcar homologação visual.
+
+
+## C7 — revisão de regressão de input: PRs #109 → #110 → #114 (QA Unity OBRIGATÓRIO)
+
+**Situação 31/10/2026:** usuário testou a primeira versão do PR #114 e confirmou que o clique ainda não iniciava combate e não abria cadáver, embora a tecla Espaço funcionasse. Solicitou análise histórica mais profunda e confirmou requisito funcional **primeiro clique inicia ataque; segundo clique no MESMO monstro cancela**. Correção mantida na branch `fix/client-c7-combat-loot-click-reliability` / [PR #114 DRAFT](https://github.com/richzago/ZagoQuest/pull/114). A `dev` NÃO deve receber esta correção sem sinal verde explícito.
+
+### Investigação histórica com evidências
+
+1. **Antes de #110 (C6 / PR #109):** `TargetSelector.OnMouseClick` não tinha `IsPointerOverUi()`; o mouse chegava diretamente ao `Physics2D.GetRayIntersection(ray)` e o segundo clique no mesmo monstro chamava `ClearTarget()`. Os painéis e a cena já continham transparências.
+2. **Introduzido em #110 (C7):** `if (ChatUI.IsChatActive || IsPointerOverUi()) return`; `IsPointerOverUi` usava `EventSystem.RaycastAll` e retornava `true` para QUALQUER Graphic de Canvas ScreenSpace, sem distinguir transparência. Isso afeta apenas mouse e não a seleção por Espaço.
+3. **Evidência reproduzível no YAML de `Client/Assets/scenebasic.unity`:** `HUD/ButtomLeft` tem Image alpha=0 e `raycastTarget=1`, largura 1300 e altura 210; `HUD/InventoryManager` tem Image alpha=0 e `raycastTarget=1`; `HUD/LootPanel` idem. O Unity GraphicRaycaster não elimina raycasts de Image por alpha=0. Logo, cliques no mundo sob esses retângulos podiam ser falsamente interpretados como cliques em UI. **Esta é a causa raiz de maior confiança**, mas teste real de Play Mode é necessário para provar que TODOS os cliques falhados decorrem dela.
+4. **Primeira tentativa #114:** tratou `GetRayIntersectionAll`, ordem de colliders e WorldSpace HP bars, mas NÃO corrigiu as Images transparentes ScreenSpace. Também alterou equivocadamente o segundo clique, removendo o toggle desejado. O usuário testou e rejeitou.
+5. **Node:** `handleStartAutoAttack` e `handleLoot` já aceitam mensagens por WS, sendo que loot exige Manhattan distance ≤ 2. Tecla Espaço funcionar indica que a sessão/combate não está universalmente quebrada. Nenhum aumento de alcance é necessário nem permitido.
+
+### Revisão atual da correção #114
+
+- A função `BlocksWorldClick` só bloqueia UI ScreenSpace com conteúdo realmente visível ou controle interativo (Selectable/cabeçalho de arraste). Imagens de alpha=0 e `CanvasRenderer` de alpha=0 são ignoradas, assim como CanvasGroup alpha=0 e nameplates/HP barras WorldSpace. Janelas realmente visíveis e botões continuam bloqueando cliques no mundo. Console Editor informa qual UI bloqueou, quando aplicável.
+- Manteve seleção por todos os colliders do mundo `Physics2D.GetRayIntersectionAll`, respeitando SpriteRenderer sorting layer/order e prioridade de corpse sobre monstros em empate.
+- **Restaurou o toggle:** clique 1 no monstro seleciona e inicia auto attack; clique 2 no mesmo monstro limpa alvo e envia stop ao Node; clique em chão vazio também desmarca.
+- Nenhuma mudança em cena/prefabs (somente leitura), nem autoridade/cooldown/range Node, nem UI layout, pesca ou câmera.
+
+### Verificação automatizada e riscos remanescentes
+
+`server/tests/clientC4PlayerCombatContracts.test.ts` verifica os métodos C#, toggle, cena YAML real com Image transparente + raycast e cenários simulados UI/transparência/sorting. São **testes Node de contratos e modelagem**, NÃO executam C# nem cliques no Game View. O CI de build/test Ubuntu, Windows e integração PostgreSQL deve ser concluído para a revisão atual; registrar run e SHA específico.
+
+### Homologação Unity — C7-CLICK-01–14
+
+- [ ] 01 — Perto de um goblin: 1 clique no sprite seleciona e ataca (sem Espaço).
+- [ ] 02 — 2º clique no MESMO goblin cancela; 3º recomeça.
+- [ ] 03 — Clicar no chão vazio cancela (regra preservada).
+- [ ] 04 — Espaço seleciona/próximo alvo e não há stop inesperado.
+- [ ] 05 — Clicar monstro na parte inferior do mapa/atrás de HUD transparente funciona.
+- [ ] 06 — Testar clique no sprite inclusive junto à barra de HP WorldSpace.
+- [ ] 07 — Loot próximo (distância de até 2 tiles) abre com 1 clique.
+- [ ] 08 — Cadáver e objeto sobrepostos: clique no corpse escolhe loot.
+- [ ] 09 — Loot distante envia erro legítimo `Too far from corpse`, não abre indevidamente.
+- [ ] 10 — UI visível (inventário, loja, banco, chat) bloqueia clique sobre monstro/corpse atrás.
+- [ ] 11 — Ao clicar fora da UI visível, Graphics transparentes NÃO bloqueiam o mundo.
+- [ ] 12 — NPC merchant/banker e item no chão continuam interagindo.
+- [ ] 13 — Zoom/F10/relogin, vários monstros e dois clientes não apresentam regressões.
+- [ ] 14 — Console: nenhum erro; se falhar, salvar logs `[TargetSelector][CLICK]`, `[TargetSelector] Clique`, `[CombatSender]`, `[LootUI]` e mensagens Node; testar Editor e build Windows.
+
+**Gate inegociável:** revisão técnica + CI verde + **teste Unity realizado pelo usuário e seu sinal verde explícito**. PR #114 permanece DRAFT até isso; desenvolvimento da próxima UI/dock em branch separada após aceite.

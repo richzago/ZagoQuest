@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Gerencia a seleção de alvos (monstros) e o combate automático.
-/// Inclui: clique para selecionar/desmarcar, troca de alvo com Espaço,
+/// Inclui: clique para selecionar/desmarcar (toggle), troca com Espaço,
 /// auto follow, e exibição de uma borda visual ao redor do alvo selecionado.
 /// </summary>
 public class TargetSelector : MonoBehaviour
@@ -124,7 +124,14 @@ public class TargetSelector : MonoBehaviour
 
     private void OnMouseClick()
     {
-        if (ChatUI.IsChatActive || IsPointerOverUi()) return;
+        if (Mouse.current == null) return;
+#if UNITY_EDITOR
+        // Se o input chegar mas for bloqueado, o log seguinte identifica
+        // a etapa. Não registrar informações de conta/sessão.
+        Debug.Log("[TargetSelector][CLICK] Mouse recebido.");
+#endif
+        if (ChatUI.IsChatActive) return;
+        if (IsPointerOverUi()) return; // bloquear SOMENTE UI realmente interativa/visível
         // Cliques em alvos, cadáveres e itens não podem enviar pacotes
         // enquanto o socket ainda autentica ou após uma desconexão.
         var network = NetworkManager.Instance;
@@ -133,18 +140,26 @@ public class TargetSelector : MonoBehaviour
         if (camera == null) return;
 
         Ray ray = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
-        RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
-        if (hit.collider != null)
+        // A primeira interseção pode ser um colisor de cenário/player.
+        // Resolver todas as entidades sob o ponteiro pela ordem visual.
+        Collider2D clicked = FindWorldClickCollider(ray);
+        if (clicked != null)
         {
-            Debug.Log($"[TargetSelector] Clique em: {hit.collider.name}, tag: {hit.collider.tag}");
-            var npcInteract = hit.collider.GetComponentInParent<ClickInteract>();
+            Debug.Log($"[TargetSelector] Clique em: {clicked.name}, tag: {clicked.tag}");
+            var npcInteract = clicked.GetComponentInParent<ClickInteract>();
+            var monster = clicked.GetComponentInParent<MonsterIdentity>();
+            var corpse = clicked.GetComponentInParent<CorpseIdentity>();
+            var groundItem = clicked.GetComponentInParent<ItemOnGroundIdentity>();
 
             // ====================
             // 1. CLIQUE EM MONSTRO
             // ====================
-            if (hit.collider.CompareTag("Monster"))
+            if (monster != null)
             {
-                string clickedId = GetEntityIdFromGameObject(hit.collider.gameObject);
+                string clickedId = GetEntityIdFromGameObject(monster.gameObject);
+                // Comportamento original estilo Tibia:
+                // primeiro clique seleciona/ataca; segundo clique no mesmo
+                // monstro cancela. Não remover esta alternância.
                 if (!string.IsNullOrEmpty(clickedId))
                 {
                     if (currentTargetId == clickedId)
@@ -156,10 +171,9 @@ public class TargetSelector : MonoBehaviour
             // ====================
             // 2. CLIQUE EM CORPSE (LOOT)
             // ====================
-            else if (hit.collider.CompareTag("Corpse"))
+            else if (corpse != null)
             {
-                CorpseIdentity corpse = hit.collider.GetComponent<CorpseIdentity>();
-                if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
+                if (!string.IsNullOrEmpty(corpse.corpseId))
                 {
                     Debug.Log($"[TargetSelector] Clique no corpse ID {corpse.corpseId}");
                     network.Inventory?.SendLoot(corpse.corpseId);
@@ -179,13 +193,12 @@ public class TargetSelector : MonoBehaviour
             // ====================
             // 4. CLIQUE EM ITEM NO CHÃO (PICKUP)
             // ====================
-            else if (hit.collider.CompareTag("ItemOnGround"))
+            else if (groundItem != null)
             {
-                ItemOnGroundIdentity item = hit.collider.GetComponent<ItemOnGroundIdentity>();
-                if (item != null && !string.IsNullOrEmpty(item.groundItemId))
+                if (!string.IsNullOrEmpty(groundItem.groundItemId))
                 {
-                    Debug.Log($"[TargetSelector] Clicou no item {item.itemName} (ID: {item.groundItemId})");
-                    network.Inventory?.SendPickupItem(item.groundItemId);
+                    Debug.Log($"[TargetSelector] Clicou no item {groundItem.itemName} (ID: {groundItem.groundItemId})");
+                    network.Inventory?.SendPickupItem(groundItem.groundItemId);
                 }
                 else
                 {
@@ -193,7 +206,7 @@ public class TargetSelector : MonoBehaviour
                 }
             }
             // ====================
-            // 4. CLIQUE EM OUTRO LUGAR → CANCELA TARGET
+            // 5. CLIQUE EM OUTRO LUGAR → CANCELA TARGET
             // ====================
             else
             {
@@ -202,6 +215,9 @@ public class TargetSelector : MonoBehaviour
         }
         else
         {
+#if UNITY_EDITOR
+            Debug.Log("[TargetSelector][CLICK] Nenhum collider interagível sob o mouse.");
+#endif
             ClearTarget();
         }
     }
@@ -338,7 +354,109 @@ public class TargetSelector : MonoBehaviour
     // UTILITÁRIOS
     // =========================
 
-    /// <summary>Precedência de UI: ponteiro em qualquer GraphicRaycaster bloqueia o mundo.</summary>
+    // Prefabs do mundo usam colisores 2D. Filhos podem conter colisores
+    // independentes e precisam resolver a identidade no pai.
+    private enum WorldClickKind { None, Monster, Corpse, Npc, GroundItem }
+
+    private static WorldClickKind ClickKind(Collider2D collider)
+    {
+        if (collider.GetComponentInParent<CorpseIdentity>() != null)
+            return WorldClickKind.Corpse;
+        if (collider.GetComponentInParent<MonsterIdentity>() != null)
+            return WorldClickKind.Monster;
+        if (collider.GetComponentInParent<ClickInteract>() != null)
+            return WorldClickKind.Npc;
+        if (collider.GetComponentInParent<ItemOnGroundIdentity>() != null)
+            return WorldClickKind.GroundItem;
+        return WorldClickKind.None;
+    }
+
+    /// <summary>
+    /// Escolhe o sprite interagível mais à frente, ignorando cenário/player.
+    /// Empate de ordem visual: corpse antes de monstro (tile de morte).
+    /// Nunca contorna alcance/validação de combate/loot do servidor.
+    /// </summary>
+    private static Collider2D FindWorldClickCollider(Ray ray)
+    {
+        RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
+        Collider2D best = null;
+        int bestLayer = int.MinValue;
+        int bestOrder = int.MinValue;
+        int bestPriority = int.MinValue;
+        float bestDistance = float.MaxValue;
+        foreach (var hit in hits)
+        {
+            Collider2D candidate = hit.collider;
+            if (candidate == null) continue;
+            WorldClickKind kind = ClickKind(candidate);
+            if (kind == WorldClickKind.None) continue;
+
+            var sprite = candidate.GetComponentInParent<SpriteRenderer>();
+            if (sprite == null) sprite = candidate.GetComponentInChildren<SpriteRenderer>();
+            int layer = sprite != null
+                ? SortingLayer.GetLayerValueFromID(sprite.sortingLayerID) : 0;
+            int order = sprite != null ? sprite.sortingOrder : 0;
+            int priority = kind == WorldClickKind.Corpse ? 4 :
+                kind == WorldClickKind.Monster ? 3 :
+                kind == WorldClickKind.GroundItem ? 2 : 1;
+
+            bool better = best == null || layer > bestLayer ||
+                (layer == bestLayer && order > bestOrder) ||
+                (layer == bestLayer && order == bestOrder && priority > bestPriority) ||
+                (layer == bestLayer && order == bestOrder &&
+                 priority == bestPriority && hit.distance < bestDistance);
+            if (!better) continue;
+            best = candidate;
+            bestLayer = layer;
+            bestOrder = order;
+            bestPriority = priority;
+            bestDistance = hit.distance;
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// UI pode ter Image com alpha ZERO e raycastTarget=true no Inspector.
+    /// Ex.: HUD/ButtomLeft, HUD/InventoryManager e HUD/LootPanel da cena.
+    /// GraphicRaycaster devolve esses elementos no RaycastAll mesmo invisíveis,
+    /// portanto não se pode rejeitar QUALQUER hit de Canvas ScreenSpace.
+    /// Selectables recebem o clique mesmo com Image invisível (botões/inputs).
+    /// </summary>
+    private static bool BlocksWorldClick(RaycastResult hit)
+    {
+        GameObject go = hit.gameObject;
+        if (go == null) return false;
+        Canvas canvas = go.GetComponentInParent<Canvas>();
+        if (canvas == null || canvas.renderMode == RenderMode.WorldSpace)
+            return false; // nameplates e barras de HP não são UI bloqueadora
+
+        // Respeitar fade também de BOTÕES: um painel completamente
+        // oculto via CanvasGroup não pode bloquear mundo por Selectable.
+        CanvasGroup[] groups = go.GetComponentsInParent<CanvasGroup>();
+        foreach (var group in groups)
+            if (group != null && group.alpha <= 0.001f) return false;
+
+        // Um controle interativo pode ter Image invisível de propósito.
+        // O EventSystem já aplica interatividade/blocksRaycasts.
+        if (go.GetComponentInParent<Selectable>() != null ||
+            go.GetComponentInParent<C6WindowDragHandle>() != null)
+            return true;
+
+        // Imagens/labels 100% transparentes não cobrem o mundo. Unity
+        // não desliga raycasts automaticamente quando Color.alpha == 0.
+        Graphic graphic = go.GetComponent<Graphic>();
+        if (graphic == null || !graphic.raycastTarget ||
+            graphic.color.a <= 0.001f || graphic.canvasRenderer.GetAlpha() <= 0.001f)
+            return false;
+
+        return true; // fundo VISÍVEL de janela deve continuar protegendo o mundo
+    }
+
+    /// <summary>
+    /// Bloquear apenas UI visível/interativa. O código C7 original bloqueava
+    /// toda imagem transparente capturada por EventSystem.RaycastAll, causando
+    /// o bug de cliques no combate/loot enquanto a tecla Espaço funcionava.
+    /// </summary>
     private bool IsPointerOverUi()
     {
         var system = EventSystem.current;
@@ -348,12 +466,12 @@ public class TargetSelector : MonoBehaviour
         system.RaycastAll(pointer, uiHits);
         foreach (var hit in uiHits)
         {
-            if (hit.gameObject == null) continue;
-            var canvas = hit.gameObject.GetComponentInParent<Canvas>();
-            // Nameplates world-space decorativas não podem bloquear combate.
-            if (canvas != null && (canvas.renderMode != RenderMode.WorldSpace ||
-                hit.gameObject.GetComponentInParent<Selectable>() != null))
-                return true;
+            if (!BlocksWorldClick(hit)) continue;
+#if UNITY_EDITOR
+            Debug.Log($"[TargetSelector][CLICK] UI bloqueou clique: {hit.gameObject.name} " +
+                $"(Canvas={hit.gameObject.GetComponentInParent<Canvas>()?.name})");
+#endif
+            return true;
         }
         return false;
     }
@@ -401,11 +519,11 @@ public class TargetSelector : MonoBehaviour
 
     private string GetEntityIdFromGameObject(GameObject go)
     {
-        MonsterIdentity mid = go.GetComponent<MonsterIdentity>();
+        MonsterIdentity mid = go.GetComponentInParent<MonsterIdentity>();
         if (mid != null && !string.IsNullOrEmpty(mid.entityId))
             return mid.entityId;
 
-        EntityIdentity eid = go.GetComponent<EntityIdentity>();
+        EntityIdentity eid = go.GetComponentInParent<EntityIdentity>();
         return eid?.entityId;
     }
 

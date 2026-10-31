@@ -1,5 +1,11 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **Revisão da C7-CLICK (31/10/2026):** primeira tentativa do PR #114 não corrigiu os cliques. Comparação dos PRs #109/#110 revelou que o #110 introduziu `EventSystem.RaycastAll` com bloqueio indiscriminado de todos Graphics ScreenSpace, incluindo Images totalmente transparentes que já existiam em `scenebasic.unity` (`ButtomLeft` 1300×210, `InventoryManager`, `LootPanel`). Revisão no mesmo PR #114 agora ignora UI decorativa invisível, mas preserva o bloqueio de janelas visíveis, e restaura o toggle Tibia-style: **2º clique no monstro interrompe**. Verificar detalhes/QA C7-CLICK-01–14 em `docs/CLIENT_C7_UX_VISUAL_AUDIT.md`. **PR #114 ainda DRAFT, sem merge**; testes Unity e aprovação do usuário obrigatórios.
+
+
+> **Hotfix isolado pós-rollback — ataque/loot por clique (31/10/2026):** a base C7 restaurada no PR #113 foi testada pelo usuário, que relatou mapa/janelas quase normais, porém intermitência no clique para iniciar auto attack e abrir corpse. Branch independente `fix/client-c7-combat-loot-click-reliability` criada para corrigir `TargetSelector`, com QA manual C7-CLICK-01–12 em `docs/CLIENT_C7_UX_VISUAL_AUDIT.md`. **Proibido merge automático antes do aceite explícito do usuário via Unity.** UI/dock e pesca não fazem parte deste hotfix; CR8 e reimplementação de layout ficam para depois da homologação.
+
+
 > **Marco de recuperação (31/10/2026): ROLLBACK DA C7.1.** Após regressões graves no Play Mode (janelas sobrepostas e cantos de mapa com artefatos), a `dev` deve voltar à árvore de código do [PR #110](https://github.com/richzago/ZagoQuest/pull/110), commit `ce506b69756124444a43e8ae03444187da8b396a`, revertendo inteiramente o [PR #111](https://github.com/richzago/ZagoQuest/pull/111) sem reescrever histórico. O PR #112 não integra a solução. **C7.1 cancelada na base atual; CR8 bloqueada.** Retornos da C7.1 (isWater Tiled, vara Weapon e isca Useful, docking e Camera.rect) permanecem como requisitos para implementação futura, não como funcionalidades entregues. Próximo marco: homologar a base restaurada no Unity Editor + build Windows; **somente depois criar uma branch nova** para o layout desejado e outra etapa de pesca, com testes e revisão visual antes de qualquer merge. As seções históricas anteriores documentam etapas passadas e não substituem este status.
 
 
