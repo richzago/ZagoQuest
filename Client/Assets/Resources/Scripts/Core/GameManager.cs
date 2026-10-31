@@ -12,6 +12,9 @@ public class GameManager : MonoBehaviour
     private bool[,] collisionMatrix;
     private int mapWidth;
     private int mapHeight;
+    public int MapWidth => mapWidth;
+    public int MapHeight => mapHeight;
+    public bool HasLoadedMap => collisionMatrix != null && mapWidth > 0 && mapHeight > 0;
 
     // Direções para pathfinding (4 direções)
     private readonly Vector2Int[] neighbors = new Vector2Int[]
