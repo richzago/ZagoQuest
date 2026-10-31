@@ -30,13 +30,13 @@ public class ShopItemSlot : MonoBehaviour
         if (itemNameText != null)
         {
             itemNameText.text = item.name;
-            WorldWindowLayout.Place(itemNameText, 0.04f, 0.39f, 0.60f, 0.96f,
+            WorldWindowLayout.Place(itemNameText, 0.05f, 0.65f, 0.95f, 0.96f,
                 17, WorldWindowLayout.Label);
         }
         if (priceText != null)
         {
             priceText.text = $"Compra {item.price}g  ·  Venda {item.sellPrice}g";
-            WorldWindowLayout.Place(priceText, 0.04f, 0.03f, 0.60f, 0.39f,
+            WorldWindowLayout.Place(priceText, 0.05f, 0.40f, 0.95f, 0.65f,
                 14, WorldWindowLayout.Gold);
         }
         if (amountInput != null)
@@ -44,7 +44,7 @@ public class ShopItemSlot : MonoBehaviour
             amountInput.contentType = TMP_InputField.ContentType.IntegerNumber;
             amountInput.text = "1";
             WorldWindowLayout.Place(amountInput.GetComponent<RectTransform>(),
-                0.61f, 0.23f, 0.71f, 0.77f);
+                0.05f, 0.07f, 0.23f, 0.34f);
             if (amountInput.textComponent != null)
                 amountInput.textComponent.raycastTarget = false;
         }
@@ -52,7 +52,7 @@ public class ShopItemSlot : MonoBehaviour
         if (buyButton != null)
         {
             WorldWindowLayout.Place(buyButton.GetComponent<RectTransform>(),
-                0.73f, 0.18f, 0.855f, 0.82f);
+                0.28f, 0.06f, 0.60f, 0.35f);
             WorldWindowLayout.StyleButton(buyButton);
             buyButton.onClick.RemoveListener(BuyItem);
             buyButton.onClick.AddListener(BuyItem);
@@ -83,7 +83,7 @@ public class ShopItemSlot : MonoBehaviour
             sellButton.onClick.AddListener(SellItem);
         }
         WorldWindowLayout.Place(sellButton.GetComponent<RectTransform>(),
-            0.87f, 0.18f, 0.99f, 0.82f);
+            0.64f, 0.06f, 0.96f, 0.35f);
         WorldWindowLayout.StyleButton(sellButton);
         sellButton.interactable = item != null && item.sellPrice >= 0;
     }

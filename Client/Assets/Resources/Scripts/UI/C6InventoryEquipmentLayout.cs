@@ -88,7 +88,7 @@ public static class C6InventoryEquipmentLayout
     public static void Inventory(GameObject panel, Transform slots, TMP_Text gold, UnityAction close)
     {
         if (panel == null || slots == null) return;
-        Dock(panel, 360, 308);
+        Dock(panel, 312, 308);
         Header(panel, "INVENTÁRIO", close);
         var existing = panel.transform.Find("C6InventoryViewport");
         var viewport = existing != null ? existing.gameObject :
@@ -116,8 +116,8 @@ public static class C6InventoryEquipmentLayout
         if (grid == null) grid = slots.gameObject.AddComponent<GridLayoutGroup>();
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 3;
-        grid.cellSize = new Vector2(92, 92);
-        grid.spacing = new Vector2(8, 8);
+        grid.cellSize = new Vector2(82, 82);
+        grid.spacing = new Vector2(6, 6);
         grid.padding = new RectOffset(10, 10, 10, 10);
         grid.childAlignment = TextAnchor.UpperCenter;
         var fitter = slots.GetComponent<ContentSizeFitter>();
@@ -150,7 +150,7 @@ public static class C6InventoryEquipmentLayout
             gold.alignment = TextAlignmentOptions.MidlineLeft;
             gold.raycastTarget = false;
         }
-        Label(panel.transform, "C6Help", "Clique: consumir  ·  Duplo: equipar  ·  Arraste: mover", 12,
+        Label(panel.transform, "C6Help", "Clique: usar · Duplo: equipar", 11,
             Vector2.zero, new Vector2(1, 0),
             new Vector2(16, 6), new Vector2(-16, 30),
             TextAlignmentOptions.MidlineLeft);
@@ -159,7 +159,7 @@ public static class C6InventoryEquipmentLayout
     public static void Equipment(GameObject panel, Transform slots, UnityAction close)
     {
         if (panel == null || slots == null) return;
-        Dock(panel, 276, 16);
+        Dock(panel, 290, 16);
         // Equipamentos no CENTRO DIREITO. O canto superior direito fica
         // reservado ao minimapa futuro (sem criar placeholder ou alterar .unity).
         // Inventário segue à esquerda: ambos permanecem clicáveis quando abertos.

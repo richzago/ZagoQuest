@@ -9,6 +9,7 @@ public sealed class C6WindowDragHandle : MonoBehaviour,
     private string positionKey;
     private Vector2 defaultPosition;
     private Canvas canvas;
+    private float beginY;
 
     public void Bind(RectTransform target, string key)
     {
@@ -29,12 +30,13 @@ public sealed class C6WindowDragHandle : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (panel != null) panel.SetAsLastSibling();
+        beginY = eventData.position.y;
+        if (panel != null && !C7DockLayout.IsDocked(panel)) panel.SetAsLastSibling();
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (panel == null) return;
+        if (panel == null || C7DockLayout.IsDocked(panel)) return;
         var scale = canvas != null ? Mathf.Max(0.01f, canvas.scaleFactor) : 1f;
         panel.anchoredPosition += eventData.delta / scale;
         KeepOnScreen();
@@ -42,7 +44,13 @@ public sealed class C6WindowDragHandle : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (panel == null || string.IsNullOrEmpty(positionKey)) return;
+        if (panel == null) return;
+        if (C7DockLayout.IsDocked(panel))
+        {
+            C7DockLayout.Reorder(panel, eventData.position.y - beginY);
+            return;
+        }
+        if (string.IsNullOrEmpty(positionKey)) return;
         PlayerPrefs.SetFloat(positionKey + ".X", panel.anchoredPosition.x);
         PlayerPrefs.SetFloat(positionKey + ".Y", panel.anchoredPosition.y);
         PlayerPrefs.Save();
@@ -73,6 +81,11 @@ public sealed class C6WindowDragHandle : MonoBehaviour,
     public void OnPointerClick(PointerEventData eventData)
     {
         if (panel == null || eventData.button != PointerEventData.InputButton.Right) return;
+        if (C7DockLayout.IsDocked(panel))
+        {
+            C7DockLayout.ResetHeight(panel);
+            return;
+        }
         panel.anchoredPosition = defaultPosition;
         KeepOnScreen();
         PlayerPrefs.DeleteKey(positionKey + ".X");

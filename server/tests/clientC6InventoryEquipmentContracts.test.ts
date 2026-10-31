@@ -131,7 +131,7 @@ test("C6 visual: recursos Unity e nomes dos slots permanecem compatíveis",()=>{
  assert.match(layout,/EquipmentSlot\.BACKPACK/);
  assert.match(layout,/EquipmentSlot\.USEFUL/);
  assert.match(layout,/new Vector2\(70, 70\)/);
- assert.match(layout,/new Vector2\(92, 92\)/);
+ assert.match(layout,/new Vector2\(82, 82\)/);
  assert.match(layout,/new RectOffset\(10, 10, 10, 10\)/);
  assert.match(layout,/fitter\.horizontalFit = ContentSizeFitter\.FitMode\.Unconstrained/);
  assert.match(layout,/fitter\.verticalFit = ContentSizeFitter\.FitMode\.PreferredSize/);
@@ -322,8 +322,8 @@ test("C6 layout: equipamento na direita central deixa topo direito para minimapa
  assert.match(layout,/equipmentRect\.anchorMin = equipmentRect\.anchorMax/);
  assert.match(layout,/new Vector2\(1f, 0\.5f\)/);
  assert.match(layout,/equipmentRect\.anchoredPosition = new Vector2\(-12f, 0f\)/);
- assert.match(layout,/Dock\(panel, 360, 308\)/);
- assert.match(layout,/Dock\(panel, 276, 16\)/);
+ assert.match(layout,/Dock\(panel, 312, 308\)/);
+ assert.match(layout,/Dock\(panel, 290, 16\)/);
 });
 
 

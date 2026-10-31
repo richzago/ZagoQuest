@@ -1,10 +1,12 @@
 {
   "id": "consumable/bait_worm",
   "name": "Worm",
-  "description": "A squirming worm.",
-  "type": "consumable",
+  "description": "Legacy worm; equip in Useful to fish.",
+  "type": "equipment",
   "stackable": true,
   "maxStack": 20,
   "fishingBonus": 0.1,
-  "value": 1
+  "value": 1,
+  "slot": "USEFUL",
+  "bonuses": {}
 }
