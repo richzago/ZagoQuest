@@ -251,8 +251,11 @@ test("gold privado vai só ao socket autenticado do UUID correto", async () => {
 test("a reconexão aguarda persistência final e evita sobrescrever estado de jogador online", async () => {
   let releaseSave!: () => void;
   let savePending = false;
+  let saves = 0;
   const f = await fixture({
     savePlayer: async () => {
+      // Só o PRIMEIRO save é retido; a reconexão final deve poder encerrar.
+      if (++saves !== 1) return;
       savePending = true;
       await new Promise<void>(resolve => { releaseSave = resolve; });
     },
