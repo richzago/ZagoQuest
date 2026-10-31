@@ -1,7 +1,7 @@
 /**
  * C7 — ponte WebSocket para a pesca já existente no servidor.
  * O Unity pede start/cancel e apenas recebe estados; Node valida rod, isca,
- * estado e proximidade. A regra de água via Y>=8 é provisória e auditada.
+ * estado, equipamentos e água real do Tiled.
  */
 import { WebSocket } from "ws";
 import type { Player } from "../../game/entities/player";
@@ -48,7 +48,8 @@ export function handleStartFishing(
   // Apenas o servidor informa o tempo da vara; UI não pode antecipar prêmio.
   feedback(ws, "started", "Pescando... Aguarde a fisgada.",
     FishingSystem.durationMs(player));
-  ctx.packetSender.inventory.sendInventory(player); // isca opcional foi consumida
+  ctx.packetSender.inventory.sendInventory(player); // uma isca foi consumida
+  ctx.packetSender.inventory.sendEquipment(player); // último bait pode deixar Useful vazio
 }
 
 export function handleCancelFishing(
