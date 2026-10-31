@@ -45,7 +45,7 @@ async function fixture(): Promise<Fixture> {
   world.addPlayer(player);
   world.addMonster(monster);
 
-  const gameWs = new GameWs(server, world);
+  const gameWs = new GameWs(server, world, { authRequired: false });
   const sockets: WebSocket[] = [];
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as AddressInfo).port;
