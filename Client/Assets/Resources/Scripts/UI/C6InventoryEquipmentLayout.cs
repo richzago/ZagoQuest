@@ -116,7 +116,7 @@ public static class C6InventoryEquipmentLayout
         if (grid == null) grid = slots.gameObject.AddComponent<GridLayoutGroup>();
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 3;
-        grid.cellSize = new Vector2(82, 82);
+        grid.cellSize = new Vector2(76, 76);
         grid.spacing = new Vector2(6, 6);
         grid.padding = new RectOffset(10, 10, 10, 10);
         grid.childAlignment = TextAnchor.UpperCenter;
