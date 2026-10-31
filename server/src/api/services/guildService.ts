@@ -11,7 +11,7 @@ import { AppDataSource } from "../data-source";
 import { Guild } from "../entities/Guild";
 import { GuildMember } from "../entities/GuildMember";
 import { Character } from "../entities/Character";
-import { createGuildSchema } from "../../shared/schemas/guild.schema";
+import { createGuildSchema, guildImageUrlSchema } from "../../shared/schemas/guild.schema";
 import { Logger } from "../../game/core/logger/logger";
 import { OnlinePlayerDirectory } from "../../game/systems/onlinePlayerDirectory";
 import { withCharacterWriteLock } from "../../game/systems/characterWriteLock";
@@ -270,7 +270,9 @@ export class GuildService {
     const member = await this.memberRepo.findOne({ where: { guildId: guild.id, characterName } });
     if (member?.role !== "leader")
       throw new GuildRuleError("Apenas o líder pode alterar a imagem de perfil.");
-    guild.profileImage = imageUrl;
+    const image = guildImageUrlSchema.safeParse(imageUrl);
+    if (!image.success) throw new GuildRuleError("imageUrl inválida: use HTTPS (HTTP localhost somente em desenvolvimento).");
+    guild.profileImage = image.data;
     await this.guildRepo.save(guild);
     await this.addLog(guild.id, `Imagem de perfil atualizada.`);
   }
@@ -280,7 +282,9 @@ export class GuildService {
     if (!guild) throw new GuildRuleError("Você não está em uma guilda.");
     const member = await this.memberRepo.findOne({ where: { guildId: guild.id, characterName } });
     if (member?.role !== "leader") throw new GuildRuleError("Apenas o líder pode alterar a imagem de capa.");
-    guild.coverImage = imageUrl;
+    const image = guildImageUrlSchema.safeParse(imageUrl);
+    if (!image.success) throw new GuildRuleError("imageUrl inválida: use HTTPS (HTTP localhost somente em desenvolvimento).");
+    guild.coverImage = image.data;
     await this.guildRepo.save(guild);
     await this.addLog(guild.id, `Imagem de capa atualizada.`);
   }
