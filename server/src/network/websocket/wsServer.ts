@@ -269,6 +269,16 @@ export class WebSocketServer {
     return WebSocketServer.instance;
   }
 
+  /** Gauge read-only for operational metrics; never exports player or token data. */
+  public getNetworkLoad(): { connected: number; pendingCommands: number; maxQueueDepth: number } {
+    const depths = [...this.messageQueues.values()].map((queue) => queue.pending);
+    return {
+      connected: this.clients.size,
+      pendingCommands: depths.reduce((sum, n) => sum + n, 0),
+      maxQueueDepth: depths.length ? Math.max(...depths) : 0,
+    };
+  }
+
   public getBroadcastService(): BroadcastService {
     return this.broadcast;
   }

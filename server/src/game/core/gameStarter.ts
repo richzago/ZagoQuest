@@ -17,6 +17,8 @@ import { Player } from "../entities/player";
 import { WebSocketServer } from "../../network/websocket/wsServer";
 import { PlayerAttackSystem } from "../combat/playerAttackSystem";
 import { Monster } from "../entities/monster";
+import { performance } from "node:perf_hooks";
+import { TickMetrics } from "./tickMetrics";
 
 /** Keep game tick duration separate from autosave/guild schedules. */
 // AI decisions are frequent; creature-specific cooldown controls steps.
@@ -63,10 +65,44 @@ export function startGameLoops(
   const cancel = deps.cancelWorldTick ?? ((timer) => clearInterval(timer));
   let stopped = false;
   let worldTimer: Timer;
+  const metricsEnabled = process.env.GAME_METRICS_ENABLED === "true";
+  const tickMetrics = metricsEnabled ? new TickMetrics(512, GAME_TICK_MS) : undefined;
+  let cpuSinceReport = process.cpuUsage();
+  let lastReportAt = performance.now();
+  let measuredTicks = 0;
 
   try {
     worldTimer = schedule(() => {
-      if (!stopped) tickWorld(world, wsServer);
+      if (stopped) return;
+      if (!tickMetrics) {
+        tickWorld(world, wsServer);
+        return;
+      }
+      const began = performance.now();
+      try {
+        tickWorld(world, wsServer);
+      } finally {
+        tickMetrics.record(performance.now() - began);
+        // Stats are sampled, never emitted once per tick; benchmark is optional.
+        if (++measuredTicks % 240 === 0) {
+          const stats = tickMetrics.snapshot();
+          const elapsedMs = Math.max(1, performance.now() - lastReportAt);
+          const cpu = process.cpuUsage(cpuSinceReport);
+          cpuSinceReport = process.cpuUsage();
+          lastReportAt = performance.now();
+          const memory = process.memoryUsage();
+          const network = wsServer.getNetworkLoad?.();
+          Logger.system(
+            `[METRICS] ticks=${stats.totalTicks} n=${stats.samples}` +
+            ` p50=${stats.p50Ms.toFixed(2)}ms p95=${stats.p95Ms.toFixed(2)}ms` +
+            ` p99=${stats.p99Ms.toFixed(2)}ms slow=${stats.slowTicks}` +
+            ` cpu1core=${((cpu.user + cpu.system) / (elapsedMs * 1000) * 100).toFixed(1)}%` +
+            ` rss=${(memory.rss / 1048576).toFixed(1)}MiB` +
+            ` players=${world.players.length} monsters=${world.monsters.length}` +
+            ` sockets=${network?.connected ?? 0} pending=${network?.pendingCommands ?? 0}`,
+          );
+        }
+      }
     }, GAME_TICK_MS);
   } catch (error) {
     tasks.stop();
