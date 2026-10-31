@@ -360,3 +360,106 @@ test("Fase 7 PostgreSQL + HTTP: cadastro trata duplicidade, CPF e concorrência 
     assert.equal(await AppDataSource.getRepository(Account).count({ where: { email: race.email } }), 1);
   } finally { await closeHttp(http); }
 });
+
+
+test("Fase 7 REST + PostgreSQL: Guild isolada por conta, cobrança, rollback SQL e concorrência", async () => {
+  const { startApi } = await import("../src/api/server");
+  const previousSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = "phase7-ci-guild-http-secret-not-for-production";
+  const accounts = AppDataSource.getRepository(Account);
+  const a = await accounts.save(accounts.create({
+    email: "phase7-guild-a@example.test", cellphone: "00000000301", fullName: "Guild Account A",
+    cpf: "00000000301", birthDate: "1990-01-01", passwordHash: "ci-only", address: "Disposable CI",
+  }));
+  const b = await accounts.save(accounts.create({
+    email: "phase7-guild-b@example.test", cellphone: "00000000302", fullName: "Guild Account B",
+    cpf: "00000000302", birthDate: "1990-01-01", passwordHash: "ci-only", address: "Disposable CI",
+  }));
+  const characters = AppDataSource.getRepository(Character);
+  const owner = await characters.save(characters.create({
+    name: "Phaseowner", accountId: a.id, gender: "M", level: 101, xp: 0,
+    gold: 45_000, bankGold: 0, inventory: {}, equipment: {}, skills: {},
+  }));
+  const other = await characters.save(characters.create({
+    name: "Phaseother", accountId: b.id, gender: "M", level: 101, xp: 0,
+    gold: 45_000, bankGold: 0, inventory: {}, equipment: {}, skills: {},
+  }));
+  const tokenA = jwt.sign({ id: a.id }, process.env.JWT_SECRET!, { algorithm: "HS256", expiresIn: "1h" });
+  const tokenB = jwt.sign({ id: b.id }, process.env.JWT_SECRET!, { algorithm: "HS256", expiresIn: "1h" });
+  const http = await startApi();
+  let triggerCreated = false;
+  try {
+    await listenHttp(http, 0);
+    const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+    const request = (path: string, token: string, body: unknown, method = "POST") => fetch(base + path, {
+      method, headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+
+    const forbidden = await request("/api/guilds", tokenB, {
+      characterName: owner.name, guildName: "Guardia", description: "Outra conta",
+    });
+    assert.equal(forbidden.status, 403);
+    assert.equal((await characters.findOneByOrFail({ id: owner.id })).gold, 45_000);
+    assert.equal(await AppDataSource.getRepository(Guild).count({ where: { name: "Guardia" } }), 0);
+
+    const created = await request("/api/guilds", tokenA, {
+      characterName: owner.name, guildName: "Guardia", description: "Guild legítima",
+    });
+    assert.equal(created.status, 201);
+    assert.equal((await characters.findOneByOrFail({ id: owner.id })).gold, 25_000);
+    assert.equal(await AppDataSource.getRepository(GuildMember).count({ where: { characterId: owner.id } }), 1);
+    const publicDetails = await fetch(base + "/api/guilds/Guardia");
+    assert.equal(publicDetails.status, 200);
+    assert.equal(Object.prototype.hasOwnProperty.call(await publicDetails.json(), "logs"), false);
+
+    const foreignEdit = await request("/api/guilds/Guardia/description", tokenB, {
+      characterName: other.name, description: "Invadida",
+    }, "PUT");
+    assert.equal(foreignEdit.status, 403);
+    const legitimateEdit = await request("/api/guilds/Guardia/description", tokenA, {
+      characterName: owner.name, description: "Nova descrição",
+    }, "PUT");
+    assert.equal(legitimateEdit.status, 200);
+    assert.equal((await AppDataSource.getRepository(Guild).findOneByOrFail({ name: "Guardia" })).description, "Nova descrição");
+
+    // Inject real database failure after gold debit; transaction must rollback and REST must not leak it.
+    await AppDataSource.query(`
+      CREATE FUNCTION ci_phase7_abort_member() RETURNS trigger AS $ci$
+      BEGIN RAISE EXCEPTION 'ci internal SQL secret phase7'; RETURN NEW; END;
+      $ci$ LANGUAGE plpgsql
+    `);
+    await AppDataSource.query(`
+      CREATE TRIGGER ci_phase7_block_member BEFORE INSERT ON guild_members
+      FOR EACH ROW EXECUTE FUNCTION ci_phase7_abort_member()
+    `);
+    triggerCreated = true;
+    const failed = await request("/api/guilds", tokenB, {
+      characterName: other.name, guildName: "Tempestade", description: "Rollback REST",
+    });
+    assert.equal(failed.status, 500);
+    assert.deepEqual(await failed.json(), { error: "Falha interna ao processar guilda." });
+    assert.equal((await characters.findOneByOrFail({ id: other.id })).gold, 45_000);
+    assert.equal(await AppDataSource.getRepository(Guild).count({ where: { name: "Tempestade" } }), 0);
+
+    await AppDataSource.query("DROP TRIGGER ci_phase7_block_member ON guild_members");
+    await AppDataSource.query("DROP FUNCTION ci_phase7_abort_member()");
+    triggerCreated = false;
+
+    const races = await Promise.all([
+      request("/api/guilds", tokenB, { characterName: other.name, guildName: "Feras", description: "Primeira" }),
+      request("/api/guilds", tokenB, { characterName: other.name, guildName: "Rebeldes", description: "Segunda" }),
+    ]);
+    assert.deepEqual(races.map(res => res.status).sort((x, y) => x - y), [201, 400]);
+    assert.equal((await characters.findOneByOrFail({ id: other.id })).gold, 25_000);
+    assert.equal(await AppDataSource.getRepository(GuildMember).count({ where: { characterId: other.id } }), 1);
+  } finally {
+    if (triggerCreated) {
+      await AppDataSource.query("DROP TRIGGER IF EXISTS ci_phase7_block_member ON guild_members");
+      await AppDataSource.query("DROP FUNCTION IF EXISTS ci_phase7_abort_member()");
+    }
+    await closeHttp(http);
+    if (previousSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previousSecret;
+  }
+});
