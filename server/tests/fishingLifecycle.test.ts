@@ -6,7 +6,6 @@ import { test } from "node:test";
 import { WebSocket } from "ws";
 import { Player } from "../src/game/entities/player";
 import { World } from "../src/game/world/World";
-import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
 import { FishingSystem } from "../src/game/systems/fishingSystem";
 import { DeathSystem } from "../src/game/systems/deathSystem";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
@@ -14,22 +13,16 @@ import { SkillType } from "../src/shared/enums/skillType.enum";
 import { WebSocketServer } from "../src/network/websocket/wsServer";
 
 const rodId = "fishing/rods/basic_rod";
-const baitId = "fishing/baits/worm";
 
 function fixture(t: import("node:test").TestContext) {
   const world = new World();
   world.generateMap(12, 12);
   const player = new Player("angler", "Angler", 3, 8);
-  player.equipment.set(EquipmentSlot.WEAPON, rodId);
-  player.equipment.set(EquipmentSlot.USEFUL, baitId);
-  player.inventory.set(baitId, 1);
-  world.getTile(4, 8)!.isWater = true;
+  player.inventory.set(rodId, 1);
   world.addPlayer(player);
   t.mock.method(ItemRegistry, "get", (id: string) => {
-    if (id === baitId) return {id, type:"equipment", slot:EquipmentSlot.USEFUL,
-      name:"Worm",fishingBonus:0.1} as ReturnType<typeof ItemRegistry.get>;
     if (id === rodId) return {
-      id, name: "Test Rod", type: "equipment", slot: EquipmentSlot.WEAPON, fishingTime: 100,
+      id, name: "Test Rod", type: "fishing", fishingTime: 100,
       fishingBonus: 0,
     } as ReturnType<typeof ItemRegistry.get>;
     throw new Error("Unexpected ItemRegistry.get: " + id);
@@ -39,10 +32,10 @@ function fixture(t: import("node:test").TestContext) {
 
 test("pesca cancelada antes do timeout não concede item, gold ou skill", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const { player, world } = fixture(t);
+  const { player } = fixture(t);
   const skill = player.skills.get(SkillType.FISHING)!;
   const before = { gold: player.gold, progress: skill.progress };
-  assert.equal(FishingSystem.startFishing(player, world), true);
+  assert.equal(FishingSystem.startFishing(player, new World()), true);
   assert.equal(player.isFishing, true);
   FishingSystem.cancelFishing(player);
   t.mock.timers.tick(200);
@@ -50,7 +43,7 @@ test("pesca cancelada antes do timeout não concede item, gold ou skill", (t) =>
   assert.equal(player.fishingTimer, undefined);
   assert.equal(player.gold, before.gold);
   assert.equal(player.skills.get(SkillType.FISHING)!.progress, before.progress);
-  assert.deepEqual([...player.inventory], []);
+  assert.deepEqual([...player.inventory], [[rodId, 1]]);
 });
 
 test("morte encerra pesca e timeout não entrega recompensa após o respawn", (t) => {
@@ -64,7 +57,7 @@ test("morte encerra pesca e timeout não entrega recompensa após o respawn", (t
   assert.equal(player.isFishing, false);
   t.mock.timers.tick(200);
   assert.equal(player.skills.get(SkillType.FISHING)!.progress, beforeSkill);
-  assert.deepEqual([...player.inventory], []);
+  assert.deepEqual([...player.inventory], [[rodId, 1]]);
   DeathSystem.cancelPendingTimers(world);
 });
 
@@ -90,7 +83,7 @@ test("desconexão WebSocket encerra pesca sem reiniciar o servidor", async (t) =
     assert.equal(player.isFishing, false);
     assert.equal(player.fishingTimer, undefined);
     await new Promise<void>(resolve => setTimeout(resolve, 140));
-    assert.deepEqual([...player.inventory], []);
+    assert.deepEqual([...player.inventory], [[rodId, 1]]);
     assert.equal(player.skills.get(SkillType.FISHING)!.progress, 0);
   } finally {
     FishingSystem.cancelFishing(player);

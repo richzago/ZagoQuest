@@ -22,9 +22,6 @@ export class Tile {
   /** Indica se o tile pode ser pisado por jogadores, monstros, etc. */
   walkable: boolean;
 
-  /** Água autoritativa do Ground/Water Tiled, não inferida da posição Y. */
-  isWater = false;
-
   /**
    * Cria um novo tile.
    *

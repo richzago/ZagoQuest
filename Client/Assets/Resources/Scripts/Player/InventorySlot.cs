@@ -70,18 +70,18 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             var rect = itemIcon.rectTransform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = new Vector2(0, 12);
-            rect.sizeDelta = new Vector2(42, 42);
+            rect.sizeDelta = new Vector2(50, 50);
         }
         if (nameText != null)
         {
             nameText.text = shortName;
             nameText.gameObject.SetActive(true);
-            nameText.fontSize = 11;
+            nameText.fontSize = 13;
             if (nameText is TextMeshProUGUI label)
             {
                 label.enableAutoSizing = true;
-                label.fontSizeMin = 9;
-                label.fontSizeMax = 11;
+                label.fontSizeMin = 10;
+                label.fontSizeMax = 13;
                 label.alignment = TextAlignmentOptions.Center;
                 label.raycastTarget = false;
                 label.rectTransform.anchorMin = Vector2.zero;

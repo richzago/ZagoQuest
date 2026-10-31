@@ -116,7 +116,7 @@ public class ShopUI : MonoBehaviour
         {
             var item = items[i];
             GameObject slot = Instantiate(shopItemPrefab, itemsContainer, false);
-            WorldWindowLayout.PrepareRow(slot, 90f, i % 2 == 1);
+            WorldWindowLayout.PrepareRow(slot, 76f, i % 2 == 1);
             ShopItemSlot slotScript = slot.GetComponent<ShopItemSlot>();
             if (slotScript != null)
                 slotScript.Setup(currentNpcId, item, networkManager);

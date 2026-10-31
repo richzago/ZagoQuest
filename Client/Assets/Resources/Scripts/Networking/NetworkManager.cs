@@ -95,7 +95,6 @@ public class NetworkManager : MonoBehaviour
             Debug.Log("[NetworkManager] DragDropManager criado automaticamente.");
         }
 
-        if (GetComponent<C7DockLayout>() == null) gameObject.AddComponent<C7DockLayout>();
         if (GetComponent<C7FishingUI>() == null) gameObject.AddComponent<C7FishingUI>();
         if (GetComponent<C7UiAccessibility>() == null) gameObject.AddComponent<C7UiAccessibility>();
 
