@@ -37,11 +37,20 @@ Para testar o binário compilado, após o build, interrompa `npm run dev` e exec
 | `DB_SYNCHRONIZE` | `false` por padrão; `true` proibido em produção; usar apenas base descartável |
 | `DB_LOGGING` | Padrão `false`; `true` proibido em produção |
 | `JWT_SECRET` | Necessário para REST JWT; produção exige mínimo 32 caracteres e não aceita placeholders |
+| `CORS_ALLOWED_ORIGINS` | Em produção, lista de origens HTTPS confiáveis separadas por vírgula; sem configuração, navegadores de outras origens não recebem permissão CORS. No desenvolvimento, origens são liberadas por padrão, salvo allowlist explícita |
 | `LOG_LEVEL` | `DEBUG`, `INFO`, `WARN`, `ERROR`; WARN/ERROR importantes continuam emitidos |
 | `GAME_METRICS_ENABLED` | `true` para resumos a cada 240 ticks (p50/p95/p99, CPU, RSS, players, sockets, filas) |
 | `CHARACTER_NAME` | Personagem de bootstrap do protótipo legado (nome de teste) |
 
 **Segredos:** nunca colocar JWT/senha no nome de branch, logs, issues ou prints. O logger tem mascaramento defensivo, mas ele não substitui a proibição de registrar dados sensíveis nos handlers. Arquivos em `server/logs/` possuem rotação por dia, **sem retenção/tamanho máximo** ainda: observar consumo de disco.
+
+## Proteções da API pública (Fase 7)
+
+- `POST /api/sessions`: até **20 requisições por 5 minutos por IP**, respondendo HTTP 429 e `Retry-After` quando excedido.
+- `POST /api/accounts`: até **5 requisições por hora por IP**, com HTTP 429 em excesso.
+- Esses limites são **por processo e em memória**, não protegem várias instâncias distribuídas e não substituem proteção no proxy/firewall/WAF. Se hospedar atrás de um reverse proxy, configurar rate limit real no ingress e identificar corretamente o IP **sem confiar cegamente em X-Forwarded-For**. O Express mantém `trust proxy` desligado por padrão.
+- CORS é somente uma restrição de **navegador**: clientes Unity nativos e scripts sem cabeçalho `Origin` continuam aceitos, respeitando JWT/permissões. Um cliente não-browser pode chamar a API independentemente do CORS. `CORS_ALLOWED_ORIGINS` suporta lista exata, como `https://play.exemplo.com,https://painel.exemplo.com`; origens externas não são liberadas em produção.
+- O login REST valida entrada via Zod, retorna 400 (inválida), 401 (credenciais genéricas), 500 (erro interno sanitizado) ou 429 (limite); sucesso mantém `{ token, accountId }` com JWT HS256/24h. Detalhes em `docs/PHASE7_REST_API_AUDIT.md`.
 
 ## CI e performance
 
