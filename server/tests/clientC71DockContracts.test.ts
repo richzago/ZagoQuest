@@ -20,6 +20,8 @@ test("C7.1: painel stack vertical sem overlap, largura fixa e scroll",()=>{
  assert.match(dock,/registered\[panel\] = layout/);
  assert.match(dock,/layout\.preferredHeight = Mathf\.Clamp/);
  assert.match(dock,/PlayerPrefs\.SetFloat\(KeyPrefix/);
+ assert.match(dock,/loot\.lootPanel\.GetComponent<RectTransform>\(\)/);
+ assert.match(dock,/originalHeights\[panel\] = initialHeight/);
  assert.match(drag,/C7DockLayout\.IsDocked\(panel\)/);
  assert.match(drag,/C7DockLayout\.Reorder\(panel/);
  assert.match(drag,/C7DockLayout\.ResetHeight\(panel\)/);
