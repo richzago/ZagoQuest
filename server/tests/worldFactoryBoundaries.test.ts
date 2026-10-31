@@ -94,3 +94,22 @@ test("successful Tiled map preserves its spawn and entity loader results", async
     assert.deepEqual(player.position, { x: 1, y: 3 });
   } finally { restore(); }
 });
+
+test("modo autenticado inicia mapa e NPCs sem criar/salvar jogador legado", async () => {
+  let loadCount = 0;
+  PlayerLoader.loadOrCreatePlayer = async () => {
+    loadCount++;
+    throw new Error("Não deve carregar o personagem sem login");
+  };
+  MapLoader.loadMap = (world) => {
+    world.generateMap(8, 8);
+    return { playerSpawn: { x: 2, y: 2 }, monsters: [], npcs: [] };
+  };
+  try {
+    const { world, player } = await createWorldAndPlayer("Legacy", { skipBootstrapPlayer: true });
+    assert.equal(world.players.length, 0);
+    assert.equal(player, undefined);
+    assert.equal(loadCount, 0);
+    assert.deepEqual(world.playerRespawn, { x: 2, y: 2 });
+  } finally { restore(); }
+});
