@@ -47,7 +47,7 @@ const activeWorlds = new WeakMap<World, GameLoopsHandle>();
  */
 export function startGameLoops(
   world: World,
-  player: Player,
+  player: Player | undefined, // modo autenticado começa sem personagem no mundo
   wsServer: WebSocketServer,
   deps: GameLoopDependencies = {},
 ): GameLoopsHandle {
