@@ -62,7 +62,7 @@ test("C5: loja e banco usam mesma identidade visual sem alterar autoridade econo
   const shop=unity("UI/ShopUI.cs"), item=unity("NPC/ShopItemSlot.cs");
   const bank=unity("UI/BankUI.cs"), layout=unity("UI/WorldWindowLayout.cs");
   assert.match(shop,/WorldWindowLayout\.PrepareList\(itemsContainer\)/);
-  assert.match(shop,/WorldWindowLayout\.PrepareRow\(slot, 76f, i % 2 == 1\)/);
+  assert.match(shop,/WorldWindowLayout\.PrepareRow\(slot, 90f, i % 2 == 1\)/);
   assert.match(item,/WorldWindowLayout\.Place\(buyButton\.GetComponent<RectTransform>\(\)/);
   assert.match(item,/int\.TryParse\(amountInput\.text, out quantity\)/);
   assert.match(item,/quantity <= 0/);
