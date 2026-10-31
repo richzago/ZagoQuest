@@ -31,8 +31,15 @@ export interface ItemType {
   type: "currency" | "consumable" | "equipment" | "quest" | "loot";
   stackable: boolean;
   maxStack?: number;
-  /** Segundos de saciedade: habilita regeneração periódica server-side. */
+  /** Duração da regeneração periódica (em segundos), definida no JSON. */
   foodSeconds?: number;
+  /** Pontos de saciedade por unidade (capacidade global: 120). */
+  satietyPoints?: number;
+  /** Ganho leve por tick: cada item configura em JSON (0 permitido). */
+  regenHpPerTick?: number;
+  regenManaPerTick?: number;
+  /** Intervalo em segundos entre pulsos desta comida. */
+  regenTickSeconds?: number;
   /** Efeito instantâneo de poções (a comida usa foodSeconds). */
   effect?: { healHp?: number; healMana?: number };
   value?: number;

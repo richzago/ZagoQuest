@@ -151,6 +151,41 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Logout real de sessão: apaga credenciais da memória, interrompe
+    /// reconexão automática e fecha o WebSocket para o Node salvar/desconectar.
+    /// Não é apenas esconder o formulário: botão Logout precisa invalidar
+    /// também o transporte do personagem atual.
+    /// </summary>
+    public async Task LogoutAuthenticatedSession()
+    {
+        if (!requireAuthenticatedSession) return;
+        _sessionToken = null;
+        _sessionCharacterId = null;
+        _authRejected = false;
+        _authFeedbackReceived = false;
+        _everAuthenticated = false;
+        _awaitingAuthentication = false;
+        _changingSession = false;
+        AuthenticationStatusMessage = "";
+        isConnected = false;
+        _lastPlayerId = null;
+        _lastInitPosition = null;
+        _nextReconnectAttempt = 0f;
+        EntityManager.Instance?.ClearNetworkEntities();
+
+        var socket = _websocket;
+        _websocket = null; // Ignorar callbacks atrasados da sessão anterior.
+        if (socket != null)
+        {
+            try { await socket.Close(); }
+            catch (Exception error)
+            {
+                Debug.LogWarning($"[NETWORK][LOGOUT] Falha ao fechar WebSocket: {error.Message}");
+            }
+        }
+    }
+
     // =========================
     // CONEXÃO
     // =========================

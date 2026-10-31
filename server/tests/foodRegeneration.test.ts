@@ -20,7 +20,7 @@ import { InventorySender } from "../src/network/senders/inventorySender";
 function player() { return new Player("food-test", "Comedor", 2, 2); }
 const ws = {} as WebSocket;
 
-test("food: recupera vida e mana apenas a cada 2 segundos, sem exceder max",()=>{
+test("food: recupera vida e mana somente a cada 3 segundos, sem exceder max",()=>{
  const p=player();
  p.hp=p.maxHp-3;
  p.mana=p.maxMana-2;
@@ -34,9 +34,9 @@ test("food: recupera vida e mana apenas a cada 2 segundos, sem exceder max",()=>
  assert.equal(p.mana,p.maxMana-2+FOOD_MANA_PER_TICK);
  assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS+100),false);
  assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS*2),true);
- assert.equal(p.hp,p.maxHp);
+ assert.equal(p.hp,p.maxHp-1);
  assert.equal(p.mana,p.maxMana);
- assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS*3),false);
+ assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS*3),true);
  assert.equal(PlayerStatsSender.toPayload(p).mana,p.maxMana);
 });
 
@@ -45,9 +45,11 @@ test("food: mais comida estende saciedade sem ticks duplicados; cap é 120s",()=
  const now=20_000;
  FoodRegenerationSystem.feed(p,80,now);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p,now),80);
- FoodRegenerationSystem.feed(p,80,now+200);
+ FoodRegenerationSystem.feed(p,40,now);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p,now+200),MAX_FOOD_SECONDS);
- assert.equal(FoodRegenerationSystem.canEat(p,30,now+200),false);
+ assert.equal(FoodRegenerationSystem.canEat(p,20,now+200),false);
+ assert.equal(FoodRegenerationSystem.canEat(p,20,now+90_000),false);
+ assert.equal(FoodRegenerationSystem.canEat(p,20,now+120_201),true);
  p.mana=0;
  assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS),true);
  assert.equal(p.mana,FOOD_MANA_PER_TICK);
@@ -65,8 +67,8 @@ test("food: não ressuscita jogador nem regenera depois de expirar",()=>{
  const p=player(); p.hp=1; p.mana=1;
  FoodRegenerationSystem.feed(p,4,10_000);
  assert.equal(FoodRegenerationSystem.tick(p,30_000),true);
- assert.equal(p.hp,1+2*FOOD_HP_PER_TICK);
- assert.equal(p.mana,1+2*FOOD_MANA_PER_TICK);
+ assert.equal(p.hp,1+FOOD_HP_PER_TICK);
+ assert.equal(p.mana,1+FOOD_MANA_PER_TICK);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p,30_000),0);
  assert.equal(FoodRegenerationSystem.tick(p,32_000),false);
 });
@@ -78,7 +80,7 @@ test("food: rejeita parâmetros inválidos e não altera mana com maxMana zero",
  }
  p.mana=0; p.maxMana=0; p.hp=5;
  FoodRegenerationSystem.feed(p,5,50_000);
- assert.equal(FoodRegenerationSystem.tick(p,52_000),true);
+ assert.equal(FoodRegenerationSystem.tick(p,53_000),true);
  assert.equal(p.mana,0);
  assert.equal(p.hp,5+FOOD_HP_PER_TICK);
 });
@@ -104,7 +106,7 @@ test("food: handler consome só uma unidade e emite snapshot ao regenerar, não 
  assert.equal(events.inventory,1);assert.equal(events.stats,0);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p)>0,true);
  // Food parcial pode ser prolongado; o teto é verificado noutro teste.
- assert.equal(FoodRegenerationSystem.canEat(p,120),true);
+ assert.equal(FoodRegenerationSystem.canEat(p,120),false);
  // Poção mantém efeito instantâneo, sem criar status de food.
  p.addItem("consumable/health_potion",1);
  await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/health_potion"},ctx);
@@ -146,11 +148,13 @@ test("pocoes: canonical effect.healHp/healMana restaura no ato sem exceder máxi
  assert.deepEqual(used.map(x=>x.success),[true,true]);
  assert.equal(stats,2);assert.equal(inventory,2);
 
- // Recuperação cheia deve recusar sem consumir outra poção.
+ // Mesmo com mana cheia a poção pode ser gasta, sem ultrapassar o máximo.
  p.addItem("consumable/mana_potion",1);
  await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/mana_potion"},ctx);
- assert.equal(used.at(-1)?.success,false);
- assert.equal(p.inventory.get("consumable/mana_potion"),1);
+ assert.equal(used.at(-1)?.success,true);
+ assert.equal(p.inventory.has("consumable/mana_potion"),false);
+ assert.equal(p.mana,p.maxMana);
+ assert.equal(inventory,3);
  assert.equal(stats,2);
 });
 
@@ -159,6 +163,7 @@ test("C6: useItem equipa espada, mas equipItem não consome nem equipa alimento"
  ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
  const p=player();
  p.addItem("bone_sword",1);
+ p.addItem("bone_armor",1);
  p.addItem("consumable/cheese",1);
  const responses={used:[] as boolean[],errors:[] as string[],inventory:0,equipment:0,stats:0};
  const ctx={packetSender:{inventory:{
@@ -172,6 +177,8 @@ test("C6: useItem equipa espada, mas equipItem não consome nem equipa alimento"
  assert.deepEqual(responses.used,[true]);
  assert.equal(p.equipment.has("weapon" as never),true);
  assert.equal(p.inventory.has("bone_sword"),false);
+ assert.equal(p.inventory.get("bone_armor"),1);
+ assert.equal(p.equipment.has("armor" as never),false);
  assert.equal(responses.equipment,1);
  await handleEquipItem(ws,p,{type:"equipItem",itemId:"consumable/cheese"},ctx);
  assert.equal(p.inventory.get("consumable/cheese"),1);
@@ -198,4 +205,100 @@ test("C6 inventory snapshot informa tipo consumable/equipment e ignora item lega
  assert.equal(byId.get("consumable/mana_potion")?.itemType,"consumable");
  assert.equal(byId.get("bone_sword")?.itemType,"equipment");
  assert.equal(byId.get("legacy_item_sem_definicao")?.itemType,undefined);
+});
+
+
+test("C6 saciedade: seis queijos ou três carnes enchem e bloqueiam até acabar",()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const cheese=ItemRegistry.get("consumable/cheese");
+ const meat=ItemRegistry.get("consumable/meat");
+ assert.equal(cheese.satietyPoints,20); assert.equal(meat.satietyPoints,40);
+ const start=50000;
+ for(const [item,count] of [[cheese,6],[meat,3]] as const){
+  const p=player();
+  const duration=item.foodSeconds!;
+  const points=item.satietyPoints!;
+  for(let n=0;n<count;n++){
+   assert.equal(FoodRegenerationSystem.canEat(p,duration,start,points),true);
+   FoodRegenerationSystem.feed(p,duration,start,points);
+  }
+  assert.equal(FoodRegenerationSystem.currentSatiety(p,start),120);
+  assert.equal(FoodRegenerationSystem.remainingSeconds(p,start),duration*count);
+  assert.equal(FoodRegenerationSystem.canEat(p,cheese.foodSeconds!,start,cheese.satietyPoints),false);
+  assert.equal(FoodRegenerationSystem.canEat(p,cheese.foodSeconds!,start+duration*count*500,cheese.satietyPoints),false);
+  assert.equal(FoodRegenerationSystem.canEat(p,cheese.foodSeconds!,start+duration*count*1000+1,cheese.satietyPoints),true);
+ }
+});
+
+test("C6 saciedade: comida que não cabe inteira é recusada sem consumir",async()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();
+ p.addItem("consumable/cheese",6);
+ p.addItem("consumable/meat",1);
+ const events: Array<{success:boolean;message:string}> =[];
+ const ctx={packetSender:{inventory:{
+  sendItemUsed:(_id:string,success:boolean,message:string)=>events.push({success,message}),
+  sendInventory:()=>{},
+ }}} as unknown as HandlerContext;
+ for(let i=0;i<5;i++)
+  await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/cheese"},ctx);
+ assert.equal(p.inventory.get("consumable/cheese"),1);
+ assert.equal(FoodRegenerationSystem.canEat(p,40),false);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/meat"},ctx);
+ assert.equal(events.at(-1)?.success,false);
+ assert.equal(p.inventory.get("consumable/meat"),1);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/cheese"},ctx);
+ assert.equal(events.at(-1)?.success,true);
+ assert.equal(p.inventory.has("consumable/cheese"),false);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/meat"},ctx);
+ assert.equal(events.at(-1)?.success,false);
+ assert.equal(p.inventory.get("consumable/meat"),1);
+});
+
+test("C6 saciedade: alimentos possuem durações variadas e nunca ultrapassam teto",()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const ids=["consumable/cheese","consumable/meat","fishing/fish/trout",
+ "fishing/fish/salmon","fishing/fish/perch","fishing/fish/golden"];
+ const values=ids.map(id=>ItemRegistry.get(id).foodSeconds);
+ assert.deepEqual(values,[6,9,9,9,6,12]);
+ assert.deepEqual(ids.map(id=>ItemRegistry.get(id).satietyPoints),[20,40,30,40,20,40]);
+ assert.deepEqual(ids.map(id=>ItemRegistry.get(id).regenTickSeconds),[3,3,3,3,3,3]);
+ assert.ok(values.every(x=>x && x>0 && x<=MAX_FOOD_SECONDS));
+});
+
+
+test("C6: queijo seguido de carne preserva as taxas e dura pouco",()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();p.hp=1;p.mana=1;const start=200000;
+ const cheese=ItemRegistry.get("consumable/cheese");
+ const meat=ItemRegistry.get("consumable/meat");
+ FoodRegenerationSystem.feed(p,cheese.foodSeconds!,start,cheese.satietyPoints!,
+   cheese.regenHpPerTick!,cheese.regenManaPerTick!,cheese.regenTickSeconds!);
+ FoodRegenerationSystem.feed(p,meat.foodSeconds!,start,meat.satietyPoints!,
+   meat.regenHpPerTick!,meat.regenManaPerTick!,meat.regenTickSeconds!);
+ assert.equal(FoodRegenerationSystem.remainingSeconds(p,start),15);
+ assert.equal(FoodRegenerationSystem.tick(p,start+6000),true);
+ assert.equal(p.hp,3); assert.equal(p.mana,3);
+ assert.equal(FoodRegenerationSystem.tick(p,start+15000),true);
+ assert.equal(p.hp,9); assert.equal(p.mana,6);
+ assert.equal(FoodRegenerationSystem.tick(p,start+50000),false);
+ assert.equal(FoodRegenerationSystem.currentSatiety(p,start+50000),0);
+});
+
+test("C6: JSON com parâmetros inválidos nunca consome food",async()=>{
+ const p=player();
+ p.addItem("consumable/cheese",1);
+ const item=ItemRegistry.get("consumable/cheese");
+ const previous=item.regenTickSeconds;
+ item.regenTickSeconds=0;
+ const events:boolean[]=[];
+ const ctx={packetSender:{inventory:{
+   sendItemUsed:(_id:string,success:boolean)=>events.push(success),
+   sendInventory:()=>{throw Error("Não deveria enviar snapshot");}
+ }}} as unknown as HandlerContext;
+ try {
+   await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/cheese"},ctx);
+   assert.deepEqual(events,[false]);
+   assert.equal(p.inventory.get("consumable/cheese"),1);
+ } finally {item.regenTickSeconds=previous;}
 });

@@ -226,3 +226,52 @@ Se mostrar mana=0 e maxMana positivo, o HUD está refletindo estado real do Node
 **Cobertura automática:** contratos C6 estáticos protegem useItem e metadados; teste real em foodRegeneration.test.ts valida o snapshot tipado e item legado. Node continua autoritativo. Testes de UI/Hierarchy e compilação C# devem ser executados localmente e não são cobertos pelo CI Node.
 
 **Comandos locais obrigatórios:** fechar Unity, git status, git stash push -u -m "backup Unity antes da correção consumíveis C6", git fetch origin, git switch dev, git pull --ff-only origin dev, git log -1 --oneline, git status, git stash list. Nunca dar stash pop automaticamente.
+
+## 12. C6 — Saciedade editável no JSON, food nerf, equip único, poção cheia, Login/Status
+
+Relatório de testes de homologação: U1 food funcionou, mas sem capacidade apropriada; U2–U5 OK; U6 bone_sword equipou bone_armor junto (não desejado); U7 poções recusadas com vida/mana cheia (não desejado); U8 Status sobrepunha login. Esta seção PREVALECE sobre as configurações anteriores de food/potions na seção 10; C6 só homologa após testes Editor/build local.
+
+### Configuração em server/src/data/items/*.json
+
+Cada alimento permite alterar SEM TypeScript os campos abaixo (reiniciar Node para recarregar JSON):
+- `satietyPoints`: pontos que ocupa dos 120 de capacidade do personagem. Ao ficar em 120, não consegue comer novamente enquanto durar o efeito; também recusa comida que não cabe inteira sem removê-la.
+- `foodSeconds`: duração limitada da regeneração de cada unidade, independente da saciedade.
+- `regenTickSeconds`: intervalo entre pequenos pulsos de recuperação.
+- `regenHpPerTick` e `regenManaPerTick`: recuperação por pulso. Até 10 por pulso no guard do Node, zero é permitido se o outro atributo recuperar pelo menos 1.
+
+**Valores iniciais de balanceamento (nerf)**:
+
+| Alimento | Saciedade (max 120) | Duração | A cada 3s | Recuperação total por unidade |
+| --- | ---: | ---: | --- | --- |
+| Cheese | 20 | 6s | +1 HP, +1 Mana | +2 HP, +2 Mana |
+| Meat | 40 | 9s | +2 HP, +1 Mana | +6 HP, +3 Mana |
+| Trout | 30 | 9s | +1 HP, +1 Mana | +3 HP, +3 Mana |
+| Salmon | 40 | 9s | +2 HP, +1 Mana | +6 HP, +3 Mana |
+| Perch | 20 | 6s | +1 HP, +1 Mana | +2 HP, +2 Mana |
+| Golden fish | 40 | 12s | +2 HP, +1 Mana | +8 HP, +4 Mana |
+
+**Capacidade:** 6 queijos ou 3 carnes (ou mistura até 120 pontos) completam a saciedade. Cada unidade é processada como uma PORÇÃO em FILA com sua taxa individual de regen. Se consumir queijo seguido de carne, os pulsos do queijo NÃO ficam mais fortes retroativamente. Ao terminar a última porção, a saciedade zera e pode comer novamente. HP e mana são limitados ao máximo; nenhum alimento fornece XP/level. A duração e ganho não dependem do FPS do cliente. É intencional que food seja apoio fraco comparado com poções (50 HP/30 Mana instantâneos, segundo dados JSON). Saciedade não persiste entre sessões nesta versão (decisão pendente).
+
+**Poções com atributos cheios:** enviar useItem sempre remove 1 unidade válida mesmo que HP/Mana já estejam cheios; não altera o valor e apenas envia feedback. Ao recuperar de fato, emite playerStats. Não fazer decremento direto na Unity.
+
+**Equipamento único:** apesar de Node equipItem operar somente no itemId recebido, múltiplos clicks sobre slots instanciados/destruídos no mesmo frame podiam disparar novos comandos. InventoryUI desativa imediatamente os slots anteriores ao re-render, confere itemId ainda no snapshot e tem janela de 0,45s contra segundo equip acidental. Duplo clique em bone_sword deve equipar só espada; bone_armor permanece no inventário. Não altera drag normal. Se houver outra origem do equip automático, registrar mensagens WebSocket e reabrir a hipótese (não afirmar causalidade antes de Unity QA).
+
+**Tela login e Status:** SessionLoginDebugUI.OnGUI deixa de renderizar formulário assim que o cliente tiver sessão válida, mesmo ao reconectar. Só exibe ícone ⏻ no canto inferior direito. O clique executa logout VERDADEIRO: limpa JWT e characterId da memória e fecha WebSocket, impedindo reconexão automática; zera formulário e fecha Status. StatusManager reorganizado em painel dark compacto à esquerda, ancorado no centro esquerdo, com HP vermelho, mana azul e XP detalhada. Tecla P só funciona conectado e tem unsubscribe correto de InputAction. Sem edição manual de cena/prefab. Ícone usa caractere Unicode, verificar renderização da fonte do Unity em build Windows.
+
+### Reteste C6 — U9 a U17
+
+| ID | Procedimento | Esperado |
+| --- | --- | --- |
+| U9 | Comer 6 queijos com HP/Mana abaixo dos máximos | +2HP/+2MP em 6s por queijo; após 6 unidades, barriga cheia |
+| U10 | Comer 3 carnes (obter item primeiro) | 3 carnes somam 120 pontos, sem poder comer uma 4ª até a regen acabar |
+| U11 | Cinco queijos e tentar uma carne; depois queijo | Carne recusada sem consumir (não cabe); 6º queijo permitido |
+| U12 | Misturar queijo e carne, aguardar ticks | Taxas por alimento independentes (fila), não enche automaticamente HP/Mana |
+| U13 | Gastar poção Mana/HP com atributo já cheio | Remove 1 poção, mantém atributo no máximo, informa desperdício |
+| U14 | Duplo clique somente bone_sword com bone_armor na bolsa | Apenas WEAPON muda; bone_armor permanece na bolsa |
+| U15 | Logar, abrir P, depois fechar | Login oculto, Status bonito à esquerda, sem sobreposição; XP preservada no Status |
+| U16 | Clicar ícone ⏻ e fazer login outra vez | Desconecta WS, Status fecha, credenciais antigas não reaparecem; login retorna |
+| U17 | Repetir no Unity Editor e Windows Build | Sem exception C#, clicks e barras sem sobreposição, servidor continua autoritativo |
+
+Comandos após PR merge: FECHAR Unity, git status, git stash push -u -m "backup Unity antes C6 satiedade/Status", git fetch origin, git switch dev, git pull --ff-only origin dev, git log -1 --oneline, git status, git stash list. NÃO executar stash pop automaticamente.
+
+**CI:** testes Node simulam relógio, porções, capacidade, poções cheias, equip único no handler; contratos estáticos validam C#. Não substitui compilação Unity e testes visuais.

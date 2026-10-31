@@ -46,9 +46,23 @@ export async function handleUseItem(
     // Food é duração de saciedade (regen por segundos), distinta de poção
     // instantânea. Tudo acontece no Node; o Unity não calcula HP/mana.
     if (item.foodSeconds !== undefined) {
-      if (!FoodRegenerationSystem.canEat(player, item.foodSeconds)) {
+      // Cada alimento define separadamente saciedade e o pequeno efeito
+      // regenerativo em JSON. Validamos ANTES de retirar a unidade.
+      const nowMs = Date.now();
+      if (![item.satietyPoints, item.regenHpPerTick,
+             item.regenManaPerTick, item.regenTickSeconds]
+           .every((value) => Number.isSafeInteger(value))) {
         ctx.packetSender.inventory.sendItemUsed(itemId, false,
-          "Você já está satisfeito ou não pode comer agora.");
+          "Alimento com configuração inválida.");
+        return;
+      }
+      const foodConfig = [
+        item.foodSeconds, nowMs, item.satietyPoints,
+        item.regenHpPerTick, item.regenManaPerTick, item.regenTickSeconds,
+      ] as const;
+      if (!FoodRegenerationSystem.canEat(player, ...foodConfig)) {
+        ctx.packetSender.inventory.sendItemUsed(itemId, false,
+          "Você está de barriga cheia ou precisa esperar a saciedade diminuir.");
         return;
       }
       if (!player.removeItem(itemId, 1)) {
@@ -56,9 +70,10 @@ export async function handleUseItem(
           "Você não possui este alimento.");
         return;
       }
-      FoodRegenerationSystem.feed(player, item.foodSeconds);
+      FoodRegenerationSystem.feed(player, ...foodConfig);
       ctx.packetSender.inventory.sendItemUsed(itemId, true,
-        `Você comeu ${item.name}. Saciedade: ${FoodRegenerationSystem.remainingSeconds(player)}s.`);
+        `Você comeu ${item.name}. Saciedade: ${FoodRegenerationSystem.currentSatiety(player)}/120. ` +
+        `Regeneração restante: ${FoodRegenerationSystem.remainingSeconds(player)}s.`);
       ctx.packetSender.inventory.sendInventory(player);
       // Nenhuma regeneração antecipada: os próximos ticks enviam stats reais.
       return;
@@ -93,15 +108,20 @@ export async function handleUseItem(
       }
     }
 
-    if (!effectApplied) {
-      ctx.packetSender.inventory.sendItemUsed(itemId, false, message);
+    // Poções são consumidas mesmo com HP/mana cheios (desperdício opcional
+    // do jogador). Nenhum HP/mana acima do máximo, nenhuma mutação local.
+    if (healAmount <= 0 && manaAmount <= 0) {
+      ctx.packetSender.inventory.sendItemUsed(itemId, false, "Consumível sem efeito definido.");
       return;
     }
-
-    player.removeItem(itemId, 1);
+    if (!player.removeItem(itemId, 1)) {
+      ctx.packetSender.inventory.sendItemUsed(itemId, false, "Item indisponível.");
+      return;
+    }
+    if (!effectApplied) message = "Você usou " + item.name + ", mas seus atributos já estão cheios.";
     ctx.packetSender.inventory.sendItemUsed(itemId, true, message);
     ctx.packetSender.inventory.sendInventory(player);
-    ctx.packetSender.inventory.sendPlayerStats(player);
+    if (effectApplied) ctx.packetSender.inventory.sendPlayerStats(player);
     return;
   }
 

@@ -344,7 +344,7 @@ test("C6 regressão: duplo clique envia useItem para consumíveis E equipamentos
  assert.doesNotMatch(slot,/Duplo clique em.*→ equipar/);
  assert.match(sender,/public void UseItem\(string itemId\)[\s\S]*?type = "useItem"/);
  assert.match(backend,/if \(item\.type === "consumable"\)/);
- assert.match(backend,/FoodRegenerationSystem\.feed\(player, item\.foodSeconds\)/);
+ assert.match(backend,/FoodRegenerationSystem\.feed\(player, \.\.\.foodConfig\)/);
  assert.match(backend,/item\.effect\?\.healHp/);
  assert.match(backend,/item\.effect\?\.healMana/);
  assert.match(backend,/if \(item\.type === "equipment"\)[\s\S]*?player\.equipItem\(itemId\)/);
@@ -370,4 +370,47 @@ test("C6: clique simples consome por itemType do Node; equipamento usa useItem n
  assert.match(slot,/lastConsumableRequestAt <= DOUBLE_CLICK_INTERVAL/);
  assert.match(slot,/network\.Inventory\.UseItem\(itemId\)/);
  assert.doesNotMatch(inv.slice(inv.indexOf("private void OnSlotDoubleClicked(")),/SendEquipItem\(itemId\)/);
+});
+
+
+test("C6 regressão: segundo equipamento não é ativado ao redesenhar slots",()=>{
+ const inv=unity("UI/InventoryUI.cs");
+ assert.match(inv,/lastEquipmentUseAt/);
+ assert.match(inv,/EquipmentClickGuardSeconds = 0\.45f/);
+ assert.match(inv,/slot\.SetActive\(false\);\s*Destroy\(slot\)/);
+ assert.match(inv,/items\.TryGetValue\(itemId, out int quantity\)/);
+ assert.match(inv,/lastEquipmentUseAt = now;\s*\/\/ Node é o único/);
+ assert.match(inv,/network\.Inventory\.UseItem\(itemId\)/);
+});
+
+test("C6: Status não sobrepõe o login após autenticação e logout limpa sessão",()=>{
+ const login=unity("Networking/SessionLoginDebugUI.cs");
+ const status=unity("Managers/StatusManager.cs");
+ const network=unity("Networking/NetworkManager.cs");
+ assert.match(login,/if \(network\.isConnected \|\| network\.HasCredentials\)/);
+ assert.match(login,/new GUIContent\("⏻", "Sair da sessão"\)/);
+ assert.match(login,/network\.LogoutAuthenticatedSession\(\)/);
+ assert.match(login,/StatusManager\.Instance\?\.ClosePanel\(\)/);
+ assert.match(network,/public async Task LogoutAuthenticatedSession\(\)/);
+ assert.match(network,/_sessionToken = null/);
+ assert.match(network,/_sessionCharacterId = null/);
+ assert.match(network,/await socket\.Close\(\)/);
+ assert.match(status,/new Vector2\(0f, 0\.5f\)/);
+ assert.match(status,/new Vector2\(380, 460\)/);
+ assert.match(status,/toggleStatusAction\.performed -= OnToggleStatus/);
+ assert.match(status,/public void ClosePanel\(\)/);
+ assert.match(status,/!network\.isConnected/);
+});
+
+test("C6: regen leve e saciedade são decididas só pelo Node e JSONs",()=>{
+ const source=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
+ const food=readFileSync(join(process.cwd(),"src/game/systems/foodRegenerationSystem.ts"),"utf8");
+ const item=readFileSync(join(process.cwd(),"src/shared/interfaces/item.interface.ts"),"utf8");
+ for(const field of ["satietyPoints","foodSeconds","regenHpPerTick",
+    "regenManaPerTick","regenTickSeconds"])assert.ok(item.includes(field),field);
+ assert.match(source,/FoodRegenerationSystem\.canEat\(player, \.\.\.foodConfig\)/);
+ assert.match(source,/FoodRegenerationSystem\.feed\(player, \.\.\.foodConfig\)/);
+ assert.match(food,/satietyPoints: number/);
+ assert.match(food,/portions: FoodPortion\[\]/);
+ assert.doesNotMatch(food,/setInterval\(|setTimeout\(/);
 });

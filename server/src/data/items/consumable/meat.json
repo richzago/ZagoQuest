@@ -1,0 +1,13 @@
+{
+  "id": "consumable/meat",
+  "name": "Meat",
+  "description": "A hearty meal that fills you up quickly.",
+  "type": "consumable",
+  "stackable": true,
+  "value": 8,
+  "foodSeconds": 9,
+  "satietyPoints": 40,
+  "regenHpPerTick": 2,
+  "regenManaPerTick": 1,
+  "regenTickSeconds": 3
+}

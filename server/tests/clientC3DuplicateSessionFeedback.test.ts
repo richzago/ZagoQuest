@@ -33,8 +33,10 @@ test("C3: Unity mostra erro específico antes de descartar mensagens pré-ACK", 
   assert.match(net, /_authRejected = true/);
   assert.ok(net.indexOf('type == "authRejected"') <
             net.indexOf('if (requireAuthenticatedSession && !isConnected) return'));
-  assert.match(ui, /manager\.AuthenticationStatusMessage/);
-  assert.match(ui, /GUILayout\.Label\(manager\.AuthenticationStatusMessage\)/);
+  assert.match(ui, /network\.AuthenticationStatusMessage/);
+  assert.match(ui, /GUI\.Label\(new Rect\([\s\S]*?info\)/);
+  // Ao reconectar ou ser recusado, a mensagem ainda aparece em UI compacta.
+  assert.match(ui, /network\.isConnected \|\| network\.HasCredentials/);
   assert.match(net, /AuthenticationStatusMessage = ""/);
   assert.doesNotMatch(net, /Debug\.Log[^\n]*_sessionToken/);
   assert.doesNotMatch(ui, /Debug\.Log[^\n]*token/);
