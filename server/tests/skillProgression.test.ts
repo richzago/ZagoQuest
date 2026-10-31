@@ -56,3 +56,13 @@ test("overflow or previously invalid skill state is never persisted", () => {
   SkillSystem.addProgress(player, SkillType.SWORD, 900_000);
   assert.deepEqual(player.skills.get(SkillType.SWORD), { level: 9004, progress: 99 });
 });
+test("Magic Level começa em zero e aceita progresso e múltiplas evoluções", () => {
+  const player = new Player("magic-skill", "Mage", 2, 2);
+  assert.deepEqual(player.skills.get(SkillType.MAGIC_LEVEL), { level: 0, progress: 0 });
+  SkillSystem.addProgress(player, SkillType.MAGIC_LEVEL, 0.2);
+  assert.deepEqual(player.skills.get(SkillType.MAGIC_LEVEL), { level: 0, progress: 0.2 });
+  SkillSystem.addProgress(player, SkillType.MAGIC_LEVEL, 200);
+  const result = player.skills.get(SkillType.MAGIC_LEVEL)!;
+  assert.equal(result.level, 2);
+  assert.ok(Math.abs(result.progress - 0.2) < 1e-8);
+});
