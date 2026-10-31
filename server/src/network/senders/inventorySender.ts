@@ -10,6 +10,7 @@ import { WebSocket } from "ws";
 import { Player } from "../../game/entities/player";
 import { BaseSender } from "./base/baseSender";
 import { Logger } from "../../game/core/logger/logger";
+import { ItemRegistry } from "../../data/items/itemRegistry";
 import type { ServerEquipmentMessage } from "../messages/server/inventory.messages";
 
 export class InventorySender extends BaseSender {
@@ -17,10 +18,14 @@ export class InventorySender extends BaseSender {
    * Envia o inventário completo do jogador.
    */
   public sendInventory(player: Player): void {
-    const itemsArray = Array.from(player.inventory.entries()).map(([itemId, qty]) => ({
-      itemId,
-      amount: qty,
-    }));
+    const itemsArray = Array.from(player.inventory.entries()).map(([itemId, qty]) => {
+      // Metadata é apenas informativa para a UX; o Node revalida useItem.
+      // Saves legados podem conter IDs não cadastrados: não derrubar o snapshot.
+      let itemType: string | undefined;
+      try { itemType = ItemRegistry.get(itemId).type; }
+      catch { /* Item legado sem definição: cliente mantém uso via botão direito. */ }
+      return { itemId, amount: qty, itemType };
+    });
 
     this.send({
       type: "inventory",
