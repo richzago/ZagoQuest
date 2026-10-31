@@ -60,7 +60,17 @@ const REWARDS: FishingReward[] = [
  * FishingSystem.startFishing(player, world);
  * ```
  */
+/** UI callback transport is optional; domain fishing remains reusable in unit tests. */
+type FishingCatch = { itemId: string; amount: number } | null;
+type FishingHooks = { onComplete?: (caught: FishingCatch) => void; onCancel?: () => void };
+const activeFishingHooks = new WeakMap<Player, FishingHooks>();
+const activeFishingDuration = new WeakMap<Player, number>();
+
 export class FishingSystem {
+  static durationMs(player: Player): number {
+    return activeFishingDuration.get(player) ?? 0;
+  }
+
   /**
    * Tenta iniciar a pesca para o jogador.
    * Procura automaticamente a primeira vara de pesca no inventário,
@@ -87,7 +97,7 @@ export class FishingSystem {
    * }
    * ```
    */
-  static startFishing(player: Player, world: World): boolean {
+  static startFishing(player: Player, world: World, hooks: FishingHooks = {}): boolean {
     if (player.isFishing) {
       Logger.skill(`${player.name} já está pescando. Aguarde o fim da pesca atual.`);
       return false;
@@ -147,9 +157,14 @@ export class FishingSystem {
       if (!player.isFishing || player.fishingTimer !== timer || player.hp <= 0) return;
       player.isFishing = false;
       player.fishingTimer = undefined;
-      this.completeFishing(player, rodBonus + baitBonus);
+      activeFishingDuration.delete(player);
+      activeFishingHooks.delete(player);
+      const caught = this.completeFishing(player, rodBonus + baitBonus);
+      hooks.onComplete?.(caught);
     }, fishingTime);
     player.fishingTimer = timer;
+    activeFishingDuration.set(player, fishingTime);
+    activeFishingHooks.set(player, hooks);
 
     Logger.skill(`${player.name} começou a pescar. Aguarde ${fishingTime / 1000} segundos...`);
     return true;
@@ -217,7 +232,8 @@ export class FishingSystem {
    * FishingSystem.completeFishing(player, 0.15);
    * ```
    */
-  private static completeFishing(player: Player, totalBonus: number): void {
+  private static completeFishing(player: Player, totalBonus: number): FishingCatch {
+    let caught: FishingCatch = null;
     const fishingSkill = player.getSkillLevel(SkillType.FISHING);
     const baseChance = 0.5;
     const adjustedChance = Math.min(0.95, baseChance + fishingSkill * 0.02 + totalBonus);
@@ -225,12 +241,13 @@ export class FishingSystem {
 
     if (roll > adjustedChance) {
       const trashReward = { itemId: "consumable/old_boot", amount: 1 };
-      player.addItem(trashReward.itemId, trashReward.amount);
+      if (player.addItem(trashReward.itemId, trashReward.amount)) caught = trashReward;
       Logger.skill(`${player.name} pescou um(a) ${trashReward.itemId}!`);
     } else {
       const eligibleRewards = REWARDS.filter((r) => (r.minSkillLevel || 0) <= fishingSkill);
       if (eligibleRewards.length === 0) {
-        player.addItem("fishing/fish/trout", 1);
+        if (player.addItem("fishing/fish/trout", 1))
+          caught = { itemId: "fishing/fish/trout", amount: 1 };
         Logger.loot(`${player.name} pescou um peixe comum.`);
       } else {
         const totalChance = eligibleRewards.reduce((sum, r) => sum + r.chance, 0);
@@ -249,7 +266,8 @@ export class FishingSystem {
               ? selected.minAmount
               : selected.minAmount +
                 Math.floor(Math.random() * (selected.maxAmount - selected.minAmount + 1));
-          player.addItem(selected.itemId, amount);
+          if (player.addItem(selected.itemId, amount))
+            caught = { itemId: selected.itemId, amount };
           Logger.skill(`${player.name} pescou ${amount}x ${selected.itemId}!`);
         } else {
           player.addItem("fishing/fish/trout", 1);
@@ -266,6 +284,7 @@ export class FishingSystem {
       playerName: player.name,
       skillLevel: fishingSkill,
     });
+    return caught;
   }
 
   /**
@@ -292,6 +311,10 @@ export class FishingSystem {
     if (player.fishingTimer) clearTimeout(player.fishingTimer);
     player.fishingTimer = undefined;
     player.isFishing = false;
+    activeFishingDuration.delete(player);
+    const hooks = activeFishingHooks.get(player);
+    activeFishingHooks.delete(player);
+    if (hadFishing) hooks?.onCancel?.();
     if (hadFishing) Logger.skill(`${player.name} cancelou a pesca.`);
   }
 }
