@@ -24,14 +24,19 @@ public class ShopUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
+        if (Instance != null && Instance != this)
+        {
             Destroy(gameObject);
+            return;
+        }
+        Instance = this;
     }
 
     private void Start()
     {
+        WorldWindowLayout.PreparePanel(shopPanel, 560f, 430f);
+        WorldWindowLayout.PrepareList(itemsContainer);
+        WorldWindowLayout.StyleButton(closeButton);
         networkManager = NetworkManager.Instance;
         if (networkManager == null)
         {
@@ -41,7 +46,7 @@ public class ShopUI : MonoBehaviour
 
 
         if (closeButton != null)
-            closeButton.onClick.AddListener(() => CloseShop());
+            closeButton.onClick.AddListener(CloseShop);
         else
             Debug.LogWarning("ShopUI: closeButton não atribuído!");
 
@@ -64,18 +69,22 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
+        if (string.IsNullOrEmpty(npcId) || shopItemPrefab == null || itemsContainer == null)
+        {
+            Debug.LogError("[ShopUI] Dados ou referências do Inspector ausentes.");
+            return;
+        }
         currentNpcId = npcId;
 
         foreach (var slot in itemSlots)
             Destroy(slot);
         itemSlots.Clear();
 
-        foreach (var item in items)
+        for (int i = 0; i < items.Length; i++)
         {
-            if (shopItemPrefab == null) { Debug.LogError("ShopUI: shopItemPrefab não atribuído!"); return; }
-            if (itemsContainer == null) { Debug.LogError("ShopUI: itemsContainer não atribuído!"); return; }
-
-            GameObject slot = Instantiate(shopItemPrefab, itemsContainer);
+            var item = items[i];
+            GameObject slot = Instantiate(shopItemPrefab, itemsContainer, false);
+            WorldWindowLayout.PrepareRow(slot, 76f, i % 2 == 1);
             ShopItemSlot slotScript = slot.GetComponent<ShopItemSlot>();
             if (slotScript != null)
                 slotScript.Setup(currentNpcId, item, networkManager);
@@ -88,6 +97,9 @@ public class ShopUI : MonoBehaviour
         if (shopPanel != null)
         {
             shopPanel.SetActive(true);
+            var scroll = itemsContainer.GetComponentInParent<ScrollRect>();
+            if (scroll != null) scroll.verticalNormalizedPosition = 1f;
+            Canvas.ForceUpdateCanvases();
             Debug.Log("ShopUI: ShopPanel ativado.");
         }
     }
@@ -134,6 +146,7 @@ public class ShopUI : MonoBehaviour
 
     private void OnDestroy()
     {
-
+        if (closeButton != null) closeButton.onClick.RemoveListener(CloseShop);
+        if (Instance == this) Instance = null;
     }
 }
