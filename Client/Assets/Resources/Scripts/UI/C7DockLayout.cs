@@ -16,6 +16,7 @@ public sealed class C7DockLayout : MonoBehaviour
     private const float ChatHeight = 222f;
     private const float Spacing = 7f;
     private Canvas mainCanvas;
+    private GameObject sidebarObject;
     private RectTransform viewport;
     private RectTransform content;
     private ScrollRect scroll;
@@ -50,6 +51,7 @@ public sealed class C7DockLayout : MonoBehaviour
         var sidebar = new GameObject("C7DockSidebar", typeof(RectTransform),
             typeof(Image), typeof(ScrollRect));
         sidebar.transform.SetParent(mainCanvas.transform, false);
+        sidebarObject = sidebar;
         viewport = sidebar.GetComponent<RectTransform>();
         viewport.anchorMin = new Vector2(1, 0);
         viewport.anchorMax = Vector2.one;
@@ -111,6 +113,8 @@ public sealed class C7DockLayout : MonoBehaviour
         if (content == null) return;
         bool connected = NetworkManager.Instance != null &&
             NetworkManager.Instance.isConnected;
+        if (sidebarObject != null && sidebarObject.activeSelf != connected)
+            sidebarObject.SetActive(connected);
         if (worldCamera == null) worldCamera = Camera.main;
         UpdateWorldViewport(connected);
         if (Time.unscaledTime < nextSync) return;
