@@ -11,6 +11,12 @@ public class FloatingText : MonoBehaviour
 
     private TextMeshProUGUI textComponent;
     private Color originalColor;
+    private NameplateManager poolOwner;
+
+    public void ConfigurePool(NameplateManager owner)
+    {
+        poolOwner = owner;
+    }
 
     void Awake()
     {
@@ -22,10 +28,8 @@ public class FloatingText : MonoBehaviour
             originalColor = textComponent.color;
     }
 
-    void OnEnable()
-    {
-        StartCoroutine(Animate());
-    }
+    // O NameplateManager inicia Animate explicitamente APÓS configurar
+    // posição, texto e cor. OnEnable não deve iniciar outra coroutine.
 
     public IEnumerator Animate()
 
@@ -54,8 +58,12 @@ public class FloatingText : MonoBehaviour
             yield return null;
         }
 
-        // Destroi após terminar
-        Destroy(gameObject);
+        // Objetos flutuantes são reutilizáveis. Destruir aqui esgotava
+        // permanentemente o pool e gerava Instantiate a cada dano.
+        if (poolOwner != null)
+            poolOwner.ReturnFloatingText(gameObject);
+        else
+            Destroy(gameObject);
     }
 
     /// <summary>
