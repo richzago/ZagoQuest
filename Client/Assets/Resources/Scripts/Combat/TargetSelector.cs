@@ -216,7 +216,6 @@ public class TargetSelector : MonoBehaviour
         ShowOutline(currentTarget.transform);
         NetworkManager.Instance.Combat.SendStartAutoAttack(targetId);
     }
-    }
 
     public void ClearTarget()
     {
