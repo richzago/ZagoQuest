@@ -97,7 +97,7 @@ export async function createWorldAndPlayer(
   // =========================
   // 3. Carregar ou criar jogador
   // =========================
-  const player = await PlayerLoader.loadOrCreatePlayer(playerName, playerSpawn);
+  const player = await PlayerLoader.loadOrCreatePlayer(playerName, playerSpawn, world);
 
   // =========================
   // 4. Adicionar jogador ao mundo
