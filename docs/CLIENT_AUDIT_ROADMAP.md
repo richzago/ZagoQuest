@@ -252,3 +252,13 @@ Classificação explícita: BUG REAL (lerp FPS, centro de alvo); RISCO (clique U
 **Obrigatório antes da CR8:** QA visual Unity Editor 6000.4.10f1/Windows build; ver docs/CLIENT_C7_UX_VISUAL_AUDIT.md seção 10 e C7-32 a C7-52. Testar duas sessões, 1280×720/1920×1080, F10, logout, Merchant, Banker, Loot, pesca, scroll/resize e quadro de camera; identificar P0/P1 antes de avançar. CI Node NÃO compila Unity C#. Main intacta; branch final `dev` após merge.
 
 **Melhorias opcionais P2/P3:** nomes curtos/tooltips e sprites reais, persistência da ordem das janelas, indicativo de scroll, áudio/boia/linha, escolha do tile de água via mouse (com alcance autoritativo), monitorar GC e perfis de render em sessões longas.
+
+
+## C7.2 — recuperação das regressões visuais relatadas após #111 (31/10/2026)
+
+**Bloqueante antes da CR8:** Play Mode C7.1 relatado com janelas sobrepostas e mapa aparentemente duplicado nas bordas. PR #111 já havia feito merge em `dev` (SHA `a9b3843`), mas sua CI Node/PG não exercita URP nem UI Unity. Status da homologação da C7.1 voltou para **FALHOU (P0 visual)**.
+
+Branch corretiva `fix/client-c71-viewport-overlap-regression`: remover câmera com `Camera.rect` parcial, preservar viewport integral e deslocar/limitar enquadramento com insets em pixels correspondentes a sidebar e chat; impor alturas mínimas de painéis que preservem os controles. Contratos de câmera e simulação independente 135 cenários foram adicionados em `clientC71DockContracts.test.ts`; NÃO substituir Editor/build Windows por tais testes. Regras Node fishing/map/Weapon/Useful do #111 preservadas.
+
+Documentação técnica, hipóteses versus fatos, riscos e QA C7-53–C7-69: [CLIENT_C7_UX_VISUAL_AUDIT.md](CLIENT_C7_UX_VISUAL_AUDIT.md), seção 11. **Não integrar antes de validar:** 4 bordas, 3 zooms, resoluções, F10, redimensionar/reordenar e várias janelas simultâneas, Ctrl+Play e Windows Build, pesca. Continuar a testar rejeições do Node. Main intocada.
+
