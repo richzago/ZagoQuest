@@ -55,11 +55,18 @@ export class NpcInteractionSystem {
    * Uma nova janela substitui a interação anterior do mesmo jogador.
    */
   static open(player: Player, world: World, npc: Npc, service: EconomyService): boolean {
-    // Fechar autorização antiga ANTES da tentativa: uma abertura inválida
-    // não deve deixar a sessão antiga utilizável em segundo plano.
+    // A sessão anterior perde autorização e o NPC anterior volta à rotina.
+    // Mesmo uma abertura inválida não preserva a sessão econômica antiga.
     this.close(player);
-    if (!this.canInteract(player, world, npc, service)) return false;
+    this.releaseConversation(player, world);
+
+    // Respeita NPC ocupado por OUTRO jogador; a confirmação é no servidor.
+    if (!this.canInteract(player, world, npc, service) ||
+        (npc.isTalking && npc.talkingToPlayerId !== player.id)) return false;
+
     sessions.set(player, { world, npc, service });
+    npc.isTalking = true;
+    npc.talkingToPlayerId = player.id;
     return true;
   }
 
@@ -104,12 +111,29 @@ export class NpcInteractionSystem {
     if (!active || active.service !== service || active.npc.id !== npcId) {
       return false;
     }
-    sessions.delete(player);
+    this.close(player);
     return true;
   }
 
-  /** Despedida, desconexão ou troca explícita de contexto. Idempotente. */
+  /**
+   * Remove o diálogo (inclusive "/hi" sem janela econômica). Útil para
+   * troca de NPC e despedida; o próximo tick da IA pode voltar a movê-lo.
+   */
+  static releaseConversation(player: Player, world: World): void {
+    for (const npc of world.npcs) {
+      if (npc.talkingToPlayerId !== player.id) continue;
+      npc.isTalking = false;
+      npc.talkingToPlayerId = undefined;
+    }
+  }
+
+  /** Despedida, desconexão ou troca de contexto: autorização + pausa da IA. */
   static close(player: Player): void {
+    const active = sessions.get(player);
     sessions.delete(player);
+    if (active && active.npc.talkingToPlayerId === player.id) {
+      active.npc.isTalking = false;
+      active.npc.talkingToPlayerId = undefined;
+    }
   }
 }
