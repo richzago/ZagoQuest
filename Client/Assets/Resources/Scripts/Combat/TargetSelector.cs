@@ -53,8 +53,12 @@ public class TargetSelector : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return; // a duplicata não pode registrar InputActions
+        }
+        Instance = this;
 
         mouseClickAction = new InputAction("MouseClick", binding: "<Mouse>/leftButton");
         attackAction = new InputAction("Attack", binding: "<Keyboard>/space");
@@ -67,16 +71,16 @@ public class TargetSelector : MonoBehaviour
 
     void OnEnable()
     {
-        mouseClickAction.Enable();
-        attackAction.Enable();
-        toggleFollowAction.Enable();
+        mouseClickAction?.Enable();
+        attackAction?.Enable();
+        toggleFollowAction?.Enable();
     }
 
     void OnDisable()
     {
-        mouseClickAction.Disable();
-        attackAction.Disable();
-        toggleFollowAction.Disable();
+        mouseClickAction?.Disable();
+        attackAction?.Disable();
+        toggleFollowAction?.Disable();
     }
 
     void Update()
@@ -95,8 +99,18 @@ public class TargetSelector : MonoBehaviour
 
     void OnDestroy()
     {
-        if (NetworkManager.Instance != null && currentTarget != null)
-            NetworkManager.Instance.Combat.SendStopAutoAttack();
+        // Durante encerramento/reload a conexão e o CombatSender podem
+        // não existir. Nunca enviar comando pela sessão antiga/desconectada.
+        if (Instance == this)
+        {
+            if (currentTarget != null && NetworkManager.Instance != null &&
+                NetworkManager.Instance.isConnected && NetworkManager.Instance.Combat != null)
+                NetworkManager.Instance.Combat.SendStopAutoAttack();
+            Instance = null;
+        }
+        mouseClickAction?.Dispose();
+        attackAction?.Dispose();
+        toggleFollowAction?.Dispose();
     }
 
     // =========================
