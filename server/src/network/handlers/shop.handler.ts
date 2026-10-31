@@ -10,7 +10,7 @@ import { Logger } from "../../game/core/logger/logger";
 import { ShopSystem } from "../../game/systems/shopSystem";
 import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
-import type { ClientOpenShopMessage, ClientBuyItemMessage, ClientCloseShopMessage } from "../messages";
+import type { ClientOpenShopMessage, ClientBuyItemMessage, ClientSellItemMessage, ClientCloseShopMessage } from "../messages";
 
 /** Um item antigo/experimental não deve derrubar a janela inteira. */
 function itemDisplayName(itemId: string): string {
@@ -47,6 +47,7 @@ export async function handleOpenShop(
     itemId: item.itemId,
     name: itemDisplayName(item.itemId),
     price: item.buyPrice, // O preço vem do NPC do servidor, não do cliente.
+    sellPrice: item.sellPrice,
   }));
 
   ctx.packetSender.shop.sendShopWindow(npc.id, items);
@@ -83,6 +84,30 @@ export async function handleBuyItem(
   );
   ctx.packetSender.inventory.sendInventory(player);
   ctx.packetSender.inventory.sendPlayerStats(player);
+  ctx.packetSender.inventory.sendGold(player);
+}
+
+/**
+ * Venda: mesma sessão de comerciante e distância da compra.
+ * O valor vem EXCLUSIVAMENTE do JSON NPC; cliente não envia preço.
+ */
+export async function handleSellItem(
+  _ws: WebSocket, player: Player, msg: ClientSellItemMessage, ctx: HandlerContext,
+): Promise<void> {
+  const npc = NpcInteractionSystem.getActive(player, ctx.world, "merchant", msg.npcId);
+  if (!npc) {
+    ctx.packetSender.shop.sendSellResult(false,
+      "Abra a loja próximo do comerciante antes de vender.");
+    return;
+  }
+  if (!ShopSystem.sellItem(player, npc, msg.itemId, msg.amount)) {
+    ctx.packetSender.shop.sendSellResult(false,
+      "Venda recusada. Verifique item, quantidade e saldo máximo.");
+    return;
+  }
+  ctx.packetSender.shop.sendSellResult(true,
+    `Vendeu ${msg.amount}x ${itemDisplayName(msg.itemId)}.`);
+  ctx.packetSender.inventory.sendInventory(player);
   ctx.packetSender.inventory.sendGold(player);
 }
 
