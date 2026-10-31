@@ -28,36 +28,34 @@ public class InventoryUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
-
-        toggleInventoryAction = new InputAction("ToggleInventory", binding: "<Keyboard>/i");
-        toggleInventoryAction.performed += ctx =>
+        if (Instance != null && Instance != this)
         {
-            if (UnityEngine.EventSystems.EventSystem.current != null)
-            {
-                var selected = UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject;
-                if (selected != null && selected.GetComponent<TMPro.TMP_InputField>() != null)
-                    return;
-            }
-            ToggleInventory();
-        };
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        toggleInventoryAction = new InputAction("ToggleInventory", binding: "<Keyboard>/i");
+        // Delegate nomeado: a mesma referência precisa ser removida no OnDestroy.
+        toggleInventoryAction.performed += OnToggleInventory;
     }
 
-    private void OnEnable() => toggleInventoryAction.Enable();
-    private void OnDisable() => toggleInventoryAction.Disable();
+    private void OnEnable() => toggleInventoryAction?.Enable();
+    private void OnDisable() => toggleInventoryAction?.Disable();
+
+    private void OnToggleInventory(InputAction.CallbackContext context)
+    {
+        var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+        var selected = eventSystem != null ? eventSystem.currentSelectedGameObject : null;
+        if (selected != null && selected.GetComponentInParent<TMP_InputField>() != null)
+            return; // o atalho I não deve funcionar enquanto digita no chat/input.
+        ToggleInventory();
+    }
 
     private void Start()
     {
         networkManager = NetworkManager.Instance ?? FindAnyObjectByType<NetworkManager>();
         if (networkManager == null)
-        {
-            Debug.LogError("❌ NetworkManager não encontrado!");
-            return;
-        }
-
+            Debug.LogWarning("[InventoryUI] Rede não encontrada na inicialização; aguardando conexão.");
 
         if (inventoryPanel == null)
         {
@@ -75,6 +73,7 @@ public class InventoryUI : MonoBehaviour
 
     private void ToggleInventory()
     {
+        if (inventoryPanel == null) return;
         isInventoryOpen = !isInventoryOpen;
         inventoryPanel.SetActive(isInventoryOpen);
         if (isInventoryOpen)
@@ -150,7 +149,7 @@ public class InventoryUI : MonoBehaviour
             InventorySlot slotScript = slot.GetComponent<InventorySlot>();
             if (slotScript != null)
             {
-                slotScript.Setup(kvp.Key, kvp.Value, networkManager);
+                slotScript.Setup(kvp.Key, kvp.Value, NetworkManager.Instance ?? networkManager);
                 slotScript.OnDoubleClick += OnSlotDoubleClicked;
             }
             slotObjects.Add(slot);
@@ -163,8 +162,11 @@ public class InventoryUI : MonoBehaviour
 
     private void OnSlotDoubleClicked(string itemId)
     {
-        Debug.Log($"[InventoryUI] Duplo clique em {itemId} → tentando equipar.");
-
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected || network.Inventory == null ||
+            string.IsNullOrWhiteSpace(itemId)) return;
+        // Node valida se o item é equipável, se há quantidade e slot compatível.
+        network.Inventory.SendEquipItem(itemId);
     }
 
     // =========================
@@ -173,12 +175,12 @@ public class InventoryUI : MonoBehaviour
 
     private void OnDestroy()
     {
-
-
         if (toggleInventoryAction != null)
         {
-            toggleInventoryAction.performed -= ctx => ToggleInventory();
+            toggleInventoryAction.performed -= OnToggleInventory;
             toggleInventoryAction.Dispose();
+            toggleInventoryAction = null;
         }
+        if (Instance == this) Instance = null;
     }
 }
