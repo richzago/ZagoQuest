@@ -1,6 +1,6 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA (PR #95); C4 CONCLUÍDA/HOMOLOGADA — 10/10 testes locais Editor + Windows aprovados após PRs #94/#96, CI pré/pós-merge verde. C5 INICIADA (auditoria NPC/World), sem correções antecipadas. C6/C7/C8 pendentes por escopo próprio.**
+**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA; C4 CONCLUÍDA/HOMOLOGADA (10/10 Unity); C5 aprovada funcional e visualmente pelo desenvolvedor após PR #98, refinamentos finais Banker/Merchant no PR #99 integrado (QA local desses dois itens pendente); C6 INICIADA — baseline Inventory/Equipment e redesign HUD em auditoria (PR #100). C7/C8 futuras.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 
