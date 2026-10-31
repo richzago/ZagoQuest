@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
@@ -347,8 +348,11 @@ public class TargetSelector : MonoBehaviour
         system.RaycastAll(pointer, uiHits);
         foreach (var hit in uiHits)
         {
-            if (hit.gameObject != null &&
-                hit.gameObject.GetComponentInParent<Canvas>() != null)
+            if (hit.gameObject == null) continue;
+            var canvas = hit.gameObject.GetComponentInParent<Canvas>();
+            // Nameplates world-space decorativas não podem bloquear combate.
+            if (canvas != null && (canvas.renderMode != RenderMode.WorldSpace ||
+                hit.gameObject.GetComponentInParent<Selectable>() != null))
                 return true;
         }
         return false;
