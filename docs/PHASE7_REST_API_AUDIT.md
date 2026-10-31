@@ -81,3 +81,12 @@ Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitu
 - Para concorrência, violação PostgreSQL SQLSTATE 23505 no `save` é reconhecida e convertida em 409. A restrição unique do banco continua sendo autoridade; não se cria lock em memória para registrar contas.
 - Testes novos: unitários do controller (201/400/409/500), HTTP real + PG16 descartável com email/CPF repetidos e duas solicitações concorrentes pelo mesmo cadastro. Cadastro usa o rate limit real do PR #68; o teste mantém 5 requisições por IP/hora.
 - Ainda pendente: política de tamanho de senhas vs bcrypt (limite de 72 bytes), normalização/case-insensitive de email com migração segura, limitação de payload JSON, erros de outros controllers e homologação local.
+
+
+### PR #71 — Guild protegida: domínio, autorização e transação HTTP/PG
+
+- Problema: handlers protegidos de Guild convertiam qualquer erro em HTTP 400 com `error.message`, inclusive exceções PostgreSQL (por exemplo, trigger recusando inserir `guild_members`). Isso pode expor SQL interno e confundir falha do servidor com erro de usuário.
+- Solução: `GuildRuleError` tipa falhas esperadas de domínio de `createGuild` e edição de metadados; controllers respondem 400 apenas para essas falhas. Erros inesperados retornam 500 com texto genérico. Verificações do JWT e propriedade continuam respondendo 401/403.
+- Teste real HTTP/PG16 descartável: dois titulares de `Account`, cada qual com um `Character` próprio; tentativa de criar por personagem alheio recebe 403; proprietário cria por 20.000 gold; edição alheia recebe 403; atualização do líder recebe 200. Trigger SQL simula erro após a cobrança: resposta 500 sem mensagem SQL, gold preservado e nenhuma guilda criada. Duas chamadas REST concorrentes para o mesmo personagem: apenas uma guilda criada e apenas uma taxa debitada.
+- Teste unitário adicional valida mapeamento 400/500 nos quatro endpoints protegidos.
+- Cuidado: os logs de Guild ainda são escritos em operação separada após atualização de metadados; essa atomicidade é item de robustez futuro. Não confundir esta validação PG16 efêmera com homologação do PostgreSQL local e Unity.
