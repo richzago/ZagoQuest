@@ -67,8 +67,9 @@ export async function handleUseItem(
     let message = "";
     let effectApplied = false;
 
-    // TODO: Tipar os dados do item adequadamente
-    const healAmount = (item as any).healAmount ?? (item as any).heal ?? 0;
+    // Contrato real dos JSONs: effect.healHp/heelMana.
+    // Campos antigos flat eram inexistentes e deixavam poções sem efeito.
+    const healAmount = item.effect?.healHp ?? 0;
     if (healAmount > 0) {
       const actualHeal = Math.min(player.maxHp - player.hp, healAmount);
       if (actualHeal > 0) {
@@ -80,7 +81,7 @@ export async function handleUseItem(
       }
     }
 
-    const manaAmount = (item as any).manaAmount ?? (item as any).mana ?? 0;
+    const manaAmount = item.effect?.healMana ?? 0;
     if (manaAmount > 0) {
       const actualMana = Math.min(player.maxMana - player.mana, manaAmount);
       if (actualMana > 0) {
