@@ -36,12 +36,23 @@ public class ShopUI : MonoBehaviour
     {
         WorldWindowLayout.PreparePanel(shopPanel, 560f, 430f);
         WorldWindowLayout.PrepareList(itemsContainer);
+        var scrollView = itemsContainer != null
+            ? itemsContainer.GetComponentInParent<ScrollRect>() : null;
+        if (scrollView != null)
+        {
+            WorldWindowLayout.Place(scrollView.GetComponent<RectTransform>(),
+                0.04f, 0.09f, 0.96f, 0.82f);
+            if (scrollView.viewport != null)
+                WorldWindowLayout.Place(scrollView.viewport, 0f, 0f, 0.95f, 1f);
+            if (scrollView.horizontalScrollbar != null)
+                scrollView.horizontalScrollbar.gameObject.SetActive(false);
+            scrollView.horizontalScrollbar = null;
+        }
         WorldWindowLayout.StyleButton(closeButton);
         networkManager = NetworkManager.Instance;
         if (networkManager == null)
         {
-            Debug.LogError("ShopUI: NetworkManager não encontrado!");
-            return;
+            Debug.LogWarning("ShopUI: NetworkManager ainda não encontrado (será consultado ao comprar).");
         }
 
 
@@ -75,6 +86,7 @@ public class ShopUI : MonoBehaviour
             return;
         }
         currentNpcId = npcId;
+        networkManager = NetworkManager.Instance;
 
         foreach (var slot in itemSlots)
             Destroy(slot);
@@ -133,7 +145,7 @@ public class ShopUI : MonoBehaviour
         // Um fechamento atrasado carrega o ID desta janela (não o NPC atual
         // escolhido pelo servidor). Isso protege a sessão de outro serviço.
         if (shopPanel != null && shopPanel.activeSelf && !string.IsNullOrEmpty(currentNpcId))
-            networkManager?.Shop?.SendCloseShop(currentNpcId);
+            NetworkManager.Instance?.Shop?.SendCloseShop(currentNpcId);
 
         currentNpcId = null;
         if (shopPanel != null)
