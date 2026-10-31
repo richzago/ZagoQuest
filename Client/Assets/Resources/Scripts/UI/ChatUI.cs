@@ -26,6 +26,7 @@ public class ChatUI : MonoBehaviour
     private readonly StringBuilder historyBuilder = new StringBuilder(8192);
     private string currentChannel = "local";
     private int lastSendFrame = -1;
+    private int lastSubmitFrame = -1;
     public static bool IsChatActive { get; private set; }
 
     private void Awake()
@@ -78,7 +79,7 @@ public class ChatUI : MonoBehaviour
 
         bool pressedEnter = Keyboard.current.enterKey.wasPressedThisFrame ||
                             Keyboard.current.numpadEnterKey.wasPressedThisFrame;
-        if (pressedEnter && !IsChatActive &&
+        if (pressedEnter && lastSubmitFrame != Time.frameCount && !IsChatActive &&
             !inputField.isFocused &&
             (UnityEngine.EventSystems.EventSystem.current == null ||
              UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject == null ||
@@ -101,7 +102,11 @@ public class ChatUI : MonoBehaviour
         if (inputField != null) inputField.DeactivateInputField();
     }
 
-    private void OnSubmit(string _) => SendChat();
+    private void OnSubmit(string _)
+    {
+        lastSubmitFrame = Time.frameCount;
+        SendChat();
+    }
     private void OnSelect(string _) => IsChatActive = true;
     private void OnDeselect(string _) => IsChatActive = false;
 
