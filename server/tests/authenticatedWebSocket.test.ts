@@ -120,6 +120,11 @@ test("duas contas distintas movem só o próprio avatar; veem spawn/move do outr
     await eventually(() => f.players.get(A)!.position.x === 3);
     await eventually(() => f.packets.get(bruno)!.some((p) => p.type === "move" && p.id === A));
     assert.deepEqual(f.players.get(B)!.position, { x: 4, y: 4 });
+    // O movimento de Beta deve atualizar apenas Beta e alcançar Alfa como move remoto.
+    bruno.send(JSON.stringify({ type: "moveDir", dir: "east" }));
+    await eventually(() => f.players.get(B)!.position.x === 5);
+    await eventually(() => f.packets.get(alice)!.some((p) => p.type === "move" && p.id === B));
+    assert.deepEqual(f.players.get(A)!.position, { x: 3, y: 2 });
   } finally { await f.close(); }
 });
 
