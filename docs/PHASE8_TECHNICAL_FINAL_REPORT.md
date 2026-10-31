@@ -7,7 +7,7 @@
 
 - O backend Node.js/TypeScript foi estabilizado em PRs incrementais, sem reescrever a arquitetura do Network. `main` foi preservada por decisão do projeto; somente PRs aprovados são integrados à `dev`.
 - A CI da `dev` antes da nova migration registrou [run #41196946890](https://github.com/richzago/ZagoQuest/actions/runs/41196946890): **398/398** testes Node em cada OS, **10/10** testes PostgreSQL16 descartável e `DIST_SMOKE_OK`.
-- **Atualização da Fase 8:** migration `InitialSchema1793400000000` para **base de teste vazia**, inicializador que recusa DB/host perigoso, CI em `DB_SYNCHRONIZE=false`. O resultado da CI deste PR e da `dev` posterior é evidência necessária antes de afirmar conclusão da nova implementação.
+- **Conclusão automatizada da Fase 8 (PR #76):** migration `InitialSchema1793400000000` para **base de teste vazia**, inicializador que recusa DB/host perigoso, CI com `DB_SYNCHRONIZE=false`. [Actions #41199146841](https://github.com/richzago/ZagoQuest/actions/runs/41199146841) aprovou o commit integrado `568a50f32b49939d25e555dc1044947ac794148e`: **400/400 Windows**, **400/400 Linux**, **10/10 PostgreSQL16** após a migration e `DIST_SMOKE_OK`.
 - Unity/C# ainda não é compilado por essa CI. Validação de dois clientes e persistência no PostgreSQL local não foi executada pelo assistente.
 
 ## 2. Arquitetura revisada
