@@ -15,6 +15,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
 
     private string itemId;          // ID completo do item
     private int amount;             // Quantidade
+    private string itemType;
     private NetworkManager networkManager;
 
     // Evento disparado no duplo clique
@@ -24,6 +25,8 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     private float lastClickTime;
     private bool hasFirstClick;
     private const float DOUBLE_CLICK_INTERVAL = 0.3f;
+    private static string lastConsumableItem;
+    private static float lastConsumableRequestAt = -1f;
 
     private void Awake()
     {
@@ -39,12 +42,13 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     /// </summary>
     /// 
     /// 
-    public void Setup(string itemId, int amount, NetworkManager networkManager)
+    public void Setup(string itemId, int amount, NetworkManager networkManager, string itemType = null)
     {
         // Debug.Log($"[InventorySlot] 🛠️ Setup: itemId={itemId}, amount={amount}");
         this.itemId = itemId;
         this.amount = amount;
         this.networkManager = networkManager;
+        this.itemType = itemType;
         // Um slot reciclado ou reconstruído não deve herdar a janela de clique.
         hasFirstClick = false;
 
@@ -130,6 +134,25 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
                 !string.IsNullOrWhiteSpace(itemId))
             {
                 Debug.Log($"[InventorySlot] Usar item: {itemId}");
+                network.Inventory.UseItem(itemId);
+            }
+            return;
+        }
+
+        // O snapshot Node informa o tipo. Clique simples consome; o
+        // servidor decide efeitos e envia o inventario atualizado.
+        if (eventData.button == PointerEventData.InputButton.Left && itemType == "consumable")
+        {
+            hasFirstClick = false;
+            float now = Time.unscaledTime;
+            if (lastConsumableItem == itemId && lastConsumableRequestAt >= 0 &&
+                now - lastConsumableRequestAt <= DOUBLE_CLICK_INTERVAL)
+                return;
+            var network = NetworkManager.Instance ?? networkManager;
+            if (network != null && network.isConnected && network.Inventory != null)
+            {
+                lastConsumableItem = itemId;
+                lastConsumableRequestAt = now;
                 network.Inventory.UseItem(itemId);
             }
             return;
