@@ -51,7 +51,7 @@ namespace ZagoQuest.Networking.Messages
 
     // Subclasses
     [Serializable] public class LootItem { public string itemId; public int amount; public string itemName; }
-    [Serializable] public class InventoryItem { public string itemId; public int amount; }
+    [Serializable] public class InventoryItem { public string itemId; public int amount; public string itemType; }
     [Serializable] public class InventoryEquipment { public string slot; public string itemId; }
     [Serializable] public class ShopItem { public string itemId; public string name; public int price; public int stock; }
     [Serializable] public class EquipmentItem { public string slot; public string itemId; }
