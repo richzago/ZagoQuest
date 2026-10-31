@@ -49,6 +49,13 @@ export async function handleUseItem(
       // Cada alimento define separadamente saciedade e o pequeno efeito
       // regenerativo em JSON. Validamos ANTES de retirar a unidade.
       const nowMs = Date.now();
+      if (![item.satietyPoints, item.regenHpPerTick,
+             item.regenManaPerTick, item.regenTickSeconds]
+           .every((value) => Number.isSafeInteger(value))) {
+        ctx.packetSender.inventory.sendItemUsed(itemId, false,
+          "Alimento com configuração inválida.");
+        return;
+      }
       const foodConfig = [
         item.foodSeconds, nowMs, item.satietyPoints,
         item.regenHpPerTick, item.regenManaPerTick, item.regenTickSeconds,
