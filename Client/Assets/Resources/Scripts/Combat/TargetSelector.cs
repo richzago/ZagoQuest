@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
@@ -133,32 +132,33 @@ public class TargetSelector : MonoBehaviour
         if (camera == null) return;
 
         Ray ray = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
-        RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
-        if (hit.collider != null)
+        // A primeira interseção pode ser um colisor de cenário/player.
+        // Resolver todas as entidades sob o ponteiro pela ordem visual.
+        Collider2D clicked = FindWorldClickCollider(ray);
+        if (clicked != null)
         {
-            Debug.Log($"[TargetSelector] Clique em: {hit.collider.name}, tag: {hit.collider.tag}");
-            var npcInteract = hit.collider.GetComponentInParent<ClickInteract>();
+            Debug.Log($"[TargetSelector] Clique em: {clicked.name}, tag: {clicked.tag}");
+            var npcInteract = clicked.GetComponentInParent<ClickInteract>();
+            var monster = clicked.GetComponentInParent<MonsterIdentity>();
+            var corpse = clicked.GetComponentInParent<CorpseIdentity>();
+            var groundItem = clicked.GetComponentInParent<ItemOnGroundIdentity>();
 
             // ====================
             // 1. CLIQUE EM MONSTRO
             // ====================
-            if (hit.collider.CompareTag("Monster"))
+            if (monster != null)
             {
-                string clickedId = GetEntityIdFromGameObject(hit.collider.gameObject);
+                string clickedId = GetEntityIdFromGameObject(monster.gameObject);
+                // Segundo clique não pode cancelar o auto attack iniciado.
+                // Para cancelar, clicar no chão vazio ou mudar o alvo.
                 if (!string.IsNullOrEmpty(clickedId))
-                {
-                    if (currentTargetId == clickedId)
-                        ClearTarget();
-                    else
-                        SelectTarget(clickedId);
-                }
+                    SelectTarget(clickedId);
             }
             // ====================
             // 2. CLIQUE EM CORPSE (LOOT)
             // ====================
-            else if (hit.collider.CompareTag("Corpse"))
+            else if (corpse != null)
             {
-                CorpseIdentity corpse = hit.collider.GetComponent<CorpseIdentity>();
                 if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
                 {
                     Debug.Log($"[TargetSelector] Clique no corpse ID {corpse.corpseId}");
@@ -179,13 +179,12 @@ public class TargetSelector : MonoBehaviour
             // ====================
             // 4. CLIQUE EM ITEM NO CHÃO (PICKUP)
             // ====================
-            else if (hit.collider.CompareTag("ItemOnGround"))
+            else if (groundItem != null)
             {
-                ItemOnGroundIdentity item = hit.collider.GetComponent<ItemOnGroundIdentity>();
-                if (item != null && !string.IsNullOrEmpty(item.groundItemId))
+                if (!string.IsNullOrEmpty(groundItem.groundItemId))
                 {
-                    Debug.Log($"[TargetSelector] Clicou no item {item.itemName} (ID: {item.groundItemId})");
-                    network.Inventory?.SendPickupItem(item.groundItemId);
+                    Debug.Log($"[TargetSelector] Clicou no item {groundItem.itemName} (ID: {groundItem.groundItemId})");
+                    network.Inventory?.SendPickupItem(groundItem.groundItemId);
                 }
                 else
                 {
@@ -338,7 +337,68 @@ public class TargetSelector : MonoBehaviour
     // UTILITÁRIOS
     // =========================
 
-    /// <summary>Precedência de UI: ponteiro em qualquer GraphicRaycaster bloqueia o mundo.</summary>
+    // Prefabs do mundo usam colisores 2D. Filhos podem conter colisores
+    // independentes e precisam resolver a identidade no pai.
+    private enum WorldClickKind { None, Monster, Corpse, Npc, GroundItem }
+
+    private static WorldClickKind ClickKind(Collider2D collider)
+    {
+        if (collider.GetComponentInParent<CorpseIdentity>() != null)
+            return WorldClickKind.Corpse;
+        if (collider.GetComponentInParent<MonsterIdentity>() != null)
+            return WorldClickKind.Monster;
+        if (collider.GetComponentInParent<ClickInteract>() != null)
+            return WorldClickKind.Npc;
+        if (collider.GetComponentInParent<ItemOnGroundIdentity>() != null)
+            return WorldClickKind.GroundItem;
+        return WorldClickKind.None;
+    }
+
+    /// <summary>
+    /// Escolhe o sprite interagível mais à frente, ignorando cenário/player.
+    /// Empate de ordem visual: corpse antes de monstro (tile de morte).
+    /// Nunca contorna alcance/validação de combate/loot do servidor.
+    /// </summary>
+    private static Collider2D FindWorldClickCollider(Ray ray)
+    {
+        RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
+        Collider2D best = null;
+        int bestLayer = int.MinValue;
+        int bestOrder = int.MinValue;
+        int bestPriority = int.MinValue;
+        float bestDistance = float.MaxValue;
+        foreach (var hit in hits)
+        {
+            Collider2D candidate = hit.collider;
+            if (candidate == null) continue;
+            WorldClickKind kind = ClickKind(candidate);
+            if (kind == WorldClickKind.None) continue;
+
+            var sprite = candidate.GetComponentInParent<SpriteRenderer>();
+            if (sprite == null) sprite = candidate.GetComponentInChildren<SpriteRenderer>();
+            int layer = sprite != null
+                ? SortingLayer.GetLayerValueFromID(sprite.sortingLayerID) : 0;
+            int order = sprite != null ? sprite.sortingOrder : 0;
+            int priority = kind == WorldClickKind.Corpse ? 4 :
+                kind == WorldClickKind.Monster ? 3 :
+                kind == WorldClickKind.GroundItem ? 2 : 1;
+
+            bool better = best == null || layer > bestLayer ||
+                (layer == bestLayer && order > bestOrder) ||
+                (layer == bestLayer && order == bestOrder && priority > bestPriority) ||
+                (layer == bestLayer && order == bestOrder &&
+                 priority == bestPriority && hit.distance < bestDistance);
+            if (!better) continue;
+            best = candidate;
+            bestLayer = layer;
+            bestOrder = order;
+            bestPriority = priority;
+            bestDistance = hit.distance;
+        }
+        return best;
+    }
+
+    /// <summary>UI de tela bloqueia o mundo; nameplates world-space não.</summary>
     private bool IsPointerOverUi()
     {
         var system = EventSystem.current;
@@ -350,9 +410,10 @@ public class TargetSelector : MonoBehaviour
         {
             if (hit.gameObject == null) continue;
             var canvas = hit.gameObject.GetComponentInParent<Canvas>();
-            // Nameplates world-space decorativas não podem bloquear combate.
-            if (canvas != null && (canvas.renderMode != RenderMode.WorldSpace ||
-                hit.gameObject.GetComponentInParent<Selectable>() != null))
+            // Barras de HP dos monstros possuem Slider (Selectable), mas
+            // são world-space decorativas e não devem roubar o clique.
+            // Os painéis de tela continuam bloqueando cliques no mundo.
+            if (canvas != null && canvas.renderMode != RenderMode.WorldSpace)
                 return true;
         }
         return false;
@@ -401,11 +462,11 @@ public class TargetSelector : MonoBehaviour
 
     private string GetEntityIdFromGameObject(GameObject go)
     {
-        MonsterIdentity mid = go.GetComponent<MonsterIdentity>();
+        MonsterIdentity mid = go.GetComponentInParent<MonsterIdentity>();
         if (mid != null && !string.IsNullOrEmpty(mid.entityId))
             return mid.entityId;
 
-        EntityIdentity eid = go.GetComponent<EntityIdentity>();
+        EntityIdentity eid = go.GetComponentInParent<EntityIdentity>();
         return eid?.entityId;
     }
 
