@@ -112,7 +112,7 @@ export class WebSocketServer {
         InitialStateSender.send(ws, current);
         InventorySender.send(ws, current);
         PlayerStatsSender.send(ws, current);
-        WorldStateSender.send(ws, this.world);
+        WorldStateSender.send(ws, this.world, current, [...this.clients.values()]);
       };
       const attach = (current: Player) => {
         player = current;
@@ -157,6 +157,7 @@ export class WebSocketServer {
           NpcInteractionSystem.close(closingPlayer);
           this.broadcast.unregisterClient(ws);
           this.clients.delete(ws);
+          if (this.authRequired) this.broadcast.broadcastDespawn(closingPlayer.id);
         }
         // Um login subsequente deste UUID só será aceito após salvar dados.
         const finishing = (async () => {
@@ -233,6 +234,7 @@ export class WebSocketServer {
               if (deadline) clearTimeout(deadline);
               ws.send(JSON.stringify({ type: "authenticated", characterId: loaded.id }));
               initialSnapshot(loaded);
+              this.broadcast.broadcastPlayerSpawn(loaded, ws);
             } catch (error) {
               Logger.error(`[SESSION] Falha no login do personagem: ${String(error)}`);
               if (ws.readyState === WebSocket.OPEN) ws.close(1011, "Falha ao autenticar.");
