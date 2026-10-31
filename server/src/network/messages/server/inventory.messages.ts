@@ -34,7 +34,8 @@ export interface ServerPlayerStatsMessage {
   lifetimeXp: number;
   satiety?: number;
   satietyMax?: number;
-  foodSecondsRemaining?: number;    // Todo XP recebido durante a trajetória
+  foodSecondsRemaining?: number;
+  fishingLevel: number; // nível real SkillType.FISHING; não calculado no cliente
   // Compatibilidade temporária com antigos consumidores.
   experience?: number;
   experienceToNext?: number;
