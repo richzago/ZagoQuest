@@ -5,6 +5,9 @@
   "type": "consumable",
   "stackable": true,
   "value": 8,
-  "foodSeconds": 40,
-  "satietyPoints": 40
+  "foodSeconds": 9,
+  "satietyPoints": 40,
+  "regenHpPerTick": 2,
+  "regenManaPerTick": 1,
+  "regenTickSeconds": 3
 }
