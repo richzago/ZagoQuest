@@ -1,5 +1,7 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **Revisão da C7-CLICK (31/10/2026):** primeira tentativa do PR #114 não corrigiu os cliques. Comparação dos PRs #109/#110 revelou que o #110 introduziu `EventSystem.RaycastAll` com bloqueio indiscriminado de todos Graphics ScreenSpace, incluindo Images totalmente transparentes que já existiam em `scenebasic.unity` (`ButtomLeft` 1300×210, `InventoryManager`, `LootPanel`). Revisão no mesmo PR #114 agora ignora UI decorativa invisível, mas preserva o bloqueio de janelas visíveis, e restaura o toggle Tibia-style: **2º clique no monstro interrompe**. Verificar detalhes/QA C7-CLICK-01–14 em `docs/CLIENT_C7_UX_VISUAL_AUDIT.md`. **PR #114 ainda DRAFT, sem merge**; testes Unity e aprovação do usuário obrigatórios.
+
 
 > **Hotfix isolado pós-rollback — ataque/loot por clique (31/10/2026):** a base C7 restaurada no PR #113 foi testada pelo usuário, que relatou mapa/janelas quase normais, porém intermitência no clique para iniciar auto attack e abrir corpse. Branch independente `fix/client-c7-combat-loot-click-reliability` criada para corrigir `TargetSelector`, com QA manual C7-CLICK-01–12 em `docs/CLIENT_C7_UX_VISUAL_AUDIT.md`. **Proibido merge automático antes do aceite explícito do usuário via Unity.** UI/dock e pesca não fazem parte deste hotfix; CR8 e reimplementação de layout ficam para depois da homologação.
 
