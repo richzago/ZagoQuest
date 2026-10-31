@@ -36,6 +36,8 @@ public sealed class C7UiAccessibility : MonoBehaviour
         ChatUI.Instance?.AddMessage($"Interface: {Mathf.RoundToInt(Scales[current] * 100)}% (F10).");
     }
 
+    public void ApplyCurrent() => Apply();
+
     private void Apply()
     {
         // Só altera Canvas UI; o render do mundo e colisões permanecem iguais.
