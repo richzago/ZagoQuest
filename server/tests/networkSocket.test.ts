@@ -28,7 +28,7 @@ async function createFixture(): Promise<Fixture> {
   const player = new Player("network-player", "NetworkTester", 2, 2);
   world.addPlayer(player);
 
-  const gameServer = new GameWebSocketServer(httpServer, world);
+  const gameServer = new GameWebSocketServer(httpServer, world, { authRequired: false });
   const openClients: WebSocket[] = [];
 
   await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
