@@ -3,7 +3,7 @@ using System;
 
 namespace ZagoQuest.Networking.Messages
 {
-    [Serializable] public class InitMessage { public string type; public string playerId; public float x; public float y; }
+    [Serializable] public class InitMessage { public string type; public string playerId; public string playerName; public float x; public float y; }
     [Serializable] public class PositionMessage { public string type; public float x; public float y; }
     [Serializable] public class MoveEntityMessage { public string type; public string id; public float x; public float y; }
     [Serializable]
@@ -12,6 +12,7 @@ namespace ZagoQuest.Networking.Messages
         public string type;
         public string id;
         public string name;
+        public string entityType;
         public float x;
         public float y;
         public int hp;
