@@ -240,6 +240,6 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
         worldPos.z = 0;
         Debug.Log($"[EquipmentSlotUI] Drop no chão: {currentItemId} em ({worldPos.x:F0}, {worldPos.y:F0})");
         DragDropManager.Instance.DropOnGround(worldPos);
-        DragDropManager.Instance.EndDrag();
+        // DropOnGround é responsável por encerrar o drag, inclusive no erro.
     }
 }

@@ -169,6 +169,17 @@ public class PlayerController : MonoBehaviour
         transform.position = new Vector3(confirmed.x, confirmed.y, 0);
     }
 
+    /// <summary>
+    /// Posição confirmada pelo Node (init/position). Interações com o mundo
+    /// não devem deduzir alcance a partir de um sprite ou da câmera.
+    /// Este método não autoriza uma ação: o servidor sempre revalida.
+    /// </summary>
+    public bool TryGetConfirmedGridPosition(out Vector2Int position)
+    {
+        position = currentGridPosition;
+        return isReady;
+    }
+
     // =========================
     // MOVIMENTO
     // =========================

@@ -77,11 +77,9 @@ public class DragDropManager : MonoBehaviour
 
     public void EndDrag()
     {
-        if (!isDragging)
-        {
-            Debug.Log("[DragDropManager] ⚠️ EndDrag chamado mas não está arrastando.");
-            return;
-        }
+        // OnDrop e OnEndDrag podem ser notificados no mesmo frame pelo EventSystem.
+        // Encerrar duas vezes não é erro e nunca deve bloquear o próximo drag.
+        if (!isDragging) return;
 
         Debug.Log($"[DragDropManager] 🔴 Finalizou arraste de '{draggedItemId}'");
         draggedItemId = null;
@@ -192,24 +190,66 @@ public class DragDropManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Processa um drop no mundo (chão).
+    /// Tenta soltar um item no chão. O cliente bloqueia pedidos obviamente
+    /// inválidos para dar feedback imediato; o Node continua autoritativo
+    /// (alcance, bounds, posse do item, quantidade e concorrência).
+    /// Finaliza o arraste UMA vez, mesmo em erro de rede/alcance.
     /// </summary>
     public void DropOnGround(Vector3 worldPosition)
     {
-        Debug.Log($"[DragDropManager] 🌍 DropOnGround: draggedItemId={draggedItemId}, worldPos=({worldPosition.x:F1}, {worldPosition.y:F1})");
+        if (!IsDragging()) return;
 
-        if (!IsDragging())
+        try
         {
-            Debug.LogWarning("[DragDropManager] ⚠️ DropOnGround sem item arrastado.");
-            return;
+            var network = NetworkManager.Instance;
+            if (network == null || !network.isConnected || network.Inventory == null)
+            {
+                ShowDropFeedback("Sem conexão com o servidor.");
+                return;
+            }
+
+            var player = PlayerController.Instance;
+            if (player == null || !player.TryGetConfirmedGridPosition(out Vector2Int playerTile))
+            {
+                ShowDropFeedback("Aguarde a posição do personagem ser confirmada.");
+                return;
+            }
+
+            if (float.IsNaN(worldPosition.x) || float.IsNaN(worldPosition.y) ||
+                float.IsInfinity(worldPosition.x) || float.IsInfinity(worldPosition.y))
+            {
+                ShowDropFeedback("Posição de drop inválida.");
+                return;
+            }
+
+            // Mesmo arredondamento do inventory.handler.ts: Math.floor(x/y).
+            // RoundToInt divergia em tiles negativos e nas bordas dos tiles.
+            int tileX = Mathf.FloorToInt(worldPosition.x);
+            int tileY = Mathf.FloorToInt(worldPosition.y);
+
+            // O Node usa Manhattan <= 2 (não distância Euclidiana).
+            // Convertendo para long evita overflow na subtração de tiles.
+            long distance = System.Math.Abs((long)tileX - playerTile.x) +
+                            System.Math.Abs((long)tileY - playerTile.y);
+            if (distance > 2)
+            {
+                ShowDropFeedback("Muito longe para soltar o item (máximo: 2 tiles).");
+                return;
+            }
+
+            // Não retirar item nem alterar a UI aqui. Node responde com
+            // snapshot do inventário/equipamento após aceitar o drop.
+            network.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY);
         }
+        finally
+        {
+            EndDrag();
+        }
+    }
 
-        // Converte a posição do mundo para tile (arredondando)
-        int tileX = Mathf.RoundToInt(worldPosition.x);
-        int tileY = Mathf.RoundToInt(worldPosition.y);
-
-        Debug.Log($"[DragDropManager] 📤 Enviando dropItem: {draggedItemId} em ({tileX}, {tileY})");
-        NetworkManager.Instance?.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY);
-        EndDrag();
+    private static void ShowDropFeedback(string message)
+    {
+        Debug.LogWarning("[DragDropManager] " + message);
+        ChatUI.Instance?.AddMessage("Drop: " + message);
     }
 }

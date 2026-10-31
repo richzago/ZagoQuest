@@ -249,3 +249,48 @@ test("C6 estados vazios: inventory, loot e shop sem itens não exibem estado ant
  assert.match(loot,/takeAllButton\.interactable = visibleItems\.Count > 0 && !awaitingServer/);
  assert.match(loot,/itemSlots\.Clear\(\)/);
 });
+
+
+test("C6 P1 drag distante: cliente valida tile confirmado, Manhattan e rede antes de enviar",()=>{
+ const drag=unity("Managers/DragDropManager.cs");
+ const player=unity("Player/PlayerController.cs");
+ const handler=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
+ assert.match(player,/public bool TryGetConfirmedGridPosition\(out Vector2Int position\)/);
+ assert.match(player,/position = currentGridPosition;/);
+ assert.match(player,/return isReady;/);
+ assert.match(drag,/player\.TryGetConfirmedGridPosition\(out Vector2Int playerTile\)/);
+ assert.match(drag,/!network\.isConnected \|\| network\.Inventory == null/);
+ assert.match(drag,/float\.IsNaN\(worldPosition\.x\)/);
+ assert.match(drag,/float\.IsInfinity\(worldPosition\.y\)/);
+ assert.match(drag,/Mathf\.FloorToInt\(worldPosition\.x\)/);
+ assert.match(drag,/Mathf\.FloorToInt\(worldPosition\.y\)/);
+ assert.match(drag,/System\.Math\.Abs\(\(long\)tileX - playerTile\.x\)/);
+ assert.match(drag,/System\.Math\.Abs\(\(long\)tileY - playerTile\.y\)/);
+ assert.match(drag,/if \(distance > 2\)[\s\S]*?return;/);
+ assert.match(drag,/network\.Inventory\.SendDropItem\(draggedItemId, 1, tileX, tileY\)/);
+ assert.match(handler,/const distance = Math\.abs\(tileX - Math\.floor\(player\.position\.x\)\)/);
+ assert.match(handler,/Math\.abs\(tileY - Math\.floor\(player\.position\.y\)\)/);
+ assert.match(handler,/distance > 2/);
+});
+
+test("C6 P1 drag distante: término único e feedback amigável no inventário/equipamento",()=>{
+ const drag=unity("Managers/DragDropManager.cs");
+ const inv=unity("Player/InventorySlot.cs");
+ const equip=unity("UI/EquipmentSlotUI.cs");
+ const error=unity("Networking/Handlers/DropErrorHandler.cs");
+ const ground=drag.slice(drag.indexOf("public void DropOnGround("));
+ assert.match(ground,/try\s*\{/);
+ assert.match(ground,/finally\s*\{\s*EndDrag\(\);\s*\}/);
+ assert.match(drag,/if \(!isDragging\) return;/);
+ assert.doesNotMatch(drag,/EndDrag chamado mas não está arrastando/);
+ for(const component of [inv,equip]){
+  const start=component.indexOf("public void OnEndDrag(");
+  const end=component.indexOf("\n    // =========================",start+1);
+  const method=component.slice(start,end>=0?end:component.length);
+  assert.match(method,/DropOnGround\(worldPos\)/);
+  assert.doesNotMatch(method,/DropOnGround\(worldPos\);\s*DragDropManager\.Instance\??\.EndDrag\(\)/);
+ }
+ assert.match(drag,/ChatUI\.Instance\?\.AddMessage\("Drop: " \+ message\)/);
+ assert.match(error,/Debug\.LogWarning/);
+ assert.doesNotMatch(error,/Debug\.LogError/);
+});

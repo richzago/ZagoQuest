@@ -129,3 +129,31 @@ Não usar stash pop automaticamente: revisar o stash antes de recuperar mudança
 ## 8. Evidência de integração após QA automatizado
 
 O PR [#102](https://github.com/richzago/ZagoQuest/pull/102) foi MERGED na dev no commit 26526d3c38623113402332e62b3f1ba3aa4ffd90. A [CI pré-merge](https://github.com/richzago/ZagoQuest/actions/runs/41230928166) terminou SUCCESS em Windows/Linux/PostgreSQL: 463 testes, zero falhas. O caso C4 do PlayerHUD foi adaptado ao helper DisplayBar sem remover a checagem do XP total/level e singleton. Testes de contrato cobrem também estados vazios (inventário, loja e loot). [CI pós-merge](https://github.com/richzago/ZagoQuest/actions/runs/41231055822) iniciada; conclusão a confirmar. C6 exige os 13 testes manuais da seção 7 e comparação de imagens. Main intacta.
+
+
+## 9. C6 P1 — Drop distante e duplo EndDrag (31/10/2026)
+
+**Relato Unity:** arrastar `bone_sword` para tile distante gera `EndDrag` seguido de `EndDrag chamado mas não está arrastando` e `Drop: Local de drop inválido ou distante`. É bug comprovado de ciclo de arraste e feedback; os logs não comprovam por si um crash, portanto repro no Editor/build é necessária.
+
+**Causa:** `InventorySlot.OnEndDrag` e `EquipmentSlotUI.OnEndDrag` invocavam `DropOnGround`, que já termina o drag, e logo invocavam `EndDrag` outra vez. O cliente enviava drop em qualquer posição sem verificar alcance. O Node `inventory.handler.ts` calcula `Math.floor(x/y)` e Manhattan `abs(dx)+abs(dy) <= 2`, recusando destino inválido ou distante **antes** de remover o item. Feedback do servidor era erroneamente registrado como LogError, mesmo sendo recusa esperada.
+
+**Correção proposta:** `PlayerController.TryGetConfirmedGridPosition` oferece posição do último `init/position` Node (não posição de câmera); `DragDropManager.DropOnGround` confirma conexão, coordenadas finitas, usa FloorToInt e Manhattan <= 2, envia pedido apenas dentro de alcance, finaliza uma vez em `finally` e avisa pelo chat para alvo distante; slots de inventário/equipamento deixam de chamar EndDrag depois do drop; `DropErrorHandler` exibe recusa Node como warning/feedback. Não alterar economia, inventário local, regras de servidor ou mapa Tiled. Servidor ainda decide limites, posse, tiles e concorrência.
+
+**Testes:** contratos estáticos `server/tests/clientC6InventoryEquipmentContracts.test.ts` verificam conversão, distância, `finally`, ausência de segundo EndDrag e mensagem; `server/tests/economy.test.ts` exercita `handleDropItem` real com alvos Manhattan >2, cardinal/diagonal na borda 2, preservação do item em recusa. CI Node não compila C# nem simula mouse.
+
+### Homologação local P1 obrigatória antes de encerrar C6
+
+| ID | Procedimento | Resultado esperado |
+| --- | --- | --- |
+| D1 | Arrastar `bone_sword` a 3+ tiles | Sem pedido dropItem, mensagem de distância; sem item desaparecer, sem red error/duplo EndDrag |
+| D2 | Soltar a 2 tiles cardinais e 1+1 diagonal | Um pedido, chão recebe item; inventário só muda após snapshot Node |
+| D3 | Soltar a 2+1 tiles na diagonal | Recusado localmente, item permanece |
+| D4 | Dropar sobre outro slot, inventário, equipamentos, HUD e janela do banco | Não dropar no chão; equip/unequip operam normalmente |
+| D5 | Arrastar item equipado até chão distante e perto | Distante recusa; perto despacha uma vez e equipamento atualiza por servidor |
+| D6 | Soltar perto da borda do mapa ou tile inválido | Recusa autoritativa Node, feedback no chat, sem travar; nada perdido |
+| D7 | Derrubar conexão e tentar drop; reconectar | Sem envio offline, aviso, drag limpo, item preservado |
+| D8 | Repetir 10x perto/longe em Editor + build Windows | Nenhum estado preso ou segundo EndDrag; console sem exceções |
+| D9 | Alfa/Beta competindo pelo mesmo tile | Servidor decide; inventários sem duplicações |
+| D10 | Inspecionar Unity Console e servidor após rejeição | Apenas warning/aviso esperado, UI ainda responde a cliques/atalhos |
+
+**Critério para C7:** integrar o PR após CI Windows/Linux/PG verde, mas aguardar reteste local D1–D10 para marcar a C6 homologada. Não afirmar que o servidor estava removendo item: o código recusa antes de mutar o estado.
