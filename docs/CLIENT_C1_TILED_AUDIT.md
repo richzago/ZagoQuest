@@ -131,3 +131,35 @@ Após PR #86 (água/parede na Collision), desenvolvedor relatou: **esquerda/baix
 7. **C1 só se encerra após novo aceite local.** Auditoria futura de object layers (spawn Y top-down) continua separada: o ajuste do Grid não converte posições de NPCs nem migra personagem persistido.
 
 **Referência Unity:** `Tilemap.GetCellCenterWorld` e `Tilemap.tileAnchor` calculam o centro conforme o anchor. `Grid.CellToWorld` retorna canto inferior esquerdo, não centro visual; o default do Tilemap é (0.5,0.5).
+
+## C1 — Regressão visual após PR #87: diagnóstico instrumental (31/10/2026)
+
+**Novo relato local:** esquerda corrigida; **direita e cima** ainda impedem movimento aparentemente 1 sqm antes de água; **embaixo** jogador ainda aparenta entrar 1 sqm na água. Esse resultado **reprova o aceite visual** da PR #87 para os 4 lados. **C1 continua ABERTA.**
+
+### Investigação minuciosa dos dados versionados
+
+- Matriz `Ground`: 30×20, interior de terra `x=3..26` e `y=3..16` no mundo Unity/Node. Água ocupa `x=0..2`, `x=27..29`, `y=0..2`, `y=17..19` nas respectivas bordas.
+- Matriz `Collision` do Tiled: 264 células de água bloqueadas, 336 de chão livres; sem exceções nos limites. O Node faz `worldY = 19 - rowTiled`; Unity faz `blocked[x, 19-rowTiled]`. O componente `PlayerController` envia passo e **só atualiza transform após ACK** de `PositionHandler`; não há movimentação de cliente que ignore o bloqueio.
+- Cena versionada: `Grid` em (-0.5,-0.5), `Grid/Tilemap` local (0,0), Grid 1×1 e `TileAnchor` (0.5,0.5). Logo `Tilemap.GetCellCenterWorld(x,y)` deveria ser (x,y) e coincidir com `PlayerController.transform.position` nos ACKs.
+- Sprites lidos diretamente no GitHub: Grass1-Dirt1 32×160 (5 slices de 32), Water2 256×160 (40 slices de 32). Os índices 32..39 usados no Ground (GIDs 68..75) são a última linha de água do PNG e o `.meta` do Unity registra os cortes nessa linha. PPU=32 e pivot 0.5; **não há evidência estática de erro no recorte que produza deslocamento geométrico de 1 sqm**.
+- Os quatro limites lógicos e suas cores deveriam coincidir matematicamente. O relatório visual do usuário **não corresponde às coordenadas previstas no repositório**. Não atribuir automaticamente causa a `Collision`, recortes, câmera ou posição salva. Possibilidades a diferenciar com evidência de runtime: a cena/asset local diverge da `dev` versionada, múltiplos layers/objetos sobrepostos, percepção visual pela silhueta/pivô do sprite, ou discrepância efetiva entre `Tilemap.GetSprite/GetCellCenterWorld` e `PlayerController.position`.
+
+### Instrumentação segura (PR de diagnóstico)
+
+O `TiledMapRenderer.cs` recebe ferramentas **somente no Editor**, `#if UNITY_EDITOR`, sem mudar regras:
+- Checkbox `Show C1 Border Gizmos` no componente `MapManager > TiledMapRenderer`, dentro de Play Mode. Com Scene View (ou Game View com Gizmos habilitado), desenha quadrados **verdes** nas células caminháveis e **vermelhos** nas células bloqueadas, amostrando os quatro limites. Marca o pivô real do jogador com esfera **amarela**.
+- Menu do componente (três pontos) → `C1 QA - Registrar alinhamento das bordas no Console`. Imprime a posição atual do jogador, `WorldToCell`, `GetCellCenterWorld`, transform de Grid e Tilemap, TileAnchor; depois, para 8 células, imprime GID real do JSON, `Collision`, `GameManager.IsTileWalkable`, nome do `Sprite` que a Tilemap desenha e centro efetivo do tile.
+- Os valores que **deverão** aparecer se for usado o mapa da dev:
+  - `(3,10)` chão, `(2,10)` água; `(26,10)` chão, `(27,10)` água;
+  - `(15,3)` chão, `(15,2)` água; `(15,16)` chão, `(15,17)` água.
+- Teste automatizado do backend valida **TODAS** as células de limite em X e Y, e novo contrato estático confirma instrumentos e sprites fatiados no Unity. Não dispensa execução no Unity real.
+
+### QA necessário e como interpretar
+
+1. Fechar Unity, preservar alterações locais de cena e `git pull` da nova `dev`; não restaurar stash antigo automaticamente.
+2. Play Mode, selecionar `MapManager`, habilitar `Show C1 Border Gizmos` e ativar `Gizmos` na Scene/Game View. Levar o player às quatro bordas para identificar se o pivô **amarelo** ocupa um quadrado **verde** ou **vermelho**.
+3. Quando o problema aparecer, clicar no menu do `TiledMapRenderer` > `C1 QA - Registrar alinhamento das bordas no Console` e compartilhar **apenas linhas `[C1 QA]`**, mais uma captura da Scene/Game View com os gizmos visíveis. Não incluir JWT, senhas ou string de conexão.
+4. `collisionBlocked=true` com `unityWalkable=false` **e sprite azul de água** é bloqueio correto. Se o sprite parecer terra onde o gizmo vermelho está, é problema **visual de sprite/célula**. Se `WorldToCell` ou `GetCellCenterWorld` não combinar com o jogador, é problema **de transform/grade local**. Se os dados da cena local não conferirem, corrigir divergência de versão/stash antes de mexer no gameplay.
+5. **Não ajustar Collision uma casa para mascarar a diferença, nem migrar posições SQL/spawns neste PR de instrumentação.** Corrigir somente após o resultado determinar a camada responsável.
+
+Status: C0 encerrada; C1 em validação e investigação; C3/C8 independentes.
