@@ -231,3 +231,21 @@ test("C6 inventário, loja e loot: somente solicitações e confirmação do Nod
  assert.match(shop,/public void ShowBuyResult\(bool success, string message\)/);
  assert.match(shop,/NetworkManager\.Instance\?\.Shop\?\.SendCloseShop\(currentNpcId\)/);
 });
+
+
+test("C6 estados vazios: inventory, loot e shop sem itens não exibem estado antigo",()=>{
+ const inv=unity("UI/InventoryUI.cs");
+ const loot=unity("UI/LootUI.cs");
+ const shop=unity("UI/ShopUI.cs");
+ assert.match(inv,/ShowEmptyState\(items\.Count == 0\)/);
+ assert.match(inv,/C6EmptyInventoryLabel/);
+ assert.match(inv,/labelObject\.SetActive\(empty\)/);
+ assert.match(shop,/if \(items == null\)/);
+ assert.match(shop,/if \(items\.Length == 0\)/);
+ assert.match(shop,/C6ShopEmptyState/);
+ assert.match(shop,/itemSlots\.Clear\(\)/);
+ assert.match(loot,/if \(visibleItems\.Count == 0\)/);
+ assert.match(loot,/C6LootEmptyState/);
+ assert.match(loot,/takeAllButton\.interactable = visibleItems\.Count > 0 && !awaitingServer/);
+ assert.match(loot,/itemSlots\.Clear\(\)/);
+});
