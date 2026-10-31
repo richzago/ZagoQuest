@@ -17,6 +17,13 @@ A Fase 8 não adiciona sistemas de gameplay: verifica a integração entre Data,
 | Smoke `dist` | Inicia Node compilado, carrega Tiled/JSON, consulta PG, verifica HTTP 401 e SIGTERM com save final: `DIST_SMOKE_OK` |
 | Unity | **Sem execução automática**. Dois clientes e Play Mode no Windows ainda não foram homologados. |
 
+### Validação automatizada de fechamento do código (PR #76)
+
+- [x] [CI da dev #41199146841](https://github.com/richzago/ZagoQuest/actions/runs/41199146841) aprovada no merge `568a50f32b49939d25e555dc1044947ac794148e`: **400/400 Windows**, **400/400 Linux**, **10/10 PG16** e `DIST_SMOKE_OK`.
+- [x] PostgreSQL CI criado a partir da migration `InitialSchema1793400000000` em base nova, com `DB_SYNCHRONIZE=false`; comando recusa banco não vazio, host remoto e ausência de opt-in.
+- [x] Relatório final e guia Windows em `docs/PHASE8_TECHNICAL_FINAL_REPORT.md` e `docs/PHASE8_POSTGRES_WINDOWS_QA.md`.
+- [ ] Assinatura local 5.2, 6.2, 7.2 e 8.2 — somente o usuário pode validá-la. Migrations de **atualização para saves históricos** e implantação pública são roadmap operacional separado.
+
 **Os números acima provam apenas o SHA indicado.** Toda integração subsequente exige checar CI da própria `dev` novamente. O resultado dos testes Node não valida Unity ou um PostgreSQL local com dados legados.
 
 ## 2. Estado de encerramento da Fase 7
@@ -118,8 +125,8 @@ LOG: somente trechos sem segredo
 - [ ] Todos os casos locais aplicáveis da matriz executados, com evidências do usuário e sem P0/P1 reproduzido.
 - [x] Estratégia segura de inicialização para **nova base vazia** com migration versionada, guarda por DB_NAME/host/opt-in e CI PostgreSQL com synchronize OFF. A migração de **banco já populado** e backup/restauração local ainda dependem de validação manual; não incluídos na baseline.
 - [ ] Fases 5.2, 6.2 e 7.2 reconciliadas com resultados reais no Notion.
-- [ ] Testes de regressão final na `dev` do SHA final, após qualquer PR corretivo.
+- [x] Testes de regressão final do **código** na `dev` após PR #76 no SHA `568a50f3` (Actions #41199146841). PRs posteriores apenas de documentação exigem CI própria; bugs detectados no teste local reabrem validação.
 - [x] Relatório técnico de encerramento do escopo automatizado em `docs/PHASE8_TECHNICAL_FINAL_REPORT.md`; homologação Unity, PG local e migração de dados legados continuam pendentes.
-- [ ] Decisão explícita e **separada** sobre produção: sem promessas de segurança ou capacidade com base só em benchmark headless.
+- [x] Decisão de produção registrada separadamente: **NÃO PRONTO**. Requer upgrade de banco legado, TLS/proxy/rate limit distribuído, backups/restauração, métricas e carga real. Não impede encerrar o trabalho automatizado do protótipo.
 
 **Próxima ação:** seguir `docs/PHASE8_POSTGRES_WINDOWS_QA.md` para criar o banco de teste via pgAdmin/psql, aplicar a migration inicial sem synchronize e executar F8-01..04 (REST) e F8-05..12 (Unity). Os testes manuais continuam sem evidências de execução até o usuário realizá-los.
