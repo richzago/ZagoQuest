@@ -17,6 +17,9 @@ public sealed class C7FishingUI : MonoBehaviour
     private TextMeshProUGUI feedback;
     private Button startButton;
     private Button stopButton;
+    // O HUD antigo ocupa a coluna da sidebar. A pesca continua via R
+    // e o servidor segue autoritativo; apenas o painel fica oculto.
+    private const bool ShowFishingPanel = false;
     private bool fishing;
     private bool waitingForAck;
     private float startedAt;
@@ -119,7 +122,8 @@ public sealed class C7FishingUI : MonoBehaviour
     {
         var network = NetworkManager.Instance;
         bool connected = network != null && network.isConnected;
-        if (root != null && root.activeSelf != connected) root.SetActive(connected);
+        bool show = connected && ShowFishingPanel;
+        if (root != null && root.activeSelf != show) root.SetActive(show);
         if (!connected)
         {
             fishing = false; waitingForAck = false;
