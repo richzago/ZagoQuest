@@ -299,3 +299,28 @@ test("Fase 7 PostgreSQL + HTTP REST: login, JWT, propriedade de Character e nega
     else process.env.JWT_SECRET = secret;
   }
 });
+
+
+test("Fase 7 PostgreSQL + HTTP: guildas paginadas com limite, erro 400 e dados públicos", async () => {
+  const { startApi } = await import("../src/api/server");
+  const http = await startApi();
+  try {
+    await listenHttp(http, 0);
+    const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+    for (const path of ["/api/guilds/list", "/api/guilds/rank/level", "/api/guilds/rank/kills"]) {
+      const valid = await fetch(base + path + "?page=1&limit=2");
+      assert.equal(valid.status, 200);
+      const body = await valid.json() as { page: number; limit: number; total: number; data: unknown[] };
+      assert.equal(body.page, 1);
+      assert.equal(body.limit, 2);
+      assert.ok(Array.isArray(body.data));
+      assert.ok(body.data.length <= 2);
+      for (const malformed of ["?page=0", "?page=-1", "?page=1abc", "?limit=101", "?limit=0", "?page=1&page=2"]) {
+        const invalid = await fetch(base + path + malformed);
+        assert.equal(invalid.status, 400, `Expected invalid pagination on ${path + malformed}`);
+      }
+    }
+  } finally {
+    await closeHttp(http);
+  }
+});
