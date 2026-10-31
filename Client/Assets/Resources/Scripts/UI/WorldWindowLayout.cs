@@ -158,9 +158,10 @@ public static class WorldWindowLayout
         // capturam o raycast e o jogador não consegue arrastar a janela.
         obj.transform.SetAsLastSibling();
         // Botões existentes precisam continuar clicáveis sobre o cabeçalho.
-        foreach (Transform child in panel.transform)
-            if (child != obj.transform && child.GetComponent<Button>() != null)
-                child.SetAsLastSibling();
+        var directButtons = panel.GetComponentsInChildren<Button>(true);
+        foreach (var button in directButtons)
+            if (button.transform.parent == panel.transform)
+                button.transform.SetAsLastSibling();
         var rect = obj.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0, 1);
         rect.anchorMax = Vector2.one;
