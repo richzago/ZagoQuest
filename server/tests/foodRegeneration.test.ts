@@ -189,8 +189,7 @@ test("C6 inventory snapshot informa tipo consumable/equipment e ignora item lega
  p.addItem("bone_sword",1);
  p.addItem("legacy_item_sem_definicao",1);
  const packets: Array<{type:string;items:Array<{itemId:string;amount:number;itemType?:string}>}> = [];
- const socket={readyState:1,send:(text:string)=>packets.push(JSON.parse(text))}
-  as unknown as WebSocket;
+ const socket = { readyState: 1, send: (packet: string) => { packets.push(JSON.parse(packet)); } } as unknown as WebSocket;
  new InventorySender(socket).sendInventory(p);
  assert.equal(packets.length,1);
  assert.equal(packets[0].type,"inventory");
