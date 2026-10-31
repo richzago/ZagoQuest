@@ -100,8 +100,21 @@ export class GuildController {
       if (!guildName) return res.status(400).json({ error: "Nome da guilda não fornecido" });
       const guild = await GuildService.getGuildByName(guildName);
       if (!guild) return res.status(404).json({ error: "Guilda não encontrada" });
-      const { logs, ...safeGuild } = guild;
-      res.json(safeGuild);
+      // Explicit DTO: never add a new TypeORM column to the public API accidentally.
+      const publicGuild = Object.fromEntries(Object.entries({
+        id: guild.id,
+        name: guild.name,
+        description: guild.description,
+        profileImage: guild.profileImage,
+        coverImage: guild.coverImage,
+        level: guild.level,
+        exp: guild.exp,
+        totalKills: guild.totalKills,
+        castleConquests: guild.castleConquests,
+        createdAt: guild.createdAt,
+        updatedAt: guild.updatedAt,
+      }).filter(([, value]) => value !== undefined));
+      res.json(publicGuild);
     } catch (err: any) {
       res.status(500).json({ error: "Falha ao consultar guildas." });
     }
