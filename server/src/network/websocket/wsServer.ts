@@ -119,6 +119,8 @@ export class WebSocketServer {
       const initialSnapshot = (current: Player) => {
         InitialStateSender.send(ws, current);
         InventorySender.send(ws, current);
+        // Persistido no banco: snapshot completo antes de qualquer equip/unequip.
+        new InventorySender(ws).sendEquipment(current);
         PlayerStatsSender.send(ws, current);
         WorldStateSender.send(ws, this.world, current, [...this.clients.values()]);
       };
