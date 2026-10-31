@@ -25,7 +25,6 @@ public sealed class C7DockLayout : MonoBehaviour
     private readonly Dictionary<RectTransform, string> keys = new();
     private readonly Dictionary<RectTransform, float> originalHeights = new();
     private float nextSync;
-    private int lastWidth = -1, lastHeight = -1;
     private const string KeyPrefix = "ZagoQuest.C7.Dock.";
 
     private void Awake()
@@ -102,8 +101,9 @@ public sealed class C7DockLayout : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 34f;
 
-        // A barra lateral deve permanecer acima dos demais Canvas da cena,
-        // mas o login/logout (Canvas próprio 500) conserva prioridade.
+        // Overlay UI: o mundo continua em viewport integral. Reduzir Camera.rect
+        // na URP 2D deixa regiões da tela fora do clear da câmera e pode mostrar
+        // artefatos do frame anterior nas bordas. O acompanhamento fica em CameraFollow.
         sidebar.transform.SetAsLastSibling();
         worldCamera = Camera.main;
     }
@@ -159,9 +159,14 @@ public sealed class C7DockLayout : MonoBehaviour
         panel.localScale = Vector3.one;
         var layout = panel.GetComponent<LayoutElement>();
         if (layout == null) layout = panel.gameObject.AddComponent<LayoutElement>();
-        layout.minHeight = 145;
+        // O mínimo preserva o espaço dos controles em janelas com grid fixo.
+        // Nunca permitir que o usuário reduza Equipment até ocultar os slots.
+        layout.minHeight = key.Contains("Equipment") ? 380f :
+            key.Contains("Inventory") ? 245f :
+            key.Contains("Fishing") ? 155f : 205f;
         layout.preferredHeight = Mathf.Clamp(
-            PlayerPrefs.GetFloat(KeyPrefix + key + ".Height", initialHeight), 145, 650);
+            PlayerPrefs.GetFloat(KeyPrefix + key + ".Height", initialHeight),
+            layout.minHeight, 650f);
         layout.flexibleHeight = 0;
         layout.flexibleWidth = 1;
         registered[panel] = layout;
@@ -220,40 +225,45 @@ public sealed class C7DockLayout : MonoBehaviour
         go.transform.SetAsLastSibling();
     }
 
+    /// <summary>
+    /// Espaço reservado, em pixels físicos, para que a câmera enquadre o jogador
+    /// sem deixá-lo atrás da barra ou do chat. Camera.rect permanece integral:
+    /// alterar o viewport em URP 2D não é necessário para proteger o jogador.
+    /// </summary>
+    public static bool TryGetWorldInsets(out float rightPixels, out float bottomPixels)
+    {
+        rightPixels = bottomPixels = 0f;
+        var manager = Instance;
+        if (manager == null || manager.mainCanvas == null ||
+            manager.sidebarObject == null || !manager.sidebarObject.activeInHierarchy ||
+            NetworkManager.Instance == null || !NetworkManager.Instance.isConnected)
+            return false;
+
+        float scale = Mathf.Max(0.01f, manager.mainCanvas.scaleFactor);
+        rightPixels = Mathf.Clamp(SidebarWidth * scale, 0f, Screen.width * 0.75f);
+        bottomPixels = Mathf.Clamp(ChatHeight * scale, 0f, Screen.height * 0.60f);
+        return true;
+    }
+
     private void UpdateWorldViewport(bool connected)
     {
         if (worldCamera == null || Screen.width <= 0 || Screen.height <= 0) return;
-        if (!connected)
-        {
-            if (worldCamera.rect != new Rect(0, 0, 1, 1))
-                worldCamera.rect = new Rect(0, 0, 1, 1);
-            return;
-        }
-        float scale = mainCanvas != null ? Mathf.Max(mainCanvas.scaleFactor, 0.5f) : 1;
-        float right = SidebarWidth * scale;
-        float bottom = ChatHeight * scale;
-        float width = Mathf.Clamp01((Screen.width - right) / Screen.width);
-        float y = Mathf.Clamp01(bottom / Screen.height);
-        Rect desired = new Rect(0, y, width, 1f - y);
-        if (Screen.width != lastWidth || Screen.height != lastHeight ||
-            worldCamera.rect != desired)
-        {
-            worldCamera.rect = desired;
-            lastWidth = Screen.width; lastHeight = Screen.height;
-        }
-        // O chat é uma barra inferior, não uma janela flutuante sobre o player.
-        if (ChatUI.Instance != null)
-        {
-            var chat = ChatUI.Instance.transform as RectTransform;
-            if (chat != null)
-            {
-                chat.anchorMin = chat.anchorMax = chat.pivot = Vector2.zero;
-                chat.anchoredPosition = new Vector2(8, 4);
-                chat.sizeDelta = new Vector2(
-                    Mathf.Min(680f, Screen.width / scale - SidebarWidth - 16f),
-                    ChatHeight - 8f);
-            }
-        }
+
+        // P0: uma câmera com rect parcial deixava os cantos fora da área limpa
+        // pelo renderizador. Manter o mundo em tela inteira e mover o ENQUADRAMENTO
+        // em CameraFollow. O dock é um overlay opaco, não uma segunda câmera.
+        if (worldCamera.rect != new Rect(0f, 0f, 1f, 1f))
+            worldCamera.rect = new Rect(0f, 0f, 1f, 1f);
+
+        if (!connected || ChatUI.Instance == null) return;
+        var chat = ChatUI.Instance.transform as RectTransform;
+        if (chat == null) return;
+        float scale = mainCanvas != null ? Mathf.Max(mainCanvas.scaleFactor, 0.01f) : 1f;
+        chat.anchorMin = chat.anchorMax = chat.pivot = Vector2.zero;
+        chat.anchoredPosition = new Vector2(8f, 4f);
+        chat.sizeDelta = new Vector2(
+            Mathf.Max(160f, Mathf.Min(680f, Screen.width / scale - SidebarWidth - 16f)),
+            ChatHeight - 8f);
     }
 
     public static bool IsDocked(RectTransform panel) =>
@@ -266,7 +276,8 @@ public sealed class C7DockLayout : MonoBehaviour
         var layout = manager.registered[panel];
         float maxHeight = Mathf.Max(240f, Screen.height /
             Mathf.Max(0.5f, manager.mainCanvas.scaleFactor) - 40f);
-        layout.preferredHeight = Mathf.Clamp(layout.preferredHeight + delta,145,maxHeight);
+        layout.preferredHeight = Mathf.Clamp(layout.preferredHeight + delta,
+            layout.minHeight, Mathf.Max(layout.minHeight, maxHeight));
         PlayerPrefs.SetFloat(KeyPrefix + manager.keys[panel] + ".Height",
             layout.preferredHeight);
         LayoutRebuilder.MarkLayoutForRebuild(manager.content);
@@ -287,8 +298,9 @@ public sealed class C7DockLayout : MonoBehaviour
     {
         if (!IsDocked(panel)) return;
         PlayerPrefs.DeleteKey(KeyPrefix + Instance.keys[panel] + ".Height");
-        Instance.registered[panel].preferredHeight =
-            Instance.originalHeights.TryGetValue(panel, out var height) ? height : 310;
+        var layout = Instance.registered[panel];
+        layout.preferredHeight = Mathf.Max(layout.minHeight,
+            Instance.originalHeights.TryGetValue(panel, out var height) ? height : 310f);
         LayoutRebuilder.MarkLayoutForRebuild(Instance.content);
     }
 
