@@ -32,6 +32,7 @@ import type {
   ClientChatMessage,
   ClientOpenShopMessage,
   ClientBuyItemMessage,
+  ClientSellItemMessage,
   ClientOpenBankMessage,
   ClientDepositMessage,
   ClientWithdrawMessage,
@@ -75,6 +76,7 @@ import type {
   ServerChatMessage,
   ServerShopWindowMessage,
   ServerBuyResultMessage,
+  ServerSellResultMessage,
   ServerShopErrorMessage,
   ServerBankWindowMessage,
   ServerBankResultMessage,
@@ -100,6 +102,7 @@ export type ClientMessage =
   | ClientChatMessage
   | ClientOpenShopMessage
   | ClientBuyItemMessage
+  | ClientSellItemMessage
   | ClientOpenBankMessage
   | ClientDepositMessage
   | ClientWithdrawMessage
@@ -134,6 +137,7 @@ export type ServerMessage =
   | ServerChatMessage
   | ServerShopWindowMessage
   | ServerBuyResultMessage
+  | ServerSellResultMessage
   | ServerShopErrorMessage
   | ServerBankWindowMessage
   | ServerBankResultMessage
