@@ -99,3 +99,7 @@ CI: `.github/workflows/server-check.yml` executa build e testes no GitHub Action
 - Quantidade máxima por stack, peso/capacidade do jogador e persistência transacional são funcionalidades futuras.
 - `ItemRegistry.get` pode lançar exceção para item inexistente; novos tratamentos pontuais foram aplicados, mas revisão geral virá depois.
 - Guildas, NPC banker/merchant, contratos de mensagens e autoridade de gameplay terão tarefas específicas.
+
+## 8. Atualização da regra Merchant — C5, 31/10/2026
+
+**Esta seção substitui somente as antigas referências a estoque finito da seção 4 (registro histórico da primeira implementação).** Por decisão expressa do desenvolvedor, NPCs Merchant possuem **catálogo permanente, sem stock e sem redução por compra**. `ShopSystem.buyItem` mantém validações de quantidade, preço, saldo (carteira antes do banco), capacidade, moeda e rollback. `shop.handler` não expõe estoque, e `ShopItemSlot` oculta a label antiga do prefab. A propriedade `stock?` de `NpcShop.ShopItem` permanece temporariamente por compatibilidade com fixtures legadas, mas é **ignorada**. Testes passam a exigir compra além do antigo limite e consumo apenas de dinheiro/recursos do jogador. Banker mostra `Saldo no banco` e `Ouro em mãos` conforme resposta do servidor.
