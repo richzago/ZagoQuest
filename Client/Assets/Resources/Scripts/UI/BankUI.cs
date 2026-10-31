@@ -125,8 +125,9 @@ public class BankUI : MonoBehaviour
 
     private void UpdateBalances(int bankGold, int inventoryGold)
     {
-        if (bankGoldText != null) bankGoldText.text = $"{bankGold} gold";
-        if (inventoryGoldText != null) inventoryGoldText.text = $"{inventoryGold} gold";
+        // Valores recebidos do Node; identificação clara da origem do saldo.
+        if (bankGoldText != null) bankGoldText.text = $"Saldo no banco: {bankGold:N0} gold";
+        if (inventoryGoldText != null) inventoryGoldText.text = $"Ouro em mãos: {inventoryGold:N0} gold";
     }
 
     private bool TryGetAmount(out int amount)

@@ -234,7 +234,7 @@ test("depósito inválido ou saldo insuficiente não perdem dinheiro", async () 
   assert.ok(events.bankResult.every((args) => args[0] === false));
 });
 
-test("abrir loja longe ou abrir NPC sem estoque não concede autorização", async () => {
+test("abrir loja longe ou abrir NPC sem catálogo não concede autorização", async () => {
   const a = setup();
   const { ctx, events } = createContext(a.world);
   a.player.position = { x: 15, y: 15 };
@@ -246,7 +246,7 @@ test("abrir loja longe ou abrir NPC sem estoque não concede autorização", asy
   assert.equal(events.shopError.length, 2);
 });
 
-test("buyItem sem openShop não retira dinheiro nem reduz estoque", async () => {
+test("buyItem sem openShop não retira dinheiro nem cria itens", async () => {
   const a = setup();
   const { ctx, events } = createContext(a.world);
   await handleBuyItem(ws, a.player, {
@@ -263,13 +263,14 @@ test("abrir loja por nome retorna o ID real e permite comprar somente nessa loja
   const { ctx, events } = createContext(a.world);
   await handleOpenShop(ws, a.player, { type: "openShop", npcId: "LOJA" }, ctx);
   assert.equal(events.shopWindow[0][0], a.merchant.id);
+  assert.equal("stock" in (events.shopWindow[0][1] as object[])[0], false);
   await handleBuyItem(ws, a.player, {
     type: "buyItem", npcId: a.merchant.id, itemId: potion, amount: 2,
   }, ctx);
   assert.equal(events.buyResult[0][0], true);
   assert.equal(a.player.gold, 80);
   assert.equal(a.player.inventory.get(potion), 2);
-  assert.equal(a.merchant.shopItems![0].stock, 3);
+  assert.equal(a.merchant.shopItems![0].stock, 5);
   assert.equal(events.inventory, 1);
   assert.equal(events.gold, 1);
 });

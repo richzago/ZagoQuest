@@ -127,3 +127,19 @@ O desenvolvedor solicitou expressamente incluir **o layout visual de Merchant, B
 8. Enviar screenshots de Inspector/Hierarchy somente se houver falha de configuração ainda não coberta por runtime; assim podemos corrigir o prefab/scene depois com evidência, sem reintroduzir mudanças manuais na C1/C4.
 
 **Critério de aceite específico para encerramento C5:** servidor e Unity passam testes de NPC/Monster, autorização de shop/bank/loot, concorrência e layout/seleção funcional de itens múltiplos, com resultados localmente aprovados pelo desenvolvedor. C6 será a etapa de inventário/equipamentos/HUD.
+
+## 9. Fechamento funcional C5 — Aceite do desenvolvedor e ajustes de regra Banker/Merchant (31/10/2026)
+
+**Feedback da homologação após PR #98:** o desenvolvedor confirmou que **todo o restante deu certo**, inclusive a UI de cadáver/loot e interações NPC. Solicitou apenas:
+- rótulos explícitos no banco para distinguir dinheiro guardado e dinheiro carregado;
+- remoção **real**, não apenas visual, de estoque finito do comerciante de NPC, por decisão de gameplay MMORPG.
+
+**Escolha de interface:** mostrar `Saldo no banco: {bankGold:N0} gold` e `Ouro em mãos: {inventoryGold:N0} gold` por `BankUI.UpdateBalances`. Ambos vêm de `bankWindow`/`bankResult` do Node e não são recalculados pelo cliente. Recusa não altera saldos, conforme contrato vigente. A primeira label é saldo bancário; a segunda é carteira/inventário.
+
+**Decisão de gameplay — catálogo permanente:** `ShopSystem.buyItem` **não valida nem decrementa `item.stock`**. Catálogo da produção `server/src/data/npc/merchant.json` não traz `stock`. `shop.handler` não envia `stock` no pacote `shopWindow` e não menciona estoque nas recusas. `ShopItemSlot` oculta o `stockText` legado do prefab e não bloqueia botão/quantidade por stock. `ShopItem.stock?` TS e `ShopItem.stock` C# são mantidos apenas por compatibilidade de fixtures e prefab já serializado, **sem influência no gameplay nem na interface**; poderão ser eliminados em migração de contrato futura com revisão total dos consumidores. Não criar reposição periódica nem nova tabela SQL.
+
+**Proteções que permanecem:** o Node valida preço/ID de item/quantidade inteira positiva e segura, gold na carteira+banco, limites de overflow, capacidade do inventário, autorização ao NPC e alcance até 2 tiles; moeda não pode ser vendida por preço inferior ao valor nominal criando ouro; sem saldo nem capacidade a compra falha e não altera dados. É possível comprar várias unidades mesmo quando `stock` legado era menor que a quantidade, desde que o saldo/capacidade permitam. O mundo não altera catálogo quando Alfa compra; Beta continua vendo os itens.
+
+**Testes atualizados:** `economy.test.ts`, `economyInteractions.test.ts`, `economySocket.test.ts`: novo comportamento com `stock` legado imutável, compra acima do antigo limite, recusa por saldo/overflow e loja com catálogo sem `stock` no pacote. `clientC5NpcLootUiContracts.test.ts` verifica labels de banco, ausência de limite de stock no Node/Unity e autoridade de economia. CI Linux/Windows/PG necessária; Play Mode confirma rótulos e compra de 6+ unidades da mesma entrada desde que saldo baste.
+
+**Aceite C5:** aprovado pelo usuário o conjunto de 15 cenários da entrega anterior, segundo relato de que tudo funcionou; **homologação final dos dois refinamentos ainda pendente após atualizar a dev**. Encerrar C5 como concluída quando rótulos e catálogo permanente forem validados em Unity Editor/build, sem regressão na economia. C6 pode começar em paralelo pela auditoria de inventário/equipamentos/HUD, mas sem marcar C5 como testada nesses últimos dois itens.

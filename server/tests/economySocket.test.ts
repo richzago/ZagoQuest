@@ -157,7 +157,7 @@ test("WebSocket: abrir loja é necessário antes de comprar do NPC", async () =>
     assert.equal(bought.success, true);
     assert.equal(f.player.gold, 80);
     assert.equal(f.player.inventory.get(potion), 2);
-    assert.equal(f.merchant.shopItems![0].stock, 8);
+    assert.equal(f.merchant.shopItems![0].stock, 10);
   } finally {
     await f.close();
   }
@@ -266,7 +266,7 @@ test("WebSocket: closeShop impede compra, mas closeBank antigo não cancela loja
     }, "buyResult");
     assert.equal(denied.success, false);
     assert.equal(f.player.gold, 90);
-    assert.equal(f.merchant.shopItems![0].stock, 9);
+    assert.equal(f.merchant.shopItems![0].stock, 10);
   } finally {
     await f.close();
   }

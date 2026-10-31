@@ -6,10 +6,30 @@
   "message": "Welcome! I sell useful items.",
   "type": "merchant",
   "shopItems": [
-    { "itemId": "consumable/health_potion", "buyPrice": 10, "sellPrice": 5, "stock": 10 },
-    { "itemId": "consumable/mana_potion", "buyPrice": 10, "sellPrice": 5, "stock": 10 },
-    { "itemId": "fishing/rods/basic_rod", "buyPrice": 20, "sellPrice": 10, "stock": 5 },
-    { "itemId": "fishing/baits/worm", "buyPrice": 2, "sellPrice": 1, "stock": 20 },
-    { "itemId": "bone_sword", "buyPrice": 50, "sellPrice": 25 }
+    {
+      "itemId": "consumable/health_potion",
+      "buyPrice": 10,
+      "sellPrice": 5
+    },
+    {
+      "itemId": "consumable/mana_potion",
+      "buyPrice": 10,
+      "sellPrice": 5
+    },
+    {
+      "itemId": "fishing/rods/basic_rod",
+      "buyPrice": 20,
+      "sellPrice": 10
+    },
+    {
+      "itemId": "fishing/baits/worm",
+      "buyPrice": 2,
+      "sellPrice": 1
+    },
+    {
+      "itemId": "bone_sword",
+      "buyPrice": 50,
+      "sellPrice": 25
+    }
   ]
 }

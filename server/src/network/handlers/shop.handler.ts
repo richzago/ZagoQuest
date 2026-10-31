@@ -47,14 +47,13 @@ export async function handleOpenShop(
     itemId: item.itemId,
     name: itemDisplayName(item.itemId),
     price: item.buyPrice, // O preço vem do NPC do servidor, não do cliente.
-    stock: item.stock ?? -1,
   }));
 
   ctx.packetSender.shop.sendShopWindow(npc.id, items);
   Logger.system(`Loja aberta para ${player.name} (NPC: ${npc.name}).`);
 }
 
-/** A compra verifica novamente a sessão, o NPC, a distância e o estoque. */
+/** A compra verifica novamente sessão, NPC, distância, saldo e capacidade. */
 export async function handleBuyItem(
   _ws: WebSocket,
   player: Player,
@@ -74,7 +73,7 @@ export async function handleBuyItem(
   const success = ShopSystem.buyItem(player, npc, msg.itemId, msg.amount);
   if (!success) {
     ctx.packetSender.shop.sendBuyResult(
-      false, "Não foi possível comprar. Verifique gold, quantidade ou estoque.",
+      false, "Não foi possível comprar. Verifique gold, quantidade ou capacidade.",
     );
     return;
   }

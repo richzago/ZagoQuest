@@ -76,3 +76,30 @@ test("C5: loja e banco usam mesma identidade visual sem alterar autoridade econo
   assert.match(auth,/export const NPC_INTERACTION_RANGE = 2/);
   assert.match(auth,/!this\.canInteract\(player, world, active\.npc, service\)/);
 });
+
+
+test("C5: Banker identifica o saldo depositado e a carteira sem calcular gold no Unity", () => {
+  const ui = unity("UI/BankUI.cs");
+  assert.match(ui, /bankGoldText\.text = \$"Saldo no banco: \{bankGold:N0\} gold"/);
+  assert.match(ui, /inventoryGoldText\.text = \$"Ouro em mãos: \{inventoryGold:N0\} gold"/);
+  assert.match(ui, /if \(!success\) return;\s*UpdateBalances\(bankGold, inventoryGold\)/);
+  assert.doesNotMatch(ui.slice(ui.indexOf("private void Deposit()"),ui.indexOf("private void ShowLocalError")),/UpdateBalances\(/);
+});
+
+test("C5: Merchant de catálogo permanente oculta estoque e só Node autoriza compras", () => {
+  const row=unity("NPC/ShopItemSlot.cs");
+  const shop=server("game/systems/shopSystem.ts");
+  const handler=server("network/handlers/shop.handler.ts");
+  const config=JSON.parse(readFileSync(join(process.cwd(),"src/data/npc/merchant.json"),"utf8"));
+  assert.match(row,/stockText\.gameObject\.SetActive\(false\)/);
+  assert.doesNotMatch(row,/item\.stock/);
+  assert.doesNotMatch(shop,/item\.stock/);
+  assert.doesNotMatch(handler,/\bstock:\s*item\.stock/);
+  assert.doesNotMatch(handler,/ou estoque/);
+  assert.ok(config.shopItems.every((x: Record<string,unknown>)=>!("stock" in x)));
+  assert.match(shop,/player\.canAddItem\(itemId, quantity\)/);
+  assert.match(shop,/isValidQuantity\(quantity\)/);
+  assert.match(shop,/Number\.isSafeInteger\(cost\)/);
+  assert.match(shop,/player\.bankGold/);
+  assert.match(row,/network\.Shop\.SendBuyItem\(npcId, item\.itemId, quantity\)/);
+});
