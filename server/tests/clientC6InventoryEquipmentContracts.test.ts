@@ -57,3 +57,24 @@ test("C6: servidor permanece autoritativo para equipar, desequipar e drop",()=>{
  assert.match(src,/handleUnequipItem/);
  assert.match(src,/handleDropItem/);
 });
+
+
+test("C6 visual: grade rolável e drop no inventário mesmo vazio",()=>{
+ const layout=unity("UI/C6InventoryEquipmentLayout.cs");
+ const inv=unity("UI/InventoryUI.cs");
+ const slot=unity("Player/InventorySlot.cs");
+ const eq=unity("UI/EquipmentSlotUI.cs");
+ assert.match(layout,/GridLayoutGroup\.Constraint\.FixedColumnCount/);
+ assert.match(layout,/grid\.constraintCount = 3/);
+ assert.match(layout,/RectMask2D/);
+ assert.match(layout,/ScrollRect/);
+ assert.match(layout,/class C6InventoryDropTarget/);
+ assert.match(layout,/drag\.DropOnInventorySlot\(\)/);
+ assert.match(layout,/EquipmentSlot\.HELMET/);
+ assert.match(inv,/C6InventoryEquipmentLayout\.Inventory/);
+ assert.match(inv,/public void CloseInventory\(\)/);
+ assert.match(slot,/amount > 1 \? \$"x\{amount:N0\}"/);
+ assert.match(slot,/clickImage\.raycastTarget = false/);
+ assert.match(eq,/slotText\.text = slotType\.ToString\(\)/);
+ assert.doesNotMatch(eq,/new Texture2D\(/);
+});
