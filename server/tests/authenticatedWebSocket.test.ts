@@ -14,6 +14,7 @@ import { closeHttp, listenHttp } from "../src/game/core/httpLifecycle";
 
 const A = "550e8400-e29b-41d4-a716-446655440001";
 const B = "550e8400-e29b-41d4-a716-446655440002";
+const C = "550e8400-e29b-41d4-a716-446655440003"; // outro personagem da conta de A
 type Packet = { type: string; [key: string]: unknown };
 function eventually(predicate: () => boolean, delay = 1200): Promise<void> {
   const started = Date.now();
@@ -33,14 +34,17 @@ async function fixture(options: WebSocketSessionOptions = {}) {
   const players = new Map([
     [A, new Player(A, "Alice", 2, 2)],
     [B, new Player(B, "Bruno", 4, 4)],
+    [C, new Player(C, "Clara", 6, 6)],
   ]);
   const saved: Array<{ id: string; x: number; y: number }> = [];
   const game = new GameWs(server, world, {
     authRequired: true,
     authorize: async (token, characterId): Promise<AuthorizedCharacter | null> => {
-      const owned = token === "token-a" ? A : token === "token-b" ? B : undefined;
-      if (!owned || owned !== characterId) return null;
-      return { accountId: "account-" + owned, characterId, characterName: players.get(owned)!.name };
+      const accountA = token === "token-a" && (characterId === A || characterId === C);
+      const accountB = token === "token-b" && characterId === B;
+      if (!accountA && !accountB) return null;
+      return { accountId: accountA ? "account-" + A : "account-" + B,
+        characterId, characterName: players.get(characterId)!.name };
     },
     loadPlayer: async (identity) => players.get(identity.characterId) ?? null,
     savePlayer: async (player) => { saved.push({ id: player.id, x: player.position.x, y: player.position.y }); },
@@ -305,6 +309,110 @@ test("a reconexão aguarda persistência final e evita sobrescrever estado de jo
     assert.equal(f.world.players.filter(p => p.id === A).length, 1);
   } finally {
     if (releaseSave) releaseSave();
+    await f.close();
+  }
+});
+
+
+test("uma conta não pode manter dois personagens diferentes conectados", async () => {
+  const f = await fixture();
+  try {
+    const alice = await f.connect();
+    f.auth(alice, "token-a", A);
+    await f.waitPacket(alice, "authenticated");
+
+    const clara = await f.connect();
+    const closed = once(clara, "close");
+    f.auth(clara, "token-a", C);
+    const rejected = await f.waitPacket(clara, "authRejected");
+    assert.deepEqual(rejected, { type: "authRejected", reason: "accountAlreadyOnline" });
+    assert.equal((await closed)[0], 1008);
+    assert.equal(f.packets.get(clara)!.some(p => p.type === "authenticated"), false);
+    assert.equal(f.game.getBroadcastService().getClients().size, 1);
+    assert.equal(f.world.players.some(p => p.id === C), false);
+    // Outra conta nunca é bloqueada por uma sessão diferente.
+    const bruno = await f.connect();
+    f.auth(bruno, "token-b", B);
+    await f.waitPacket(bruno, "authenticated");
+    assert.equal(f.game.getBroadcastService().getClients().size, 2);
+  } finally { await f.close(); }
+});
+
+test("duas autenticações concorrentes com personagens da mesma conta têm apenas um vencedor", async () => {
+  const f = await fixture();
+  try {
+    const first = await f.connect(), second = await f.connect();
+    f.auth(first, "token-a", A);
+    f.auth(second, "token-a", C);
+    await eventually(() => [first, second].some(ws =>
+      f.packets.get(ws)!.some(p => p.type === "authRejected")));
+    await eventually(() => [first, second].some(ws =>
+      f.packets.get(ws)!.some(p => p.type === "authenticated")));
+    const rejectSocket = f.packets.get(first)!.some(p => p.type === "authRejected") ? first : second;
+    const acceptSocket = rejectSocket === first ? second : first;
+    assert.deepEqual(f.packets.get(rejectSocket)!.find(p => p.type === "authRejected"),
+      { type: "authRejected", reason: "accountAlreadyOnline" });
+    await eventually(() => rejectSocket.readyState === WebSocket.CLOSED);
+    assert.equal(f.packets.get(rejectSocket)!.some(p => p.type === "authenticated"), false);
+    assert.equal(f.packets.get(acceptSocket)!.filter(p => p.type === "authenticated").length, 1);
+    assert.equal(f.game.getBroadcastService().getClients().size, 1);
+    assert.equal(f.world.players.filter(p => p.id === A || p.id === C).length, 1);
+  } finally { await f.close(); }
+});
+
+test("a mesma conta pode trocar de personagem após encerrar e salvar a sessão", async () => {
+  const f = await fixture();
+  try {
+    const alice = await f.connect();
+    f.auth(alice, "token-a", A);
+    await f.waitPacket(alice, "authenticated");
+    const close = once(alice, "close");
+    alice.close();
+    await close;
+    await eventually(() => f.saved.some(s => s.id === A));
+
+    const clara = await f.connect();
+    f.auth(clara, "token-a", C);
+    await f.waitPacket(clara, "authenticated");
+    assert.equal(f.game.getBroadcastService().getClients().size, 1);
+  } finally { await f.close(); }
+});
+
+test("não liberar conta para outro personagem antes do salvamento final terminar", async () => {
+  let releaseSave: (() => void) | undefined;
+  const pending = new Promise<void>(resolve => { releaseSave = resolve; });
+  let saveStarted = false;
+  const f = await fixture({
+    savePlayer: async () => {
+      saveStarted = true;
+      await pending;
+    },
+  });
+  try {
+    const alice = await f.connect();
+    f.auth(alice, "token-a", A);
+    await f.waitPacket(alice, "authenticated");
+    const oldClosed = once(alice, "close");
+    alice.close();
+    await oldClosed;
+    await eventually(() => saveStarted);
+
+    const beforeSave = await f.connect();
+    const refusedClose = once(beforeSave, "close");
+    f.auth(beforeSave, "token-a", C);
+    assert.deepEqual(await f.waitPacket(beforeSave, "authRejected"),
+      { type: "authRejected", reason: "accountAlreadyOnline" });
+    assert.equal((await refusedClose)[0], 1008);
+
+    releaseSave!();
+    // Wait for release of the account slot, not just resolution of the fixture promise.
+    await eventually(() => f.game.getBroadcastService().getClients().size === 0);
+    const afterSave = await f.connect();
+    f.auth(afterSave, "token-a", C);
+    await f.waitPacket(afterSave, "authenticated");
+    assert.equal(f.game.getBroadcastService().getClients().size, 1);
+  } finally {
+    releaseSave?.();
     await f.close();
   }
 });
