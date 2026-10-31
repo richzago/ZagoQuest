@@ -3,7 +3,7 @@
  *
  * Gerencia a morte de entidades (jogadores e monstros).
  *
- * - Jogador: perde 10% do XP (penalidade), emite evento, respawn na posição (0,0) com HP cheio.
+ * - Jogador: perde XP e renasce no ponto definido pelo Tiled, validado pelo servidor.
  * - Monstro: concede XP ao killer, gera loot, cria um corpo (Corpse) no lugar, emite eventos de morte,
  *   agenda respawn automático e notifica os clientes.
  *
@@ -83,13 +83,13 @@ export class DeathSystem {
     Logger.combat(`💀 ${victim.name} morreu.`);
 
     if (victim instanceof Player) {
-      this.handlePlayerDeath(victim, killer);
+      this.handlePlayerDeath(victim, killer, world);
     } else if (victim instanceof Monster) {
       this.handleMonsterDeath(victim, killer, world);
     }
   }
 
-  private static handlePlayerDeath(player: Player, killer?: Damageable): void {
+  private static handlePlayerDeath(player: Player, killer: Damageable | undefined, world: World): void {
     // Evita reduzir o nível nesta fase; o histórico de XP não é alterado.
     const xpLoss = ExperienceSystem.applyDeathPenalty(player);
     Logger.skill(`${player.name} perdeu ${xpLoss} XP. XP acumulado: ${player.xp}`);
@@ -102,10 +102,30 @@ export class DeathSystem {
       killerName: killer?.name,
     });
 
-    player.position = { x: 0, y: 0 };
+    // Autoridade: destino vem do Tiled (snapshot em World), nunca do cliente.
+    // Caso o tile esteja ocupado, buscamos o mais próximo caminhável.
+    const requested = world.playerRespawn ?? { x: 0, y: 0 };
+    let destination: { x: number; y: number } | undefined;
+    for (let radius = 0; radius <= Math.max(world.width, world.height) && !destination; radius++) {
+      for (let dy = -radius; dy <= radius && !destination; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (Math.abs(dx) + Math.abs(dy) !== radius) continue;
+          const x = requested.x + dx, y = requested.y + dy;
+          if (world.isPositionWalkable(x, y, player.id)) {
+            destination = { x, y };
+            break;
+          }
+        }
+      }
+    }
+    if (!destination) {
+      Logger.error(`[Respawn] Nenhum tile caminhável disponível para ${player.name}; posição anterior mantida.`);
+    } else {
+      player.position = destination;
+    }
     player.hp = player.maxHp;
     player.currentTargetId = undefined;
-    Logger.system(`${player.name} renasceu em (0,0) com HP total.`);
+    Logger.system(`${player.name} renasceu em (${player.position.x},${player.position.y}) com HP total.`);
 
     // Stats alone update HUD; the client also needs its authoritative position.
     const wsServer = WebSocketServer.getInstance();
