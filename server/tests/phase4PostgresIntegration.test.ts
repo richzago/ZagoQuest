@@ -208,3 +208,94 @@ test("PostgreSQL real: sessão WebSocket JWT de duas contas, rejeição cruzada 
     else process.env.JWT_SECRET = originalSecret;
   }
 });
+
+
+test("Fase 7 PostgreSQL + HTTP REST: login, JWT, propriedade de Character e negativas", async () => {
+  const bcrypt = (await import("bcrypt")).default;
+  const { startApi } = await import("../src/api/server");
+  const secret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = "phase7-ci-rest-jwt-secret-not-for-production";
+  const accounts = AppDataSource.getRepository(Account);
+  const password = "phase7-ci-password";
+  const passwordHash = await bcrypt.hash(password, 10);
+  const a = await accounts.save(accounts.create({
+    email: "ci-rest-a@example.test", cellphone: "00000000101", fullName: "CI REST Account A",
+    cpf: "00000000101", birthDate: "1990-01-01", passwordHash, address: "Disposable CI",
+  }));
+  const b = await accounts.save(accounts.create({
+    email: "ci-rest-b@example.test", cellphone: "00000000102", fullName: "CI REST Account B",
+    cpf: "00000000102", birthDate: "1990-01-01", passwordHash, address: "Disposable CI",
+  }));
+
+  let http: Awaited<ReturnType<typeof startApi>> | undefined;
+  try {
+    http = await startApi();
+    await listenHttp(http, 0);
+    const url = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+    const post = (route: string, body: unknown, token?: string) => fetch(url + route, {
+      method: "POST",
+      headers: { "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    });
+
+    const loginA = await post("/api/sessions", { email: a.email, password });
+    assert.equal(loginA.status, 200);
+    const sessionA = await loginA.json() as { token: string; accountId: string };
+    assert.equal(sessionA.accountId, a.id);
+    assert.equal((jwt.verify(sessionA.token, process.env.JWT_SECRET!, { algorithms: ["HS256"] }) as jwt.JwtPayload).id, a.id);
+
+    const loginB = await post("/api/sessions", { email: b.email, password });
+    assert.equal(loginB.status, 200);
+    const sessionB = await loginB.json() as { token: string; accountId: string };
+
+    const wrong = await post("/api/sessions", { email: a.email, password: "incorrect" });
+    const unknown = await post("/api/sessions", { email: "missing-rest@example.test", password });
+    assert.equal(wrong.status, 401);
+    assert.equal(unknown.status, 401);
+    assert.deepEqual(await wrong.json(), await unknown.json(), "Login must not disclose account existence");
+    assert.equal((await post("/api/sessions", { email: a.email, password: 10 })).status, 400);
+
+    const own = await post("/api/characters", { name: "Resthero", gender: "M", world: "main" }, sessionA.token);
+    assert.equal(own.status, 201);
+    const character = await own.json() as { id: string; name: string };
+    assert.equal(character.name, "Resthero");
+
+    const forged = await post("/api/characters", {
+      accountId: a.id, name: "Stolenhero", gender: "F",
+    }, sessionB.token);
+    assert.equal(forged.status, 403);
+    const missingAuth = await post("/api/characters", { name: "Anonymous", gender: "M" });
+    assert.equal(missingAuth.status, 401);
+
+    const listed = await fetch(url + "/api/characters/account/" + a.id, {
+      headers: { authorization: `Bearer ${sessionA.token}` },
+    });
+    assert.equal(listed.status, 200);
+    const characters = await listed.json() as Array<{ id: string }>;
+    assert.equal(characters.some(entry => entry.id === character.id), true);
+
+    const foreign = await fetch(url + "/api/characters/account/" + a.id, {
+      headers: { authorization: `Bearer ${sessionB.token}` },
+    });
+    assert.equal(foreign.status, 403);
+
+    const expired = jwt.sign({ id: a.id }, process.env.JWT_SECRET!, {
+      algorithm: "HS256", expiresIn: -1,
+    });
+    const expiredResponse = await fetch(url + "/api/characters/account/" + a.id, {
+      headers: { authorization: `Bearer ${expired}` },
+    });
+    assert.equal(expiredResponse.status, 401);
+
+    const differentAlg = jwt.sign({ id: a.id }, process.env.JWT_SECRET!, { algorithm: "HS384" });
+    const differentAlgResponse = await fetch(url + "/api/characters/account/" + a.id, {
+      headers: { authorization: `Bearer ${differentAlg}` },
+    });
+    assert.equal(differentAlgResponse.status, 401);
+  } finally {
+    if (http) await closeHttp(http);
+    if (secret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = secret;
+  }
+});
