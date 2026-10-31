@@ -11,11 +11,17 @@ export interface ServerChatMessage {
 export interface ServerShopWindowMessage {
   type: "shopWindow";
   npcId: string;
-  items: Array<{ itemId: string; name: string; price: number; stock: number }>;
+  items: Array<{ itemId: string; name: string; price: number; sellPrice: number }>;
 }
 
 export interface ServerBuyResultMessage {
   type: "buyResult";
+  success: boolean;
+  message: string;
+}
+
+export interface ServerSellResultMessage {
+  type: "sellResult";
   success: boolean;
   message: string;
 }
