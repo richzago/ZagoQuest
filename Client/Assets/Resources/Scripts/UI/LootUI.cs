@@ -1,9 +1,13 @@
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using System.Collections.Generic;
 using ZagoQuest.Networking.Messages;
 
+/// <summary>
+/// Loot do cadáver. Cada item é clicável e a remoção é confirmada pelo Node
+/// (lootTaken), nunca presumida no cliente. A lista usa layout/scroll dinâmico.
+/// </summary>
 public class LootUI : MonoBehaviour
 {
     public static LootUI Instance { get; private set; }
@@ -11,107 +15,162 @@ public class LootUI : MonoBehaviour
     [Header("References")]
     public GameObject lootPanel;
     public Transform itemsContainer;
-    public GameObject lootItemPrefab;  // ← prefab com Image + TextMeshProUGUI (sem button)
+    public GameObject lootItemPrefab;
     public Button closeButton;
     public Button takeAllButton;
 
-    private NetworkManager networkManager;
     private string currentCorpseId;
-    private List<GameObject> itemSlots = new List<GameObject>();
+    private readonly List<LootItem> visibleItems = new List<LootItem>();
+    private readonly List<GameObject> itemSlots = new List<GameObject>();
+    private bool awaitingServer;
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
+        if (Instance != null && Instance != this)
+        {
             Destroy(gameObject);
+            return;
+        }
+        Instance = this;
     }
 
     private void Start()
     {
-        networkManager = NetworkManager.Instance;
-        if (networkManager == null)
+        // LootPanel da cena é um root transparente fora do centro da tela.
+        // Não deve bloquear cliques do mundo quando PanelVisual está oculto.
+        var rootRaycaster = GetComponent<Image>();
+        if (rootRaycaster != null) rootRaycaster.raycastTarget = false;
+        var root = transform as RectTransform;
+        if (root != null)
         {
-            Debug.LogError("LootUI: NetworkManager não encontrado!");
-            return;
+            root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
+            root.pivot = new Vector2(0.5f, 0.5f);
+            root.anchoredPosition = new Vector2(185f, 0f);
+            root.sizeDelta = new Vector2(520f, 390f);
         }
-
-        if (closeButton != null)
-            closeButton.onClick.AddListener(CloseLootWindow);
-        if (takeAllButton != null)
-            takeAllButton.onClick.AddListener(TakeAllLoot);
-        if (lootPanel != null)
-            lootPanel.SetActive(false);
+        WorldWindowLayout.PrepareList(itemsContainer);
+        var background = lootPanel != null ? lootPanel.GetComponent<Image>() : null;
+        if (background != null) background.color = WorldWindowLayout.Background;
+        WorldWindowLayout.StyleButton(closeButton);
+        WorldWindowLayout.StyleButton(takeAllButton);
+        if (closeButton != null) closeButton.onClick.AddListener(CloseLootWindow);
+        if (takeAllButton != null) takeAllButton.onClick.AddListener(TakeAllLoot);
+        if (lootPanel != null) lootPanel.SetActive(false);
     }
 
     public void ShowLootWindow(string corpseId, LootItem[] items)
     {
-        Debug.Log($"[LootUI] ShowLootWindow: corpseId={corpseId}, items={items?.Length}");
-        if (items == null || items.Length == 0)
+        if (string.IsNullOrEmpty(corpseId)) return;
+        currentCorpseId = corpseId;
+        awaitingServer = false;
+        visibleItems.Clear();
+        if (items != null) visibleItems.AddRange(items);
+        RebuildRows();
+        if (lootPanel != null) lootPanel.SetActive(true);
+    }
+
+    private void RebuildRows()
+    {
+        foreach (var slot in itemSlots)
+            if (slot != null) Destroy(slot);
+        itemSlots.Clear();
+
+        if (itemsContainer == null || lootItemPrefab == null)
         {
-            Debug.LogWarning("[LootUI] Nenhum item recebido.");
+            Debug.LogError("[LootUI] ItemsContainer ou LootItemPrefab não configurado no Inspector.");
             return;
         }
 
-        currentCorpseId = corpseId;
-
-        foreach (var slot in itemSlots)
-            Destroy(slot);
-        itemSlots.Clear();
-
-        for (int i = 0; i < items.Length; i++)
+        for (int i = 0; i < visibleItems.Count; i++)
         {
-            var item = items[i];
-            GameObject slot = Instantiate(lootItemPrefab, itemsContainer);
-
-            // 🔥 Busca o componente LootItemSlot
-            LootItemSlot slotScript = slot.GetComponent<LootItemSlot>();
-            if (slotScript != null)
-            {
-                slotScript.Setup(item, i, OnItemClicked); // ← passa callback
-                Debug.Log($"[LootUI] Slot {i} configurado: {item.itemName} x{item.amount}");
-            }
+            GameObject slot = Instantiate(lootItemPrefab, itemsContainer, false);
+            WorldWindowLayout.PrepareRow(slot, 56f, i % 2 == 1);
+            var row = slot.GetComponent<LootItemSlot>();
+            if (row != null)
+                row.Setup(visibleItems[i], i, OnItemClicked);
             else
-            {
-                Debug.LogError("[LootUI] LootItemSlot não encontrado no prefab!");
-            }
+                Debug.LogError("[LootUI] Prefab sem LootItemSlot.");
             itemSlots.Add(slot);
         }
 
-        lootPanel.SetActive(true);
+        var scroll = itemsContainer.GetComponentInParent<ScrollRect>();
+        if (scroll != null) scroll.verticalNormalizedPosition = 1f;
+        if (takeAllButton != null) takeAllButton.interactable = visibleItems.Count > 0 && !awaitingServer;
+        Canvas.ForceUpdateCanvases();
     }
 
-    public void CloseLootWindow()
+    private bool ReadyToTake()
     {
-        if (lootPanel != null)
-            lootPanel.SetActive(false);
+        var net = NetworkManager.Instance;
+        return !awaitingServer && !string.IsNullOrEmpty(currentCorpseId)
+            && net != null && net.isConnected && net.Inventory != null;
     }
 
     private void TakeAllLoot()
     {
-        if (!string.IsNullOrEmpty(currentCorpseId))
-            networkManager.Inventory.SendTakeLoot(currentCorpseId, true);
+        if (!ReadyToTake() || visibleItems.Count == 0) return;
+        awaitingServer = true;
+        if (takeAllButton != null) takeAllButton.interactable = false;
+        NetworkManager.Instance.Inventory.SendTakeLoot(currentCorpseId, true);
     }
-
-    // =========================
-    // CALLBACK DO CLIQUE NO ITEM (duplo clique)
-    // =========================
 
     private void OnItemClicked(int index)
     {
-        if (!string.IsNullOrEmpty(currentCorpseId))
-        {
-            Debug.Log($"[LootUI] Pegando item {index} do corpse {currentCorpseId}");
-            networkManager.Inventory.SendTakeLoot(currentCorpseId, false, index);
+        if (!ReadyToTake() || index < 0 || index >= visibleItems.Count) return;
+        awaitingServer = true;
+        if (takeAllButton != null) takeAllButton.interactable = false;
+        NetworkManager.Instance.Inventory.SendTakeLoot(currentCorpseId, false, index);
+    }
 
+    /// <summary>
+    /// O Node envia lootTaken com itemIndex para item individual ou sem
+    /// itemIndex para takeAll. Não fechar a janela após pegar um item:
+    /// o próximo índice muda quando um elemento é removido.
+    /// </summary>
+    public void OnLootTaken(string corpseId, int? itemIndex)
+    {
+        if (corpseId != currentCorpseId) return; // ACK tardio de outro cadáver
+        awaitingServer = false;
+        if (!itemIndex.HasValue)
+        {
+            CloseLootWindow();
+            return;
         }
+        if (itemIndex.Value < 0 || itemIndex.Value >= visibleItems.Count)
+        {
+            // Índice fora do snapshot: pedir o estado autoritativo atualizado.
+            NetworkManager.Instance?.Inventory?.SendLoot(corpseId);
+            return;
+        }
+        visibleItems.RemoveAt(itemIndex.Value);
+        if (visibleItems.Count == 0)
+        {
+            CloseLootWindow();
+            return;
+        }
+        RebuildRows();
+    }
+
+    public void OnLootError(string message)
+    {
+        awaitingServer = false;
+        if (takeAllButton != null) takeAllButton.interactable = visibleItems.Count > 0;
+        Debug.LogWarning("[LootUI] " + message);
+        ChatUI.Instance?.AddMessage("Loot: " + message);
+    }
+
+    public void CloseLootWindow()
+    {
+        currentCorpseId = null;
+        awaitingServer = false;
+        visibleItems.Clear();
+        if (lootPanel != null) lootPanel.SetActive(false);
     }
 
     private void OnDestroy()
     {
-        if (closeButton != null)
-            closeButton.onClick.RemoveListener(CloseLootWindow);
-        if (takeAllButton != null)
-            takeAllButton.onClick.RemoveListener(TakeAllLoot);
+        if (closeButton != null) closeButton.onClick.RemoveListener(CloseLootWindow);
+        if (takeAllButton != null) takeAllButton.onClick.RemoveListener(TakeAllLoot);
+        if (Instance == this) Instance = null;
     }
 }
