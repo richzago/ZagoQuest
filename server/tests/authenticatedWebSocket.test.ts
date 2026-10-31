@@ -104,9 +104,17 @@ test("duas contas distintas movem só o próprio avatar; veem spawn/move do outr
     f.auth(bruno, "token-b", B);
     await f.waitPacket(bruno, "authenticated");
     await eventually(() => f.packets.get(alice)!.some((p) => p.type === "spawn" && p.id === B));
+    assert.equal(f.packets.get(alice)!.find(p => p.type === "spawn" && p.id === B)?.entityType, "player");
     await eventually(() => f.packets.get(bruno)!.some((p) => p.type === "spawn" && p.id === A));
     const snapshot = f.packets.get(bruno)!.filter((p) => p.type === "spawn" && p.id === A);
     assert.equal(snapshot.length, 1);
+    assert.equal(snapshot[0].entityType, "player");
+    const aliceInit = f.packets.get(alice)!.find((p) => p.type === "init");
+    const brunoInit = f.packets.get(bruno)!.find((p) => p.type === "init");
+    assert.equal(aliceInit?.playerId, A);
+    assert.equal(aliceInit?.playerName, "Alice");
+    assert.equal(brunoInit?.playerId, B);
+    assert.equal(brunoInit?.playerName, "Bruno");
     assert.equal(f.world.players.length, 2);
     alice.send(JSON.stringify({ type: "moveDir", dir: "east" }));
     await eventually(() => f.players.get(A)!.position.x === 3);
