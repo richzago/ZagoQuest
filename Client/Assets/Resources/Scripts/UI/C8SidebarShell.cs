@@ -199,6 +199,69 @@ public sealed class C8SidebarShell : MonoBehaviour
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
     }
 
+    private void RefreshResponsiveLayout()
+    {
+        if (sidebarSurface == null || miniMapSection == null ||
+            equipmentSectionRect == null || settingsSectionRect == null ||
+            dynamicSection == null) return;
+        float height = sidebarSurface.rect.height;
+        if (Mathf.Abs(height - lastSidebarHeight) < 1f) return;
+        lastSidebarHeight = height;
+
+        // Em resolucoes menores ou escala F10 alta, reserva mais espaco
+        // para o host dinamico, sem ampliar cards sobre o mundo.
+        bool compact = height < 760f;
+        PlaceTop(miniMapSection, compact ? 58f : 62f,
+            compact ? 131f : 164f, 13f, 13f);
+        PlaceTop(equipmentSectionRect, compact ? 197f : 234f,
+            compact ? 285f : 290f, 13f, 13f);
+        PlaceTop(settingsSectionRect, compact ? 490f : 532f,
+            compact ? 54f : 58f, 13f, 13f);
+        float diameter = compact ? 79f : 112f;
+        if (miniMapCircleRect != null)
+        {
+            miniMapCircleRect.sizeDelta = new Vector2(diameter, diameter);
+            miniMapCircleRect.anchoredPosition = new Vector2(0f, compact ? -38f : -39f);
+        }
+        dynamicSection.offsetMin = new Vector2(12f, 0f);
+        // Nunca inverter a area dinamica: rolagem/resize funcional fica
+        // para outra etapa, mas a base sempre cabe na sidebar.
+        float dynamicTop = compact ? 552f : 599f;
+        dynamicSection.offsetMax = new Vector2(-12f,
+            -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
+        lastDynamicHeight = -1f;
+    }
+
+    private static Texture2D CreateCircularMiniMapTexture()
+    {
+        // Placeholder circular real, gerado localmente sem prefab nem asset
+        // de minimapa. Todos os pixels fora do circulo sao transparentes.
+        const int size = 128;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = "C8MiniMapCirclePlaceholder";
+        texture.filterMode = FilterMode.Bilinear;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        var pixels = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+        for (int x = 0; x < size; x++)
+        {
+            float dx = (x + 0.5f - size * 0.5f) / (size * 0.5f);
+            float dy = (y + 0.5f - size * 0.5f) / (size * 0.5f);
+            float radius = Mathf.Sqrt(dx * dx + dy * dy);
+            byte alpha = (byte)Mathf.RoundToInt(
+                255f * Mathf.Clamp01((1f - radius) * size * 0.35f));
+            Color32 color = radius > 0.925f
+                ? new Color32(175, 139, 80, alpha)
+                : radius > 0.86f
+                    ? new Color32(39, 55, 72, alpha)
+                    : new Color32(22, 37, 52, alpha);
+            pixels[y * size + x] = color;
+        }
+        texture.SetPixels32(pixels);
+        texture.Apply(false, false);
+        return texture;
+    }
+
     private void AdjustDynamicPlaceholder()
     {
         if (dynamicSection == null || dynamicHost == null) return;
@@ -350,23 +413,91 @@ public sealed class C8SidebarShell : MonoBehaviour
         return r;
     }
 
-    private static void AddIcon(RectTransform parent, string name, string label, int index)
+    private static void AddIcon(RectTransform parent, string name,
+        int index, int count)
+    {
+        // Pictogramas geométricos de UI, sem siglas e sem dependencias
+        // de glifos unicode ou sprites externos. Tudo decorativo.
+        var obj = new GameObject(name, typeof(RectTransform), typeof(Image));
+        obj.transform.SetParent(parent, false);
+        var rect = (RectTransform)obj.transform;
+        float gap = 0.008f;
+        rect.anchorMin = new Vector2(index / (float)count + gap, 0f);
+        rect.anchorMax = new Vector2((index + 1) / (float)count - gap, 1f);
+        rect.offsetMin = rect.offsetMax = Vector2.zero;
+        var image = obj.GetComponent<Image>();
+        image.color = Inset;
+        image.raycastTarget = false;
+
+        switch (index)
+        {
+            case 0: // engrenagem abstrata: núcleo e quatro dentes
+                Shape(obj.transform, "GearCore", 0, 0, 10, 10, Gold);
+                Shape(obj.transform, "GearTop", 0, 9, 4, 6, Muted);
+                Shape(obj.transform, "GearBottom", 0, -9, 4, 6, Muted);
+                Shape(obj.transform, "GearLeft", -9, 0, 6, 4, Muted);
+                Shape(obj.transform, "GearRight", 9, 0, 6, 4, Muted);
+                break;
+            case 1: // audio
+                Shape(obj.transform, "SoundBase", -7, -1, 6, 10, Muted);
+                Shape(obj.transform, "SoundOne", 2, 0, 3, 13, Gold);
+                Shape(obj.transform, "SoundTwo", 9, 0, 3, 20, Gold);
+                break;
+            case 2: // chat
+                Shape(obj.transform, "ChatTop", 0, 8, 20, 2, Gold);
+                Shape(obj.transform, "ChatBottom", -2, -8, 16, 2, Gold);
+                Shape(obj.transform, "ChatLeft", -10, 0, 2, 16, Gold);
+                Shape(obj.transform, "ChatRight", 10, 0, 2, 16, Gold);
+                Shape(obj.transform, "ChatTail", -8, -12, 4, 5, Gold);
+                break;
+            case 3: // mochila
+                Shape(obj.transform, "BagTop", 0, 11, 10, 3, Gold);
+                Shape(obj.transform, "BagLeft", -9, -1, 3, 20, Gold);
+                Shape(obj.transform, "BagRight", 9, -1, 3, 20, Gold);
+                Shape(obj.transform, "BagBottom", 0, -11, 18, 3, Gold);
+                break;
+            case 4: // mapa/rosa dos ventos
+                Shape(obj.transform, "CompassVertical", 0, 0, 3, 21, Gold);
+                Shape(obj.transform, "CompassHorizontal", 0, 0, 21, 3, Gold);
+                Shape(obj.transform, "CompassCenter", 0, 0, 7, 7, Muted);
+                break;
+            default: // ajuda: pontuacao reconhecivel, nao sigla
+                AddCenterText(obj.transform, "HelpSymbol", "?", 20f, Gold);
+                break;
+        }
+    }
+
+    private static void Shape(Transform parent, string name,
+        float x, float y, float width, float height, Color color)
     {
         var obj = new GameObject(name, typeof(RectTransform), typeof(Image));
         obj.transform.SetParent(parent, false);
         var rect = (RectTransform)obj.transform;
-        rect.anchorMin = new Vector2(index * 0.25f + 0.01f, 0f);
-        rect.anchorMax = new Vector2((index + 1) * 0.25f - 0.01f, 1f);
-        rect.offsetMin = rect.offsetMax = Vector2.zero;
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = new Vector2(x, y);
+        rect.sizeDelta = new Vector2(width, height);
         var image = obj.GetComponent<Image>();
-        image.color = Inset;
-        image.raycastTarget = false; // TODO: configurar callbacks somente em etapa futura
-        AddText(obj.transform, "IconLabel", label, 5f, 24f, 11f, Muted);
-        var text = obj.transform.Find("IconLabel").GetComponent<TextMeshProUGUI>();
-        text.alignment = TextAlignmentOptions.Center;
-        text.enableWordWrapping = false;
-        text.rectTransform.offsetMin = new Vector2(3f, text.rectTransform.offsetMin.y);
-        text.rectTransform.offsetMax = new Vector2(-3f, text.rectTransform.offsetMax.y);
+        image.color = color;
+        image.raycastTarget = false;
+    }
+
+    private static void AddCenterText(Transform parent, string name,
+        string value, float size, Color color)
+    {
+        var obj = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+        obj.transform.SetParent(parent, false);
+        var rect = (RectTransform)obj.transform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = rect.offsetMax = Vector2.zero;
+        var label = obj.GetComponent<TextMeshProUGUI>();
+        label.text = value;
+        label.fontSize = size;
+        label.enableAutoSizing = false;
+        label.color = color;
+        label.alignment = TextAlignmentOptions.Center;
+        label.raycastTarget = false;
     }
 
     private static void AddLine(Transform parent, string name, float top, Color color)
