@@ -50,3 +50,11 @@ export interface ServerBankErrorMessage {
   type: "bankError";
   message: string;
 }
+
+/** Estado de pesca informado pelo Node, duração em ms somente para visual. */
+export interface ServerFishingStatusMessage {
+  type: "fishingStatus";
+  state: "started" | "completed" | "cancelled" | "rejected";
+  message: string;
+  durationMs: number;
+}
