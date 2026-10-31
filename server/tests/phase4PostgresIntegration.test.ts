@@ -417,6 +417,17 @@ test("Fase 7 REST + PostgreSQL: Guild isolada por conta, cobrança, rollback SQL
       characterName: other.name, description: "Invadida",
     }, "PUT");
     assert.equal(foreignEdit.status, 403);
+    const badImage = await request("/api/guilds/Guardia/profile-image", tokenA, {
+      characterName: owner.name, imageUrl: "javascript:alert(1)",
+    }, "PUT");
+    assert.equal(badImage.status, 400);
+    const safeImage = await request("/api/guilds/Guardia/profile-image", tokenA, {
+      characterName: owner.name, imageUrl: "https://cdn.example.test/guild.png",
+    }, "PUT");
+    assert.equal(safeImage.status, 200);
+    assert.equal((await AppDataSource.getRepository(Guild).findOneByOrFail({ name: "Guardia" })).profileImage,
+      "https://cdn.example.test/guild.png");
+
     const legitimateEdit = await request("/api/guilds/Guardia/description", tokenA, {
       characterName: owner.name, description: "Nova descrição",
     }, "PUT");
