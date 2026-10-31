@@ -14,7 +14,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   try {
-    const payload = jwt.verify(match[1], process.env.JWT_SECRET!);
+    const payload = jwt.verify(match[1], process.env.JWT_SECRET!, { algorithms: ["HS256"] });
     // A valid signature is insufficient if the account identity is absent.
     if (typeof payload === "string" || typeof payload.id !== "string" || !payload.id.trim()) {
       throw new Error("Token sem identidade de conta");

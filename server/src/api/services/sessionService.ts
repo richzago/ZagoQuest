@@ -33,6 +33,7 @@ export class SessionService {
     // 2. Gera o token JWT com o id e email da conta
     const token = jwt.sign({ id: account.id, email: account.email }, process.env.JWT_SECRET!, {
       expiresIn: "24h",
+      algorithm: "HS256",
     });
 
     return { token, accountId: account.id };
