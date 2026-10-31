@@ -96,7 +96,7 @@ async function withSocket(
   const state = createWorld();
   const server: Server = createServer();
   const sockets: WebSocket[] = [];
-  const transport = new GameWebSocketServer(server, state.world);
+  const transport = new GameWebSocketServer(server, state.world, { authRequired: false });
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as AddressInfo).port;
 
