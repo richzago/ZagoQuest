@@ -75,6 +75,16 @@ public class CameraFollow : MonoBehaviour
 
         // Reconexão/respawn: evita perseguir por segundos uma posição antiga.
         Vector3 desired = target.position + offset;
+        // Enquadramento da área utilizável, sem mudar Camera.rect nem o mapa.
+        // A compensação é em unidades de mundo, independentemente da resolução/F10.
+        if (cameraComponent != null && cameraComponent.orthographic &&
+            Screen.height > 0 &&
+            C7DockLayout.TryGetWorldInsets(out float rightPixels, out float bottomPixels))
+        {
+            float unitsPerPixel = 2f * cameraComponent.orthographicSize / Screen.height;
+            desired.x += rightPixels * 0.5f * unitsPerPixel;
+            desired.y -= bottomPixels * 0.5f * unitsPerPixel;
+        }
         float delta = Vector3.Distance(new Vector3(transform.position.x,
             transform.position.y, 0), new Vector3(desired.x, desired.y, 0));
         if (!followedOnce || delta >= teleportSnapDistance)
@@ -114,6 +124,27 @@ public class CameraFollow : MonoBehaviour
                 ? (mapHeight - 1f) * 0.5f
                 : Mathf.Clamp(position.y, halfHeight - 0.5f,
                     mapHeight - 0.5f - halfHeight);
+        }
+        // O clamp tradicional do mapa pode, perto da margem direita/inferior,
+        // empurrar o avatar para debaixo do HUD. Esta segunda restrição trata
+        // a região segura como prioritária. Em bordas extremas pode sobrar fundo
+        // vazio (sem inventar tiles nem repetir sprites do mapa).
+        if (target != null && cameraComponent != null && cameraComponent.orthographic &&
+            Screen.width > 0 && Screen.height > 0 &&
+            C7DockLayout.TryGetWorldInsets(out float rightPx, out float bottomPx))
+        {
+            float unitsPerPixel = 2f * cameraComponent.orthographicSize / Screen.height;
+            float margin = Mathf.Min(16f, Mathf.Min(Screen.width, Screen.height) * 0.018f);
+            float halfScreenWidth = Screen.width * 0.5f;
+            float halfScreenHeight = Screen.height * 0.5f;
+            float maxTargetDx = (halfScreenWidth - rightPx - margin) * unitsPerPixel;
+            float minTargetDx = (-halfScreenWidth + margin) * unitsPerPixel;
+            float maxTargetDy = (halfScreenHeight - margin) * unitsPerPixel;
+            float minTargetDy = (bottomPx + margin - halfScreenHeight) * unitsPerPixel;
+            position.x = Mathf.Clamp(position.x,
+                target.position.x - maxTargetDx, target.position.x - minTargetDx);
+            position.y = Mathf.Clamp(position.y,
+                target.position.y - maxTargetDy, target.position.y - minTargetDy);
         }
         if (pixelSnap && pixelsPerUnit > 0f)
         {
