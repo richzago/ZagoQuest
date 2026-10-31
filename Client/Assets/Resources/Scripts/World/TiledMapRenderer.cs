@@ -185,7 +185,9 @@ public class TiledMapRenderer : MonoBehaviour
             for (int x = 0; x < mapData.width; x++)
             {
                 int idx = y * mapData.width + x;
-                blocked[x, y] = collision.data[idx] != 0;
+                // Mesma inversão Y do DrawLayer: linha 0 do Tiled é o topo,
+                // índice Y do Unity/World cresce para cima.
+                blocked[x, mapData.height - 1 - y] = collision.data[idx] != 0;
             }
         }
 
