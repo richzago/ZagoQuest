@@ -112,6 +112,7 @@ public sealed class C7FishingUI : MonoBehaviour
         stopButton.onClick.AddListener(CancelFishing);
         UpdateButtons();
         root.SetActive(false);
+        GetComponent<C7UiAccessibility>()?.ApplyCurrent();
     }
 
     private void Update()
