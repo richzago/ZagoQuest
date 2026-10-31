@@ -31,6 +31,10 @@ public sealed class C8SidebarShell : MonoBehaviour
     private float lastDynamicHeight = -1f;
     private EquipmentUI dockedEquipment;
     private Transform originalEquipmentParent;
+    private Vector2 previousAnchorMin, previousAnchorMax, previousPivot;
+    private Vector2 previousOffsetMin, previousOffsetMax;
+    private Vector3 previousLocalScale;
+    private bool previousDragVisible, previousCloseVisible;
     private float lastEquipmentWidth = -1f;
 
     // Contrato para futura etapa de loot/backpack: host existe mas NENHUM
@@ -191,6 +195,14 @@ public sealed class C8SidebarShell : MonoBehaviour
         var rect = panel.GetComponent<RectTransform>();
         if (rect == null) return;
         originalEquipmentParent = rect.parent;
+        previousAnchorMin = rect.anchorMin;
+        previousAnchorMax = rect.anchorMax;
+        previousPivot = rect.pivot;
+        previousOffsetMin = rect.offsetMin;
+        previousOffsetMax = rect.offsetMax;
+        previousLocalScale = rect.localScale;
+        previousDragVisible = panel.transform.Find("C6DragHeader")?.gameObject.activeSelf ?? false;
+        previousCloseVisible = panel.transform.Find("C6CloseButton")?.gameObject.activeSelf ?? false;
         rect.SetParent(equipmentHost, false); // MESMO GameObject/slots, nao clonagem
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;
@@ -384,7 +396,21 @@ public sealed class C8SidebarShell : MonoBehaviour
             originalEquipmentParent != null)
         {
             var panel = dockedEquipment.equipmentPanel;
-            panel.transform.SetParent(originalEquipmentParent, false);
+            var rt = panel.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.SetParent(originalEquipmentParent, false);
+                rt.anchorMin = previousAnchorMin;
+                rt.anchorMax = previousAnchorMax;
+                rt.pivot = previousPivot;
+                rt.offsetMin = previousOffsetMin;
+                rt.offsetMax = previousOffsetMax;
+                rt.localScale = previousLocalScale;
+            }
+            var drag = panel.transform.Find("C6DragHeader");
+            if (drag != null) drag.gameObject.SetActive(previousDragVisible);
+            var close = panel.transform.Find("C6CloseButton");
+            if (close != null) close.gameObject.SetActive(previousCloseVisible);
             dockedEquipment.SetSidebarDocked(false);
         }
         if (canvasRoot != null) Destroy(canvasRoot);
