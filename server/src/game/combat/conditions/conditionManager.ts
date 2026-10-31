@@ -39,7 +39,7 @@ import { ConditionRegistry } from "../../../data/items/conditions/conditionRegis
  */
 export class ConditionManager {
   private conditions: Map<string, Condition> = new Map(); // conditionId -> Condition
-  private lastUpdate = Date.now();
+  // Cada Condition controla seu próprio início: nenhum delta global aqui.
   private applyDamage?: (target: Creature, amount: number, source: Creature | undefined, conditionName: string) => number;
 
   constructor(private owner: Creature) {}
@@ -70,15 +70,21 @@ export class ConditionManager {
     const definition = ConditionRegistry.get(conditionId);
     const existing = this.conditions.get(conditionId);
     if (existing) {
-      // Reinicia a duração da condição existente
-      existing.remainingTime = duration ?? definition.defaultDuration;
-      existing.startTime = Date.now();
+      // Uma reaplicação também reinicia a fase do DoT; não herda um tick
+      // prestes a disparar do efeito anterior.
+      const refreshedDuration = duration ?? definition.defaultDuration;
+      if (!Number.isSafeInteger(refreshedDuration) || refreshedDuration <= 0) return;
+      existing.refresh(refreshedDuration);
       existing.source = source;
+      existing.startPeriodicEffects(this.owner, (effect, target) =>
+        this.onTick(existing, effect, target));
       Logger.combat(`${this.owner.name} já estava com ${definition.name}, duração renovada.`);
       return;
     }
 
-    const condition = new Condition(definition, duration);
+    const durationMs = duration ?? definition.defaultDuration;
+    if (!Number.isSafeInteger(durationMs) || durationMs <= 0) return;
+    const condition = new Condition(definition, durationMs);
     condition.source = source;
     this.conditions.set(conditionId, condition);
     condition.startPeriodicEffects(this.owner, (effect: ConditionEffect, target: Creature) => this.onTick(condition, effect, target));
@@ -147,14 +153,8 @@ export class ConditionManager {
    */
   update(): void {
     const now = Date.now();
-    const delta = now - this.lastUpdate;
-    this.lastUpdate = now;
-
     for (const [id, condition] of this.conditions) {
-      const expired = condition.update(delta);
-      if (expired) {
-        this.remove(id);
-      }
+      if (condition.update(now)) this.remove(id);
     }
   }
 
@@ -174,8 +174,14 @@ export class ConditionManager {
    */
   private onTick(condition: Condition, effect: ConditionEffect, target: Creature): void {
     if (effect.type === "damage_over_time") {
+      // Duração expirou entre game ticks: jamais aplicar dano "extra".
+      if (this.conditions.get(condition.definition.id) !== condition) return;
+      if (condition.isExpired) {
+        this.remove(condition.definition.id);
+        return;
+      }
       // Detached creatures cannot produce death/XP/loot in a consistent World.
-      if (!this.applyDamage || !this.conditions.has(condition.definition.id) || target.hp <= 0) return;
+      if (!this.applyDamage || target.hp <= 0) return;
       const damageType = effect.damageType;
       const damage = this.applyDamage(
         target, effect.amount ?? 0, condition.source, condition.definition.name,

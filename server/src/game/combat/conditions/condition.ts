@@ -34,8 +34,14 @@ export class Condition {
   /** Tempo restante em milissegundos */
   public remainingTime: number;
 
-  /** Timestamp de quando a condição foi aplicada (ms) */
+  /** Timestamp do último apply/refresh (fonte de verdade da duração). */
   public startTime: number;
+
+  /** Timestamp da última atualização de duração; NÃO é global do manager. */
+  public lastUpdatedAt: number;
+
+  /** Duração original da aplicação atual (renovada em reaplicações). */
+  public durationMs: number;
 
   /** Originator of the current effect; refreshed when reapplied. */
   public source?: Creature;
@@ -51,8 +57,10 @@ export class Condition {
    */
   constructor(definition: ConditionDefinition, duration?: number) {
     this.definition = definition;
-    this.remainingTime = duration ?? definition.defaultDuration;
+    this.durationMs = duration ?? definition.defaultDuration;
+    this.remainingTime = this.durationMs;
     this.startTime = Date.now();
+    this.lastUpdatedAt = this.startTime;
   }
 
   /**
@@ -61,7 +69,19 @@ export class Condition {
    * @returns `true` se o tempo restante for menor ou igual a zero.
    */
   get isExpired(): boolean {
-    return this.remainingTime <= 0;
+    // Intervals podem disparar entre dois ticks (loop = 1.5s). A hora real
+    // deve impedir DoT após a duração, sem aguardar ConditionManager.update().
+    return this.remainingTime <= 0 ||
+      Date.now() - this.startTime >= this.durationMs;
+  }
+
+  /** Reaplicar reinicia duração e fase dos ticks, sem criar timer duplicado. */
+  refresh(durationMs: number): void {
+    this.stopPeriodicEffects();
+    this.durationMs = durationMs;
+    this.remainingTime = durationMs;
+    this.startTime = Date.now();
+    this.lastUpdatedAt = this.startTime;
   }
 
   /**
@@ -77,8 +97,11 @@ export class Condition {
    * if (expired) manager.remove(conditionId);
    * ```
    */
-  update(deltaMs: number): boolean {
-    this.remainingTime -= deltaMs;
+  update(nowMs: number = Date.now()): boolean {
+    // A contagem é feita por condição, desde o apply/refresh. Isso evita
+    // descontar de uma condição NOVA tempo anterior ao próprio apply().
+    this.lastUpdatedAt = nowMs;
+    this.remainingTime = Math.max(0, this.durationMs - Math.max(0, nowMs - this.startTime));
     return this.isExpired;
   }
 
@@ -127,6 +150,9 @@ export class Condition {
    * Deve ser chamado quando a condição é removida ou expira.
    */
   stopPeriodicEffects(): void {
-    if (this.tickTimer) clearInterval(this.tickTimer);
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = undefined;
+    }
   }
 }
