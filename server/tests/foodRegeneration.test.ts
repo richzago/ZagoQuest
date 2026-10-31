@@ -9,7 +9,7 @@ import type { WebSocket } from "ws";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 import { Player } from "../src/game/entities/player";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
-import { handleUseItem } from "../src/network/handlers/inventory.handler";
+import { handleUseItem, handleEquipItem } from "../src/network/handlers/inventory.handler";
 import {
  FoodRegenerationSystem, FOOD_HP_PER_TICK, FOOD_MANA_PER_TICK,
  FOOD_TICK_MS, MAX_FOOD_SECONDS,
@@ -151,4 +151,30 @@ test("pocoes: canonical effect.healHp/healMana restaura no ato sem exceder máxi
  assert.equal(used.at(-1)?.success,false);
  assert.equal(p.inventory.get("consumable/mana_potion"),1);
  assert.equal(stats,2);
+});
+
+
+test("C6: useItem equipa espada, mas equipItem não consome nem equipa alimento",async()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();
+ p.addItem("bone_sword",1);
+ p.addItem("consumable/cheese",1);
+ const responses={used:[] as boolean[],errors:[] as string[],inventory:0,equipment:0,stats:0};
+ const ctx={packetSender:{inventory:{
+  sendItemUsed:(_id:string,success:boolean)=>responses.used.push(success),
+  sendError:(message:string)=>responses.errors.push(message),
+  sendInventory:()=>responses.inventory++,
+  sendEquipment:()=>responses.equipment++,
+  sendPlayerStats:()=>responses.stats++,
+ }}} as unknown as HandlerContext;
+ await handleUseItem(ws,p,{type:"useItem",itemId:"bone_sword"},ctx);
+ assert.deepEqual(responses.used,[true]);
+ assert.equal(p.equipment.has("weapon" as never),true);
+ assert.equal(p.inventory.has("bone_sword"),false);
+ assert.equal(responses.equipment,1);
+ await handleEquipItem(ws,p,{type:"equipItem",itemId:"consumable/cheese"},ctx);
+ assert.equal(p.inventory.get("consumable/cheese"),1);
+ assert.equal(responses.errors.length,1);
+ assert.equal(responses.inventory,1);
+ assert.equal(responses.equipment,1);
 });
