@@ -95,27 +95,51 @@ public class TiledMapRenderer : MonoBehaviour
 
     void RenderAllTileLayers()
     {
-        int order = 5;
+        if (groundTilemap == null || groundTilemap.transform.parent == null)
+        {
+            Debug.LogError("[Tiled] Ground precisa ser filho de um Grid para alinhar camadas visuais.");
+            return;
+        }
+
+        // MapManager carrega dados; as camadas visuais pertencem ao mesmo Grid do Ground.
+        var groundRenderer = groundTilemap.GetComponent<TilemapRenderer>();
+        int order = groundRenderer != null ? groundRenderer.sortingOrder + 1 : 5;
         foreach (var layer in mapData.layers)
         {
-            // A camada Collision é dado lógico: nunca é desenhada como gráfico.
-            // Ground já tem Tilemap próprio na cena.
+            // Collision é dado lógico; Ground já tem Tilemap próprio.
             if (layer.type != "tilelayer" || layer.name == "Collision" || layer.name == "Ground")
                 continue;
 
+            if (!HasValidTileData(layer)) continue;
+            // Decoration pode estar vazia: não criar Tilemap sem conteúdo.
+            if (!System.Array.Exists(layer.data, gid => gid != 0)) continue;
+
             GameObject layerObj = new GameObject($"Tilemap_{layer.name}");
-            layerObj.transform.SetParent(this.transform);
+            layerObj.transform.SetParent(groundTilemap.transform.parent, false);
+            layerObj.transform.localPosition = groundTilemap.transform.localPosition;
+            layerObj.transform.localRotation = groundTilemap.transform.localRotation;
+            layerObj.transform.localScale = groundTilemap.transform.localScale;
+
             Tilemap tilemap = layerObj.AddComponent<Tilemap>();
             TilemapRenderer renderer = layerObj.AddComponent<TilemapRenderer>();
+            if (groundRenderer != null)
+                renderer.sortingLayerID = groundRenderer.sortingLayerID;
             renderer.sortingOrder = order++;
-
             DrawLayer(layer, tilemap);
         }
     }
 
+    private bool HasValidTileData(TiledLayer layer)
+    {
+        int expected = mapData.width * mapData.height;
+        if (layer.data != null && layer.data.Length == expected) return true;
+        Debug.LogError($"[Tiled] Camada '{layer.name}' inválida: esperados {expected} GIDs; encontrados {layer.data?.Length ?? 0}.");
+        return false;
+    }
+
     void DrawLayer(TiledLayer layer, Tilemap targetTilemap)
     {
-        int tilesRendered = 0;
+        if (!HasValidTileData(layer)) return;
         var missingGids = new HashSet<int>();
         for (int y = 0; y < mapData.height; y++)
         {
@@ -129,7 +153,6 @@ public class TiledMapRenderer : MonoBehaviour
                 {
                     Vector3Int cell = new Vector3Int(x, mapData.height - 1 - y, 0);
                     targetTilemap.SetTile(cell, tile);
-                    tilesRendered++;
                 }
                 else
                 {
@@ -153,6 +176,8 @@ public class TiledMapRenderer : MonoBehaviour
             Debug.LogWarning("TiledMapRenderer: Camada 'Collision' não encontrada. Tudo caminhável.");
             return;
         }
+
+        if (!HasValidTileData(collision)) return;
 
         bool[,] blocked = new bool[mapData.width, mapData.height];
         for (int y = 0; y < mapData.height; y++)
