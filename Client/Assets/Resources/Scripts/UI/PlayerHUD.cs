@@ -33,10 +33,12 @@ public class PlayerHUD : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
+        if (Instance != null && Instance != this)
+        {
             Destroy(gameObject);
+            return;
+        }
+        Instance = this;
     }
 
     private void Start()
@@ -112,6 +114,8 @@ public class PlayerHUD : MonoBehaviour
 
     private void OnDestroy()
     {
-
+        // A UI pode ser recriada após reload de cena/Play Mode. Não deixar
+        // handlers de rede apontando para uma instância já destruída.
+        if (Instance == this) Instance = null;
     }
 }
