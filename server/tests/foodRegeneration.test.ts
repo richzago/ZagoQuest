@@ -15,6 +15,7 @@ import {
  FOOD_TICK_MS, MAX_FOOD_SECONDS,
 } from "../src/game/systems/foodRegenerationSystem";
 import { PlayerStatsSender } from "../src/network/senders/playerStatsSender";
+import { InventorySender } from "../src/network/senders/inventorySender";
 
 function player() { return new Player("food-test", "Comedor", 2, 2); }
 const ws = {} as WebSocket;
@@ -177,4 +178,25 @@ test("C6: useItem equipa espada, mas equipItem não consome nem equipa alimento"
  assert.equal(responses.errors.length,1);
  assert.equal(responses.inventory,1);
  assert.equal(responses.equipment,1);
+});
+
+
+test("C6 inventory snapshot informa tipo consumable/equipment e ignora item legado sem cadastro",()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();
+ p.addItem("consumable/cheese",2);
+ p.addItem("consumable/mana_potion",1);
+ p.addItem("bone_sword",1);
+ p.addItem("legacy_item_sem_definicao",1);
+ const packets: Array<{type:string;items:Array<{itemId:string;amount:number;itemType?:string}>}> = [];
+ const socket={readyState:1,send:(text:string)=>packets.push(JSON.parse(text))}
+  as unknown as WebSocket;
+ new InventorySender(socket).sendInventory(p);
+ assert.equal(packets.length,1);
+ assert.equal(packets[0].type,"inventory");
+ const byId=new Map(packets[0].items.map(x=>[x.itemId,x]));
+ assert.equal(byId.get("consumable/cheese")?.itemType,"consumable");
+ assert.equal(byId.get("consumable/mana_potion")?.itemType,"consumable");
+ assert.equal(byId.get("bone_sword")?.itemType,"equipment");
+ assert.equal(byId.get("legacy_item_sem_definicao")?.itemType,undefined);
 });
