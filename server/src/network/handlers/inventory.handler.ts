@@ -75,6 +75,7 @@ export async function handleUseItem(
         `Você comeu ${item.name}. Saciedade: ${FoodRegenerationSystem.currentSatiety(player)}/120. ` +
         `Regeneração restante: ${FoodRegenerationSystem.remainingSeconds(player)}s.`);
       ctx.packetSender.inventory.sendInventory(player);
+      ctx.packetSender.inventory.sendPlayerStats(player); // informa saciedade imediatamente
       // Nenhuma regeneração antecipada: os próximos ticks enviam stats reais.
       return;
     }
