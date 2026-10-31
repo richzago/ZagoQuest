@@ -1,12 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
 /// Gerencia a seleção de alvos (monstros) e o combate automático.
-/// Inclui: clique para selecionar/desmarcar, troca de alvo com Espaço,
+/// Inclui: clique para selecionar/desmarcar (toggle), troca com Espaço,
 /// auto follow, e exibição de uma borda visual ao redor do alvo selecionado.
 /// </summary>
 public class TargetSelector : MonoBehaviour
@@ -123,7 +124,8 @@ public class TargetSelector : MonoBehaviour
 
     private void OnMouseClick()
     {
-        if (ChatUI.IsChatActive || IsPointerOverUi()) return;
+        if (ChatUI.IsChatActive) return;
+        if (IsPointerOverUi()) return; // bloquear SOMENTE UI realmente interativa/visível
         // Cliques em alvos, cadáveres e itens não podem enviar pacotes
         // enquanto o socket ainda autentica ou após uma desconexão.
         var network = NetworkManager.Instance;
@@ -149,10 +151,16 @@ public class TargetSelector : MonoBehaviour
             if (monster != null)
             {
                 string clickedId = GetEntityIdFromGameObject(monster.gameObject);
-                // Segundo clique não pode cancelar o auto attack iniciado.
-                // Para cancelar, clicar no chão vazio ou mudar o alvo.
+                // Comportamento original estilo Tibia:
+                // primeiro clique seleciona/ataca; segundo clique no mesmo
+                // monstro cancela. Não remover esta alternância.
                 if (!string.IsNullOrEmpty(clickedId))
-                    SelectTarget(clickedId);
+                {
+                    if (currentTargetId == clickedId)
+                        ClearTarget();
+                    else
+                        SelectTarget(clickedId);
+                }
             }
             // ====================
             // 2. CLIQUE EM CORPSE (LOOT)
@@ -398,7 +406,46 @@ public class TargetSelector : MonoBehaviour
         return best;
     }
 
-    /// <summary>UI de tela bloqueia o mundo; nameplates world-space não.</summary>
+    /// <summary>
+    /// UI pode ter Image com alpha ZERO e raycastTarget=true no Inspector.
+    /// Ex.: HUD/ButtomLeft, HUD/InventoryManager e HUD/LootPanel da cena.
+    /// GraphicRaycaster devolve esses elementos no RaycastAll mesmo invisíveis,
+    /// portanto não se pode rejeitar QUALQUER hit de Canvas ScreenSpace.
+    /// Selectables recebem o clique mesmo com Image invisível (botões/inputs).
+    /// </summary>
+    private static bool BlocksWorldClick(RaycastResult hit)
+    {
+        GameObject go = hit.gameObject;
+        if (go == null) return false;
+        Canvas canvas = go.GetComponentInParent<Canvas>();
+        if (canvas == null || canvas.renderMode == RenderMode.WorldSpace)
+            return false; // nameplates e barras de HP não são UI bloqueadora
+
+        // Um controle interativo pode ter Image invisível de propósito.
+        if (go.GetComponentInParent<Selectable>() != null ||
+            go.GetComponentInParent<C6WindowDragHandle>() != null)
+            return true;
+
+        // Imagens/labels 100% transparentes não cobrem o mundo. Unity
+        // não desliga raycasts automaticamente quando Color.alpha == 0.
+        Graphic graphic = go.GetComponent<Graphic>();
+        if (graphic == null || !graphic.raycastTarget ||
+            graphic.color.a <= 0.001f || graphic.canvasRenderer.GetAlpha() <= 0.001f)
+            return false;
+
+        // Respeitar fade de painéis: CanvasGroup.alpha=0 também é invisível.
+        CanvasGroup[] groups = go.GetComponentsInParent<CanvasGroup>();
+        foreach (var group in groups)
+            if (group != null && group.alpha <= 0.001f) return false;
+
+        return true; // fundo VISÍVEL de janela deve continuar protegendo o mundo
+    }
+
+    /// <summary>
+    /// Bloquear apenas UI visível/interativa. O código C7 original bloqueava
+    /// toda imagem transparente capturada por EventSystem.RaycastAll, causando
+    /// o bug de cliques no combate/loot enquanto a tecla Espaço funcionava.
+    /// </summary>
     private bool IsPointerOverUi()
     {
         var system = EventSystem.current;
@@ -408,13 +455,12 @@ public class TargetSelector : MonoBehaviour
         system.RaycastAll(pointer, uiHits);
         foreach (var hit in uiHits)
         {
-            if (hit.gameObject == null) continue;
-            var canvas = hit.gameObject.GetComponentInParent<Canvas>();
-            // Barras de HP dos monstros possuem Slider (Selectable), mas
-            // são world-space decorativas e não devem roubar o clique.
-            // Os painéis de tela continuam bloqueando cliques no mundo.
-            if (canvas != null && canvas.renderMode != RenderMode.WorldSpace)
-                return true;
+            if (!BlocksWorldClick(hit)) continue;
+#if UNITY_EDITOR
+            Debug.Log($"[TargetSelector][CLICK] UI bloqueou clique: {hit.gameObject.name} " +
+                $"(Canvas={hit.gameObject.GetComponentInParent<Canvas>()?.name})");
+#endif
+            return true;
         }
         return false;
     }
