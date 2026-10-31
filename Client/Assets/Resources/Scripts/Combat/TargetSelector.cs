@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
@@ -46,6 +48,8 @@ public class TargetSelector : MonoBehaviour
     private InputAction mouseClickAction;
     private InputAction attackAction;
     private InputAction toggleFollowAction;
+    // Reuso da lista: não alocar por clique quando o player está em combate.
+    private readonly List<RaycastResult> uiHits = new List<RaycastResult>(16);
 
     // =========================
     // CICLO DE VIDA
@@ -119,7 +123,7 @@ public class TargetSelector : MonoBehaviour
 
     private void OnMouseClick()
     {
-        if (ChatUI.IsChatActive) return;
+        if (ChatUI.IsChatActive || IsPointerOverUi()) return;
         // Cliques em alvos, cadáveres e itens não podem enviar pacotes
         // enquanto o socket ainda autentica ou após uma desconexão.
         var network = NetworkManager.Instance;
@@ -203,12 +207,14 @@ public class TargetSelector : MonoBehaviour
 
     private void OnAttackKey()
     {
-        if (ChatUI.IsChatActive) return;
+        if (ChatUI.IsChatActive || IsTyping() ||
+            NetworkManager.Instance == null || !NetworkManager.Instance.isConnected) return;
         CycleToNextMonster();
     }
 
     private void ToggleAutoFollow()
     {
+        if (ChatUI.IsChatActive || IsTyping()) return;
         autoFollowEnabled = !autoFollowEnabled;
 
     }
@@ -331,38 +337,62 @@ public class TargetSelector : MonoBehaviour
     // UTILITÁRIOS
     // =========================
 
+    /// <summary>Precedência de UI: ponteiro em qualquer GraphicRaycaster bloqueia o mundo.</summary>
+    private bool IsPointerOverUi()
+    {
+        var system = EventSystem.current;
+        if (system == null || Mouse.current == null) return false;
+        var pointer = new PointerEventData(system) { position = Mouse.current.position.ReadValue() };
+        uiHits.Clear();
+        system.RaycastAll(pointer, uiHits);
+        foreach (var hit in uiHits)
+        {
+            if (hit.gameObject != null &&
+                hit.gameObject.GetComponentInParent<Canvas>() != null)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsTyping()
+    {
+        var selected = EventSystem.current != null
+            ? EventSystem.current.currentSelectedGameObject : null;
+        return selected != null &&
+            selected.GetComponentInParent<TMP_InputField>() != null;
+    }
+
+    /// <summary>
+    /// Seleção ordenada por proximidade e ID; centro sempre do PlayerController,
+    /// nunca da posição arbitrária do GameObject TargetSelector na Hierarchy.
+    /// </summary>
     private void CycleToNextMonster()
     {
-        List<string> nearbyMonsters = new List<string>();
-        Collider2D[] colliders = Physics2D.OverlapCircleAll(transform.position, maxTargetDistance);
-        foreach (var col in colliders)
+        var player = PlayerController.Instance;
+        if (player == null) return;
+        Vector2 center = player.transform.position;
+        float maxSqr = maxTargetDistance * maxTargetDistance;
+        var nearby = new List<(string id, float distance)>();
+        var unique = new HashSet<string>();
+        foreach (var col in Physics2D.OverlapCircleAll(center, maxTargetDistance))
         {
-            if (col.CompareTag("Monster"))
-            {
-                string id = GetEntityIdFromGameObject(col.gameObject);
-                if (!string.IsNullOrEmpty(id))
-                    nearbyMonsters.Add(id);
-            }
+            if (!col.CompareTag("Monster")) continue;
+            string id = GetEntityIdFromGameObject(col.gameObject);
+            if (string.IsNullOrEmpty(id) || !unique.Add(id)) continue;
+            float dist = ((Vector2)col.transform.position - center).sqrMagnitude;
+            if (dist <= maxSqr) nearby.Add((id, dist));
         }
-
-        if (nearbyMonsters.Count == 0)
+        nearby.Sort((a, b) => {
+            int compare = a.distance.CompareTo(b.distance);
+            return compare != 0 ? compare : string.CompareOrdinal(a.id, b.id);
+        });
+        if (nearby.Count == 0)
         {
             ClearTarget();
             return;
         }
-
-        if (!string.IsNullOrEmpty(currentTargetId))
-        {
-            int idx = nearbyMonsters.IndexOf(currentTargetId);
-            if (idx >= 0 && idx < nearbyMonsters.Count - 1)
-                SelectTarget(nearbyMonsters[idx + 1]);
-            else
-                SelectTarget(nearbyMonsters[0]);
-        }
-        else
-        {
-            SelectTarget(nearbyMonsters[0]);
-        }
+        int index = nearby.FindIndex(x => x.id == currentTargetId);
+        SelectTarget(nearby[(index + 1) % nearby.Count].id);
     }
 
     private string GetEntityIdFromGameObject(GameObject go)
