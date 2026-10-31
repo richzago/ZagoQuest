@@ -1,6 +1,6 @@
 /**
- * Loja NPC: o servidor valida a transação antes de alterar inventário/estouque.
- * O preço e estoque vêm do NPC, nunca do pacote enviado pelo cliente.
+ * Loja NPC com catálogo permanente: o servidor valida compra, preço, saldo
+ * e capacidade do jogador. Não existe estoque finito para o comerciante.
  */
 import type { Player } from "../entities/player";
 import type { Npc } from "../entities/npc";
@@ -28,8 +28,6 @@ export class ShopSystem {
     // Multiplicação pode gerar Infinity ou um inteiro impreciso.
     const cost = item.buyPrice * quantity;
     if (!Number.isSafeInteger(cost) || cost > player.gold + player.bankGold) return false;
-    if (item.stock !== undefined &&
-        (!Number.isSafeInteger(item.stock) || item.stock < quantity)) return false;
 
     const walletCost = Math.min(player.gold, cost);
     const bankCost = cost - walletCost;
@@ -43,7 +41,6 @@ export class ShopSystem {
       return false;
     }
 
-    if (item.stock !== undefined) item.stock -= quantity;
     Logger.economy(`${player.name} comprou ${quantity}x ${itemId} por ${cost} gold.`);
     return true;
   }
