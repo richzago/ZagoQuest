@@ -1,6 +1,6 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA; C4 CONCLUÍDA/HOMOLOGADA (10/10 Unity); C5 aceita funcionalmente pelo desenvolvedor (Banker/Merchant relatados como aparentemente corretos); C6 INTEGRADA PARCIALMENTE à dev com PRs #100, #101 e #102, CI verde e QA Unity do último layout/chat pendente; C7/C8 futuras.**
+**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA; C4 CONCLUÍDA/HOMOLOGADA (10/10 Unity); C5 aceita funcionalmente; C6 INTEGRADA PARCIALMENTE (#100/#101/#102) com P1 de drop distante/duplo EndDrag em correção e QA Unity pendente; C7 iniciará após correção do bloqueador, C8 futura.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 
@@ -175,3 +175,12 @@ Não transformar testes automatizados de Node em alegação de compilação C# o
 Escopo: C6 inventário/equipamentos (#100/#101), chat/HUD e estados vazios, prevenção de duplo Enter, bloqueio de transferência bancária e regressão C4 (#102). C5 manteve aceite reportado. C6 não está HOMOLOGADA sem roteiro dos 13 casos Unity no relatório CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md (Editor + Windows, duas resoluções, dois clientes, Enter/foco/atalho, XP/HP, drag/drop, loot/banco/loja). Main intacta.
 
 Para atualizar localmente sem perder dados: fechar Unity; git status; git stash push -u -m "backup Unity antes de atualizar C6"; git fetch origin; git switch dev; git pull --ff-only origin dev; git log -1 --oneline; git status; git stash list. Nunca executar stash pop automaticamente.
+
+
+## C6 P1 bloqueador para C7 — drag ao chão distante (31/10/2026)
+
+Relato: EndDrag duplicado no InventorySlot/EquipmentSlot e `dropError` do Node para distância ou destino inválido ao arrastar bone_sword. Diagnóstico confirmado por inspeção: DropOnGround já faz EndDrag; slots repetem chamada; Unity não valida distância; Node Manhattan <=2 e floor tile antes de remover item. Correção incremental em branch `fix/client-c6-drag-ground-range`: usar posição confirmada do PlayerController, FloorToInt, checar alcance/rede e coordenadas finitas, cancelar solicitação distante com mensagem, limpar drag uma única vez, tratar erro autoritativo como warning. Testes de C6 estáticos e novos casos de servidor em economy.test.ts. Matriz QA de dez casos D1–D10 na seção 9 de CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md.
+
+**Sequência:** CI PR Windows/Linux/PostgreSQL → merge na `dev` sem tocar main → reteste local Unity Editor/build dos casos críticos → somente com D1–D10 aprovados homologar C6 e avançar na implementação C7. A preparação de escopo e checklist da C7 pode começar em paralelo, mas não confundir planejamento com aceite Unity.
+
+Comandos locais: fechar Unity; git status; git stash push -u -m "backup Unity antes do fix C6 drop"; git fetch origin; git switch dev; git pull --ff-only origin dev; git log -1 --oneline; git status; git stash list. Nunca aplicar stash pop automaticamente.
