@@ -30,6 +30,7 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class ItemUsedMessage { public string type; public string itemId; public bool success; public string message; }
     [Serializable] public class ShopWindowMessage { public string type; public string npcId; public ShopItem[] items; }
     [Serializable] public class BuyResultMessage { public string type; public bool success; public string message; }
+    [Serializable] public class SellResultMessage { public string type; public bool success; public string message; }
     [Serializable] public class BankWindowMessage { public string type; public string npcId; public int bankGold; public int gold; }
     [Serializable] public class BankResultMessage { public string type; public bool success; public string message; public int bankGold; public int gold; }
     [Serializable] public class ShopErrorMessage { public string type; public string message; }
@@ -53,6 +54,6 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class LootItem { public string itemId; public int amount; public string itemName; }
     [Serializable] public class InventoryItem { public string itemId; public int amount; public string itemType; }
     [Serializable] public class InventoryEquipment { public string slot; public string itemId; }
-    [Serializable] public class ShopItem { public string itemId; public string name; public int price; public int stock; }
+    [Serializable] public class ShopItem { public string itemId; public string name; public int price; public int sellPrice; }
     [Serializable] public class EquipmentItem { public string slot; public string itemId; }
 }
