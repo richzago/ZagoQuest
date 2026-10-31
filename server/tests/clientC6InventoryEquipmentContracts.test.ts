@@ -132,7 +132,7 @@ test("C6 visual: recursos Unity e nomes dos slots permanecem compatíveis",()=>{
  assert.match(layout,/EquipmentSlot\.USEFUL/);
  assert.match(layout,/new Vector2\(70, 70\)/);
  assert.match(layout,/new Vector2\(92, 92\)/);
- assert.match(layout,/new Vector2\(10, 10, 10, 10\)/);
+ assert.match(layout,/new RectOffset\(10, 10, 10, 10\)/);
  assert.match(layout,/fitter\.horizontalFit = ContentSizeFitter\.FitMode\.Unconstrained/);
  assert.match(layout,/fitter\.verticalFit = ContentSizeFitter\.FitMode\.PreferredSize/);
  assert.match(equipment,/Resources\.Load<Sprite>\(\$"Icons\/\{itemId\}"\)/);
