@@ -64,6 +64,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     itemId: identifier,
     amount: positiveAmount,
   }),
+  z.strictObject({ type: z.literal("startFishing") }),
+  z.strictObject({ type: z.literal("cancelFishing") }),
   z.strictObject({ type: z.literal("openBank"), npcId: identifier }),
   z.strictObject({ type: z.literal("deposit"), amount: positiveAmount }),
   z.strictObject({ type: z.literal("withdraw"), amount: positiveAmount }),
