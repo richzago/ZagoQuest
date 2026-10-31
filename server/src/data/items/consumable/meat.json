@@ -5,5 +5,6 @@
   "type": "consumable",
   "stackable": true,
   "value": 8,
-  "foodSeconds": 40
+  "foodSeconds": 40,
+  "satietyPoints": 40
 }
