@@ -10,13 +10,16 @@ test("C3: Node informa motivo de UUID já conectado antes do fechamento 1008", (
   const ws = read("server/src/network/websocket/wsServer.ts");
   assert.match(ws, /if \(duplicate\(identity\.characterId\)\)/);
   assert.match(ws, /type: "authRejected"/);
-  assert.match(ws, /reason: "alreadyOnline"/);
+  assert.match(ws, /refuseOnline\("alreadyOnline"\)/);
+  assert.match(ws, /refuseOnline\("accountAlreadyOnline"\)/);
+  assert.match(ws, /const refusal = JSON.stringify\(\{ type: "authRejected", reason \}\)/);
   assert.match(ws, /ws\.send\(refusal, \(\) => \{/);
-  assert.match(ws, /ws\.close\(1008, "Personagem ja conectado\."\)/);
+  assert.match(ws, /ws\.close\(1008, message\)/);
+  assert.match(ws, /const duplicateAccount = \(accountId: string\)/);
   assert.match(ws, /this\.broadcast\.registerClient\(ws, current\)/);
   // Recusa deve acontecer antes do attach/snapshot do UUID duplicado.
   assert.ok(ws.indexOf("if (duplicate(identity.characterId))") <
-            ws.indexOf("attach(loaded);"));
+            ws.indexOf("attach(loaded, identity.accountId);"));
 });
 
 test("C3: Unity mostra erro específico antes de descartar mensagens pré-ACK", () => {
@@ -24,7 +27,9 @@ test("C3: Unity mostra erro específico antes de descartar mensagens pré-ACK", 
   const ui = read("Client/Assets/Resources/Scripts/Networking/SessionLoginDebugUI.cs");
   assert.match(net, /public string AuthenticationStatusMessage \{ get; private set; \}/);
   assert.match(net, /type == "authRejected" && requireAuthenticatedSession && !isConnected/);
-  assert.match(net, /json\["reason"\]\?\.ToString\(\) == "alreadyOnline"/);
+  assert.match(net, /string reason = json\["reason"\]\?\.ToString\(\)/);
+  assert.match(net, /reason == "alreadyOnline"/);
+  assert.match(net, /reason == "accountAlreadyOnline"/);
   assert.match(net, /_authRejected = true/);
   assert.ok(net.indexOf('type == "authRejected"') <
             net.indexOf('if (requireAuthenticatedSession && !isConnected) return'));
