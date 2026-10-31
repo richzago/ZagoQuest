@@ -35,6 +35,25 @@ public class BankUI : MonoBehaviour
 
     private void Start()
     {
+        WorldWindowLayout.PreparePanel(bankPanel, 480f, 370f);
+        WorldWindowLayout.StyleButton(closeButton);
+        WorldWindowLayout.StyleButton(depositButton);
+        WorldWindowLayout.StyleButton(withdrawButton);
+        if (bankGoldText != null)
+        {
+            bankGoldText.color = WorldWindowLayout.Gold;
+            bankGoldText.enableAutoSizing = true;
+            bankGoldText.fontSizeMin = 14;
+        }
+        if (inventoryGoldText != null)
+        {
+            inventoryGoldText.color = WorldWindowLayout.Label;
+            inventoryGoldText.enableAutoSizing = true;
+            inventoryGoldText.fontSizeMin = 14;
+        }
+        if (amountInput != null && amountInput.targetGraphic is Image amountBackground)
+            amountBackground.color = WorldWindowLayout.Row;
+
         // Registrar SOMENTE uma vez, em código. Os OnClick persistentes da
         // cena são vazios para não enviar duas transferências por clique.
         if (closeButton != null) closeButton.onClick.AddListener(CloseBank);
