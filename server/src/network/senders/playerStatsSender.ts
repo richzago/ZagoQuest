@@ -5,6 +5,7 @@ import type { ServerPlayerStatsMessage } from "../messages/server/inventory.mess
 import { BaseSender } from "./base/baseSender";
 import { totalXpForLevel, EXPERIENCE_CONFIG } from "../../data/experience/experienceConfig";
 import { getPlayerMoveIntervalMs } from "../../game/systems/movementSystem";
+import { FoodRegenerationSystem, MAX_SATIETY_POINTS } from "../../game/systems/foodRegenerationSystem";
 
 export class PlayerStatsSender extends BaseSender {
   /** Formato consistente para conexão, ganho de XP e morte. */
@@ -28,6 +29,9 @@ export class PlayerStatsSender extends BaseSender {
       levelXp: player.level >= EXPERIENCE_CONFIG.maxLevel ? 0 : player.experience - levelStart,
       levelXpToNext: player.level >= EXPERIENCE_CONFIG.maxLevel ? 0 : next - levelStart,
       lifetimeXp: player.lifetimeExperience,
+      satiety: FoodRegenerationSystem.currentSatiety(player),
+      satietyMax: MAX_SATIETY_POINTS,
+      foodSecondsRemaining: FoodRegenerationSystem.remainingSeconds(player),
       // Aliases temporários até a migração de todos os clientes.
       experience: player.experience,
       experienceToNext: player.experienceToNext,
