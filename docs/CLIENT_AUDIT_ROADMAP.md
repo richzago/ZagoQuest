@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **UI 2A — equipamentos na sidebar, HOMOLOGAÇÃO PENDENTE:** branch `feature/client-ui-sidebar-equipment-2a` deriva da branch **ainda não integrada** `feature/client-ui-sidebar-step1` (PR #115). Quatro zonas nesta ordem: minimapa futuro, **EquipmentPanel original reparentado com os 10 slots**, ícones de configuração futuros e `SidebarDynamicHost` preparado (loot/backpack ainda NÃO redirecionados). Visual Tibia moderno `#121B27`, `#1D2938`, `#AF8B50`. Proteção crítica: `TargetSelector.cs` e `IsPointerOverUi` INALTERADOS, Canvas raiz sem Image, só superfícies opacas/slots legítimos com raycast; sorting 110 acima da HUD antiga para permitir drag/drop. Zero mudanças de pesca, servidor, câmera e cena. [Auditoria específica](CLIENT_UI_SIDEBAR_EQUIPMENT_2A.md). **Nenhum merge à `dev` ou início de UI 2B antes de testes Unity e aprovação explícita**.
+
+
 > **UI incremental pós-hotfix (31/10/2026):** o usuário homologou em Unity o [PR #114](https://github.com/richzago/ZagoQuest/pull/114), que foi integrado na `dev` com merge `911cc8e`. Iniciada SOMENTE a etapa **1/4 — sidebar independente** em `feature/client-ui-sidebar-step1` (ainda não integrada). O plano obrigatório é **1 sidebar → 2 encaixe dos painéis → 3 redimensionamento vertical → 4 câmera**, um PR isolado por etapa, com teste visual Unity e sinal verde do usuário ANTES de qualquer próximo passo/merge. O `IsPointerOverUi` de #114 é protegido; sem Image transparente fullscreen com raycast, sem changes de pesca/gameplay. Ver `docs/CLIENT_UI_SIDEBAR_INCREMENTAL.md`.
 
 
