@@ -17,6 +17,7 @@ public class NetworkManager : MonoBehaviour
     private string _sessionToken;
     private string _sessionCharacterId;
     private bool _authRejected;
+    private bool _changingSession;
     private bool _everAuthenticated;
     public bool isConnected { get; private set; } = false;
 
@@ -132,7 +133,10 @@ public class NetworkManager : MonoBehaviour
         _nextReconnectAttempt = 0f;
         // Uma sessão antiga não pode se transformar em outra identidade.
         if (_websocket != null && _websocket.State == WebSocketState.Open)
+        {
+            _changingSession = true;
             _ = _websocket.Close();
+        }
     }
 
     // =========================
@@ -201,8 +205,9 @@ public class NetworkManager : MonoBehaviour
             if (!ReferenceEquals(_websocket, socket) || _shuttingDown) return;
             Debug.LogWarning($"[NetworkManager] Desconectado: {reason}. Nova tentativa em {ReconnectDelaySeconds}s.");
             isConnected = false;
-            if (requireAuthenticatedSession && !_everAuthenticated)
-                _authRejected = true; // não repetir credenciais recusadas a cada 2s
+            if (requireAuthenticatedSession && !_everAuthenticated && !_changingSession)
+                _authRejected = true;
+            _changingSession = false; // não repetir credenciais recusadas a cada 2s
             // A sessão antiga acabou: remover entidades ANTES de receber
             // qualquer snapshot do novo socket (nunca no OnOpen).
             EntityManager.Instance?.ClearNetworkEntities();
