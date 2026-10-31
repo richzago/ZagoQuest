@@ -83,10 +83,10 @@ public class TiledMapRenderer : MonoBehaviour
             return;
         }
 
-        TiledLayer ground = mapData.layers.Find(l => l.type == "tilelayer");
+        TiledLayer ground = mapData.layers.Find(l => l.type == "tilelayer" && l.name == "Ground");
         if (ground == null)
         {
-            Debug.LogError("TiledMapRenderer: Nenhuma tile layer encontrada!");
+            Debug.LogError("[Tiled] Camada visual 'Ground' não encontrada; confira o mapa exportado.");
             return;
         }
 
@@ -98,8 +98,10 @@ public class TiledMapRenderer : MonoBehaviour
         int order = 5;
         foreach (var layer in mapData.layers)
         {
-            if (layer.type != "tilelayer") continue;
-            if (layer == mapData.layers.Find(l => l.type == "tilelayer")) continue; // já é o chão
+            // A camada Collision é dado lógico: nunca é desenhada como gráfico.
+            // Ground já tem Tilemap próprio na cena.
+            if (layer.type != "tilelayer" || layer.name == "Collision" || layer.name == "Ground")
+                continue;
 
             GameObject layerObj = new GameObject($"Tilemap_{layer.name}");
             layerObj.transform.SetParent(this.transform);
@@ -114,6 +116,7 @@ public class TiledMapRenderer : MonoBehaviour
     void DrawLayer(TiledLayer layer, Tilemap targetTilemap)
     {
         int tilesRendered = 0;
+        var missingGids = new HashSet<int>();
         for (int y = 0; y < mapData.height; y++)
         {
             for (int x = 0; x < mapData.width; x++)
@@ -130,11 +133,13 @@ public class TiledMapRenderer : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning($"TiledMapRenderer: GID {gid} não encontrado (layer '{layer.name}')");
+                    missingGids.Add(gid);
                 }
             }
         }
-        // Log removido para evitar spam
+        // Uma mensagem por layer (não uma por tile) ao investigar assets ausentes.
+        if (missingGids.Count > 0)
+            Debug.LogWarning($"[Tiled] Camada '{layer.name}': {missingGids.Count} GIDs distintos sem sprite: {string.Join(", ", missingGids)}.");
     }
 
     // ------------------------------------------------------------
