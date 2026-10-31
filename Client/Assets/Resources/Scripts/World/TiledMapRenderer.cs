@@ -50,7 +50,7 @@ public class TiledMapRenderer : MonoBehaviour
 
             if (sprites == null || sprites.Length == 0)
             {
-                Debug.LogError($"Tileset vazio: {path}");
+                Debug.LogError($"[Tiled][ASSET] Nenhum Sprite importado em Resources/{path}; verifique se o PNG está em Client/Assets/Resources/Tilesets e importado como Sprite (2D and UI), Multiple, com slices *_0, *_1... (tileset firstgid={tileset.firstgid}).");
                 continue;
             }
 
