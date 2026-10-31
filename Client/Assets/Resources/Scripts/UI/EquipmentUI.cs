@@ -16,12 +16,21 @@ public class EquipmentUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
     }
 
     private void Start()
     {
+        if (slotsContainer == null)
+        {
+            Debug.LogError("[EquipmentUI] SlotsContainer não atribuído no Inspector.");
+            return;
+        }
         // Mapeia os slots
         slotMap.Clear();
         foreach (Transform child in slotsContainer)
@@ -49,7 +58,7 @@ public class EquipmentUI : MonoBehaviour
 
     private void OnDestroy()
     {
-
+        if (Instance == this) Instance = null;
     }
 
     /// <summary>
@@ -60,17 +69,12 @@ public class EquipmentUI : MonoBehaviour
         // Debug.Log($"[EquipmentUI] 🔄 Atualização recebida! {equipment?.Count ?? 0} slots.");
         if (equipment == null) return;
 
-        foreach (var kvp in equipment)
+        // O protocolo envia somente os slots equipados. Slots ausentes
+        // representam vazios: é obrigatório limpar itens antigos após unequip.
+        foreach (var kvp in slotMap)
         {
-            if (slotMap.TryGetValue(kvp.Key, out var slotUI))
-            {
-                slotUI.SetItem(kvp.Value);
-                Debug.Log($"[EquipmentUI] Slot {kvp.Key} atualizado com {kvp.Value ?? "vazio"}");
-            }
-            else
-            {
-                Debug.LogWarning($"[EquipmentUI] Slot {kvp.Key} não encontrado no slotMap!");
-            }
+            equipment.TryGetValue(kvp.Key, out string itemId);
+            kvp.Value.SetItem(itemId);
         }
     }
 
@@ -82,6 +86,7 @@ public class EquipmentUI : MonoBehaviour
 
     public void TogglePanel()
     {
+        if (equipmentPanel == null) return;
         equipmentPanel.SetActive(!equipmentPanel.activeSelf);
         if (equipmentPanel.activeSelf)
         {
