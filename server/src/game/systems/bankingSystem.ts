@@ -21,7 +21,7 @@ export class BankingSystem {
   /** Bank -> wallet. Same validation on both sides of the transfer. */
   static withdrawGold(player: Player, amount: number): boolean {
     if (!isValidQuantity(amount) || !isValidGoldBalance(player.bankGold) ||
-        player.bankGold < amount || !canCreditGold(player.gold, amount)) return false;
+        player.bankGold < amount || !player.canReceiveGold(amount)) return false;
 
     player.bankGold -= amount;
     player.gold += amount;

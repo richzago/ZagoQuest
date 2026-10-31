@@ -13,6 +13,9 @@ import { GuildMember } from "../entities/GuildMember";
 import { Character } from "../entities/Character";
 import { createGuildSchema } from "../../shared/schemas/guild.schema";
 import { Logger } from "../../game/core/logger/logger";
+import { OnlinePlayerDirectory } from "../../game/systems/onlinePlayerDirectory";
+import { withCharacterWriteLock } from "../../game/systems/characterWriteLock";
+import { isValidGoldBalance } from "../../game/systems/economyRules";
 import { LessThan, MoreThan } from "typeorm";
 
 const INACTIVITY_LEADER_DAYS = 90;
@@ -145,53 +148,82 @@ export class GuildService {
     const validation = createGuildSchema.safeParse({ name: guildName, description });
     if (!validation.success) throw new Error(validation.error.issues[0].message);
 
-    const guild = await AppDataSource.transaction(async (manager) => {
-      const characters = manager.getRepository(Character);
-      const guilds = manager.getRepository(Guild);
-      const members = manager.getRepository(GuildMember);
+    // Online: Player em memória é autoritativo. Offline: Character bloqueado no PG.
+    const online = OnlinePlayerDirectory.findByName(characterName);
+    const execute = async (): Promise<Guild> => {
+      let reserved = false;
+      try {
+        const guild = await AppDataSource.transaction(async (manager) => {
+          const characters = manager.getRepository(Character);
+          const guilds = manager.getRepository(Guild);
+          const members = manager.getRepository(GuildMember);
 
-      const character = await characters.findOne({
-        where: { name: characterName },
-        lock: { mode: "pessimistic_write" },
-      });
-      if (!character) throw new Error("Personagem não encontrado.");
-      if (await members.findOne({
-        where: [{ characterId: character.id }, { characterName: character.name }],
-      })) throw new Error("Você já pertence a uma guilda.");
-      if (await guilds.findOne({ where: { name: guildName } })) {
-        throw new Error("Já existe uma guilda com este nome.");
+          const character = await characters.findOne({
+            where: { name: characterName },
+            lock: { mode: "pessimistic_write" },
+          });
+          if (!character) throw new Error("Personagem não encontrado.");
+          if (online && online.id !== character.id)
+            throw new Error("Identidade do personagem online divergente.");
+          if (await members.findOne({
+            where: [{ characterId: character.id }, { characterName: character.name }],
+          })) throw new Error("Você já pertence a uma guilda.");
+          if (await guilds.findOne({ where: { name: guildName } }))
+            throw new Error("Já existe uma guilda com este nome.");
+
+          const level = online?.level ?? character.level;
+          if (level < 100) throw new Error("Nível mínimo 100 para criar guilda.");
+          if (online) {
+            if (!isValidGoldBalance(online.gold) || !online.reserveGold(20_000))
+              throw new Error("Você precisa de 20.000 gold.");
+            reserved = true;
+            character.gold = online.gold; // saldo vivo, já com taxa reservada
+            character.level = level;
+          } else {
+            if (!isValidGoldBalance(character.gold) || character.gold < 20_000)
+              throw new Error("Você precisa de 20.000 gold.");
+            character.gold -= 20_000;
+          }
+          await characters.save(character);
+
+          const now = new Date();
+          const created = await guilds.save(guilds.create({
+            name: guildName,
+            description,
+            level: 1,
+            exp: 0,
+            totalKills: 0,
+            logs: [`[${now.toISOString()}] Guilda criada por ${character.name}.`],
+          }));
+          await members.save(members.create({
+            guildId: created.id,
+            characterId: character.id,
+            characterName: character.name,
+            level,
+            isPremium: false,
+            role: "leader",
+            joinedAt: now,
+            lastSeen: now,
+          }));
+          return created;
+        });
+
+        // Nunca notificar ou confirmar a cobrança antes do COMMIT SQL.
+        if (reserved && online) {
+          online.commitReservedGold(20_000);
+          try { OnlinePlayerDirectory.notifyGold(online); }
+          catch (error) { Logger.warn(`[GUILD] Notificação de gold falhou: ${String(error)}`); }
+        }
+        Logger.economy(`${characterName} criou a guilda ${guildName} por 20.000 gold.`);
+        return guild;
+      } catch (error) {
+        if (reserved && online) online.rollbackReservedGold(20_000);
+        throw error;
       }
-      if (character.level < 100) throw new Error("Nível mínimo 100 para criar guilda.");
-      if (character.gold < 20_000) throw new Error("Você precisa de 20.000 gold.");
+    };
 
-      character.gold -= 20_000;
-      await characters.save(character);
-
-      const now = new Date();
-      const created = await guilds.save(guilds.create({
-        name: guildName,
-        description,
-        level: 1,
-        exp: 0,
-        totalKills: 0,
-        logs: [`[${now.toISOString()}] Guilda criada por ${character.name}.`],
-      }));
-      await members.save(members.create({
-        guildId: created.id,
-        characterId: character.id,
-        characterName: character.name,
-        level: character.level,
-        isPremium: false,
-        role: "leader",
-        joinedAt: now,
-        lastSeen: now,
-      }));
-      return created;
-    });
-
-    // Log only after the entire transaction successfully commits.
-    Logger.economy(`${characterName} criou a guilda ${guildName} por 20.000 gold.`);
-    return guild;
+    // Impede autosave paralelo à cobrança do mesmo personagem.
+    return online ? withCharacterWriteLock(online.id, execute) : execute();
   }
 
   static async disbandGuild(characterName: string): Promise<void> {
