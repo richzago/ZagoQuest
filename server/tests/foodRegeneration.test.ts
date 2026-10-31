@@ -9,7 +9,7 @@ import type { WebSocket } from "ws";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 import { Player } from "../src/game/entities/player";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
-import { handleUseItem, handleEquipItem } from "../src/network/handlers/inventory.handler";
+import { handleUseItem, handleEquipItem, canEquipFromGesture, EQUIPMENT_GESTURE_GUARD_MS } from "../src/network/handlers/inventory.handler";
 import {
  FoodRegenerationSystem, FOOD_HP_PER_TICK, FOOD_MANA_PER_TICK,
  FOOD_TICK_MS, MAX_FOOD_SECONDS,
@@ -301,4 +301,47 @@ test("C6: JSON com parâmetros inválidos nunca consome food",async()=>{
    assert.deepEqual(events,[false]);
    assert.equal(p.inventory.get("consumable/cheese"),1);
  } finally {item.regenTickSeconds=previous;}
+});
+
+
+test("C6: duplo pedido sword/armor no mesmo gesto não equipa dois itens",async()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();
+ p.addItem("bone_sword",1);p.addItem("bone_armor",1);
+ const successes:boolean[]=[];
+ const ctx={packetSender:{inventory:{
+  sendItemUsed:(_id:string,ok:boolean)=>successes.push(ok),
+  sendInventory:()=>{},sendEquipment:()=>{},sendPlayerStats:()=>{},
+ }}} as unknown as HandlerContext;
+ assert.equal(EQUIPMENT_GESTURE_GUARD_MS,550);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"bone_sword"},ctx);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"bone_armor"},ctx);
+ assert.deepEqual(successes,[true,false]);
+ assert.equal(p.equipment.get("weapon" as never),"bone_sword");
+ assert.equal(p.equipment.has("armor" as never),false);
+ assert.equal(p.inventory.get("bone_armor"),1);
+ assert.equal(canEquipFromGesture(p,Date.now()+EQUIPMENT_GESTURE_GUARD_MS+2),true);
+});
+
+test("C6: stats trazem saciedade e tempo restante; expiry notifica mesmo com HP/Mana cheios",()=>{
+ const p=player(), now=Date.now();
+ FoodRegenerationSystem.feed(p,6,now,20,1,1,3);
+ let stats=PlayerStatsSender.toPayload(p);
+ assert.equal(stats.satiety,20);
+ assert.equal(stats.satietyMax,120);
+ assert.equal(stats.foodSecondsRemaining,6);
+ // HP e mana cheios: ao terminar, ainda precisa notificar para atualizar Status.
+ assert.equal(FoodRegenerationSystem.tick(p,now+6001),true);
+ stats=PlayerStatsSender.toPayload(p);
+ assert.equal(stats.satiety,0);
+ assert.equal(stats.foodSecondsRemaining,0);
+ assert.equal(FoodRegenerationSystem.tick(p,now+6500),false);
+});
+
+test("C6: saciedade é independente por player, sem vazar entre personagens",()=>{
+ const a=player(), b=player();
+ FoodRegenerationSystem.feed(a,9,Date.now(),40,2,1,3);
+ assert.equal(FoodRegenerationSystem.currentSatiety(a),40);
+ assert.equal(FoodRegenerationSystem.currentSatiety(b),0);
+ assert.equal(PlayerStatsSender.toPayload(b).satiety,0);
 });
