@@ -188,3 +188,8 @@ Pedido do desenvolvedor: remover XP do HUD, mostrar nome+nivel, HP vermelho e ma
 Automação: foodRegeneration.test.ts exercita timer fake, teto de saciedade, tick de servidor, consumo/poção; characterPersistence.test.ts testa legacy 0/0 versus 0/50; clientC4/C6 contracts atualizados. CI Node não compila C# nem substitui QA visual. Só homologar C6 após H1-H10 e reteste D1-D10 do drop.
 
 Para atualizar: fechar Unity; git stash push -u -m "backup Unity antes do C6 HUD food"; git fetch origin; git switch dev; git pull --ff-only origin dev; git status; git stash list. NUNCA aplicar stash pop automaticamente.
+
+
+### Reteste adicional — poções existentes (bug real detectado pelos testes novos)
+
+A nova suíte de food revelou que o handler de consumíveis esperava healAmount/manaAmount como campos diretos, mas os JSONs health_potion e mana_potion usam effect.healHp e effect.healMana. O Node negava a poção mesmo quando HP/mana estavam baixos. Corrigido por tipagem de ItemType.effect e leitura do contrato real. Adicionado teste real de ambas poções (recuperação imediata, clamp e rejeição sem consumir quando cheio), preservando food com efeito gradual. A CI só conta o teste foodRegeneration quando o arquivo é incluído explicitamente em server/package.json (npm test enumera cada arquivo). Incluir H8 com HP e mana potions e confirmar no Unity, além dos 10 casos principais.
