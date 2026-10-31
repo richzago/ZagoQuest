@@ -64,7 +64,7 @@ test("morte encerra pesca e timeout não entrega recompensa após o respawn", (t
 test("desconexão WebSocket encerra pesca sem reiniciar o servidor", async (t) => {
   const { world, player } = fixture(t);
   const server = createServer();
-  const transport = new WebSocketServer(server, world);
+  const transport = new WebSocketServer(server, world, { authRequired: false });
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as AddressInfo).port;
   const client = new WebSocket(`ws://127.0.0.1:${port}`);
