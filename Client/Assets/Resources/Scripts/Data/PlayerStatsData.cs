@@ -17,5 +17,8 @@ public class PlayerStatsData
     public int xpToNext;        // XP acumulado exigido pelo próximo level
     public int levelXp;         // Progresso dentro deste level
     public int levelXpToNext;   // XP exigido dentro deste level
+    public int satiety;
+    public int satietyMax;
+    public int foodSecondsRemaining;
     public int lifetimeXp;      // Tudo o que o personagem já ganhou
 }
