@@ -92,7 +92,9 @@ test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de 
   const hostHeight = equipmentSectionHeight - 10 - 65;
   const lastRowBottom = 12 + 3 * 67 + 56;
   assert.ok(lastRowBottom < hostHeight, "o slot BOOTS cabe no host");
-  assert.match(ui, /rect\.sizeDelta = new Vector2\(SidebarWidth, -24f\)/);
+  assert.match(ui, /sr\.sizeDelta = new Vector2\(SidebarWidth, -24f\)/);
+  assert.match(ui, /private void AdjustDynamicPlaceholder\(\)/);
+  assert.match(ui, /dynamicHost\.offsetMax = new Vector2\(-10f, -header\)/);
 });
 
 test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico ou pesca", () => {
