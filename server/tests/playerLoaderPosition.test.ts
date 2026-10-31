@@ -6,6 +6,8 @@ import { PlayerLoader } from "../src/game/loaders/playerLoader";
 import { DatabasePersistence } from "../src/game/systems/databasePersistence";
 import { GuildService } from "../src/api/services/guildService";
 import { findSafePlayerPosition } from "../src/game/world/playerPosition";
+import { MapLoader } from "../src/game/loaders/mapLoader";
+import { join } from "node:path";
 
 const spawn={x:2,y:2};
 function createWorld() {
@@ -69,4 +71,18 @@ test("no valid spawn raises an error instead of persisting a blocked location",(
   const world=createWorld();
   for(const tile of world.tiles.values())tile.walkable=false;
   assert.throws(()=>findSafePlayerPosition(world,spawn),/Nenhum tile caminhável/);
+});
+
+
+test("C1: alterar a orientação do PlayerSpawn não migra posição válida já salva",async(t)=>{
+  const world=new World();
+  const mapFile=join(process.cwd(),"..","assets","maps","test-map.json");
+  const mapResult=MapLoader.loadMap(world,mapFile);
+  assert.deepEqual(mapResult.playerSpawn,{x:15,y:16});
+  const existing=new Player("already-persisted","Existing",15,10);
+  const saves=mockPersistence(t,existing);
+  const actual=await PlayerLoader.loadOrCreatePlayer("Existing",mapResult.playerSpawn!,world);
+  assert.equal(actual,existing);
+  assert.deepEqual(actual.position,{x:15,y:10});
+  assert.deepEqual(saves,[],"Não atualizar PostgreSQL porque o spawn Tiled mudou");
 });
