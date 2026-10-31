@@ -12,7 +12,7 @@
  */
 
 import { Request, Response } from "express";
-import { AccountService } from "../services/accountService";
+import { AccountService, AccountConflictError, InvalidAccountDataError } from "../services/accountService";
 
 export class AccountController {
   /**
@@ -50,8 +50,15 @@ export class AccountController {
     try {
       const result = await AccountService.createAccount(req.body);
       res.status(201).json(result);
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+    } catch (error) {
+      if (error instanceof InvalidAccountDataError) {
+        res.status(400).json({ error: error.message });
+      } else if (error instanceof AccountConflictError) {
+        res.status(409).json({ error: "Dados de conta já cadastrados." });
+      } else {
+        // Never disclose PostgreSQL errors, constraint names or connection details.
+        res.status(500).json({ error: "Falha interna ao criar conta." });
+      }
     }
   }
 }
