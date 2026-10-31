@@ -44,7 +44,7 @@ async function fixture(): Promise<Fixture> {
   world.addNpc(banker);
   world.addNpc(merchant);
 
-  const gameServer = new GameWebSocketServer(server, world);
+  const gameServer = new GameWebSocketServer(server, world, { authRequired: false });
   const clients: WebSocket[] = [];
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as AddressInfo).port;
