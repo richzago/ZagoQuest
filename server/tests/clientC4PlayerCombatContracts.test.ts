@@ -120,12 +120,12 @@ test("C7 bugfix: clique único em monstro e corpse usa todos os colliders visív
   assert.match(onClick, /var monster = clicked\.GetComponentInParent<MonsterIdentity>\(\)/);
   assert.match(onClick, /var corpse = clicked\.GetComponentInParent<CorpseIdentity>\(\)/);
   assert.match(onClick, /if \(monster != null\)[\s\S]*?SelectTarget\(clickedId\)/);
-  assert.doesNotMatch(onClick, /if \(currentTargetId == clickedId\)[\s\S]*?ClearTarget\(\)/);
+  assert.match(onClick, /if \(currentTargetId == clickedId\)\s*ClearTarget\(\);\s*else\s*SelectTarget\(clickedId\)/);
   assert.match(onClick, /network\.Inventory\?\.SendLoot\(corpse\.corpseId\)/);
   assert.match(onClick, /else\s*\{\s*ClearTarget\(\)/);
   assert.match(selector, /if \(currentTargetId == targetId\) return/);
-  assert.match(selector, /if \(canvas != null && canvas\.renderMode != RenderMode\.WorldSpace\)/);
-  assert.doesNotMatch(selector, /hit\.gameObject\.GetComponentInParent<Selectable>\(\)/);
+  assert.match(selector, /canvas\.renderMode == RenderMode\.WorldSpace/);
+  assert.match(selector, /go\.GetComponentInParent<Selectable>\(\) != null/);
 
   // O Node continua validando loot e dano; não ampliar alcance pelo cliente.
   const loot = readFileSync(join(process.cwd(), "src/network/handlers/loot.handler.ts"), "utf8");
@@ -152,4 +152,60 @@ test("C7 bugfix: ordem de colisores não determina interação por sorte", () =>
   assert.equal(choose([corpse,monster]), "corpse");
   assert.equal(choose([playerCollider]), undefined);
   assert.equal(choose([{...monster,sorting:12},corpse]), "monster");
+});
+
+test("C7 regression PR #110: raycast UI transparente NÃO deve descartar ataque e loot", () => {
+  const selector = readUnity("Combat/TargetSelector.cs");
+  const ui = selector.slice(selector.indexOf("private static bool BlocksWorldClick("),
+    selector.indexOf("private static bool IsTyping()"));
+  assert.match(ui, /go\.GetComponentInParent<Canvas>\(\)/);
+  assert.match(ui, /canvas\.renderMode == RenderMode\.WorldSpace/);
+  assert.match(ui, /go\.GetComponentInParent<Selectable>\(\) != null/);
+  assert.match(ui, /go\.GetComponentInParent<C6WindowDragHandle>\(\) != null/);
+  assert.match(ui, /graphic\.color\.a <= 0\.001f/);
+  assert.match(ui, /graphic\.canvasRenderer\.GetAlpha\(\) <= 0\.001f/);
+  assert.match(ui, /group\.alpha <= 0\.001f/);
+  assert.match(ui, /if \(!BlocksWorldClick\(hit\)\) continue/);
+  assert.match(ui, /system\.RaycastAll\(pointer, uiHits\)/);
+
+  // Regressão confirmada no YAML original: imagens totalmente transparentes
+  // com raycastTarget = true cobrem grandes regiões de tela.
+  const scene = readFileSync(join(process.cwd(), "..", "Client",
+    "Assets", "scenebasic.unity"), "utf8");
+  const documents = scene.split(/(?=^--- !u!)/m);
+  for (const name of ["ButtomLeft", "InventoryManager", "LootPanel"]) {
+    const gameObject = documents.find(doc =>
+      doc.startsWith("--- !u!1 &") && doc.includes("m_Name: " + name + "\n"));
+    assert.ok(gameObject, `Faltou GameObject ${name} na cena`);
+    const id = gameObject!.match(/^--- !u!1 &(\d+)/)?.[1];
+    assert.ok(id);
+    const graphic = documents.find(doc =>
+      doc.includes(`m_GameObject: {fileID: ${id}}`) &&
+      doc.includes("m_RaycastTarget: 1") &&
+      /m_Color: \{r: [^}]*a: 0\}/.test(doc));
+    assert.ok(graphic, `Cena precisa comprovar overlay transparente/raycast em ${name}`);
+  }
+
+  type Hit = { canvas: "overlay" | "world"; alpha: number;
+    rendererAlpha?: number; groupAlpha?: number; selectable?: boolean;
+    draggable?: boolean };
+  const blocks = (h: Hit): boolean => h.canvas !== "world" &&
+    Boolean(h.selectable || h.draggable ||
+      (h.alpha > 0.001 && (h.rendererAlpha ?? 1) > 0.001 &&
+        (h.groupAlpha ?? 1) > 0.001));
+  const transparent = {canvas:"overlay",alpha:0} as const;
+  assert.equal(blocks(transparent), false, "HUD/ButtomLeft transparente não bloqueia");
+  assert.equal(blocks({...transparent,selectable:true}), true, "botão transparente bloqueia");
+  assert.equal(blocks({...transparent,draggable:true}), true, "header de arraste bloqueia");
+  assert.equal(blocks({canvas:"overlay",alpha:1}), true, "janela visível bloqueia");
+  assert.equal(blocks({canvas:"world",alpha:1,selectable:true}), false,
+    "barra HP worldspace não bloqueia");
+  assert.equal(blocks({canvas:"overlay",alpha:1,groupAlpha:0}), false,
+    "painel escondido por CanvasGroup não bloqueia");
+  assert.equal(blocks({canvas:"overlay",alpha:1,rendererAlpha:0}), false,
+    "Graphic com CanvasRenderer oculto não bloqueia");
+  assert.equal([transparent, {canvas:"world",alpha:1} as Hit].some(blocks), false,
+    "duas camadas decorativas não capturam clique");
+  assert.equal([transparent, {canvas:"overlay",alpha:1} as Hit].some(blocks), true,
+    "painel realmente visível continua protegido");
 });
