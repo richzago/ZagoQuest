@@ -64,3 +64,24 @@ test("saving an existing UUID updates that entity without creating another", asy
   // Character rename must be handled by its own API, not implicit autosave.
   assert.equal(existing.name, "OriginalName");
 });
+
+
+test("C6: save legado 0/0 recupera mana da vocação, mas mana gasta 0/50 permanece zero",async()=>{
+ for(const [savedMaxMana,expectedMana] of [[0,50],[50,0]]){
+  await withRepository({
+   async findOne(){return {
+    id:"uuid-mana-"+savedMaxMana,name:"ManaTeste",level:1,xp:0,xpVersion:2,
+    lifetimeXp:0,hp:100,maxHp:100,mana:0,maxMana:savedMaxMana,
+    gold:0,bankGold:0,gender:"M",world:"main",vocation:"none",
+    promotionStage:0,posX:2,posY:2,inventory:{},equipment:{},skills:{},
+   };},
+   create:()=>({}),
+   async save(entity){return entity;},
+  },async()=>{
+   const p=await DatabasePersistence.loadCharacter("ManaTeste");
+   assert.ok(p);
+   assert.equal(p.maxMana,50);
+   assert.equal(p.mana,expectedMana);
+  });
+ }
+});
