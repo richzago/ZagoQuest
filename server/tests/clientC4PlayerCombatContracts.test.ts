@@ -57,10 +57,13 @@ test("C4: PlayerHUD não mantém singleton de cena obsoleto após destroy", () =
   assert.match(hud, /public void UpdateStats\(PlayerStatsData stats\)/);
   // C6 centralizou a atualização em DisplayBar (clamp somente visual).
   assert.match(hud, /DisplayBar\(hpSlider, hp, maxHp\)/);
-  assert.match(hud, /DisplayBar\(xpSlider, xp, currentXpToNext\)/);
+  assert.match(hud, /DisplayBar\(manaSlider, mana, maxMana\)/);
   assert.match(hud, /slider\.value = Mathf\.Clamp\(value, 0, Mathf\.Max\(1, maximum\)\)/);
-  assert.match(hud, /if \(stats\.levelXpToNext <= 0\)[\s\S]*?DisplayBar\(xpSlider, 1, 1\)/);
-  assert.match(hud, /stats\.xp:N0/);
+  // C6 compacta: o HUD oculta XP, mantendo levelXP no contrato para destaque.
+  assert.match(hud, /xpSlider\.gameObject\.SetActive\(false\)/);
+  assert.match(hud, /xpText\.gameObject\.SetActive\(false\)/);
+  assert.match(hud, /stats\.levelXpToNext > 0/);
+  assert.match(hud, /stats\.levelXp \/ stats\.levelXpToNext >= 0\.9/);
 });
 
 test("C4: troca de alvo nunca interrompe alvo anterior para selecionar monstro inexistente", () => {
