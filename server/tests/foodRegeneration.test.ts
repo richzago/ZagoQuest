@@ -102,7 +102,8 @@ test("food: handler consome só uma unidade e emite snapshot ao regenerar, não 
  assert.equal(p.hp,p.maxHp-10); assert.equal(p.mana,0);
  assert.equal(events.inventory,1);assert.equal(events.stats,0);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p)>0,true);
- assert.equal(FoodRegenerationSystem.canEat(p,120),false);
+ // Food parcial pode ser prolongado; o teto é verificado noutro teste.
+ assert.equal(FoodRegenerationSystem.canEat(p,120),true);
  // Poção mantém efeito instantâneo, sem criar status de food.
  p.addItem("consumable/health_potion",1);
  await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/health_potion"},ctx);
