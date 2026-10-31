@@ -202,8 +202,10 @@ public class InventoryUI : MonoBehaviour
         var network = NetworkManager.Instance;
         if (network == null || !network.isConnected || network.Inventory == null ||
             string.IsNullOrWhiteSpace(itemId)) return;
-        // Node valida se o item é equipável, se há quantidade e slot compatível.
-        network.Inventory.SendEquipItem(itemId);
+        // A intenção genérica "usar" é resolvida pelo Node:
+        // consumable = comer/beber; equipment = equipar; demais = recusar.
+        // Não inferir tipo pelo prefixo do itemId nem modificar a bolsa local.
+        network.Inventory.UseItem(itemId);
     }
 
     // =========================
