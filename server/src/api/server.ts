@@ -25,7 +25,7 @@ import { isCorsOriginAllowed } from "./middlewares/corsPolicy";
 dotenv.config();
 
 // Cria a aplicação Express
-const app = express();
+export const app = express(); // Also used by isolated HTTP contract tests without PostgreSQL.
 
 // Middlewares globais
 app.use(cors({ origin: (origin, callback) => callback(null, isCorsOriginAllowed(origin)) })); // Allowlist em produção
