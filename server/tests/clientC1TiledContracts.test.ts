@@ -72,3 +72,66 @@ test("C1: Node e Unity convertem o eixo Y da Collision igual ao Ground", () => {
   assert.match(unity, /new Vector3Int\(x, mapData\.height - 1 - y, 0\)/);
   assert.match(unity, /blocked\[x, mapData\.height - 1 - y\] = collision\.data\[idx\] != 0/);
 });
+
+
+test("C1: Grid -0.5 alinha sprite visual e jogador autoritativo nas quatro bordas", () => {
+  const scene = read("Client/Assets/scenebasic.unity");
+  const component = (unityType: number, id: number) => {
+    const marker = "--- !u!" + unityType + " &" + id + "\n";
+    const start = scene.indexOf(marker);
+    assert.ok(start >= 0, "Componente ausente na cena: " + marker);
+    const next = scene.indexOf("\n--- !u!", start + marker.length);
+    return scene.slice(start, next >= 0 ? next : undefined);
+  };
+  const position = (yaml: string, prop: string) => {
+    const re = new RegExp(prop + ": \\{x: (-?[\\d.]+), y: (-?[\\d.]+), z: (-?[\\d.]+)\\}");
+    const values = yaml.match(re);
+    assert.ok(values, "Falta " + prop);
+    return {x: Number(values[1]), y: Number(values[2])};
+  };
+
+  // TileAnchor (0.5,0.5): sem offset, tile x3 fica em x3.5
+  // enquanto o PlayerController posiciona o personagem em x3.
+  const grid = component(4, 1217622213);
+  const ground = component(4, 880854269);
+  const tilemap = component(1839735485, 880854271);
+  const gridOrigin = position(grid, "m_LocalPosition");
+  const tileLocal = position(ground, "m_LocalPosition");
+  const anchor = position(tilemap, "m_TileAnchor");
+  assert.deepEqual(gridOrigin, {x:-0.5, y:-0.5});
+  assert.deepEqual(tileLocal, {x:0, y:0});
+  assert.deepEqual(anchor, {x:0.5, y:0.5});
+
+  const client = read("Client/Assets/Resources/Scripts/Player/PlayerController.cs");
+  assert.match(client, /transform\.position = new Vector3\(currentGridPosition\.x, currentGridPosition\.y, 0\)/);
+  assert.match(client, /transform\.position = new Vector3\(confirmed\.x, confirmed\.y, 0\)/);
+
+  const source = JSON.parse(read("assets/maps/test-map.json"));
+  const groundLayer = source.layers.find((layer: {name: string}) => layer.name === "Ground");
+  const collision = source.layers.find((layer: {name: string}) => layer.name === "Collision");
+  assert.ok(groundLayer && collision);
+  const tileId = (layer: {data: number[]}, x: number, y: number) =>
+    layer.data[(source.height - 1 - y) * source.width + x];
+  const visualCenter = (x: number, y: number) => ({
+    x: gridOrigin.x + tileLocal.x + x + anchor.x,
+    y: gridOrigin.y + tileLocal.y + y + anchor.y,
+  });
+
+  for (const [x,y] of [[3,3],[26,3],[3,16],[26,16],[15,10]]) {
+    assert.deepEqual(visualCenter(x,y),{x,y}, "Centro divergente no tile "+x+","+y);
+    assert.equal(tileId(collision,x,y),0,"Chão deveria ser caminhável: "+x+","+y);
+    assert.ok(tileId(groundLayer,x,y)>0,"Ground ausente");
+  }
+  for (const [x,y] of [[2,3],[27,3],[15,2],[15,17]]) {
+    assert.notEqual(tileId(collision,x,y),0,"Água deve ser bloqueada: "+x+","+y);
+  }
+
+  for (const file of [
+    "Client/Assets/Resources/Tilesets/[A]Grass1-Dirt1_pipo.png.meta",
+    "Client/Assets/Resources/Tilesets/player_human_01.png.meta",
+  ]) {
+    const asset = read(file);
+    assert.match(asset, /spritePixelsToUnits: 32/);
+    assert.match(asset, /spritePivot: \{x: 0\.5, y: 0\.5\}/);
+  }
+});
