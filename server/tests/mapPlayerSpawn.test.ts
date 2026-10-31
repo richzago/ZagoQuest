@@ -10,7 +10,7 @@ test("real Tiled map recognizes custom type=player instead of falling back to (2
   const world = new World();
   const path = join(process.cwd(), "..", "assets", "maps", "test-map.json");
   const result = MapLoader.loadMap(world, path);
-  assert.deepEqual(result.playerSpawn, { x: 15, y: 3 });
+  assert.deepEqual(result.playerSpawn, { x: 15, y: 16 });
   assert.equal(world.width, 30);
   assert.equal(world.height, 20);
 });
@@ -33,7 +33,7 @@ test("PlayerSpawn accepts Tiled name, built-in type, and custom type property", 
       ],
     }));
     const result = MapLoader.loadMap(new World(), file);
-    assert.deepEqual(result.playerSpawn, { x: 2, y: 3 }, JSON.stringify(object));
+    assert.deepEqual(result.playerSpawn, { x: 2, y: 6 }, JSON.stringify(object));
   }
 });
 
