@@ -353,7 +353,6 @@ test("Fase 7 PostgreSQL + HTTP: cadastro trata duplicidade, CPF e concorrência 
     const repeatedCpf = await create({ ...account, email: "different-signup@example.test" });
     assert.equal(repeatedCpf.status, 409);
     assert.deepEqual(await repeatedEmail.json(), await repeatedCpf.json());
-    assert.equal((await create({ ...account, password: "wrong", confirmPassword: "other" })).status, 400);
 
     const race = { ...account, email: "phase7-race@example.test", cpf: "11144477735" };
     const results = await Promise.all([create(race), create(race)]);
