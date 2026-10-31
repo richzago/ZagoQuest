@@ -6,7 +6,8 @@
     "type": "consumable",
     "stackable": true,
     "value": 5,
-    "foodSeconds": 30
+    "foodSeconds": 30,
+    "satietyPoints": 30
   },
   {
     "id": "fishing/fish/salmon",
@@ -15,7 +16,8 @@
     "type": "consumable",
     "stackable": true,
     "value": 8,
-    "foodSeconds": 40
+    "foodSeconds": 40,
+    "satietyPoints": 40
   },
   {
     "id": "fishing/fish/perch",
@@ -24,7 +26,8 @@
     "type": "consumable",
     "stackable": true,
     "value": 4,
-    "foodSeconds": 20
+    "foodSeconds": 20,
+    "satietyPoints": 20
   },
   {
     "id": "fishing/fish/golden",
@@ -33,6 +36,7 @@
     "type": "consumable",
     "stackable": true,
     "value": 50,
-    "foodSeconds": 40
+    "foodSeconds": 40,
+    "satietyPoints": 40
   }
 ]
