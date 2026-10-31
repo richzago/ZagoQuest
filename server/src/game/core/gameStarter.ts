@@ -19,6 +19,8 @@ import { PlayerAttackSystem } from "../combat/playerAttackSystem";
 import { Monster } from "../entities/monster";
 import { performance } from "node:perf_hooks";
 import { TickMetrics } from "./tickMetrics";
+import { FoodRegenerationSystem } from "../systems/foodRegenerationSystem";
+import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 
 /** Keep game tick duration separate from autosave/guild schedules. */
 // AI decisions are frequent; creature-specific cooldown controls steps.
@@ -174,6 +176,18 @@ export function tickWorld(world: World, wsServer: WebSocketServer): void {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           Logger.error(`Erro nas condições do player ${player.id}: ${msg}`);
+        }
+      }
+
+      // A alimentação não cria um setInterval por personagem. Este tick usa
+      // timestamps do Node e transmite stats SOMENTE se HP/mana mudou.
+      // O servidor decide limites; Canvas do Unity apenas apresenta.
+      for (const player of world.players) {
+        try {
+          if (FoodRegenerationSystem.tick(player))
+            wsServer.sendToPlayer?.(player.id, JSON.stringify(PlayerStatsSender.toPayload(player)));
+        } catch (error) {
+          Logger.error(`[FOOD] Falha no tick de ${player.id}: ${String(error)}`);
         }
       }
 
