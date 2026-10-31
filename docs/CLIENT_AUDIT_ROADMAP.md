@@ -1,12 +1,12 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado atualizado (31/10/2026): C0 e C1 CONCLUÍDAS; C2 funcionalmente aceita; C3 CONCLUÍDA/HOMOLOGADA pelo desenvolvedor (JWT, personagem e exclusividade por conta, PR #95); C4 EM AUDITORIA MINUCIOSA após primeira bateria local aprovada e PR #94 integrado, com novo PR incremental HUD/target e QA pendente. C5 só após C4; C8 mantém homologação E2E independente.**
+**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA (PR #95); C4 CONCLUÍDA/HOMOLOGADA — 10/10 testes locais Editor + Windows aprovados após PRs #94/#96, CI pré/pós-merge verde. C5 INICIADA (auditoria NPC/World), sem correções antecipadas. C6/C7/C8 pendentes por escopo próprio.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 
 ## 1. Contexto e objetivo
 
-O escopo de **implementação e regressão automatizada do backend** está encerrado na `dev`, com `InitialSchema1793400000000`, documentação PostgreSQL, REST/WS autenticados e CI Windows/Linux/PG. O desenvolvedor relatou que os testes locais da sequência **database → contas → personagens → guilda** funcionaram em seu Windows, mas ainda não houve confirmação detalhada da bateria Unity com dois clientes, reconexão, persistência e interface.
+O escopo de **implementação e regressão automatizada do backend** está encerrado na `dev`, com `InitialSchema1793400000000`, documentação PostgreSQL, REST/WS autenticados e CI Windows/Linux/PG. O desenvolvedor confirmou a sequência **database → contas → personagens → guilda** e posteriormente homologou no Unity Editor + build Windows as fases C0–C4, incluindo dois clientes Alfa/Beta, reconexão, exclusividade de conta, combate e respawn. A homologação de **release E2E da C8**, com queda prolongada do servidor/carga exploratória, permanece independente; os testes realizados não substituem C8.
 
 **Não declarar Fase 8 integralmente homologada** até completar as verificações locais aplicáveis. Ela permanece como um conjunto de critérios de aceitação dentro do trabalho C0–C8 do cliente, sem confundir pendência de integração com falha já comprovada.
 
@@ -59,7 +59,7 @@ A lista é uma entrada para revisão, **não uma auditoria que já comprovou def
 | **C7 — UX/Funcionalidades visuais** | Câmera, legibilidade, telas, polimento, pesca (se houver escopo de implementação) | UX e backlog separados dos P0/P1 |
 | **C8 — E2E/Release decision** | 2 Unity clients, reconnect, restart, persistência, carga exploratória e limpeza | Evidência de homologação real; produção avaliada separadamente |
 
-### C0 → C3: primeira bateria prática
+### C0 → C3: primeira bateria prática (registro histórico; aceite de C0–C4 resumido ao final)
 
 - [ ] Atualizar `dev`; abrir o projeto no Unity e identificar erros de importação/compilação.
 - [ ] Conectar com `NetworkManager.requireAuthenticatedSession=true` e `WS_AUTH_REQUIRED=true` no Node, apontando para ambiente **local e descartável**.
@@ -69,7 +69,7 @@ A lista é uma entrada para revisão, **não uma auditoria que já comprovou def
 - [ ] Verificar reentrada, reconexão, snapshot e posições sem NPCs/monstros fantasmas.
 - [ ] Desligar Node com jogadores conectados e validar recarga/persistência no PostgreSQL de teste.
 
-Todos os itens acima aguardam execução pelo desenvolvedor, exceto as confirmações REST/PG explicitamente registradas no documento da Fase 8.
+**Nota histórica:** essa lista registra o plano inicial e não substitui o aceite posterior. Em 31/10/2026 o desenvolvedor homologou Editor+Windows Alfa/Beta, sessão por conta/UUID, combate, HUD e respawn. A verificação de queda prolongada do Node e release completo continua na C8.
 
 ## 5. Registro de cada teste / PR
 
@@ -105,3 +105,26 @@ PR / MERGE / PRÓXIMA AÇÃO:
 **C4 atual:** já corrigidos, no PR #94, ciclo de vida das 8 InputActions do Player e envio de comandos sem conexão em TargetSelector. QA funcional anterior de combate/Alfa/Beta passou; revisão técnica aprofundada segue aberta. PR específico seguinte cobre dois bugs C4: PlayerHUD conserva singleton estático depois de OnDestroy e TargetSelector envia STOP redundante/perde seleção anterior quando o ID do novo monstro desapareceu antes de selecionar. Correções locais e teste de contrato, sem mudar Node autoritativo, cooldown, distância de ataque, Tiled ou dados PostgreSQL.
 
 **Cobertura detalhada de C4:** Node MovementSystem, move.handler, PlayerAttackSystem, attack.handler, gameStarter autoattack, CombatSystem, CombatEventBridge, DeathSystem, PlayerStatsSender; Unity PlayerController, TargetSelector, PlayerHUD, PositionHandler, PlayerStatsHandler, DamageHandler, InitHandler, AutoAttackStoppedHandler, EntityManager e TargetOutline. Matriz e scripts de QA descritos em [CLIENT_C4_PLAYER_COMBAT_AUDIT.md](CLIENT_C4_PLAYER_COMBAT_AUDIT.md). Fechamento de C4 exige QA local desta última alteração + validação da matriz Player/Combat. Não antecipar C5.
+
+## Fechamento definitivo C4 / Transição C5 — aceite do desenvolvedor (31/10/2026)
+
+**Decisão:** **C4 Player/Combat CONCLUÍDA e HOMOLOGADA**, sem alterações adicionais necessárias. O desenvolvedor enviou **10/10 resultados [OK]**, explicitamente após os PRs #94 e #96:
+
+1. Alfa no Unity Editor e Beta na build Windows, personagens/posições corretos.
+2. WASD, Q/E/Z/C, colisão e troca rápida de direção.
+3. Chat com digitação sem disparar movimento.
+4. Seleção distante e aproximação antes de causar dano.
+5. Troca de alvo válido, cancelamento e desaparecimento de monstro.
+6. Goblin foge com HP baixo; auto-follow e autoattack retomam quando recupera alcance.
+7. Barra HP do Goblin, dano flutuante, HP e XP do jogador.
+8. Morte de Goblin gera cadáver único, loot e respawn sem seleção fantasma.
+9. Morte de Beta restaura HP, aplica penalidade de XP e respawna no Tiled (ou tile livre próximo).
+10. Três reentradas no Play Mode: HUD/input corretos; sem `MissingReferenceException` nem `NullReferenceException`.
+
+**Evidência de código e CI:** PR [#94](https://github.com/richzago/ZagoQuest/pull/94) protege InputActions e ataques/loot sem sessão; PR [#96](https://github.com/richzago/ZagoQuest/pull/96) corrige singleton PlayerHUD e troca segura de alvo, merge commit `d150cde61bfd7655f2dc5dcafbe88284e9c04145`. [CI do #96](https://github.com/richzago/ZagoQuest/actions/runs/41223127595) e [CI pós-merge](https://github.com/richzago/ZagoQuest/actions/runs/41223282123) **PASS Windows/Linux/PostgreSQL**. Código de gameplay do Node, Tiled, PostgreSQL e `main` não foram alterados no fechamento.
+
+**Critério de conclusão atingido:** matriz de movimento, target, auto-follow, dano/HP, XP, morte/respawn e lifecycle verificada no Editor/build, sem erro impeditivo relatado. Há limites: latência artificial extrema, carga, restart prolongado do servidor e release seguem no escopo da C8, não reabrem C4 sem falha reproduzível.
+
+**C5 — NPC/World INICIADA:** [relatório específico](CLIENT_C5_NPC_WORLD_AUDIT.md). Primeira auditoria de `NpcLoader`, `NpcAI`, `MonsterAI`, `NpcInteractionSystem`, `ClickInteract`, handlers Shop/Bank/Loot, UI de loja/banco/loot, cadáver e AI. Separar bugs comprovados, riscos a reproduzir, diferenças de regra, melhorias UI da C6. **Não antecipar alterações no servidor ou Unity antes de testes e evidências.**
+
+**Próxima etapa:** definir matriz C5 (NPC merchant/banker, conversa e afastamento, IA e ocupação, saque/depósito/compra com autorização, cadáver e loot em dois clientes), depois corrigir incrementalmente qualquer defeito comprovado em PR dedicado, com CI e QA local.
