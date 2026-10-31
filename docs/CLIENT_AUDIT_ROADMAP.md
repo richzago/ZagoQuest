@@ -1,6 +1,6 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado:** roteiro de auditoria iniciado em 31/10/2026; **nenhum teste local do cliente foi dado como aprovado nesta transição**.
+**Estado atualizado (31/10/2026): C0 CONCLUÍDA após aceite funcional local do desenvolvedor (Unity Editor + Windows Player, incluindo personagem remoto Beta); C1 EM ANDAMENTO. C8 mantém homologação completa e independente.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 

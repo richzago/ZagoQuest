@@ -34,3 +34,15 @@
 **Critério para C0 homologada:** duas instâncias autenticadas, HUD com personagens distintos, dois avatares visíveis, movimento independente em ambas as direções, despawn/reconnect limpo e nenhum erro de build. Se algum item falhar, manter C0 aberta.
 
 [Auditoria C0–C8 no Notion](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933)
+
+## Aceite funcional de C0 — 31/10/2026
+
+**C0 CONCLUÍDA**, por confirmação explícita do desenvolvedor após atualizar o cliente e reconstruir o executável Windows. O Console local apresentou:
+
+`[MULTIPLAYER] Jogador remoto criado: Teste Beta (f1c6dab2-6fb7-452c-8a3f-ef86c422b559).`
+
+O desenvolvedor confirmou o funcionamento e solicitou concluir C0 e iniciar C1. A evidência comprova a criação visual da entidade remota; o aceite geral é o relato do desenvolvedor, e **não equivale a reproduzir todos os cenários de C8** (reinício de serviço, persistência/reconexão sob falha e carga).
+
+- PR [#84](https://github.com/richzago/ZagoQuest/pull/84) integrado à `dev`, commit `677cb59115e52f2045c024c8851d2dfba4f45bd3`.
+- [CI pós-merge #41208578836](https://github.com/richzago/ZagoQuest/actions/runs/41208578836) aprovada em Windows, Linux e PostgreSQL.
+- Encerramento C0 não significa encerrar C3 (auditoria de rede/auth) ou C8 (homologação E2E); essas fases mantêm seu próprio escopo.
