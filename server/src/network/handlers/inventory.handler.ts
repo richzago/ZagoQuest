@@ -24,6 +24,21 @@ import type {
   ClientPickupItemMessage,
 } from "../messages";
 
+/**
+ * Protege a economia contra um segundo clique de equipamento gerado pelo
+ * rebuild do inventário no mesmo gesto. Por personagem, não por socket,
+ * sem afetar poções/comida e sem bloquear sessões de outros jogadores.
+ */
+const recentEquip = new WeakMap<Player, number>();
+export const EQUIPMENT_GESTURE_GUARD_MS = 550;
+export function canEquipFromGesture(player: Player, now = Date.now()): boolean {
+  const previous = recentEquip.get(player);
+  return previous === undefined || now - previous >= EQUIPMENT_GESTURE_GUARD_MS;
+}
+function confirmEquipmentGesture(player: Player): void {
+  recentEquip.set(player, Date.now());
+}
+
 export async function handleUseItem(
   ws: WebSocket,
   player: Player,
@@ -127,8 +142,14 @@ export async function handleUseItem(
   }
 
   if (item.type === "equipment") {
+    if (!canEquipFromGesture(player)) {
+      ctx.packetSender.inventory.sendItemUsed(itemId, false,
+        "Aguarde um instante antes de equipar outro item.");
+      return;
+    }
     const success = player.equipItem(itemId);
     if (success) {
+      confirmEquipmentGesture(player);
       ctx.packetSender.inventory.sendItemUsed(itemId, true, `Você equipou ${item.name}.`);
       ctx.packetSender.inventory.sendInventory(player);
       ctx.packetSender.inventory.sendPlayerStats(player);
@@ -157,8 +178,13 @@ export async function handleEquipItem(
   ctx: HandlerContext,
 ): Promise<void> {
   Logger.system(`[EQUIP] Recebido equipItem de ${player.name}: itemId=${msg.itemId}`);
+  if (!canEquipFromGesture(player)) {
+    ctx.packetSender.inventory.sendError("Aguarde um instante antes de equipar outro item.");
+    return;
+  }
   const success = player.equipItem(msg.itemId);
   if (success) {
+    confirmEquipmentGesture(player);
     ctx.packetSender.inventory.sendInventory(player);
     ctx.packetSender.inventory.sendPlayerStats(player);
     ctx.packetSender.inventory.sendEquipment(player);
