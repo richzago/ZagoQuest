@@ -33,6 +33,8 @@ export interface ItemType {
   maxStack?: number;
   /** Segundos de saciedade: habilita regeneração periódica server-side. */
   foodSeconds?: number;
+  /** Efeito instantâneo de poções (a comida usa foodSeconds). */
+  effect?: { healHp?: number; healMana?: number };
   value?: number;
   // Se for equipment, terá os campos de EquipableItemType
   slot?: EquipmentSlot;
