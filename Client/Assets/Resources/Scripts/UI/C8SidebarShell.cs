@@ -217,9 +217,8 @@ public sealed class C8SidebarShell : MonoBehaviour
         slots.offsetMin = Vector2.zero;
         slots.offsetMax = Vector2.zero;
 
-        float total = EquipmentSlotSize * 3f + EquipmentStepX * 2f -
-            EquipmentSlotSize * 2f; // 3 slots + 2 intervalos (74-56)
-        // Equivale a 56 + 74*2 = 204; centralizado no painel existente.
+        float total = EquipmentSlotSize + EquipmentStepX * 2f;
+        // 3 slots de 56, separados em passos de 74: 204, centralizado.
         float x0 = Mathf.Max(8f, (panel.rect.width - total) * 0.5f);
         foreach (Transform child in ui.slotsContainer)
         {
@@ -308,6 +307,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         image.color = Inset;
         image.raycastTarget = false; // TODO: configurar callbacks somente em etapa futura
         AddText(obj.transform, "IconLabel", label, 5f, 24f, 11f, Muted);
+        var text = obj.transform.Find("IconLabel").GetComponent<TextMeshProUGUI>();
+        text.alignment = TextAlignmentOptions.Center;
+        text.enableWordWrapping = false;
+        text.rectTransform.offsetMin = new Vector2(3f, text.rectTransform.offsetMin.y);
+        text.rectTransform.offsetMax = new Vector2(-3f, text.rectTransform.offsetMax.y);
     }
 
     private static void AddLine(Transform parent, string name, float top, Color color)
