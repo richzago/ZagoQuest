@@ -7,6 +7,7 @@ import { WebSocket } from "ws";
 import type { Player } from "../../game/entities/player";
 import type { HandlerContext } from "./HandlerContext";
 import { FishingSystem } from "../../game/systems/fishingSystem";
+import { ItemRegistry } from "../../data/items/itemRegistry";
 import type { ClientStartFishingMessage, ClientCancelFishingMessage } from "../messages";
 
 function feedback(ws: WebSocket, state: "started"|"completed"|"cancelled"|"rejected",
@@ -25,8 +26,13 @@ export function handleStartFishing(
   const started = FishingSystem.startFishing(player, ctx.world, {
     onComplete: (reward) => {
       if (ws.readyState !== WebSocket.OPEN) return;
+      let name = reward?.itemId ?? "";
+      if (reward) {
+        try { name = ItemRegistry.get(reward.itemId).name; }
+        catch { name = reward.itemId.split("/").pop()?.replace(/_/g, " ") ?? reward.itemId; }
+      }
       const message = reward
-        ? `Pesca concluída: ${reward.amount}x ${reward.itemId}.`
+        ? `Pesca concluída: ${reward.amount}x ${name}.`
         : "Pesca concluída, mas nenhum item foi adicionado.";
       feedback(ws, "completed", message);
       ctx.packetSender.inventory.sendInventory(player);
