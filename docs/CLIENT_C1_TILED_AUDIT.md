@@ -97,3 +97,37 @@
 - [ ] Após testes, registrar resultados e fechar a C1 somente se todas as convenções e bloqueios se mostrarem consistentes.
 
 **Status:** C0 concluída após aceite do desenvolvedor; C1 com decisão de gameplay implementada e QA de água/parede pendente.
+
+## C1 — Bug de meia célula, deslocamento assimétrico nas bordas (31/10/2026)
+
+### Relato reproduzido analiticamente a partir da cena
+
+Após PR #86 (água/parede na Collision), desenvolvedor relatou: **esquerda/baixo o boneco entra cerca de 1 sqm na água; direita/cima para cerca de 1 sqm antes do limite do chão**. Reportou hipótese de recorte dos pixels do tileset.
+
+**BUG COMPROVADO na configuração versionada do Unity:**
+- `Grid` estava em `(0,0)`, `Tilemap` filho em `(0,0)`; Grid.cellSize=`(1,1)` e Ground.tileAnchor=`(0.5,0.5)`.
+- Os tiles renderizados por `TiledMapRenderer.DrawLayer` com célula inteira `(x,y)` têm **centro visual `(x+0.5,y+0.5)`**.
+- `PlayerController.OnServerInit` e `OnPositionReceived` usam `transform.position=(x,y,0)`, sem o `+0.5`. O mesmo vale para os avatares remotos e demais entidades desenhadas via posições inteiras do Node.
+- Assim o personagem é desenhado **meio tile à esquerda e embaixo do centro do tile autorizado pelo servidor**, gerando exatamente o padrão de assimetria relatado. O tamanho do jogador é 0.8 e pode dar a impressão visual de um sqm inteiro.
+- As sprites consultadas usam slices 32×32, Pixels Per Unit 32 e pivot central (0.5,0.5). **Não há evidência de recorte incorreto dos PNGs como causa principal.**
+
+**A matriz está correta:** o JSON 30×20 tem água em `x=0..2,27..29` e `row=0..2,17..19`. Após inversão Y, células logicamente caminháveis são `x=3..26,y=3..16`; a água bloqueia corretamente `x=2,27,y=2,17` nas bordas. Não corrigir movendo a Collision: isso geraria inconsistência entre terreno/servidor/UI.
+
+### Correção mínima nesta PR
+
+- `Client/Assets/scenebasic.unity`: alterar **apenas o Transform de `Grid` de `(0,0,0)` para `(-0.5,-0.5,0)`**. Como o Tilemap usa anchor central, centro visual agora fica em `(-0.5 + x + 0.5, -0.5 + y + 0.5) = (x,y)`.
+- Todas as camadas visuais adicionais da C1 já são filhas do mesmo Grid (PR #85), e portanto acompanham o deslocamento.
+- **Não** alterar `PlayerController`, `EntityManager`, os dados Tiled, `Collision`, spawns, WebSocket, SQL, posição de personagem ou cálculos de combate/pathfinding.
+- Teste de contrato `clientC1TiledContracts.test.ts` verifica a configuração da cena, a matemática de alinhamento para os quatro cantos do terreno e o centro do mapa, as bordas de água, a posição inteira do PlayerController e metadados de sprites. **O teste é estático e não substitui Play Mode em Unity.**
+
+### Checklist de aceitação local desta mudança
+
+1. Com a nova `dev`, abrir `scenebasic.unity` no Unity, confirmar **Grid Position X=-0.5, Y=-0.5**; `Grid/Tilemap` permanece Position (0,0).
+2. Teste Alfa ou Beta em `(3,3)`: deverá ficar **centralizado** no último tile de chão, sem parecer entrar na água à esquerda/embaixo.
+3. Aproximar da água nas quatro direções. O último tile caminhável é `x=3` (esquerda), `x=26` (direita), `y=3` (baixo) e `y=16` (cima), excluídas as posições ocupadas por NPCs, monstros ou outros jogadores.
+4. Testar movimentação diagonal nos quatro cantos, cancelamento de movimento bloqueado, e sincronização Alfa/Beta.
+5. No Console do servidor, confirmar que o movimento bloqueado não altera a posição autoritativa; desligar e religar para validar persistência normal.
+6. Se ainda houver divergência, conferir no Unity durante Play Mode `Tilemap.GetCellCenterWorld(new Vector3Int(x,y,0))` comparado com `PlayerController.transform.position`, sem alterar a Collision para compensar problemas visuais.
+7. **C1 só se encerra após novo aceite local.** Auditoria futura de object layers (spawn Y top-down) continua separada: o ajuste do Grid não converte posições de NPCs nem migra personagem persistido.
+
+**Referência Unity:** `Tilemap.GetCellCenterWorld` e `Tilemap.tileAnchor` calculam o centro conforme o anchor. `Grid.CellToWorld` retorna canto inferior esquerdo, não centro visual; o default do Tilemap é (0.5,0.5).
