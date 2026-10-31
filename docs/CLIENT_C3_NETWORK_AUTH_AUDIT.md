@@ -41,3 +41,13 @@
 5. Separar o que pertence a C3 (Network/Auth) e C8 (homologação completa).
 
 **Status C3:** em auditoria, ainda sem aceite local específico da fase.
+
+## C3.1 — NetworkContext e ciclo de vida da UI: primeira correção
+
+**Classificação:** risco técnico P1/P2 de inicialização de referências (não há reprodução local confirmada de handler perdido). Ao revisar o contexto atual da dev, EntityManager/ShopUI/BankUI já usavam propriedades dinâmicas; outros nove singletons (GameManager, ChatUI, LootUI, TargetSelector, NameplateManager, InventoryUI, EquipmentUI, PlayerHUD e StatusManager) eram capturados no construtor e podiam permanecer nulos ou destruídos se os respectivos GameObjects fossem criados depois ou substituídos.
+
+**Alteração contida:** NetworkContext agora lê todos os managers pelo singleton atual ao receber cada pacote; NetworkManager permanece associado ao contexto da conexão. Não modifica o handshake, os UUIDs, tokens, WebSocket, mensageria, regras de jogo, autenticação do servidor ou PostgreSQL. Os handlers que já acessavam context.NameplateManager e context.EntityManager continuam com a mesma API.
+
+**Teste C3:** server/tests/clientC3NetworkContextContracts.test.ts, integrado ao npm test, exige lazy lookup para todos os managers e as verificações de ACK de autenticação e de init correspondente ao characterId. Os demais testes de WebSocket autenticado seguem na suíte.
+
+**QA específico:** conectar Alfa Editor e Beta Windows; conferir dano flutuante, chat, inventory, loot, HUD e shop/bank após login e após fechar/reconectar Beta. Em caso de recriação de UI (reload da cena), handlers devem obter a instância nova. A CI Node não compila Unity, então C3 permanece ABERTA até teste local.
