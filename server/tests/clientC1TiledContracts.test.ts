@@ -38,7 +38,7 @@ test("C1: Collision só alimenta a matriz; não é desenhada como layer visual",
   const source = read("Client/Assets/Resources/Scripts/World/TiledMapRenderer.cs");
   assert.match(source, /l\.name == "Ground"/);
   assert.match(source, /layer\.name == "Collision" \|\| layer\.name == "Ground"/);
-  assert.match(source, /layer\.name == "Collision" && l\.type == "tilelayer"/.replace("layer", "l"));
+  assert.match(source, /l\.name == "Collision" && l\.type == "tilelayer"/);
   assert.match(source, /SetCollisionMatrix\(blocked, mapData\.width, mapData\.height\)/);
   assert.match(source, /missingGids\.Add\(gid\)/);
 });
