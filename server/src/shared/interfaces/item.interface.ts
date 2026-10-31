@@ -31,6 +31,8 @@ export interface ItemType {
   type: "currency" | "consumable" | "equipment" | "quest" | "loot";
   stackable: boolean;
   maxStack?: number;
+  /** Segundos de saciedade: habilita regeneração periódica server-side. */
+  foodSeconds?: number;
   value?: number;
   // Se for equipment, terá os campos de EquipableItemType
   slot?: EquipmentSlot;
