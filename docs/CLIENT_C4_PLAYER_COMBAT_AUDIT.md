@@ -1,6 +1,6 @@
 # C4 — Player/Combat: auditoria de input, movimento, target e morte
 
-**Iniciada:** 31/10/2026 · **Branch:** dev · **Status:** C4 em auditoria aprofundada, **não encerrada**; C3 homologada pelo desenvolvedor (incluindo exclusividade por conta, PR #95). A primeira bateria local de C4 e PR #94 foram aprovados; nova correção incremental aguarda CI e QA Unity. **C5 será depois da C4**.
+**Iniciada e homologada:** 31/10/2026 · **Branch:** dev · **Status atual: C4 CONCLUÍDA/HOMOLOGADA após aceite de 10/10 testes do desenvolvedor.** Correções PR #94/#96 integradas; CI do PR #96 e pós-merge PASS Windows/Linux/PostgreSQL. **C5 NPC/World iniciada a seguir.** Os trechos abaixo de "QA pendente" constituem o histórico anterior ao aceite; consultar o encerramento ao final.
 
 ## 1. Escopo e premissas
 
@@ -51,7 +51,7 @@
 6. Fechar a sessão Beta e clicar em monstro/corpse durante desconexão ou reconexão: não pode lançar NullReferenceException nem mandar pacotes antes do ACK.
 7. Validar o aviso de personagem já conectado da C3: outro cliente com mesmo UUID recebe mensagem explícita, sem trocar controle da primeira sessão.
 
-**C4 não concluída:** primeira correção incremental preparada, QA e fases restantes abertas. A C5 (NPC/World) começa após homologação C4.
+**Registro histórico:** nesta primeira entrega a C4 ainda aguardava homologação. Essa pendência foi solucionada pelos testes 10/10 em 31/10/2026, conforme seção final de aceite.
 
 ## 6. Auditoria aprofundada após aceite C3 (31/10/2026)
 
@@ -136,3 +136,28 @@ A CI em Node verifica contratos C# **por leitura de arquivos**, mas **não compi
 **F. Distinção de QA:** reportar o que falhou com posição/ID do monstro, comando, Console Unity + log Node correspondente, sem JWT/senha; não confundir mudança de interface de loot (C6) com bug de combate ou a ausência de UI de pesca (C7).
 
 **Critério para C4 CONCLUÍDA:** a matriz de input, alvo, auto-follow, dano/HP, morte/respawn e lifecycle foi exercida pelo desenvolvedor sem regressões impeditivas; CI verde e PRs integrados; documentação/Notion e riscos abertos devidamente identificados. Só depois abrir C5.
+
+## 7. Encerramento e homologação da C4 — 10/10 testes Unity (31/10/2026)
+
+**Aceite explícito do desenvolvedor:** todos os dez itens do checklist após atualização da dev retornaram `[OK]`. Editor Alfa + Windows Beta testados. **C4 CONCLUÍDA e homologada**. Não há pendências impeditivas identificadas na bateria executada; não abrir PR adicional para C4.
+
+| Nº | Cenário homologado pelo desenvolvedor | Resultado |
+| --- | --- | --- |
+| 1 | Alfa Editor e Beta Windows, ambos com personagens e posições corretas | PASS |
+| 2 | WASD + diagonais Q/E/Z/C, colisão e mudança rápida de direção | PASS |
+| 3 | Digitação no chat bloqueia movimento | PASS |
+| 4 | Seleção do Goblin distante com perseguição até entrar no alcance | PASS |
+| 5 | Troca entre alvos válidos, cancelamento e despawn concorrente de monstro | PASS |
+| 6 | Goblin foge com pouco HP e autoattack retoma quando alcance volta | PASS |
+| 7 | HP do monstro, dano flutuante, HP e XP do jogador | PASS |
+| 8 | Goblin morto cria um cadáver, loot e respawn sem seleção fantasma | PASS |
+| 9 | Morte de Beta aplica penalidade XP, cura HP e respawna no Tiled ou próximo quando ocupado | PASS |
+| 10 | Entrar e sair do Play Mode 3 vezes; HUD e input sem MissingReferenceException/NullReferenceException | PASS |
+
+**PRs incluídos na homologação:** [#94 — InputActions e guardas de sessão](https://github.com/richzago/ZagoQuest/pull/94) e [#96 — PlayerHUD e troca segura de alvo](https://github.com/richzago/ZagoQuest/pull/96). Último merge da C4 `d150cde61bfd7655f2dc5dcafbe88284e9c04145`. [CI PR #96](https://github.com/richzago/ZagoQuest/actions/runs/41223127595) **PASS**; [CI pós-merge #96](https://github.com/richzago/ZagoQuest/actions/runs/41223282123) **PASS**, todos os jobs Ubuntu/Windows/PostgreSQL.
+
+**Regras preservadas:** movimento/colisão autoritativos Node (75–150ms), ataque manual e automático com alcance <=1,5 e cooldown 1.000ms, seleção distante sem dano fora do alcance, fuga sem cancelamento do alvo, XP proporcional ao dano, penalidade de morte e respawn Tiled. Não houve reescrita de arquitetura ou alteração SQL.
+
+**Limite do aceite:** a homologação corresponde aos dez cenários informados, não inclui ensaios instrumentados de alta latência, estresse, 100+ jogadores, reconexão sob falha de infraestrutura, release/produção. Esses objetivos continuam em **C8 E2E/Release**, sem bloquear C4.
+
+**Handoff:** abrir **C5 — NPC/World** (NPCs, IA, clique/interação, banco, loja, cadáver e loot). Fluxos visualmente aprovados na C4 não implicam que a autorização econômica e a UI de loot completa da C5/C6 estejam homologadas. Preservar main e priorizar evidência, testes e PRs pequenos.
