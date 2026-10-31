@@ -29,8 +29,9 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   }
   assert.match(ui, /public RectTransform DynamicHost => dynamicHost/);
   assert.match(ui, /SidebarDynamicHost/);
-  assert.match(ui, /MAPA EM DESENVOLVIMENTO/);
-  assert.match(ui, /ACESSO RAPIDO/);
+  assert.match(ui, /new GameObject\("MiniMapCircularPreview"/);
+  assert.match(ui, /CreateCircularMiniMapTexture\(\)/);
+  assert.match(ui, /ACESSO RÁPIDO/);
   assert.match(ui, /MOCHILAS  \/  LOOT/);
 });
 
@@ -42,6 +43,10 @@ test("UI 2A: EquipmentPanel ORIGINAL é reparentado sem clone e sem perder slots
   assert.match(ui, /rect\.SetParent\(equipmentHost, false\)/);
   assert.match(ui, /if \(drag != null\) drag\.gameObject\.SetActive\(false\)/);
   assert.match(ui, /if \(close != null\) close\.gameObject\.SetActive\(false\)/);
+  assert.match(ui, /panel\.transform\.Find\("Equipaments"\)/);
+  assert.match(ui, /hierarchyTitle\.gameObject\.SetActive\(false\)/);
+  assert.match(ui, /panel\.transform\.Find\("C6Help"\)/);
+  assert.match(ui, /help\.gameObject\.SetActive\(false\)/);
   assert.match(ui, /ui\.SetSidebarDocked\(true\)/);
   assert.match(ui, /dockedEquipment\.SetSidebarDocked\(false\)/);
   assert.match(ui, /rt\.SetParent\(originalEquipmentParent, false\)/);
@@ -84,19 +89,22 @@ test("UI 2A: C7 cliques e UI Canvas nao sofrem regressao de Raycast", () => {
 
 test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de painel", () => {
   const ui = unity("UI/C8SidebarShell.cs");
-  assert.match(ui, /EquipmentSlotSize = 56f/);
-  assert.match(ui, /EquipmentStepX = 74f/);
-  assert.match(ui, /EquipmentStepY = 67f/);
+  assert.match(ui, /EquipmentSlotSize = 52f/);
+  assert.match(ui, /EquipmentStepX = 65f/);
+  assert.match(ui, /EquipmentStepY = 58f/);
   const sidebarWidth = 304;
   const cardWidth = sidebarWidth - 2 * 13;
   const hostWidth = cardWidth - 2 * 8;
-  const lastSlotEdge = (hostWidth - (56 + 74 * 2)) / 2 + 74 * 2 + 56;
+  const lastSlotEdge = (hostWidth - (52 + 65 * 2)) / 2 + 65 * 2 + 52;
   assert.ok(lastSlotEdge <= hostWidth, "ultima coluna dentro do painel");
-  const equipmentSectionHeight = 369;
-  const hostHeight = equipmentSectionHeight - 10 - 65;
-  const lastRowBottom = 12 + 3 * 67 + 56;
-  assert.ok(lastRowBottom < hostHeight, "o slot BOOTS cabe no host");
-  assert.match(ui, /sr\.sizeDelta = new Vector2\(SidebarWidth, -24f\)/);
+  const compactEquipmentHeight = 285;
+  const hostHeight = compactEquipmentHeight - 8 - 44;
+  const lastRowBottom = 6 + 3 * 58 + 52;
+  assert.ok(lastRowBottom <= hostHeight, "o slot BOOTS cabe no host compactado");
+  assert.match(ui, /sr\.anchoredPosition = Vector2\.zero/);
+  assert.match(ui, /sr\.sizeDelta = new Vector2\(SidebarWidth, 0f\)/);
+  assert.match(ui, /private void RefreshResponsiveLayout\(\)/);
+  assert.match(ui, /height < 760f/);
   assert.match(ui, /private void AdjustDynamicPlaceholder\(\)/);
   assert.match(ui, /dynamicHost\.offsetMax = new Vector2\(-10f, -header\)/);
 });
@@ -117,4 +125,22 @@ test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico 
   assert.match(net, /GetComponent<C8SidebarShell>\(\) == null\) gameObject\.AddComponent<C8SidebarShell>\(\)/);
   const scene = readFileSync(join(process.cwd(), "..", "Client", "Assets", "scenebasic.unity"), "utf8");
   assert.doesNotMatch(scene, /m_Name: C8SidebarCanvas/);
+});
+
+test("UI 2A refinamento: 6 pictogramas sem siglas, minimapa circular e barra full bleed", () => {
+  const ui = unity("UI/C8SidebarShell.cs");
+  const icons = ["SettingsIcon","SoundIcon","ChatIcon","BackpackIcon","MapIcon","HelpIcon"];
+  for (const icon of icons) assert.match(ui,new RegExp('"' + icon + '"'));
+  for (const legacy of ['"CFG"','"SOM"','"AJUDA"'])
+    assert.ok(!ui.includes(legacy), "sigla antiga removida: " + legacy);
+  assert.match(ui, /texture\.SetPixels32\(pixels\)/);
+  assert.match(ui, /Sprite\.Create\(miniMapTexture,/);
+  assert.match(ui, /mapImage\.raycastTarget = false/);
+  assert.match(ui, /image\.raycastTarget = false/);
+  assert.match(ui, /label\.raycastTarget = false/);
+  assert.match(ui, /if \(miniMapSprite != null\) Destroy\(miniMapSprite\)/);
+  assert.match(ui, /if \(miniMapTexture != null\) Destroy\(miniMapTexture\)/);
+  assert.ok(!ui.includes('Arraste os itens para equipar'));
+  const oldScene = readFileSync(join(process.cwd(), "..", "Client", "Assets", "scenebasic.unity"), "utf8");
+  assert.match(oldScene, /m_Name: Equipaments/, "título duplicado era objeto legado do scene YAML");
 });
