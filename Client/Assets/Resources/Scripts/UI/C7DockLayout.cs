@@ -23,6 +23,7 @@ public sealed class C7DockLayout : MonoBehaviour
     private Camera worldCamera;
     private readonly Dictionary<RectTransform, LayoutElement> registered = new();
     private readonly Dictionary<RectTransform, string> keys = new();
+    private readonly Dictionary<RectTransform, float> originalHeights = new();
     private float nextSync;
     private int lastWidth = -1, lastHeight = -1;
     private const string KeyPrefix = "ZagoQuest.C7.Dock.";
@@ -165,6 +166,7 @@ public sealed class C7DockLayout : MonoBehaviour
         layout.flexibleWidth = 1;
         registered[panel] = layout;
         keys[panel] = key;
+        originalHeights[panel] = initialHeight;
         panel.anchorMin = new Vector2(0, 1);
         panel.anchorMax = new Vector2(1, 1);
         panel.pivot = new Vector2(0.5f, 1);
@@ -285,7 +287,8 @@ public sealed class C7DockLayout : MonoBehaviour
     {
         if (!IsDocked(panel)) return;
         PlayerPrefs.DeleteKey(KeyPrefix + Instance.keys[panel] + ".Height");
-        Instance.registered[panel].preferredHeight = 310;
+        Instance.registered[panel].preferredHeight =
+            Instance.originalHeights.TryGetValue(panel, out var height) ? height : 310;
         LayoutRebuilder.MarkLayoutForRebuild(Instance.content);
     }
 
