@@ -196,8 +196,12 @@ test("duas autenticações simultâneas do mesmo UUID permitem apenas um control
     f.auth(second, "token-a", A);
     await eventually(() => [...f.packets.values()].filter(p => p.some(x => x.type === "authenticated")).length === 1);
     await eventually(() => first.readyState === WebSocket.CLOSED || second.readyState === WebSocket.CLOSED);
-    if (first.readyState === WebSocket.CLOSED) assert.equal(await closeFirst, 1008);
+    const rejected = first.readyState === WebSocket.CLOSED ? first : second;
+    if (rejected === first) assert.equal(await closeFirst, 1008);
     else assert.equal(await closeSecond, 1008);
+    assert.deepEqual(f.packets.get(rejected)!.filter(p => p.type === "authRejected"), [
+      { type: "authRejected", reason: "alreadyOnline" },
+    ]);
     assert.equal(f.game.getBroadcastService().getClients().size, 1);
     assert.equal(f.world.players.filter(p => p.id === A).length, 1);
   } finally { await f.close(); }
