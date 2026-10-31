@@ -171,7 +171,7 @@ test("C7 regression PR #110: raycast UI transparente NÃO deve descartar ataque 
   // Regressão confirmada no YAML original: imagens totalmente transparentes
   // com raycastTarget = true cobrem grandes regiões de tela.
   const scene = readFileSync(join(process.cwd(), "..", "Client",
-    "Assets", "scenebasic.unity"), "utf8");
+    "Assets", "scenebasic.unity"), "utf8").replace(/\r\n/g, "\n");
   const documents = scene.split(/(?=^--- !u!)/m);
   for (const name of ["ButtomLeft", "InventoryManager", "LootPanel"]) {
     const gameObject = documents.find(doc =>
