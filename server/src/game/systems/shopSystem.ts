@@ -56,7 +56,7 @@ export class ShopSystem {
         !player.hasItem(itemId, quantity)) return false;
 
     const earned = item.sellPrice * quantity;
-    if (!Number.isSafeInteger(earned) || !canCreditGold(player.gold, earned)) return false;
+    if (!Number.isSafeInteger(earned) || !player.canReceiveGold(earned)) return false;
     if (!player.removeItem(itemId, quantity)) return false;
 
     // 0 gold é permitido em itens sem valor de revenda.
