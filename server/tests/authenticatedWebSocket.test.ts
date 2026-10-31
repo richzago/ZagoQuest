@@ -9,6 +9,7 @@ import { World } from "../src/game/world/World";
 import { Player } from "../src/game/entities/player";
 import { WebSocketServer as GameWs } from "../src/network/websocket/wsServer";
 import type { AuthorizedCharacter } from "../src/network/auth/characterSessionAuth";
+import type { WebSocketSessionOptions } from "../src/network/websocket/wsServer";
 import { closeHttp, listenHttp } from "../src/game/core/httpLifecycle";
 
 const A = "550e8400-e29b-41d4-a716-446655440001";
@@ -25,7 +26,7 @@ function eventually(predicate: () => boolean, delay = 1200): Promise<void> {
     poll();
   });
 }
-async function fixture() {
+async function fixture(options: WebSocketSessionOptions = {}) {
   const server: Server = createServer();
   const world = new World();
   world.generateMap(16, 16);
@@ -43,6 +44,7 @@ async function fixture() {
     },
     loadPlayer: async (identity) => players.get(identity.characterId) ?? null,
     savePlayer: async (player) => { saved.push({ id: player.id, x: player.position.x, y: player.position.y }); },
+    ...options,
   });
   await listenHttp(server, 0);
   const sockets: WebSocket[] = [];
@@ -162,4 +164,120 @@ test("shutdown drena gravações finais de duas sessões autenticadas", async ()
     assert.equal(f.saved.filter(s => s.id === B).length, 1);
     assert.equal(f.game.getBroadcastService().getClients().size, 0);
   } finally { await f.close(); }
+});
+
+test("duas autenticações simultâneas do mesmo UUID permitem apenas um controlador", async () => {
+  const f = await fixture();
+  try {
+    const first = await f.connect(), second = await f.connect();
+    const closeFirst = new Promise<number>((resolve) => first.once("close", (code) => resolve(code)));
+    const closeSecond = new Promise<number>((resolve) => second.once("close", (code) => resolve(code)));
+    f.auth(first, "token-a", A);
+    f.auth(second, "token-a", A);
+    await eventually(() => [...f.packets.values()].filter(p => p.some(x => x.type === "authenticated")).length === 1);
+    await eventually(() => first.readyState === WebSocket.CLOSED || second.readyState === WebSocket.CLOSED);
+    if (first.readyState === WebSocket.CLOSED) assert.equal(await closeFirst, 1008);
+    else assert.equal(await closeSecond, 1008);
+    assert.equal(f.game.getBroadcastService().getClients().size, 1);
+    assert.equal(f.world.players.filter(p => p.id === A).length, 1);
+  } finally { await f.close(); }
+});
+
+test("pacote authenticate com campos extras e UUID malformado é rejeitado sem criar sessão", async () => {
+  const f = await fixture();
+  try {
+    const extra = await f.connect();
+    const closingExtra = once(extra, "close");
+    extra.send(JSON.stringify({ type: "authenticate", token: "token-a", characterId: A, role: "admin" }));
+    assert.equal((await closingExtra)[0], 1008);
+
+    const malformed = await f.connect();
+    const closingMalformed = once(malformed, "close");
+    malformed.send(JSON.stringify({ type: "authenticate", token: "token-a", characterId: "not-uuid" }));
+    assert.equal((await closingMalformed)[0], 1008);
+    assert.equal(f.game.getBroadcastService().getClients().size, 0);
+  } finally { await f.close(); }
+});
+
+test("requisição de autenticação pendente não aceita comandos em paralelo, mesmo com token válido", async () => {
+  let release!: () => void;
+  const f = await fixture({
+    authorize: async (_token, characterId) => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      return { accountId: "account-a", characterId, characterName: "Alice" };
+    },
+  });
+  try {
+    const ws = await f.connect();
+    const closing = once(ws, "close");
+    f.auth(ws, "token-a", A);
+    ws.send(JSON.stringify({ type: "moveDir", dir: "east" }));
+    assert.equal((await closing)[0], 1008);
+    assert.equal(f.players.get(A)!.position.x, 2);
+    release();
+    await new Promise(r => setTimeout(r, 30));
+    assert.equal(f.game.getBroadcastService().getClients().size, 0);
+  } finally {
+    if (release) release();
+    await f.close();
+  }
+});
+
+test("pacote maior que MAX_PACKET_BYTES cai antes de autenticar", async () => {
+  const f = await fixture();
+  try {
+    const ws = await f.connect();
+    const closing = once(ws, "close");
+    ws.send("x".repeat(9000));
+    assert.equal((await closing)[0], 1009);
+    assert.equal(f.game.getBroadcastService().getClients().size, 0);
+  } finally { await f.close(); }
+});
+
+test("gold privado vai só ao socket autenticado do UUID correto", async () => {
+  const f = await fixture();
+  try {
+    const a = await f.connect(), b = await f.connect();
+    f.auth(a, "token-a", A);
+    f.auth(b, "token-b", B);
+    await Promise.all([f.waitPacket(a, "authenticated"), f.waitPacket(b, "authenticated")]);
+    f.game.sendToPlayer(A, JSON.stringify({ type: "gold", gold: 12345 }));
+    await eventually(() => f.packets.get(a)!.some(p => p.type === "gold" && p.gold === 12345));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(f.packets.get(b)!.some(p => p.type === "gold" && p.gold === 12345), false);
+  } finally { await f.close(); }
+});
+
+test("a reconexão aguarda persistência final e evita sobrescrever estado de jogador online", async () => {
+  let releaseSave!: () => void;
+  let savePending = false;
+  const f = await fixture({
+    savePlayer: async () => {
+      savePending = true;
+      await new Promise<void>(resolve => { releaseSave = resolve; });
+    },
+  });
+  try {
+    const first = await f.connect();
+    f.auth(first, "token-a", A);
+    await f.waitPacket(first, "authenticated");
+    const closed = once(first, "close");
+    first.close();
+    await closed;
+    await eventually(() => savePending);
+    const retry = await f.connect();
+    const rejected = once(retry, "close");
+    f.auth(retry, "token-a", A);
+    assert.equal((await rejected)[0], 1008);
+    releaseSave();
+    await eventually(() => f.game.getBroadcastService().getClients().size === 0);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    const next = await f.connect();
+    f.auth(next, "token-a", A);
+    await f.waitPacket(next, "authenticated");
+    assert.equal(f.world.players.filter(p => p.id === A).length, 1);
+  } finally {
+    if (releaseSave) releaseSave();
+    await f.close();
+  }
 });
