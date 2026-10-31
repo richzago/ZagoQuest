@@ -28,9 +28,10 @@ public class SessionLoginDebugUI : MonoBehaviour
         var network = NetworkManager.Instance;
         if (network == null || !network.requireAuthenticatedSession) return;
 
-        if (network.isConnected)
+        if (network.isConnected || network.HasCredentials)
         {
-            // Nada de caixa de login após autenticar. Apenas Logout visível.
+            // Nem durante reconexão a tela de login sobrepõe o Status.
+            // O botão de logout permanece acessível se a sessão for recusada.
             var oldBackground = GUI.backgroundColor;
             var oldContent = GUI.contentColor;
             GUI.backgroundColor = new Color(0.18f, 0.25f, 0.33f, 1f);
@@ -48,7 +49,14 @@ public class SessionLoginDebugUI : MonoBehaviour
             }
             GUI.backgroundColor = oldBackground;
             GUI.contentColor = oldContent;
-            if (!string.IsNullOrEmpty(GUI.tooltip))
+            if (!network.isConnected)
+            {
+                var info = string.IsNullOrWhiteSpace(network.AuthenticationStatusMessage)
+                    ? "Reconectando..." : network.AuthenticationStatusMessage;
+                GUI.Label(new Rect(Mathf.Max(12, Screen.width - 310), Screen.height - 112,
+                    285, 46), info);
+            }
+            else if (!string.IsNullOrEmpty(GUI.tooltip))
                 GUI.Label(new Rect(Screen.width - 180, Screen.height - 90, 150, 24),
                     GUI.tooltip);
             return;
@@ -98,7 +106,7 @@ public class SessionLoginDebugUI : MonoBehaviour
     private void Logout()
     {
         var network = NetworkManager.Instance;
-        if (network == null || !network.isConnected) return;
+        if (network == null || !network.HasCredentials) return;
         // Não reter JWT, lista de personagens nem dados de login no painel.
         email = "";
         password = "";
