@@ -75,7 +75,8 @@ test("C1: Node e Unity convertem o eixo Y da Collision igual ao Ground", () => {
 
 
 test("C1: Grid -0.5 alinha sprite visual e jogador autoritativo nas quatro bordas", () => {
-  const scene = read("Client/Assets/scenebasic.unity");
+  // Git no runner Windows pode converter YAML LF -> CRLF.
+  const scene = read("Client/Assets/scenebasic.unity").replace(/\r\n/g, "\n");
   const component = (unityType: number, id: number) => {
     const marker = "--- !u!" + unityType + " &" + id + "\n";
     const start = scene.indexOf(marker);
