@@ -51,3 +51,17 @@
 **Teste C3:** server/tests/clientC3NetworkContextContracts.test.ts, integrado ao npm test, exige lazy lookup para todos os managers e as verificações de ACK de autenticação e de init correspondente ao characterId. Os demais testes de WebSocket autenticado seguem na suíte.
 
 **QA específico:** conectar Alfa Editor e Beta Windows; conferir dano flutuante, chat, inventory, loot, HUD e shop/bank após login e após fechar/reconectar Beta. Em caso de recriação de UI (reload da cena), handlers devem obter a instância nova. A CI Node não compila Unity, então C3 permanece ABERTA até teste local.
+
+## C3.2 — Mesmo personagem em dois clientes: feedback de login duplicado (31/10/2026)
+
+**QA relatado:** o segundo cliente abre WebSocket e mostra `Handshake WebSocket concluído`, mas não entra, e a tela de login não informa o motivo. A primeira sessão permanece controlando o personagem. Isso é correto quanto à exclusão de sessões, mas falta feedback ao jogador (BUG P2 de UX/autenticação).
+
+**Causa comprovada:** `wsServer.ts` já executa `ws.close(1008, "Personagem ja conectado.")` quando `duplicate(characterId)` detecta uma sessão ativa. `NativeWebSocket.OnClose` do Unity recebe um `WebSocketCloseCode`, não a reason textual; `NetworkManager` só gera warning genérico de `PolicyViolation`. A `SessionLoginDebugUI` guardava `status = "Conectando..."` sem ler motivo de falha do socket.
+
+**Correção:** antes de fechar com código 1008, o servidor entrega uma mensagem não sensível `{"type":"authRejected","reason":"alreadyOnline"}` com callback de escrita concluída; só então fecha. Isso não autentica nem registra o socket rejeitado, não altera a primeira sessão e não revela token ou dados de outra conta. O Unity trata esse pacote **antes do bloqueio de mensagens pré-ACK**, exibe no Console e oferece na `SessionLoginDebugUI`: `Este personagem já está conectado. Desconecta a sessão anterior para entrar novamente.`. A recusa marca `_authRejected` para não iniciar tentativas automáticas infinitas. Outros erros de política continuam genéricos.
+
+**Teste automatizado:** socket real em `authenticatedWebSocket.test.ts` comprova pacote `authRejected` antes do close 1008, sem `authenticated` e com uma sessão ativa; disputa simultânea de UUID também entrega o motivo ao perdedor. `clientC3DuplicateSessionFeedback.test.ts` protege o tratamento do Unity e o texto mostrado na UI. CI TS/PG não compila C#.
+
+**QA Unity necessário:** autenticar Teste Alfa no Editor; tentar Teste Alfa em build Windows: segunda UI deve mostrar o aviso e não entrar no mundo; Alfa no Editor continua podendo andar. Fechar o primeiro, escolher o personagem novamente no segundo cliente e confirmar que entra após logout/salvamento. Testar Teste Beta simultaneamente para garantir que outra conta continua funcionando. Não registrar credenciais.
+
+**Sequência do roadmap corrigida pelo desenvolvedor:** depois desta correção C3, **iniciar C4 — Player/Combat**, não C5. C5 — NPC/World permanece na ordem seguinte. A C3 tem QA pontual do novo feedback ainda pendente; C4 pode ser auditada em paralelo, sem declarar a C3 integralmente homologada até aceite do aviso.
