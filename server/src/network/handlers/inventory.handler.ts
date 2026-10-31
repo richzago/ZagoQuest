@@ -15,6 +15,7 @@ import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
 import { isValidItemId, isValidQuantity } from "../../game/systems/economyRules";
+import { FoodRegenerationSystem } from "../../game/systems/foodRegenerationSystem";
 import type {
   ClientUseItemMessage,
   ClientEquipItemMessage,
@@ -42,6 +43,27 @@ export async function handleUseItem(
   }
 
   if (item.type === "consumable") {
+    // Food é duração de saciedade (regen por segundos), distinta de poção
+    // instantânea. Tudo acontece no Node; o Unity não calcula HP/mana.
+    if (item.foodSeconds !== undefined) {
+      if (!FoodRegenerationSystem.canEat(player, item.foodSeconds)) {
+        ctx.packetSender.inventory.sendItemUsed(itemId, false,
+          "Você já está satisfeito ou não pode comer agora.");
+        return;
+      }
+      if (!player.removeItem(itemId, 1)) {
+        ctx.packetSender.inventory.sendItemUsed(itemId, false,
+          "Você não possui este alimento.");
+        return;
+      }
+      FoodRegenerationSystem.feed(player, item.foodSeconds);
+      ctx.packetSender.inventory.sendItemUsed(itemId, true,
+        `Você comeu ${item.name}. Saciedade: ${FoodRegenerationSystem.remainingSeconds(player)}s.`);
+      ctx.packetSender.inventory.sendInventory(player);
+      // Nenhuma regeneração antecipada: os próximos ticks enviam stats reais.
+      return;
+    }
+
     let message = "";
     let effectApplied = false;
 
