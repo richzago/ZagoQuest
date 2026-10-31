@@ -154,7 +154,13 @@ public static class WorldWindowLayout
             new GameObject("C6DragHeader", typeof(RectTransform), typeof(Image),
                 typeof(C6WindowDragHandle));
         if (existing == null) obj.transform.SetParent(panel.transform, false);
-        obj.transform.SetAsFirstSibling(); // Botões X existentes ficam acima.
+        // Cabeçalho acima das áreas de scroll: de outro modo Loot/Shop
+        // capturam o raycast e o jogador não consegue arrastar a janela.
+        obj.transform.SetAsLastSibling();
+        // Botões existentes precisam continuar clicáveis sobre o cabeçalho.
+        foreach (Transform child in panel.transform)
+            if (child != obj.transform && child.GetComponent<Button>() != null)
+                child.SetAsLastSibling();
         var rect = obj.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0, 1);
         rect.anchorMax = Vector2.one;
