@@ -290,9 +290,12 @@ public class NetworkManager : MonoBehaviour
             _authFeedbackReceived = true;
             _authRejected = true;
             _awaitingAuthentication = false;
-            AuthenticationStatusMessage = json["reason"]?.ToString() == "alreadyOnline"
+            string reason = json["reason"]?.ToString();
+            AuthenticationStatusMessage = reason == "alreadyOnline"
                 ? "Este personagem já está conectado. Desconecta a sessão anterior para entrar novamente."
-                : "Autenticação recusada. Verifica tua sessão e tenta novamente.";
+                : reason == "accountAlreadyOnline"
+                    ? "Esta conta já possui um personagem conectado. Desconecta a sessão anterior para entrar com outro."
+                    : "Autenticação recusada. Verifica tua sessão e tenta novamente.";
             Debug.LogWarning("[NETWORK][AUTH] " + AuthenticationStatusMessage);
             return;
         }
