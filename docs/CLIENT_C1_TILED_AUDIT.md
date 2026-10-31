@@ -64,3 +64,36 @@
 6. Ao consolidar o Tiled, manter JSON do Node e cópia Unity sincronizados. Evitar edição manual de posições no cliente.
 
 **Não concluída:** C1 só poderá ser homologada após Play Mode do usuário, conferência de coordenadas, teste de colisões e decisão de uso da camada Collision.
+
+## C1 — Decisão aprovada: água e paredes bloqueiam movimento (31/10/2026)
+
+**Nova decisão do desenvolvedor:** testes locais do alinhamento/visuais C1 foram aprovados. **Água e paredes são impassáveis**, usando o Tiled como origem da matriz de colisão e o Node como autoridade. O Unity não implementa uma segunda regra de jogabilidade.
+
+### Implementação desta entrega
+
+1. `assets/maps/test-map.json` e `Client/Assets/Resources/Maps/test-map.json` receberam a mesma camada `Collision`: **264 tiles de água bloqueados**, preservando **336 tiles de chão** (30×20). A camada original estava 100% vazia. O mapa **não contém paredes desenhadas atualmente**; não foram inventadas paredes.
+2. Os tiles de água no `Ground` têm GIDs **68–75** (tileset `Water1`, faixa 36–75). O tileset `Wall1` está na faixa **31–35**, mas sem células utilizadas neste mapa.
+3. A camada `Collision` contém os próprios GIDs dos tiles de água nas mesmas posições de edição no Tiled. **Quando adicionares paredes** ao `Ground` ou `Decoration`, pinta as respectivas células também em `Collision`; o teste automatizado avisa se uma parede ou água visível ficou sem bloqueio. É a `Collision` (e não o ID do sprite no cliente) que define a regra.
+4. Correção de orientação: Tiled utiliza `row=0` no topo, enquanto o `DrawLayer` do Unity usa `worldY = height - 1 - row`. `MapLoader` (Node) e `ApplyCollision` (Unity) passaram a inverter o Y na **leitura da Collision**. Isso evita que uma parede assimétrica bloqueie o lado oposto do mapa.
+5. `MovementSystem` mantém autoridade, limite de passo, cooldown e proteção contra atravessar cantos na diagonal; a correção não muda essas regras.
+6. Novo teste `server/tests/tiledCollision.test.ts`, incluído em `npm test`: confere os dois JSONs, a cobertura de água/parede em Collision, o total **264/336**, movimentos recusados e exemplo assimétrico de parede/água. Ajustado `tiledRespawn.test.ts` para a coordenada Y convertida.
+
+### Compatibilidade / limites
+
+- **Não alterar as posições salvas de personagens.** A transformação foi aplicada somente à camada `Collision`. O mapa atual é simétrico nas bordas de água, então as posições persistidas e os objetos já existentes permanecem nas faixas de chão.
+- **Risco C1 ainda aberto — object layers:** `MapLoader` lê `PlayerSpawn`, `MonsterSpawn` e `NPCSpawn` com `Math.floor(obj.y / tileheight)`, enquanto Ground/Collision invertem Y. Isso significa que a localização de objetos no editor Tiled pode não corresponder à linha visual na Game View em um mapa assimétrico. **Não migrar Y dos personagens, NPCs ou monstros sem um teste dedicado e estratégia para posições persistidas**. A decisão desta entrega é corrigir água/parede mantendo gameplay existente.
+- Os testes automatizados C# continuam **estáticos**: a CI Node valida o contrato, mas não compila Unity. O desenvolvedor precisa fazer Play Mode e build ao testar colisões.
+- O JSON é a única fonte do mapa versionado neste repositório. Se o Tiled tiver um arquivo local .tmx não versionado, **atualize-o antes de exportar** para não sobrescrever a camada Collision com uma versão antiga. Preferencialmente edite o JSON canônico diretamente no Tiled e copie o export para Resources.
+- A camada `Collision` é **lógica**. No Unity ela não é desenhada sobre Ground ou Decoration.
+
+### Testes locais de aceite após esta PR
+
+- [ ] No Unity com servidor atualizado, caminhar de `(3,3)` até a água à esquerda `(2,3)`: personagem não atravessa. O servidor deve responder com posição real.
+- [ ] Caminhar na direção de água em outras bordas (norte, sul, leste); movimento recusado e sem deslocamento indevido.
+- [ ] Testar diagonais perto do limite da água, sem atravessar cantos.
+- [ ] Editar **uma cópia de teste** do Tiled com parede assimétrica, pintar `Collision` na mesma célula, sincronizar o JSON temporário com Node/Unity e confirmar bloqueio visualmente no mesmo local.
+- [ ] No pgAdmin, comparar `posX/posY` de Alfa/Beta antes/depois de testar; valores só mudam quando um movimento é aceito, e reiniciar servidor preserva última posição válida.
+- [ ] Confirmar que Banker, Merchant e Goblin continuam carregando, NPCs interagem e duas contas continuam independentes.
+- [ ] Após testes, registrar resultados e fechar a C1 somente se todas as convenções e bloqueios se mostrarem consistentes.
+
+**Status:** C0 concluída após aceite do desenvolvedor; C1 com decisão de gameplay implementada e QA de água/parede pendente.
