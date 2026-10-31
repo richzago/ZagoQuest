@@ -20,7 +20,19 @@ export interface ShutdownController {
   shutdown(reason: string): Promise<number>;
 }
 
-export function createShutdownController(deps: ShutdownDependencies): ShutdownController {
+export interface ShutdownDiagnostics {
+  /** Log warning after this long, but NEVER interrupt an active final save. */
+  warningAfterMs?: number;
+  onSlowStep?: (name: string, elapsedMs: number) => void;
+}
+
+export function createShutdownController(
+  deps: ShutdownDependencies,
+  diagnostics: ShutdownDiagnostics = {},
+): ShutdownController {
+  const warningAfterMs = diagnostics.warningAfterMs ?? 15_000;
+  if (!Number.isSafeInteger(warningAfterMs) || warningAfterMs < 0)
+    throw new Error("warningAfterMs deve ser inteiro >= 0.");
   let pending: Promise<number> | undefined;
 
   return {
@@ -33,12 +45,26 @@ export function createShutdownController(deps: ShutdownDependencies): ShutdownCo
         Logger.system(`[SHUTDOWN] Iniciado: ${reason}`);
 
         const step = async (name: string, action: () => void | Promise<void>) => {
+          let warning: ReturnType<typeof setTimeout> | undefined;
+          if (warningAfterMs > 0) {
+            warning = setTimeout(() => {
+              try {
+                if (diagnostics.onSlowStep) diagnostics.onSlowStep(name, warningAfterMs);
+                else Logger.warn(`[SHUTDOWN] ${name} pendente por >=${warningAfterMs}ms; aguardando com segurança.`);
+              } catch (error) {
+                Logger.error(`[SHUTDOWN] Falha na observação de etapa: ${String(error)}`);
+              }
+            }, warningAfterMs);
+            warning.unref?.();
+          }
           try {
             await action();
             Logger.system(`[SHUTDOWN] ${name}: concluído.`);
           } catch (error) {
             failures++;
             Logger.error(`[SHUTDOWN] ${name}: ${String(error)}`);
+          } finally {
+            if (warning) clearTimeout(warning);
           }
         };
 

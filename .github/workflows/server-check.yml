@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: npm run bench:tick
+        if: matrix.os == 'ubuntu-latest'
 
   postgres-integration:
     # A base deste job é DESCARTÁVEL; jamais apontar para o PostgreSQL do dev.
@@ -66,3 +68,4 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:pg
+      - run: npm run smoke:dist

@@ -3,6 +3,7 @@ import { LogLevel } from "../../../shared/enums/logLevel.enum";
 import { FileWriter } from "./fileWriter";
 import { LoggerConfig } from "./loggerConfig";
 import { formatLog } from "./utils/formatLog";
+import { redactLogMessage } from "./logRedaction";
 
 export class Logger {
   private static consoleEnabled: boolean = true;
@@ -21,18 +22,26 @@ export class Logger {
   }
 
   private static write(level: LogLevel, channel: LogChannel, message: string) {
-    if (!LoggerConfig.debug) return;
-    if (!this.shouldLog(level)) return;
-    if (!LoggerConfig.enabledChannels.includes(channel)) return;
+    // Alertas de infraestrutura são essenciais inclusive se DEBUG estiver off.
+    const critical = level === LogLevel.WARN || level === LogLevel.ERROR;
+    if (!critical && !LoggerConfig.debug) return;
+    if (!critical && !this.shouldLog(level)) return;
+    if (!critical && !LoggerConfig.enabledChannels.includes(channel)) return;
 
-    const line = formatLog(LogLevel[level], channel, message);
+    const line = formatLog(LogLevel[level], channel, redactLogMessage(message));
 
     if (Logger.consoleEnabled) {
       console.log(line);
     }
 
     if (LoggerConfig.fileLogging) {
-      FileWriter.write(channel, line);
+      try {
+        FileWriter.write(channel, line);
+      } catch (error) {
+        // Nunca derrubar o loop ou o shutdown se o disco de logs lotou.
+        console.error(formatLog("ERROR", "system",
+          redactLogMessage(`[LOGGER] Falha ao gravar log: ${String(error)}`)));
+      }
     }
   }
 
