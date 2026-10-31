@@ -12,9 +12,9 @@ using UnityEngine.UI;
 public sealed class C8SidebarShell : MonoBehaviour
 {
     private const float SidebarWidth = 304f;
-    private const float EquipmentSlotSize = 56f;
-    private const float EquipmentStepX = 74f;
-    private const float EquipmentStepY = 67f;
+    private const float EquipmentSlotSize = 52f;
+    private const float EquipmentStepX = 65f;
+    private const float EquipmentStepY = 58f;
 
     private static readonly Color Background = new Color32(18, 27, 39, 249);
     private static readonly Color Inner = new Color32(29, 41, 56, 244);
@@ -24,6 +24,14 @@ public sealed class C8SidebarShell : MonoBehaviour
     private static readonly Color Muted = new Color32(170, 188, 202, 255);
 
     private GameObject canvasRoot;
+    private RectTransform sidebarSurface;
+    private RectTransform miniMapSection;
+    private RectTransform equipmentSectionRect;
+    private RectTransform settingsSectionRect;
+    private RectTransform miniMapCircleRect;
+    private Sprite miniMapSprite;
+    private Texture2D miniMapTexture;
+    private float lastSidebarHeight = -1f;
     private RectTransform equipmentHost;
     private RectTransform dynamicHost;
     private RectTransform dynamicSection;
@@ -35,6 +43,7 @@ public sealed class C8SidebarShell : MonoBehaviour
     private Vector2 previousOffsetMin, previousOffsetMax;
     private Vector3 previousLocalScale;
     private bool previousDragVisible, previousCloseVisible;
+    private bool previousHierarchyTitleVisible, previousHelpVisible;
     private float lastEquipmentWidth = -1f;
 
     // Contrato para futura etapa de loot/backpack: host existe mas NENHUM
@@ -55,6 +64,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         // EquipmentUI.Start aplica C6InventoryEquipmentLayout e reparenta
         // a HUD. Esperar o C6DragHeader existir evita corrida de Start().
         if (equipmentHost == null) return;
+        RefreshResponsiveLayout();
         AdjustDynamicPlaceholder();
         if (dockedEquipment == null)
             TryDockExistingEquipment();
@@ -111,8 +121,10 @@ public sealed class C8SidebarShell : MonoBehaviour
         sr.anchorMin = new Vector2(1f, 0f);
         sr.anchorMax = new Vector2(1f, 1f);
         sr.pivot = new Vector2(1f, 0.5f);
-        sr.anchoredPosition = new Vector2(-12f, 0f);
-        sr.sizeDelta = new Vector2(SidebarWidth, -24f);
+        // Coluna fixa ao topo, base e borda direita; nenhum vão residual.
+        sr.anchoredPosition = Vector2.zero;
+        sr.sizeDelta = new Vector2(SidebarWidth, 0f);
+        sidebarSurface = sr;
         var background = surface.GetComponent<Image>();
         background.color = Background;
         background.raycastTarget = true; // somente dentro da barra visivel
@@ -122,30 +134,47 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddText(surface.transform, "Subtitle", "INTERFACE  •  AVENTUREIRO", 43, 24, 11, Muted);
         AddLine(surface.transform, "TopDivider", 75, Gold);
 
-        // 1. FUTURO MINIMAPA — apenas representacao, sem sistema de mapa.
-        var map = Card(surface.transform, "MiniMapSection", 89, 141);
-        AddText(map.transform, "MapTitle", "MINIMAPA", 8, 25, 14, Text);
-        AddText(map.transform, "MapSubtitle", "Visao do mundo  •  em breve", 34, 23, 11, Muted);
-        var preview = Card(map.transform, "MapPreview", 62, 68, 10, 10, Inset);
-        AddText(preview.transform, "MapWait", "MAPA EM DESENVOLVIMENTO", 19, 31, 11, Muted);
-        AddLine(preview.transform, "MapLine", 6, Gold);
+        // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
+        var map = Card(surface.transform, "MiniMapSection", 62, 164);
+        miniMapSection = (RectTransform)map.transform;
+        AddText(map.transform, "MapTitle", "MINIMAPA", 8, 25, 13, Text);
+        miniMapTexture = CreateCircularMiniMapTexture();
+        miniMapSprite = Sprite.Create(miniMapTexture,
+            new Rect(0, 0, miniMapTexture.width, miniMapTexture.height),
+            new Vector2(0.5f, 0.5f), 100f);
+        var circle = new GameObject("MiniMapCircularPreview",
+            typeof(RectTransform), typeof(Image));
+        circle.transform.SetParent(map.transform, false);
+        miniMapCircleRect = (RectTransform)circle.transform;
+        miniMapCircleRect.anchorMin = miniMapCircleRect.anchorMax = new Vector2(0.5f, 1f);
+        miniMapCircleRect.pivot = new Vector2(0.5f, 1f);
+        var mapImage = circle.GetComponent<Image>();
+        mapImage.sprite = miniMapSprite;
+        mapImage.color = Color.white;
+        mapImage.preserveAspect = true;
+        mapImage.raycastTarget = false;
+        AddCenterText(circle.transform, "MapWaiting", "EM BREVE", 11f, Muted);
 
-        // 2. EQUIPAMENTOS — usa o equipamento REAL, slots e eventos originais.
-        var equipmentSection = Card(surface.transform, "EquipmentSection", 241, 369);
-        AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 10, 29, 15, Text);
-        AddText(equipmentSection.transform, "EquipmentHint", "Arraste os itens para equipar", 37, 22, 11, Muted);
+        // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
+        var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 290);
+        equipmentSectionRect = (RectTransform)equipmentSection.transform;
+        AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 7, 28, 15, Text);
+        // Sem texto "arraste para equipar/retirar": menos poluicao visual.
         equipmentHost = Holder(equipmentSection.transform, "EquipmentHost",
-            new Vector2(0f, 0f), Vector2.one, new Vector2(8f, 10f), new Vector2(-8f, -65f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 8f), new Vector2(-8f, -44f));
 
-        // 3. CONFIGURACOES — placeholders discretos, NAO interativos.
-        var settings = Card(surface.transform, "SettingsIconsSection", 622, 68);
-        AddText(settings.transform, "SettingsTitle", "ACESSO RAPIDO", 5, 26, 12, Text);
+        // 3. ACESSOS FUTUROS — pictogramas, nunca siglas ou botões falsos.
+        var settings = Card(surface.transform, "SettingsIconsSection", 532, 58);
+        settingsSectionRect = (RectTransform)settings.transform;
+        AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
-            new Vector2(0f, 0f), Vector2.one, new Vector2(10, 7), new Vector2(-10, -31));
-        AddIcon(icons, "Settings", "CFG", 0);
-        AddIcon(icons, "Sound", "SOM", 1);
-        AddIcon(icons, "Help", "AJUDA", 2);
-        AddIcon(icons, "Extra", "···", 3);
+            Vector2.zero, Vector2.one, new Vector2(8f, 5f), new Vector2(-8f, -24f));
+        AddIcon(icons, "SettingsIcon", 0, 6);
+        AddIcon(icons, "SoundIcon", 1, 6);
+        AddIcon(icons, "ChatIcon", 2, 6);
+        AddIcon(icons, "BackpackIcon", 3, 6);
+        AddIcon(icons, "MapIcon", 4, 6);
+        AddIcon(icons, "HelpIcon", 5, 6);
 
         // 4. HOST DINAMICO RESERVADO para futuro Loot/Backpack.
         // Nenhum callback de loot/backpack e alterado aqui.
@@ -156,8 +185,8 @@ public sealed class C8SidebarShell : MonoBehaviour
         this.dynamicSection = dr;
         dr.anchorMin = Vector2.zero;
         dr.anchorMax = Vector2.one;
-        dr.offsetMin = new Vector2(13f, 15f);
-        dr.offsetMax = new Vector2(-13f, -702f);
+        dr.offsetMin = new Vector2(12f, 0f);
+        dr.offsetMax = new Vector2(-12f, -599f);
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
@@ -203,6 +232,9 @@ public sealed class C8SidebarShell : MonoBehaviour
         previousLocalScale = rect.localScale;
         previousDragVisible = panel.transform.Find("C6DragHeader")?.gameObject.activeSelf ?? false;
         previousCloseVisible = panel.transform.Find("C6CloseButton")?.gameObject.activeSelf ?? false;
+        // Titulo legado vem do proprio scenebasic.unity: EquipmentPanel/Equipaments.
+        previousHierarchyTitleVisible = panel.transform.Find("Equipaments")?.gameObject.activeSelf ?? false;
+        previousHelpVisible = panel.transform.Find("C6Help")?.gameObject.activeSelf ?? false;
         rect.SetParent(equipmentHost, false); // MESMO GameObject/slots, nao clonagem
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;
@@ -219,6 +251,10 @@ public sealed class C8SidebarShell : MonoBehaviour
         if (close != null) close.gameObject.SetActive(false);
         var oldTitle = panel.transform.Find("C6Title");
         if (oldTitle != null) oldTitle.gameObject.SetActive(false);
+        var hierarchyTitle = panel.transform.Find("Equipaments");
+        if (hierarchyTitle != null) hierarchyTitle.gameObject.SetActive(false);
+        var help = panel.transform.Find("C6Help");
+        if (help != null) help.gameObject.SetActive(false);
 
         var image = panel.GetComponent<Image>();
         if (image != null)
@@ -249,7 +285,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         slots.offsetMax = Vector2.zero;
 
         float total = EquipmentSlotSize + EquipmentStepX * 2f;
-        // 3 slots de 56, separados em passos de 74: 204, centralizado.
+        // 3 slots de 52, com passos de 65: 182, centralizados no painel.
         float x0 = Mathf.Max(8f, (panel.rect.width - total) * 0.5f);
         foreach (Transform child in ui.slotsContainer)
         {
@@ -273,32 +309,20 @@ public sealed class C8SidebarShell : MonoBehaviour
             rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = new Vector2(x0 + col * EquipmentStepX,
-                -12f - row * EquipmentStepY);
+                -6f - row * EquipmentStepY);
             rect.sizeDelta = new Vector2(EquipmentSlotSize, EquipmentSlotSize);
             rect.localScale = Vector3.one;
             if (slot.slotText != null)
             {
                 slot.slotText.enableAutoSizing = true;
-                slot.slotText.fontSizeMin = 8f;
+                slot.slotText.fontSizeMin = 7.5f;
                 slot.slotText.fontSizeMax = 11f;
+                slot.slotText.enableWordWrapping = true;
                 slot.slotText.raycastTarget = false;
             }
             // O Image de cada slot conserva raycastTarget=true para o drop.
         }
 
-        var help = panel.Find("C6Help");
-        if (help != null)
-        {
-            var rt = help as RectTransform;
-            if (rt != null)
-            {
-                rt.anchorMin = new Vector2(0f, 0f);
-                rt.anchorMax = new Vector2(1f, 0f);
-                rt.pivot = new Vector2(0.5f, 0f);
-                rt.offsetMin = new Vector2(8f, 3f);
-                rt.offsetMax = new Vector2(-8f, 24f);
-            }
-        }
     }
 
     private static GameObject Card(Transform parent, string name, float top,
@@ -411,6 +435,10 @@ public sealed class C8SidebarShell : MonoBehaviour
             if (drag != null) drag.gameObject.SetActive(previousDragVisible);
             var close = panel.transform.Find("C6CloseButton");
             if (close != null) close.gameObject.SetActive(previousCloseVisible);
+            var hierarchyTitle = panel.transform.Find("Equipaments");
+            if (hierarchyTitle != null) hierarchyTitle.gameObject.SetActive(previousHierarchyTitleVisible);
+            var help = panel.transform.Find("C6Help");
+            if (help != null) help.gameObject.SetActive(previousHelpVisible);
             dockedEquipment.SetSidebarDocked(false);
         }
         if (canvasRoot != null) Destroy(canvasRoot);
@@ -419,5 +447,12 @@ public sealed class C8SidebarShell : MonoBehaviour
         dynamicHost = null;
         dynamicSection = null;
         dynamicHint = null;
+        sidebarSurface = null;
+        miniMapSection = null;
+        equipmentSectionRect = null;
+        settingsSectionRect = null;
+        miniMapCircleRect = null;
+        if (miniMapSprite != null) Destroy(miniMapSprite);
+        if (miniMapTexture != null) Destroy(miniMapTexture);
     }
 }
