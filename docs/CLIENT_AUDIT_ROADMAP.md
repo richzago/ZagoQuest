@@ -89,3 +89,11 @@ PR / MERGE / PRÓXIMA AÇÃO:
 ```
 
 **Governança:** revisar `dev`, documentar achado, branch + PR menor possível, CI, homologação Unity quando afeta cena/cliente, merge e atualização Notion. Não usar `npm run test:pg` nem `npm run smoke:dist` contra o banco local. Não excluir artefatos existentes e não usar `DB_SYNCHRONIZE=true` em database com dados a preservar.
+
+## Atualização C3 → C4 (31/10/2026)
+
+**Relato novo:** o segundo Unity não entra com o mesmo personagem e mostra somente `Handshake WebSocket concluído`, sem explicar a recusa. Isso é apenas a abertura do transporte; o Node recusa duplicatas com 1008, mas o Unity não recebe a reason textual do NativeWebSocket.
+
+**C3 ajuste de feedback:** o servidor manda `authRejected` com código de domínio `alreadyOnline` antes de fechar com 1008; UI QA mostra aviso claro de personagem conectado, sem expor JWT/UUID da sessão ativa. O segundo socket permanece rejeitado e a primeira sessão não é afetada. QA específico ainda precisa ser feito no Unity após integrar o PR.
+
+**Sequência confirmada pelo desenvolvedor:** após o ajuste do login duplicado, iniciar **C4 — Player/Combat** (input, movimento, target/auto-follow, dano/HP, morte e respawn). **Não pular para C5**; NPC/World será revisado depois da C4. C8 permanece validação final independente.
