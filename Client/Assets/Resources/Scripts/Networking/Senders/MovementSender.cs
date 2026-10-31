@@ -22,7 +22,6 @@ namespace ZagoQuest.Networking.Senders
                 x = targetPos.x,
                 y = targetPos.y
             };
-            Debug.Log($"[MovementSender] Movendo para ({targetPos.x:F1}, {targetPos.y:F1})");
             Send(msg);
         }
 
@@ -36,7 +35,6 @@ namespace ZagoQuest.Networking.Senders
                 type = "moveDir",
                 dir = direction
             };
-            Debug.Log($"[MovementSender] Movendo direção: {direction}");
             Send(msg);
         }
     }
