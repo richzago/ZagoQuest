@@ -193,3 +193,36 @@ Para atualizar: fechar Unity; git stash push -u -m "backup Unity antes do C6 HUD
 ### Reteste adicional — poções existentes (bug real detectado pelos testes novos)
 
 A nova suíte de food revelou que o handler de consumíveis esperava healAmount/manaAmount como campos diretos, mas os JSONs health_potion e mana_potion usam effect.healHp e effect.healMana. O Node negava a poção mesmo quando HP/mana estavam baixos. Corrigido por tipagem de ItemType.effect e leitura do contrato real. Adicionado teste real de ambas poções (recuperação imediata, clamp e rejeição sem consumir quando cheio), preservando food com efeito gradual. A CI só conta o teste foodRegeneration quando o arquivo é incluído explicitamente em server/package.json (npm test enumera cada arquivo). Incluir H8 com HP e mana potions e confirmar no Unity, além dos 10 casos principais.
+
+## 11. C6 — Falha na ação dos consumíveis ao clicar (31/10/2026)
+
+**Reprodução enviada pelo desenvolvedor (Console Unity):** duplo clique em consumable/cheese dispara InventorySlot.OnPointerClick -> InventoryUI.OnSlotDoubleClicked -> InventorySender.SendEquipItem. O Node responde que queijo não é equipável. Também há cliques simples em consumable/mana_potion e consumable/health_potion sem ação. Código anterior implementava single left como seleção e double left exclusivamente equipItem; right-click já usava useItem.
+
+**Correção:** fluxo de duplo clique passa a InventorySender.UseItem: o Node diferencia consumable (food/potion) e equipment (equipar), sem o cliente inferir categoria pelo prefixo. Adicionalmente, o snapshot de inventory passa a incluir itemType opcional obtido do ItemRegistry; Unity InventoryHandler encaminha à InventoryUI/InventorySlot. Um clique simples ESQUERDO em consumable solicita useItem; outro clique no mesmo item dentro de 0,3s é ignorado para evitar duplicação acidental. Clique direito mantém useItem e duplo clique em equipamento também usa useItem. Arrastar para slot de equipamento continua usando equipItem (com validação Node). Itens com definição desconhecida/servidores antigos sem itemType mantêm o duplo clique/right-click genérico. O cliente não reduz quantidade, HP ou mana: aguarda o snapshot.
+
+**Mana inicial zero:** a correção anterior (#106) criou novos personagens com 50/50 e converteu legados 0/0 durante load, mas um save com 0/50 é legitimamente preservado. Sem ler o registro real do personagem no PostgreSQL e seu playerStats não é possível afirmar se o valor 0 é persistência antiga ou gasto. PlayerStatsHandler agora registra uma única mensagem [PlayerStats] Node enviou mana 0/{maxMana} para diferenciar origem do servidor de problema de renderização. **Não restaurar mana automaticamente em todos os logins** (seria exploit e adulteraria saves que realmente gastaram mana). A mana pode agora subir via potion instantânea ou comida quando consumida. Para uma correção administrativa pontual de mana inicial legada, fazer backup e identificar personagem offline na base correta antes de qualquer UPDATE; nunca executar UPDATE global.
+
+### Consultas de diagnóstico PostgreSQL (read-only, pgAdmin Query Tool)
+
+    SELECT "name", "level", "mana", "maxMana", "hp", "maxHp", "updatedAt"
+    FROM public.characters
+    ORDER BY "updatedAt" DESC LIMIT 20;
+
+Se mostrar mana=0 e maxMana positivo, o HUD está refletindo estado real do Node. Um ajuste de recuperação pontual, se desejado, exige decisão explícita sobre qual personagem e a origem do save. **Não** alterar DB nem recompor mana de outros jogadores automaticamente.
+
+### Reteste Unity (Editor + build Windows, após atualizar dev)
+
+| ID | Procedimento | Esperado |
+| --- | --- | --- |
+| U1 | Clique esquerdo uma vez em cheese, HP/mana abaixo do max | Um useItem, 1 queijo removido pelo Node, saciedade e regen a cada 2s |
+| U2 | Clique esquerdo uma vez em mana_potion com mana abaixo max | Um useItem; mana sobe imediatamente; 1 potion sai no snapshot |
+| U3 | Clique esquerdo uma vez em health_potion com HP abaixo max | Um useItem; HP sobe imediatamente; 1 potion sai no snapshot |
+| U4 | Duplo clique rápido em consumível | Uma solicitação por sequência rápida, sem gasto duplicado intencionalmente |
+| U5 | Clique direito em consumível | useItem, como antes |
+| U6 | Duplo clique em bone_sword / drag em WEAPON | Equipa via Node; nenhum consumível enviado como equipItem |
+| U7 | Item com barra cheia ou saciedade no teto | Node recusa no chat, inventário não perde unidade |
+| U8 | Abrir personagem antigo e examinar log PlayerStats e Status/P | Checar mana/maxMana reais; potions/food restauram até máximo, sem inventar mana |
+
+**Cobertura automática:** contratos C6 estáticos protegem useItem e metadados; teste real em foodRegeneration.test.ts valida o snapshot tipado e item legado. Node continua autoritativo. Testes de UI/Hierarchy e compilação C# devem ser executados localmente e não são cobertos pelo CI Node.
+
+**Comandos locais obrigatórios:** fechar Unity, git status, git stash push -u -m "backup Unity antes da correção consumíveis C6", git fetch origin, git switch dev, git pull --ff-only origin dev, git log -1 --oneline, git status, git stash list. Nunca dar stash pop automaticamente.

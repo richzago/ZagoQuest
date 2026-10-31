@@ -16,6 +16,7 @@ public class InventoryUI : MonoBehaviour
 
     private NetworkManager networkManager;
     private Dictionary<string, int> items = new Dictionary<string, int>();
+    private Dictionary<string, string> itemTypes = new Dictionary<string, string>();
     private int currentGold = 0;
     private List<GameObject> slotObjects = new List<GameObject>();
 
@@ -96,8 +97,16 @@ public class InventoryUI : MonoBehaviour
     /// </summary>
     public void HandleInventory(int gold, Dictionary<string, int> newItems)
     {
+        HandleInventory(gold, newItems, null);
+    }
+
+    /// <summary>O tipo vem do Node e serve só à UX do clique simples.</summary>
+    public void HandleInventory(int gold, Dictionary<string, int> newItems,
+        Dictionary<string, string> newItemTypes)
+    {
         currentGold = gold;
         items = newItems ?? new Dictionary<string, int>();
+        itemTypes = newItemTypes ?? new Dictionary<string, string>();
         if (isInventoryOpen)
             RefreshUI();
     }
@@ -158,7 +167,8 @@ public class InventoryUI : MonoBehaviour
             InventorySlot slotScript = slot.GetComponent<InventorySlot>();
             if (slotScript != null)
             {
-                slotScript.Setup(kvp.Key, kvp.Value, NetworkManager.Instance ?? networkManager);
+                itemTypes.TryGetValue(kvp.Key, out string type);
+                slotScript.Setup(kvp.Key, kvp.Value, NetworkManager.Instance ?? networkManager, type);
                 slotScript.OnDoubleClick += OnSlotDoubleClicked;
             }
             slotObjects.Add(slot);
@@ -202,8 +212,10 @@ public class InventoryUI : MonoBehaviour
         var network = NetworkManager.Instance;
         if (network == null || !network.isConnected || network.Inventory == null ||
             string.IsNullOrWhiteSpace(itemId)) return;
-        // Node valida se o item é equipável, se há quantidade e slot compatível.
-        network.Inventory.SendEquipItem(itemId);
+        // A intenção genérica "usar" é resolvida pelo Node:
+        // consumable = comer/beber; equipment = equipar; demais = recusar.
+        // Não inferir tipo pelo prefixo do itemId nem modificar a bolsa local.
+        network.Inventory.UseItem(itemId);
     }
 
     // =========================

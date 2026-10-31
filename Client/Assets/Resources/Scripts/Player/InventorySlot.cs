@@ -15,14 +15,18 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
 
     private string itemId;          // ID completo do item
     private int amount;             // Quantidade
+    private string itemType;
     private NetworkManager networkManager;
 
     // Evento disparado no duplo clique
     public System.Action<string> OnDoubleClick;
 
     // Controle de duplo clique
-    private float lastClickTime = 0f;
+    private float lastClickTime;
+    private bool hasFirstClick;
     private const float DOUBLE_CLICK_INTERVAL = 0.3f;
+    private static string lastConsumableItem;
+    private static float lastConsumableRequestAt = -1f;
 
     private void Awake()
     {
@@ -38,12 +42,15 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     /// </summary>
     /// 
     /// 
-    public void Setup(string itemId, int amount, NetworkManager networkManager)
+    public void Setup(string itemId, int amount, NetworkManager networkManager, string itemType = null)
     {
         // Debug.Log($"[InventorySlot] 🛠️ Setup: itemId={itemId}, amount={amount}");
         this.itemId = itemId;
         this.amount = amount;
         this.networkManager = networkManager;
+        this.itemType = itemType;
+        // Um slot reciclado ou reconstruído não deve herdar a janela de clique.
+        hasFirstClick = false;
 
         string shortName = itemId.Contains("/") ? itemId.Substring(itemId.LastIndexOf('/') + 1) : itemId;
         shortName = shortName.Replace("_", " ");
@@ -117,29 +124,53 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         // Se estiver arrastando, ignora clique
         if (DragDropManager.Instance != null && DragDropManager.Instance.IsDragging()) return;
 
-        // Clique direito → usar item
+        // Botão direito e duplo clique usam o MESMO comando useItem.
+        // O servidor resolve: consumível (comida/poção) ou equipamento.
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            if (networkManager != null)
+            hasFirstClick = false;
+            var network = NetworkManager.Instance ?? networkManager;
+            if (network != null && network.isConnected && network.Inventory != null &&
+                !string.IsNullOrWhiteSpace(itemId))
             {
-                Debug.Log($"[InventorySlot] 🖱️ Usando item: {itemId}");
-                networkManager.Inventory.UseItem(itemId);
+                Debug.Log($"[InventorySlot] Usar item: {itemId}");
+                network.Inventory.UseItem(itemId);
             }
             return;
         }
 
-        // Clique esquerdo → duplo clique
+        // O snapshot Node informa o tipo. Clique simples consome; o
+        // servidor decide efeitos e envia o inventario atualizado.
+        if (eventData.button == PointerEventData.InputButton.Left && itemType == "consumable")
+        {
+            hasFirstClick = false;
+            float now = Time.unscaledTime;
+            if (lastConsumableItem == itemId && lastConsumableRequestAt >= 0 &&
+                now >= lastConsumableRequestAt &&
+                now - lastConsumableRequestAt <= DOUBLE_CLICK_INTERVAL)
+                return;
+            var network = NetworkManager.Instance ?? networkManager;
+            if (network != null && network.isConnected && network.Inventory != null)
+            {
+                lastConsumableItem = itemId;
+                lastConsumableRequestAt = now;
+                network.Inventory.UseItem(itemId);
+            }
+            return;
+        }
+
         if (eventData.button == PointerEventData.InputButton.Left)
         {
-            float timeSinceLastClick = Time.time - lastClickTime;
-            if (timeSinceLastClick < DOUBLE_CLICK_INTERVAL)
+            float now = Time.unscaledTime;
+            if (hasFirstClick && now - lastClickTime <= DOUBLE_CLICK_INTERVAL)
             {
-                Debug.Log($"[InventorySlot] 🔄 Duplo clique em {itemId} → equipar");
+                hasFirstClick = false; // um evento, não duas ações seguidas
+                Debug.Log($"[InventorySlot] Duplo clique em {itemId} → usar");
                 OnDoubleClick?.Invoke(itemId);
-                lastClickTime = 0f;
                 return;
             }
-            lastClickTime = Time.time;
+            hasFirstClick = true;
+            lastClickTime = now;
         }
     }
 
