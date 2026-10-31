@@ -24,6 +24,7 @@ export interface ServerMonsterDiedMessage {
 export interface ServerAutoAttackStoppedMessage {
   type: "autoAttackStopped";
   reason: string;
+  targetId?: string; // identifica o target que está sendo encerrado
 }
 
 export interface ServerAutoAttackStartedMessage {

@@ -42,7 +42,7 @@ export function handleStartAutoAttack(
   const target = ctx.world.monsters.find((monster) => monster.id === msg.targetId);
   const failure = PlayerAttackSystem.validateTarget(player, target, ctx.world);
   if (failure) {
-    ctx.packetSender.combat.sendAutoAttackStopped(failure);
+    ctx.packetSender.combat.sendAutoAttackStopped(failure, msg.targetId);
     return;
   }
 
@@ -58,7 +58,8 @@ export function handleStopAutoAttack(
   _msg: ClientStopAutoAttackMessage,
   ctx: HandlerContext,
 ): void {
+  const previousTarget = player.currentTargetId;
   player.currentTargetId = undefined;
-  Logger.combat(`${player.name} parou ataque automático.`);
-  ctx.packetSender.combat.sendAutoAttackStopped("Auto attack parado");
+  Logger.combat(`[AUTO] ${player.name} encerrou alvo ${previousTarget ?? "(nenhum)"} por comando do cliente.`);
+  ctx.packetSender.combat.sendAutoAttackStopped("Auto attack parado", previousTarget);
 }
