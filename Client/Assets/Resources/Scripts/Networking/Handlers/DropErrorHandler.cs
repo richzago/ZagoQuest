@@ -9,8 +9,10 @@ namespace ZagoQuest.Networking.Handlers
         public void Handle(JObject json, NetworkContext context)
         {
             var dropErr = json.ToObject<DropErrorMessage>();
-            Debug.LogError($"[Drop] Erro: {dropErr.message}");
-            context.ChatUI?.AddMessage($"Erro: {dropErr.message}");
+            // Recusa por alcance/terreno é resultado esperado de validação,
+            // não exceção do Unity. O Node não alterou o inventário.
+            Debug.LogWarning($"[Drop] Recusado: {dropErr.message}");
+            context.ChatUI?.AddMessage($"Drop: {dropErr.message}");
         }
     }
 }
