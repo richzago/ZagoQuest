@@ -137,8 +137,15 @@ test("dois sockets não podem controlar o mesmo UUID", async () => {
     const second = await f.connect();
     const closed = once(second, "close");
     f.auth(second, "token-a", A);
+    await eventually(() => f.packets.get(second)!.some(
+      packet => packet.type === "authRejected" && packet.reason === "alreadyOnline"
+    ));
     const [code] = await closed;
     assert.equal(code, 1008);
+    assert.deepEqual(f.packets.get(second)!.filter(p => p.type === "authRejected"), [
+      { type: "authRejected", reason: "alreadyOnline" },
+    ]);
+    assert.equal(f.packets.get(second)!.some(p => p.type === "authenticated"), false);
     assert.equal(f.game.getBroadcastService().getClients().size, 1);
   } finally { await f.close(); }
 });
