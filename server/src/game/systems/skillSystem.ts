@@ -25,7 +25,7 @@ export class SkillSystem {
     // Fishing ganha frações (ex.: 0.5), então não exigir inteiro para amount.
     // Mas números negativos, NaN e Infinity corromperiam skill/progresso.
     if (!Number.isFinite(amount) || amount <= 0 ||
-        !Number.isSafeInteger(current.level) || current.level < 1 ||
+        !Number.isSafeInteger(current.level) || current.level < 0 ||
         !Number.isFinite(current.progress) ||
         current.progress < 0 || current.progress >= 100) return;
 
