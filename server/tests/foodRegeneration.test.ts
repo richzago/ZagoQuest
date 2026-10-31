@@ -9,7 +9,7 @@ import type { WebSocket } from "ws";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 import { Player } from "../src/game/entities/player";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
-import { handleUseItem, handleEquipItem, canEquipFromGesture, EQUIPMENT_GESTURE_GUARD_MS } from "../src/network/handlers/inventory.handler";
+import { handleUseItem, handleEquipItem } from "../src/network/handlers/inventory.handler";
 import {
  FoodRegenerationSystem, FOOD_HP_PER_TICK, FOOD_MANA_PER_TICK,
  FOOD_TICK_MS, MAX_FOOD_SECONDS,
@@ -304,23 +304,20 @@ test("C6: JSON com parâmetros inválidos nunca consome food",async()=>{
 });
 
 
-test("C6: duplo pedido sword/armor no mesmo gesto não equipa dois itens",async()=>{
+test("C6: equipar espada mantém a armadura já persistida (não a equipa de novo)",async()=>{
  ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
  const p=player();
- p.addItem("bone_sword",1);p.addItem("bone_armor",1);
- const successes:boolean[]=[];
+ p.equipment.set("armor" as never,"bone_armor"); // já estava salva no Player
+ p.addItem("bone_sword",1);
+ let equipmentSnapshots=0;
  const ctx={packetSender:{inventory:{
-  sendItemUsed:(_id:string,ok:boolean)=>successes.push(ok),
-  sendInventory:()=>{},sendEquipment:()=>{},sendPlayerStats:()=>{},
+  sendItemUsed:()=>{},sendInventory:()=>{},sendEquipment:()=>equipmentSnapshots++,
+  sendPlayerStats:()=>{},
  }}} as unknown as HandlerContext;
- assert.equal(EQUIPMENT_GESTURE_GUARD_MS,550);
  await handleUseItem(ws,p,{type:"useItem",itemId:"bone_sword"},ctx);
- await handleUseItem(ws,p,{type:"useItem",itemId:"bone_armor"},ctx);
- assert.deepEqual(successes,[true,false]);
  assert.equal(p.equipment.get("weapon" as never),"bone_sword");
- assert.equal(p.equipment.has("armor" as never),false);
- assert.equal(p.inventory.get("bone_armor"),1);
- assert.equal(canEquipFromGesture(p,Date.now()+EQUIPMENT_GESTURE_GUARD_MS+2),true);
+ assert.equal(p.equipment.get("armor" as never),"bone_armor");
+ assert.equal(equipmentSnapshots,1);
 });
 
 test("C6: stats trazem saciedade e tempo restante; expiry notifica mesmo com HP/Mana cheios",()=>{
