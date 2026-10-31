@@ -35,3 +35,32 @@
 [Auditoria viva do cliente Unity — C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933)
 
 **Próxima ação:** testar bloqueio de água/paredes e confirmar se a Collision vazia é intencional; não criar colisão artificial no servidor nem alterar dados Tiled sem esse critério de gameplay.
+
+## C1 — Entrada após homologação C0, inspeção e PR de alinhamento
+
+**Marco:** C0 encerrada em 31/10/2026, por confirmação de funcionamento local do Unity Editor e executável Windows com Teste Alfa/Beta. C1 prossegue separadamente, sem alterar o `main`.
+
+### Achados classificados
+
+**BUG COMPROVADO — P1 latente, decoração deslocada:** `Client/Assets/scenebasic.unity` mantém o `MapManager` como GameObject root em (-3.29089, 0.13581), enquanto o `groundTilemap` está em um objeto `Tilemap` filho de `Grid` na origem (0,0). Antes, `RenderAllTileLayers()` criava `Tilemap_Decoration` sob o `MapManager`. Assim, uma camada decorativa não vazia ficaria deslocada em relação ao Ground. O problema não era visível no mapa atual, pois `Decoration` tem 600 células vazias.
+
+**CORREÇÃO C1 nesta PR:** as novas Tilemaps visuais ficam sob o mesmo `Grid` do Ground, com transform local igual e sorting layer compatível. A implementação também evita criar camadas vazias.
+
+**RISCO A VERIFICAR — P1 futuro, convenção Y:** `DrawLayer` representa linha Tiled `y` no Unity como `height - 1 - y`, enquanto o `MapLoader` do servidor e `ApplyCollision` do cliente usam `y` diretamente como coordenada lógica. É uma divergência de mapeamento visual/lógico que se tornará relevante ao pintar `Collision` ou usar um layout assimétrico. Não inverter o mapa ou a posição persistida automaticamente: primeiro comparar posições e decidir o espaço de coordenadas adotado para todo o jogo.
+
+**DECISÃO DE DESIGN:** a `Collision` real está vazia. Definir explicitamente no Tiled se água, paredes e objetos sólidos devem bloquear movimento. Não aplicar bloqueios diretamente no Unity; Node continua autoritativo.
+
+**MELHORIA DE ESTABILIDADE:** validar `data.Length == width * height` para Ground, Decoration e Collision antes de iterar. Impede que exportação incompleta provoque `IndexOutOfRangeException` no Play Mode.
+
+**DÍVIDA TÉCNICA:** mapa no `assets/maps/test-map.json` e cópia no `Client/Assets/Resources/Maps/test-map.json`. Teste já compara as duas versões, e agora os testes C0/C1 foram adicionados explicitamente ao `npm test`, executado na CI.
+
+### Checklist prático para o próximo teste local da C1
+
+1. Abrir `Assets/scenebasic.unity`; Play Mode, conferir o cenário 30×20 sem novos erros e sem `Tilemap_Decoration` vazia.
+2. No Hierarchy, localizar `Grid/Tilemap` (Ground). Uma `Decoration` não vazia deve ser filha **do mesmo Grid**, e não de `MapManager`. Validar com **cópia de teste** do JSON, sem alterar o mapa canônico só para simular.
+3. Comparar onde aparecem os NPCs e o Goblin com os objetos `PlayerSpawn / MonsterSpawn / NPCSpawn` do Tiled.
+4. Confirmar visualmente a orientação do mapa, principalmente a posição das faixas de água; verificar se as coordenadas visualizadas combinam com as coordenadas autoritativas enviadas pelo Node.
+5. Para testar colisões, usar cópia separada do mapa/Tiled e marcar um tile de teste na camada `Collision`, depois confirmar que não é desenhado como sprite de cenário nem permite atravessar o bloqueio no servidor.
+6. Ao consolidar o Tiled, manter JSON do Node e cópia Unity sincronizados. Evitar edição manual de posições no cliente.
+
+**Não concluída:** C1 só poderá ser homologada após Play Mode do usuário, conferência de coordenadas, teste de colisões e decisão de uso da camada Collision.
