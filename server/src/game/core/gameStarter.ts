@@ -69,6 +69,7 @@ export function startGameLoops(
   const tickMetrics = metricsEnabled ? new TickMetrics(512, GAME_TICK_MS) : undefined;
   let cpuSinceReport = process.cpuUsage();
   let lastReportAt = performance.now();
+  let measuredTicks = 0;
 
   try {
     worldTimer = schedule(() => {
@@ -83,7 +84,7 @@ export function startGameLoops(
       } finally {
         tickMetrics.record(performance.now() - began);
         // Stats are sampled, never emitted once per tick; benchmark is optional.
-        if (tickMetrics.snapshot().totalTicks % 240 === 0) {
+        if (++measuredTicks % 240 === 0) {
           const stats = tickMetrics.snapshot();
           const elapsedMs = Math.max(1, performance.now() - lastReportAt);
           const cpu = process.cpuUsage(cpuSinceReport);
