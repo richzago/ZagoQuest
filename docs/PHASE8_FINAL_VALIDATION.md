@@ -130,3 +130,25 @@ LOG: somente trechos sem segredo
 - [x] Decisão de produção registrada separadamente: **NÃO PRONTO**. Requer upgrade de banco legado, TLS/proxy/rate limit distribuído, backups/restauração, métricas e carga real. Não impede encerrar o trabalho automatizado do protótipo.
 
 **Próxima ação:** seguir `docs/PHASE8_POSTGRES_WINDOWS_QA.md` para criar o banco de teste via pgAdmin/psql, aplicar a migration inicial sem synchronize e executar F8-01..04 (REST) e F8-05..12 (Unity). Os testes manuais continuam sem evidências de execução até o usuário realizá-los.
+
+## 7. Registro de testes locais e passagem de bastão — 31/10/2026
+
+**Atualização após resposta do desenvolvedor:** foi confirmado que a sequência de testes locais com **PostgreSQL + API REST** realizada até **criação da guilda**, após correção de formatação PowerShell do comando, **funcionou**. Registro baseado no relato do desenvolvedor; não recebemos logs individualizados dos resultados, nem comprovação de cada caso negativo/rollback.
+
+| Caso | Estado local após relato | Próxima evidência necessária |
+| --- | --- | --- |
+| F8-01 | **PARCIAL** — API/PG iniciaram para realizar operações REST | Encerramento Ctrl+C e restart sem erro |
+| F8-02 | **PASSOU (relatado)** — cadastro e login na sequência local | Se necessário, anotar status sem expor JWT |
+| F8-03 | **NÃO DETALHADO** — não houve confirmação isolada de todos os casos 401/403/expiração | Negativos HTTP, identidade cruzada |
+| F8-04 | **PASSOU (relatado)** — personagens criados na bateria local | Comparar identidades e ausência de dados cruzados |
+| F8-05–F8-08 | **PENDENTE** — Unity, movimento, combate, NPC/economia no cliente | Testes com duas sessões Unity |
+| F8-09 | **PARCIAL (relatado)** — criação de guilda pela API funcionou após corrigir script | Confirmar edição indevida 403, gold 30.000→10.000 em consulta e restart |
+| F8-10–F8-15 | **PENDENTE / NÃO DETALHADO** | Pesca/SEM UI, persistência, falhas controladas, desempenho, compatibilidade |
+
+**Decisão de encerramento:**
+- [x] Encerrada a **implementação/validação automatizada** do backend protótipo na branch `dev` (CI Windows/Linux/PostgreSQL).
+- [x] Registrada **aprovação relatada** do recorte REST/PG local, sem generalizar para todos os testes 7.2/8.2.
+- [ ] **Ainda não assinar Fase 8 completa como homologada:** faltam testes Unity Play Mode, dois clientes, shutdown/restart/estado persistido, casos negativos específicos e backup restaurável conforme matriz.
+- [x] Criado o roteiro de passagem para auditoria do cliente: [`docs/CLIENT_AUDIT_ROADMAP.md`](CLIENT_AUDIT_ROADMAP.md) e [Notion — Auditoria viva do cliente Unity](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933). Os itens F8 que envolvem Unity continuam rastreados **também aqui** até validação, sem marcá-los concluídos por transferência.
+
+**Próxima ação operacional:** iniciar fase C0 de Unity; logo após, C3 de autenticação simultânea e F8-05..F8-12, corrigindo apenas regressões comprovadas. Não declarar produção pronta ou migrar dados históricos nessa transição.
