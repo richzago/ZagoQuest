@@ -1,4 +1,5 @@
 using TMPro;
+using UnityEngine.EventSystems;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -123,6 +124,54 @@ public static class WorldWindowLayout
         rect.localScale = Vector3.one;
     }
 
+    /// <summary>Garante rótulo em janela criada a partir da Hierarchy atual.</summary>
+    public static TextMeshProUGUI EnsureLabel(Transform parent, string name,
+        string value, int fontSize, Color color)
+    {
+        if (parent == null) return null;
+        var existing = parent.Find(name);
+        var obj = existing != null ? existing.gameObject :
+            new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+        if (existing == null) obj.transform.SetParent(parent, false);
+        var label = obj.GetComponent<TextMeshProUGUI>();
+        label.text = value;
+        label.fontSize = fontSize;
+        label.color = color;
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+        label.raycastTarget = false;
+        return label;
+    }
+
+    /// <summary>
+    /// Caixa movível ao estilo MMORPG. Configuração/posição é puramente local
+    /// via PlayerPrefs; nunca afeta gameplay ou autoridade do servidor.
+    /// Não exige modificar a cena, inspector nem prefabs serializados.
+    /// </summary>
+    public static void MakeDraggable(GameObject panel, string title, string key)
+    {
+        if (panel == null) return;
+        var existing = panel.transform.Find("C6DragHeader");
+        var obj = existing != null ? existing.gameObject :
+            new GameObject("C6DragHeader", typeof(RectTransform), typeof(Image),
+                typeof(C6WindowDragHandle));
+        if (existing == null) obj.transform.SetParent(panel.transform, false);
+        obj.transform.SetAsFirstSibling(); // Botões X existentes ficam acima.
+        var rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0, 1);
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 1);
+        rect.offsetMin = new Vector2(0, -29);
+        rect.offsetMax = Vector2.zero;
+        var image = obj.GetComponent<Image>();
+        image.color = new Color32(43, 55, 67, 245);
+        image.raycastTarget = true;
+        var handle = obj.GetComponent<C6WindowDragHandle>();
+        handle.Bind(panel.GetComponent<RectTransform>(), key);
+        var label = EnsureLabel(obj.transform, "Title", title, 15, Gold);
+        label.alignment = TextAlignmentOptions.Center;
+        Place(label.rectTransform, 0.04f, 0, 0.96f, 1);
+    }
+
     public static void StyleButton(Button button)
     {
         if (button == null) return;
@@ -141,5 +190,61 @@ public static class WorldWindowLayout
             text.raycastTarget = false;
             text.fontSize = Mathf.Min(17f, text.fontSize);
         }
+    }
+}
+
+/** Componente runtime de arraste de janelas compactas. */
+public sealed class C6WindowDragHandle : MonoBehaviour,
+    IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+{
+    private RectTransform panel;
+    private string positionKey;
+    private Vector2 defaultPosition;
+    private Canvas canvas;
+
+    public void Bind(RectTransform target, string key)
+    {
+        if (target == null) return;
+        panel = target;
+        positionKey = "ZagoQuest.C6.Window." + key;
+        defaultPosition = panel.anchoredPosition;
+        canvas = panel.GetComponentInParent<Canvas>();
+        if (PlayerPrefs.HasKey(positionKey + ".X") &&
+            PlayerPrefs.HasKey(positionKey + ".Y"))
+        {
+            panel.anchoredPosition = new Vector2(
+                PlayerPrefs.GetFloat(positionKey + ".X"),
+                PlayerPrefs.GetFloat(positionKey + ".Y"));
+        }
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        if (panel != null) panel.SetAsLastSibling();
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (panel == null) return;
+        var scale = canvas != null ? Mathf.Max(0.01f, canvas.scaleFactor) : 1f;
+        panel.anchoredPosition += eventData.delta / scale;
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (panel == null || string.IsNullOrEmpty(positionKey)) return;
+        PlayerPrefs.SetFloat(positionKey + ".X", panel.anchoredPosition.x);
+        PlayerPrefs.SetFloat(positionKey + ".Y", panel.anchoredPosition.y);
+        PlayerPrefs.Save();
+    }
+
+    // Botão direito no título: restaurar posição padrão da janela.
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (panel == null || eventData.button != PointerEventData.InputButton.Right) return;
+        panel.anchoredPosition = defaultPosition;
+        PlayerPrefs.DeleteKey(positionKey + ".X");
+        PlayerPrefs.DeleteKey(positionKey + ".Y");
+        PlayerPrefs.Save();
     }
 }
