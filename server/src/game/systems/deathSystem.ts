@@ -118,15 +118,37 @@ export class DeathSystem {
     // ==========================================================
     // 1. CONCEDE XP AO JOGADOR (SE FOR O CASO)
     // ==========================================================
-    if (killer instanceof Player) {
-      const monsterLevel = (monster.type as any).level || 1;
-      const baseXp = monster.type.combat.xp;
-      const xpGained = ExperienceSystem.calculateMonsterXp(monsterLevel, killer.level, baseXp);
-      ExperienceSystem.addXp(killer, xpGained);
-      Logger.skill(`${killer.name} ganhou ${xpGained} XP por matar ${monster.name}.`);
-
-      // ExperienceSystem.addXp já enviou o snapshot de stats ao cliente.
+    // Apenas jogadores efetivamente presentes no mundo concorrem ao XP.
+    // Dano periódico entra no mesmo ledger; overkill jamais gera vantagem.
+    const contributors = [...monster.damageByPlayer].filter(([id, amount]) =>
+      amount > 0 && world.players.some((player) => player.id === id));
+    if (contributors.length === 0 && killer instanceof Player &&
+        world.players.includes(killer)) {
+      // Compatibilidade com mortes disparadas diretamente pelo DeathSystem.
+      contributors.push([killer.id, 1]);
     }
+    const contributions = new Map(contributors);
+    // Único pool de XP: calculado pela regra existente em função do nível do
+    // maior causador de dano, evitando múltiplos pools no multiplayer.
+    const leader = [...contributions].sort((a,b) =>
+      b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+    const leadPlayer = leader && world.players.find((p) => p.id === leader[0]);
+    if (leadPlayer) {
+      const pool = ExperienceSystem.calculateMonsterXp(
+        monster.type.level ?? 1, leadPlayer.level, monster.type.combat.xp);
+      const shares = ExperienceSystem.splitXpByDamage(pool, contributions);
+      for (const [playerId, share] of shares) {
+        if (share <= 0) continue;
+        const player = world.players.find((p) => p.id === playerId);
+        if (!player) continue;
+        ExperienceSystem.addXp(player, share);
+        Logger.skill(`${player.name} recebeu ${share}/${pool} XP por ${monster.name} (${contributions.get(playerId)} dano).`);
+      }
+    }
+
+    // O corpse ainda guarda o último golpe: direitos de loot serão tratados
+    // como regra separada. A divisão de XP não transfere itens.
+
 
     // ==========================================================
     // 2. GERA O LOOT

@@ -131,6 +131,40 @@ export class ExperienceSystem {
     return base + Math.floor(fraction * this.getLevelRequirement(level));
   }
 
+  /**
+   * Divide um prêmio inteiro (XP) proporcionalmente ao dano REAL registrado.
+   * Maior resto recebe unidades que não cabem na divisão inteira. Em empate,
+   * prioriza maior dano e, por último, ID para resultado determinístico.
+   * Somatório de parcelas = totalXp, sem criação de XP por arredondamento.
+   */
+  static splitXpByDamage(
+    totalXp: number, damageByPlayer: ReadonlyMap<string, number>,
+  ): ReadonlyMap<string, number> {
+    const result = new Map<string, number>();
+    if (!Number.isSafeInteger(totalXp) || totalXp <= 0) return result;
+
+    const entries = [...damageByPlayer].filter(([id, damage]) =>
+      id.length > 0 && Number.isSafeInteger(damage) && damage > 0);
+    const totalDamage = entries.reduce((sum, [, damage]) => sum + damage, 0);
+    if (entries.length === 0 || !Number.isSafeInteger(totalDamage) ||
+        totalDamage <= 0) return result;
+
+    const shares = entries.map(([id, damage]) => {
+      const raw = totalXp * (damage / totalDamage);
+      const whole = Math.floor(raw);
+      return { id, damage, whole, fraction: raw - whole };
+    });
+    // Distribuir apenas unidades restantes, sem alterar a soma final.
+    let remainder = totalXp - shares.reduce((sum, s) => sum + s.whole, 0);
+    shares.sort((a, b) =>
+      b.fraction - a.fraction || b.damage - a.damage || a.id.localeCompare(b.id));
+    for (const entry of shares) {
+      if (remainder-- > 0) entry.whole++;
+      result.set(entry.id, entry.whole);
+    }
+    return result;
+  }
+
   /** Multiplica o XP básico do monstro em função da diferença de nível. */
   static calculateMonsterXp(monsterLevel: number, playerLevel: number, baseXp: number): number {
     const diff = monsterLevel - playerLevel;

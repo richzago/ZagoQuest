@@ -45,6 +45,10 @@ export class CombatSystem {
     const damage = Math.min(Math.floor(amount), target.hp);
     if (damage <= 0) return 0;
     target.hp -= damage;
+    if (target instanceof Monster && source instanceof Player &&
+        world.players.includes(source)) {
+      target.recordPlayerDamage(source.id, damage);
+    }
 
     EventSystem.getInstance().emit<CombatDamageEventData>(GameEvent.COMBAT_DAMAGE, {
       world,
@@ -132,6 +136,10 @@ export class CombatSystem {
     // 3. Aplica o dano ao alvo
     // ----------------------------------------------------------
     target.hp = Math.max(0, target.hp - finalDamage);
+    if (target instanceof Monster && attacker instanceof Player &&
+        world.players.includes(attacker)) {
+      target.recordPlayerDamage(attacker.id, finalDamage);
+    }
 
     // ==========================================================
     // 🔥 ENVIA PLAYER STATS (se o alvo for jogador)
