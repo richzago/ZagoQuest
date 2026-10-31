@@ -78,3 +78,64 @@ test("C6 visual: grade rolável e drop no inventário mesmo vazio",()=>{
  assert.match(eq,/slotText\.text = slotType\.ToString\(\)/);
  assert.doesNotMatch(eq,/new Texture2D\(/);
 });
+
+
+test("C6 visual: a cena mantém as referências de inventário/equipamento que o layout usa",()=>{
+ const scene=readFileSync(join(process.cwd(),"..","Client","Assets","scenebasic.unity"),"utf8");
+ const prefab=readFileSync(join(process.cwd(),"..","Client","Assets","Resources","Prefabs","InventorySlot.prefab"),"utf8");
+ for(const key of ["m_Name: InventoryPanel","m_Name: EquipmentPanel",
+  "m_Name: SlotsGrid","m_Name: SlotsContainer","m_Name: GoldText",
+  "Assembly-CSharp::InventoryUI","Assembly-CSharp::EquipmentUI",
+  "UnityEngine.UI::UnityEngine.UI.CanvasScaler"])
+  assert.ok(scene.includes(key), "Referência de cena ausente: "+key);
+ assert.match(scene,/m_ReferenceResolution: \{x: 1920, y: 1080\}/);
+ assert.match(scene,/slotPrefab: \{fileID: [0-9]+, guid: [a-f0-9]+, type: 3\}/);
+ assert.match(scene,/slotsGrid: \{fileID: [0-9]+\}/);
+ assert.match(scene,/slotsContainer: \{fileID: [0-9]+\}/);
+ assert.match(prefab,/Assembly-CSharp::InventorySlot/);
+ assert.match(prefab,/amountText: \{fileID: [0-9]+\}/);
+ assert.match(prefab,/nameText: \{fileID: [0-9]+\}/);
+});
+
+test("C6 visual: botão X sincroniza painel, flag e atalho I; gold vem somente do snapshot",()=>{
+ const inv=unity("UI/InventoryUI.cs");
+ const visual=unity("UI/C6InventoryEquipmentLayout.cs");
+ assert.match(visual,/Header\(panel, "INVENTÁRIO", close\)/);
+ assert.match(visual,/onClick\.AddListener\(close\)/);
+ assert.match(inv,/public void CloseInventory\(\)[\s\S]*?isInventoryOpen = false;[\s\S]*?inventoryPanel\.SetActive\(false\)/);
+ assert.match(inv,/isInventoryOpen = !isInventoryOpen/);
+ assert.match(inv,/GetComponentInParent<TMP_InputField>\(\)/);
+ assert.match(inv,/public void HandleInventory\(int gold, Dictionary<string, int> newItems\)[\s\S]*?currentGold = gold/);
+ assert.match(inv,/public void UpdateGold\(int gold\)[\s\S]*?currentGold = gold/);
+ assert.match(inv,/Ouro em mãos: \{currentGold:N0\} gold/);
+});
+
+test("C6 visual: soltar sobre viewport vazio envia unequip, não drop no mundo",()=>{
+ const viewport=unity("UI/C6InventoryDropTarget.cs");
+ const layout=unity("UI/C6InventoryEquipmentLayout.cs");
+ const drag=unity("Managers/DragDropManager.cs");
+ assert.match(layout,/typeof\(C6InventoryDropTarget\)/);
+ assert.match(layout,/viewport\.GetComponent<Image>\(\)\.raycastTarget = true/);
+ assert.match(viewport,/IDropHandler/);
+ assert.match(viewport,/drag\.IsDragging\(\) && drag\.IsFromEquipment\(\)/);
+ assert.match(viewport,/drag\.DropOnInventorySlot\(\)/);
+ assert.doesNotMatch(viewport,/DropOnGround/);
+ assert.match(drag,/public void DropOnInventorySlot\(\)[\s\S]*?SendUnequipItem\(sourceSlot\.slotType\)/);
+});
+
+test("C6 visual: recursos Unity e nomes dos slots permanecem compatíveis",()=>{
+ const layout=unity("UI/C6InventoryEquipmentLayout.cs");
+ const equipment=unity("UI/EquipmentSlotUI.cs");
+ const invSlot=unity("Player/InventorySlot.cs");
+ assert.match(layout,/EquipmentSlot\.AMULET/);
+ assert.match(layout,/EquipmentSlot\.BACKPACK/);
+ assert.match(layout,/EquipmentSlot\.USEFUL/);
+ assert.match(layout,/new Vector2\(70, 70\)/);
+ assert.match(layout,/new Vector2\(92, 92\)/);
+ assert.match(layout,/new Vector2\(10, 10, 10, 10\)/);
+ assert.match(layout,/fitter\.horizontalFit = ContentSizeFitter\.FitMode\.Unconstrained/);
+ assert.match(layout,/fitter\.verticalFit = ContentSizeFitter\.FitMode\.PreferredSize/);
+ assert.match(equipment,/Resources\.Load<Sprite>\(\$"Icons\/\{itemId\}"\)/);
+ assert.match(invSlot,/Resources\.Load<Sprite>\(\$"Icons\/\{itemId\}"\)/);
+ assert.doesNotMatch(equipment,/Sprite\.Create|new Texture2D/);
+});
