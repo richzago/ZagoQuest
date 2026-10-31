@@ -1,86 +1,117 @@
 /**
- * Regeneração de comida autoritativa no Node (C6).
+ * C6: alimentação autoritativa com regras configuráveis em itens JSON.
  *
- * Cada alimento define foodSeconds (regeneração) e satietyPoints (saciedade)\n * separadamente no JSON. Com 120 pontos, o jogador fica de barriga cheia\n * até terminar a regeneração restante. Enquanto durar,
- * cada 2 segundos recupera até 2 HP e 1 mana, respeitando os máximos atuais.
- * O tick usa tempo real e é chamado pelo loop do mundo; não cria timers por
- * jogador, não executa no Unity e não ressuscita personagens.
+ * foodSeconds: duração limitada do efeito daquele alimento.
+ * satietyPoints: quanto enche a barriga (capacidade de 120 pontos).
+ * regenHpPerTick / regenManaPerTick / regenTickSeconds: regeneração LEVE,
+ * distinta de poções instantâneas. Cada alimento mantém sua própria regra
+ * mesmo quando consumido junto de outro (fila, sem stacking simultâneo).
  *
- * O estado de saciedade é temporário (sessão em memória); HP/mana recuperados
- * são persistidos pelo autosave existente. Uma futura persistência de fome
- * exige migração/contrato próprios e não faz parte desta correção.
+ * Nada disso executa no Unity. HP/mana seguem persistência do personagem;
+ * a saciedade é transitória e termina ao expirar a última porção.
  */
 import type { Player } from "../entities/player";
 
-export const FOOD_TICK_MS = 2000;
 export const MAX_FOOD_SECONDS = 120;
 export const MAX_SATIETY_POINTS = 120;
-export const FOOD_HP_PER_TICK = 2;
+// Valores de compatibilidade para chamadas antigas: itens devem definir JSON.
+export const FOOD_TICK_MS = 3000;
+export const FOOD_HP_PER_TICK = 1;
 export const FOOD_MANA_PER_TICK = 1;
 
-interface NourishmentState {
-  expiresAt: number;
+interface FoodPortion {
+  endAt: number;
   nextTickAt: number;
+  tickIntervalMs: number;
+  hpPerTick: number;
+  manaPerTick: number;
+}
+interface NourishmentState {
   satietyPoints: number;
-  /** Chegou exatamente ao limite: só pode comer após a saciedade terminar. */
-  fullUntil?: number;
+  portions: FoodPortion[];
 }
 
 const activeFood = new WeakMap<Player, NourishmentState>();
 
 export class FoodRegenerationSystem {
-  /** Indica se um alimento válido ainda cabe na saciedade atual. */
-  static canEat(player: Player, foodSeconds: number, nowMs = Date.now(), satietyPoints = foodSeconds): boolean {
+  /**
+   * Confere capacidade e tempo ANTES de consumir item. Não admite efeito
+   * parcial e nunca concede saciedade/HP/mana a personagem morto.
+   */
+  static canEat(
+    player: Player, foodSeconds: number, nowMs = Date.now(),
+    satietyPoints = foodSeconds, hpPerTick = FOOD_HP_PER_TICK,
+    manaPerTick = FOOD_MANA_PER_TICK, tickSeconds = FOOD_TICK_MS / 1000,
+  ): boolean {
+    if (player.hp <= 0 || !Number.isSafeInteger(foodSeconds) || foodSeconds <= 0 ||
+        foodSeconds > MAX_FOOD_SECONDS ||
+        !Number.isSafeInteger(satietyPoints) || satietyPoints <= 0 ||
+        satietyPoints > MAX_SATIETY_POINTS ||
+        !Number.isSafeInteger(hpPerTick) || hpPerTick < 0 || hpPerTick > 10 ||
+        !Number.isSafeInteger(manaPerTick) || manaPerTick < 0 || manaPerTick > 10 ||
+        hpPerTick + manaPerTick <= 0 ||
+        !Number.isSafeInteger(tickSeconds) || tickSeconds <= 0 ||
+        tickSeconds > foodSeconds) return false;
+
     const current = activeFood.get(player);
-    const remainingSeconds = Math.max(0, ((current?.expiresAt ?? 0) - nowMs) / 1000);
-    const currentSatiety = remainingSeconds > 0 ? (current?.satietyPoints ?? 0) : 0;
-    return player.hp > 0 &&
-      Number.isSafeInteger(foodSeconds) && foodSeconds > 0 &&
-      foodSeconds <= MAX_FOOD_SECONDS &&
-      Number.isSafeInteger(satietyPoints) && satietyPoints > 0 &&
-      satietyPoints <= MAX_SATIETY_POINTS &&
-      currentSatiety + satietyPoints <= MAX_SATIETY_POINTS &&
-      !(current?.fullUntil && nowMs < current.fullUntil) &&
-      // Uma comida nunca é parcialmente desperdiçada para caber no teto.
-      remainingSeconds + foodSeconds <= MAX_FOOD_SECONDS + 1e-6;
+    const end = current?.portions[current.portions.length - 1]?.endAt ?? 0;
+    const isActive = end > nowMs;
+    const currentSatiety = isActive ? current!.satietyPoints : 0;
+    const remainingSeconds = isActive ? (end - nowMs) / 1000 : 0;
+
+    // Quando enche, não pode comer novamente até o efeito de TODAS
+    // as porções terminar. Um alimento que não cabe é recusado inteiro.
+    return currentSatiety + satietyPoints <= MAX_SATIETY_POINTS &&
+      remainingSeconds + foodSeconds <= MAX_FOOD_SECONDS;
   }
 
-  /** Alimenta apenas após o handler confirmar posse e consumir UMA unidade. */
-  static feed(player: Player, foodSeconds: number, nowMs = Date.now(), satietyPoints = foodSeconds): void {
-    if (!this.canEat(player, foodSeconds, nowMs, satietyPoints)) return;
-    const current = activeFood.get(player);
-    const remainingEnd = current && current.expiresAt > nowMs ? current.expiresAt : nowMs;
-    const expiresAt = remainingEnd + foodSeconds * 1000;
-    const totalSatiety = (remainingEnd > nowMs ? (current?.satietyPoints ?? 0) : 0) + satietyPoints;
-    const becameFull = totalSatiety >= MAX_SATIETY_POINTS;
+  /**
+   * Só chamar depois de o handler validar e remover uma unidade.
+   * Cada porção guarda sua própria taxa para não receber buffs retroativos.
+   */
+  static feed(
+    player: Player, foodSeconds: number, nowMs = Date.now(),
+    satietyPoints = foodSeconds, hpPerTick = FOOD_HP_PER_TICK,
+    manaPerTick = FOOD_MANA_PER_TICK, tickSeconds = FOOD_TICK_MS / 1000,
+  ): void {
+    if (!this.canEat(player, foodSeconds, nowMs, satietyPoints,
+                     hpPerTick, manaPerTick, tickSeconds)) return;
+    const previous = activeFood.get(player);
+    const tail = previous?.portions[previous.portions.length - 1];
+    const active = tail != null && tail.endAt > nowMs;
+    const startAt = active ? tail.endAt : nowMs;
+    const portions = active ? previous!.portions : [];
+    const interval = tickSeconds * 1000;
+    portions.push({
+      endAt: startAt + foodSeconds * 1000,
+      nextTickAt: startAt + interval,
+      tickIntervalMs: interval,
+      hpPerTick,
+      manaPerTick,
+    });
     activeFood.set(player, {
-      expiresAt,
-      satietyPoints: totalSatiety,
-      // Ao ficar completamente saciado, bloqueia novo alimento até acabar
-      // toda a regeneração. Não há "refill" aos poucos no intervalo.
-      fullUntil: becameFull ? expiresAt : undefined,
-      // Comer novamente acrescenta duração, sem reiniciar o tick.
-      nextTickAt: current && current.expiresAt > nowMs
-        ? current.nextTickAt : nowMs + FOOD_TICK_MS,
+      satietyPoints: (active ? previous!.satietyPoints : 0) + satietyPoints,
+      portions,
     });
   }
 
-  /** Pontos atuais para feedback do chat; não é estado cliente-autoritativo. */
   static currentSatiety(player: Player, nowMs = Date.now()): number {
-    const current = activeFood.get(player);
-    return current && current.expiresAt > nowMs ? current.satietyPoints : 0;
+    const state = activeFood.get(player);
+    if (!state?.portions.length ||
+        state.portions[state.portions.length - 1].endAt <= nowMs) return 0;
+    return state.satietyPoints;
   }
 
-  /** Consulta para exibir mensagem, nunca para autorizar ações do cliente. */
   static remainingSeconds(player: Player, nowMs = Date.now()): number {
-    const expiresAt = activeFood.get(player)?.expiresAt ?? 0;
+    const state = activeFood.get(player);
+    const expiresAt = state?.portions[state.portions.length - 1]?.endAt ?? 0;
     return Math.max(0, Math.ceil((expiresAt - nowMs) / 1000));
   }
 
   /**
-   * Processa tempo decorrido, inclusive atraso moderado do loop, uma vez por
-   * período de 2s (sem acelerar por tick de mundo de 250ms). Retorna true
-   * somente quando HP/mana realmente muda, para evitar spam de playerStats.
+   * Executado pelo loop do Node. Avanço por timestamps, portanto funciona
+   * mesmo se um tick do mundo atrasar. Processa apenas porções vencidas,
+   * sem dobrar healing por número de frames e sem ultrapassar maxHp/maxMana.
    */
   static tick(player: Player, nowMs = Date.now()): boolean {
     const state = activeFood.get(player);
@@ -90,25 +121,24 @@ export class FoodRegenerationSystem {
       return false;
     }
 
-    const cutoff = Math.min(nowMs, state.expiresAt);
-    if (cutoff < state.nextTickAt) {
-      if (nowMs >= state.expiresAt) activeFood.delete(player);
-      return false;
-    }
-
-    // No máximo 60 ticks de uma janela de 120s; tempo não gera infinitos ticks.
-    const ticks = Math.min(
-      MAX_FOOD_SECONDS * 1000 / FOOD_TICK_MS,
-      Math.floor((cutoff - state.nextTickAt) / FOOD_TICK_MS) + 1,
-    );
-    state.nextTickAt += ticks * FOOD_TICK_MS;
-
     const hpBefore = player.hp;
     const manaBefore = player.mana;
-    player.hp = Math.min(player.maxHp, player.hp + ticks * FOOD_HP_PER_TICK);
-    player.mana = Math.min(player.maxMana, player.mana + ticks * FOOD_MANA_PER_TICK);
-
-    if (nowMs >= state.expiresAt) activeFood.delete(player);
+    while (state.portions.length > 0) {
+      const portion = state.portions[0];
+      const cutoff = Math.min(nowMs, portion.endAt);
+      if (cutoff >= portion.nextTickAt) {
+        const ticks = Math.min(
+          MAX_FOOD_SECONDS, Math.floor((cutoff - portion.nextTickAt) /
+          portion.tickIntervalMs) + 1,
+        );
+        player.hp = Math.min(player.maxHp, player.hp + ticks * portion.hpPerTick);
+        player.mana = Math.min(player.maxMana, player.mana + ticks * portion.manaPerTick);
+        portion.nextTickAt += ticks * portion.tickIntervalMs;
+      }
+      if (nowMs < portion.endAt) break;
+      state.portions.shift();
+    }
+    if (state.portions.length === 0) activeFood.delete(player);
     return player.hp !== hpBefore || player.mana !== manaBefore;
   }
 }
