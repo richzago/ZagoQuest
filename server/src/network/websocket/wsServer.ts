@@ -220,7 +220,23 @@ export class WebSocketServer {
                 return;
               }
               if (duplicate(identity.characterId)) {
-                ws.close(1008, "Personagem ja conectado.");
+                // O cliente NativeWebSocket expõe o código do fechamento, mas
+                // não o texto da reason. Enviar um erro de domínio ANTES do
+                // close para que a UI informe o motivo com precisão, sem
+                // vazar JWT nem aceitar uma segunda sessão deste UUID.
+                const refusal = JSON.stringify({
+                  type: "authRejected",
+                  reason: "alreadyOnline",
+                });
+                try {
+                  ws.send(refusal, () => {
+                    if (ws.readyState === WebSocket.OPEN)
+                      ws.close(1008, "Personagem ja conectado.");
+                  });
+                } catch {
+                  if (ws.readyState === WebSocket.OPEN)
+                    ws.close(1008, "Personagem ja conectado.");
+                }
                 return;
               }
               reservedId = identity.characterId;
