@@ -6,7 +6,10 @@ namespace ZagoQuest.Networking.Handlers
     {
         public void Handle(JObject json, NetworkContext context)
         {
-            context.LootUI?.CloseLootWindow();
+            var id = json["corpseId"]?.ToString();
+            int? index = json["itemIndex"]?.Type == JTokenType.Integer
+                ? json["itemIndex"].Value<int>() : (int?)null;
+            context.LootUI?.OnLootTaken(id, index);
         }
     }
 }
