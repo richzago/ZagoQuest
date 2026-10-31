@@ -35,7 +35,7 @@ test("C1: mapa real marca toda água/parede visual na Collision Tiled (Node = Un
 test("C1: MapLoader bloqueia os 264 tiles de água e deixa interior caminhável", () => {
   const world = new World();
   const result = MapLoader.loadMap(world, sourceMap);
-  assert.deepEqual(result.playerSpawn, { x: 15, y: 3 }, "Não alterar spawns existentes nesta correção.");
+  assert.deepEqual(result.playerSpawn, { x: 15, y: 16 }, "Tiled PlayerSpawn deve corresponder ao Y visual após conversão.");
   assert.equal(world.tiles.size, 600);
   assert.equal([...world.tiles.values()].filter(tile => !tile.walkable).length, 264);
   assert.equal(world.getTile(2, 3)?.walkable, false, "Água à esquerda bloqueada");
