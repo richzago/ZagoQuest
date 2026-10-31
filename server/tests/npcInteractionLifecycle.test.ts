@@ -176,13 +176,20 @@ test("WS: /hi abre loja do NPC mais próximo quando banqueiro está longe", asyn
   });
 });
 
-test("WS: reconectar não deixa NPC travado após sessão anterior", async () => {
+test("WS: desconectar libera NPC após o servidor processar o fechamento", async () => {
   await withSocket(async ({ banker }, ws) => {
     await send(ws, { type: "openBank", npcId: banker.id }, "bankWindow");
     assert.equal(banker.isTalking, true);
-    const closed = once(ws, "close");
+    const clientClosed = once(ws, "close");
     ws.close();
-    await closed;
+    await clientClosed;
+
+    // O close do CLIENTE pode chegar antes do close do servidor (Windows).
+    // Aguarda o evento autoritativo, com limite, sem afetar o game loop.
+    const deadline = Date.now() + 1000;
+    while (banker.isTalking && Date.now() < deadline) {
+      await new Promise<void>(resolve => setTimeout(resolve, 10));
+    }
     assert.equal(banker.isTalking, false);
   });
 });
