@@ -13,6 +13,22 @@ import { Character } from "../entities/Character";
 import { Account } from "../entities/Account";
 import { createCharacterSchema } from "../../shared/schemas/character.schema";
 
+/** Expected character request errors; database failures are never 400. */
+export class InvalidCharacterDataError extends Error {
+  constructor(message: string) { super(message); this.name = "InvalidCharacterDataError"; }
+}
+export class CharacterConflictError extends Error {
+  constructor() { super("Personagem já existe."); this.name = "CharacterConflictError"; }
+}
+export class CharacterAccountUnavailableError extends Error {
+  constructor() { super("Conta indisponível."); this.name = "CharacterAccountUnavailableError"; }
+}
+function isCharacterUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as { code?: unknown; driverError?: { code?: unknown } };
+  return candidate.code === "23505" || candidate.driverError?.code === "23505";
+}
+
 export class CharacterService {
   /**
    * Cria um novo personagem para uma conta.
@@ -43,18 +59,18 @@ export class CharacterService {
   ) {
     // 1. Valida os dados com o schema Zod (apenas nome, gênero e mundo)
     const validation = createCharacterSchema.safeParse({ name, gender, world });
-    if (!validation.success) throw new Error(validation.error.issues[0].message);
+    if (!validation.success) throw new InvalidCharacterDataError(validation.error.issues[0].message);
 
     const characterRepo = AppDataSource.getRepository(Character);
 
     // 2. Verifica se já existe personagem com o mesmo nome
     const existing = await characterRepo.findOneBy({ name });
-    if (existing) throw new Error("Personagem já existe");
+    if (existing) throw new CharacterConflictError();
 
     // 3. Busca a conta para associar o personagem
     const accountRepo = AppDataSource.getRepository(Account);
     const account = await accountRepo.findOneBy({ id: accountId });
-    if (!account) throw new Error("Conta não encontrada");
+    if (!account) throw new CharacterAccountUnavailableError();
 
     // 4. Cria a entidade Character com valores iniciais padrão
     const character = characterRepo.create({
@@ -74,7 +90,13 @@ export class CharacterService {
       gold: 0,
       bankGold: 0,
     });
-    await characterRepo.save(character);
+    try {
+      await characterRepo.save(character);
+    } catch (error) {
+      // The unique database index, not the pre-check, resolves concurrent creations.
+      if (isCharacterUniqueViolation(error)) throw new CharacterConflictError();
+      throw error;
+    }
 
     return { id: character.id, name: character.name };
   }
