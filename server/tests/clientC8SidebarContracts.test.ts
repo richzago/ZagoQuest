@@ -44,7 +44,11 @@ test("UI 2A: EquipmentPanel ORIGINAL é reparentado sem clone e sem perder slots
   assert.match(ui, /if \(close != null\) close\.gameObject\.SetActive\(false\)/);
   assert.match(ui, /ui\.SetSidebarDocked\(true\)/);
   assert.match(ui, /dockedEquipment\.SetSidebarDocked\(false\)/);
-  assert.match(ui, /panel\.transform\.SetParent\(originalEquipmentParent, false\)/);
+  assert.match(ui, /rt\.SetParent\(originalEquipmentParent, false\)/);
+  assert.match(ui, /rt\.anchorMin = previousAnchorMin/);
+  assert.match(ui, /rt\.offsetMax = previousOffsetMax/);
+  assert.match(ui, /drag\.gameObject\.SetActive\(previousDragVisible\)/);
+  assert.match(ui, /close\.gameObject\.SetActive\(previousCloseVisible\)/);
   assert.match(ui, /switch \(slot\.slotType\)/);
   for (const slot of ["AMULET", "HELMET", "BACKPACK", "WEAPON",
     "ARMOR", "SHIELD", "RING", "LEGS", "USEFUL"])
