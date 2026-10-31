@@ -96,35 +96,6 @@ export class MapLoader {
         }
       }
 
-      // C7: sem coordenadas mágicas. O tileset Water1 no Tiled ocupa GIDs
-      // firstgid..firstgid+tilecount-1. Preferir propriedade type=water
-      // quando mapas futuros renomearem o tileset. Y é invertido como Ground.
-      const waterRanges: Array<[number, number]> = (mapData.tilesets ?? [])
-        .filter((set) => /water/i.test(String(set.name ?? "")) ||
-          set.properties?.some((p: {name:string;value:unknown}) =>
-            p.name === "type" && p.value === "water"))
-        .filter((set) => Number.isSafeInteger(set.firstgid) &&
-          Number.isSafeInteger(set.tilecount) && set.tilecount > 0)
-        .map((set) => [set.firstgid, set.firstgid + set.tilecount - 1]);
-      const isWaterGid = (raw: number) => {
-        // Tiled flags flips em bits altos; comparar só o GID base.
-        const gid = raw & 0x1fffffff;
-        return waterRanges.some(([lo, hi]) => gid >= lo && gid <= hi);
-      };
-      for (const layer of mapData.layers) {
-        if (layer.type !== "tilelayer" ||
-            !["Ground", "Water", "Decoration"].includes(layer.name) ||
-            !layer.data || layer.data.length !== mapData.width * mapData.height) continue;
-        for (let index = 0; index < layer.data.length; index++) {
-          if (!isWaterGid(layer.data[index])) continue;
-          const x = index % mapData.width;
-          const y = mapData.height - 1 - Math.floor(index / mapData.width);
-          const tile = world.getTile(x, y);
-          if (tile) tile.isWater = true;
-        }
-      }
-      Logger.world(`Água Tiled: ${[...world.tiles.values()].filter(t => t.isWater).length} tiles mapeados.`);
-
       // 4. Processa a camada de colisão (Tile Layer chamada "Collision")
       const collisionLayer = mapData.layers.find(
         (l) => l.name === "Collision" && l.type === "tilelayer",

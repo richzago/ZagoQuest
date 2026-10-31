@@ -98,12 +98,7 @@ public class CameraFollow : MonoBehaviour
             GameManager.Instance != null && GameManager.Instance.HasLoadedMap)
         {
             float halfHeight = cameraComponent.orthographicSize;
-            // PixelRect considera o dock lateral e chat inferior: a câmera
-            // deve calcular seus limites pelo viewport REAL, não pela tela cheia.
-            float aspect = cameraComponent.pixelHeight > 0
-                ? cameraComponent.pixelWidth / (float)cameraComponent.pixelHeight
-                : cameraComponent.aspect;
-            float halfWidth = halfHeight * aspect;
+            float halfWidth = halfHeight * cameraComponent.aspect;
             float mapWidth = GameManager.Instance.MapWidth;
             float mapHeight = GameManager.Instance.MapHeight;
             position.x = mapWidth <= halfWidth * 2f

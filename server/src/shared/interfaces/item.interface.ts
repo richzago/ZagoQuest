@@ -43,10 +43,6 @@ export interface ItemType {
   /** Efeito instantâneo de poções (a comida usa foodSeconds). */
   effect?: { healHp?: number; healMana?: number };
   value?: number;
-  /** Bônus configurável da isca ou vara no JSON, sem regra no Unity. */
-  fishingBonus?: number;
-  /** Duração da pesca com a vara (milissegundos). */
-  fishingTime?: number;
   // Se for equipment, terá os campos de EquipableItemType
   slot?: EquipmentSlot;
   bonuses?: EquipmentBonus;

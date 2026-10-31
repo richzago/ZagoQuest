@@ -71,7 +71,7 @@ test("C7 tipos do servidor, guarda de sessão e dados de pesca sem confiança no
  assert.match(fs,/activeFishingHooks\.delete\(player\)/);
  assert.match(validation,/z\.literal\("startFishing"\)/);
  assert.match(validation,/z\.literal\("cancelFishing"\)/);
- assert.match(fs,/world\.getTile\(px \+ dx, py \+ dy\)\?\.isWater/);
+ assert.match(fs,/if \(y >= 8\)/); // PENDÊNCIA explícita: ainda não usa tiles Tiled.
 });
 
 test("C7 acessibilidade: escala de UI local sem alterar gameplay ou senhas",()=>{

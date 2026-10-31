@@ -13,7 +13,6 @@ public sealed class C7FishingUI : MonoBehaviour
 {
     public static C7FishingUI Instance { get; private set; }
     private GameObject root;
-    private GameObject panelObject;
     private Image progressFill;
     private TextMeshProUGUI feedback;
     private Button startButton;
@@ -80,7 +79,6 @@ public sealed class C7FishingUI : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         var panel = new GameObject("FishingPanel", typeof(RectTransform), typeof(Image));
-        panelObject = panel;
         panel.transform.SetParent(root.transform, false);
         var rect = (RectTransform)panel.transform;
         rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1, 0);
@@ -90,7 +88,7 @@ public sealed class C7FishingUI : MonoBehaviour
 
         Label(panel.transform, "Title", "PESCA  •  [R] iniciar",
             new Vector2(0.06f,0.73f),new Vector2(0.94f,0.97f),17);
-        feedback = Label(panel.transform, "FishingStatus", "Equipe vara em Weapon e isca em Useful, perto da água.",
+        feedback = Label(panel.transform, "FishingStatus", "Vara e água próxima necessárias.",
             new Vector2(0.06f,0.46f),new Vector2(0.94f,0.72f),13);
 
         var track = new GameObject("ProgressTrack", typeof(RectTransform), typeof(Image));
@@ -113,7 +111,6 @@ public sealed class C7FishingUI : MonoBehaviour
         startButton.onClick.AddListener(StartFishing);
         stopButton.onClick.AddListener(CancelFishing);
         UpdateButtons();
-        WorldWindowLayout.MakeDraggable(panel, "PESCA", "fishing");
         root.SetActive(false);
         GetComponent<C7UiAccessibility>()?.ApplyCurrent();
     }
@@ -123,9 +120,6 @@ public sealed class C7FishingUI : MonoBehaviour
         var network = NetworkManager.Instance;
         bool connected = network != null && network.isConnected;
         if (root != null && root.activeSelf != connected) root.SetActive(connected);
-        // Se o painel já foi encaixado no C7Dock, é independente do Canvas antigo.
-        if (panelObject != null && panelObject.activeSelf != connected)
-            panelObject.SetActive(connected);
         if (!connected)
         {
             fishing = false; waitingForAck = false;
@@ -208,7 +202,6 @@ public sealed class C7FishingUI : MonoBehaviour
     {
         if (startButton != null) startButton.onClick.RemoveListener(StartFishing);
         if (stopButton != null) stopButton.onClick.RemoveListener(CancelFishing);
-        if (panelObject != null) Destroy(panelObject);
         if (root != null) Destroy(root);
         if (Instance == this) Instance = null;
     }

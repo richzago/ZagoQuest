@@ -11,7 +11,6 @@ import { Player } from "../entities/player";
 import { World } from "../world/World";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { SkillType } from "../../shared/enums/skillType.enum";
-import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { Logger } from "../core/logger/logger";
 import { EventSystem } from "../core/events/eventSystem";
 import { FishingReward } from "../../shared/interfaces/fishing.interface";
@@ -49,7 +48,7 @@ const REWARDS: FishingReward[] = [
  *
  * @remarks
  * O fluxo de pesca:
- * 1. O jogador pressiona R no Unity (startFishing validado pelo WS).
+ * 1. O jogador pressiona 'r' (capturado pelo `commandHandler`).
  * 2. `startFishing` verifica se há vara, isca e água.
  * 3. Um timer é iniciado com duração baseada na vara.
  * 4. Ao final do timer, `completeFishing` sorteia uma recompensa com base na skill e bônus.
@@ -74,7 +73,8 @@ export class FishingSystem {
 
   /**
    * Tenta iniciar a pesca para o jogador.
-   * Exige vara equipada em Weapon e isca selecionada no Useful.
+   * Procura automaticamente a primeira vara de pesca no inventário,
+   * e a primeira isca (se existir).
    *
    * @param player - Jogador que irá pescar
    * @param world - Mundo (necessário para verificar presença de água adjacente)
@@ -83,8 +83,9 @@ export class FishingSystem {
    * @remarks
    * Condições para iniciar:
    * - Jogador não pode estar já pescando.
-   * - Vara em WEAPON e isca em USEFUL (cada tentativa consome uma isca).
-   * - Deve haver água marcada no Tiled adjacente (Y invertido no MapLoader).
+   * - Deve possuir uma vara de pesca (cujo ID comece com `fishing/rods/`).
+   * - Deve estar adjacente à água (atualmente simulado com `y >= 8`).
+   * - Se houver isca (ID começando com `fishing/bait/`), ela é consumida e concede bônus.
    *
    * Após iniciar, define um timer que chamará `completeFishing` após o tempo configurado na vara.
    *
@@ -102,55 +103,52 @@ export class FishingSystem {
       return false;
     }
 
-    // Requisitos de MMO: rod em WEAPON, bait em USEFUL.
-    // O slot Useful seleciona o TIPO de isca; a primeira unidade equipada
-    // é consumida por último, depois das unidades restantes no inventário.
-    const rodId = player.equipment.get(EquipmentSlot.WEAPON);
-    const baitId = player.equipment.get(EquipmentSlot.USEFUL);
-    if (!rodId?.startsWith("fishing/rods/") || !baitId ||
-        !(baitId.startsWith("fishing/baits/") || baitId === "consumable/bait_worm")) {
-      Logger.skill(`${player.name}: equipe vara em Weapon e isca em Useful.`);
+    let rodId: string | null = null;
+    for (const [itemId] of player.inventory) {
+      if (itemId.startsWith("fishing/rods/")) {
+        rodId = itemId;
+        break;
+      }
+    }
+    if (!rodId) {
+      Logger.skill(`Você precisa de uma vara de pesca (fishing/rods/...) para pescar.`);
       return false;
     }
-    let rodItem, baitItem;
-    try {
-      rodItem = ItemRegistry.get(rodId);
-      baitItem = ItemRegistry.get(baitId);
-    } catch {
-      Logger.warn("[FISHING] Vara ou isca equipada não existe no ItemRegistry.");
-      return false;
-    }
-    if (rodItem.type !== "equipment" || rodItem.slot !== EquipmentSlot.WEAPON ||
-        baitItem.type !== "equipment" || baitItem.slot !== EquipmentSlot.USEFUL) {
-      Logger.skill("Equipamento inválido para pesca.");
+    if (!player.hasItem(rodId, 1)) {
+      Logger.skill(`A vara ${rodId} não está mais no seu inventário.`);
       return false;
     }
 
-    // Validar água REAL da layer Ground do Tiled antes de gastar isca.
+    let baitId: string | null = null;
+    for (const [itemId] of player.inventory) {
+      // IDs canônicos do ItemRegistry: fishing/baits/worm, .../cricket.
+      if (itemId.startsWith("fishing/baits/")) {
+        baitId = itemId;
+        break;
+      }
+    }
+
     if (!this.isNearWater(player, world)) {
-      Logger.skill(`${player.name}: nenhum tile de água Tiled adjacente.`);
+      Logger.skill(`Você precisa estar perto da água para pescar.`);
       return false;
     }
 
-    const fishingTime = rodItem.fishingTime ?? 3000;
-    const rodBonus = rodItem.fishingBonus ?? 0;
-    const baitBonus = baitItem.fishingBonus ?? 0;
-    if (!Number.isSafeInteger(fishingTime) || fishingTime < 100 ||
-        !Number.isFinite(rodBonus) || rodBonus < 0 ||
-        !Number.isFinite(baitBonus) || baitBonus < 0) {
-      Logger.warn("[FISHING] JSON de vara/isca possui configuração inválida.");
-      return false;
+    let baitBonus = 0;
+    if (baitId) {
+      if (player.hasItem(baitId, 1)) {
+        player.removeItem(baitId, 1);
+        const baitItem = ItemRegistry.get(baitId);
+        baitBonus = (baitItem as any).fishingBonus || 0.1;
+        Logger.skill(`${player.name} usou isca: ${baitItem?.name || baitId}.`);
+      } else {
+        Logger.skill(`Você não tem mais a isca ${baitId}.`);
+        return false;
+      }
     }
 
-    // Economia segura: o slot Useful contém uma unidade 'reservada'.
-    // Enquanto há outras na mochila, gastar da mochila mantendo a seleção.
-    // Na última, gastar a própria unidade equipada e liberar o slot Useful.
-    if (player.hasItem(baitId, 1)) {
-      if (!player.removeItem(baitId, 1)) return false;
-    } else {
-      player.equipment.delete(EquipmentSlot.USEFUL);
-      player.recalculateStats();
-    }
+    const rodItem = ItemRegistry.get(rodId);
+    const fishingTime = (rodItem as any).fishingTime || 3000;
+    const rodBonus = (rodItem as any).fishingBonus || 0;
 
     player.isFishing = true;
     const timer = setTimeout(() => {
@@ -172,14 +170,41 @@ export class FishingSystem {
     return true;
   }
 
-  /** Uma das oito células adjacentes precisa conter água no WORLD, não Y>=8. */
-  static isNearWater(player: Player, world: World): boolean {
-    const px = player.position.x, py = player.position.y;
-    if (!world.isWithinBounds(px, py) || !world.getTile(px, py)?.walkable) return false;
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        if (world.getTile(px + dx, py + dy)?.isWater === true) return true;
+  /**
+   * Verifica se o jogador está adjacente a um tile de água.
+   * Atualmente, usa simulação: considera água qualquer posição com y >= 8.
+   *
+   * @param player - Jogador
+   * @param world - Mundo (não usado atualmente, mas preparado para futura integração com Tiled)
+   * @returns `true` se estiver adjacente à água, `false` caso contrário
+   *
+   * @remarks
+   * Esta implementação é temporária. Quando o sistema de mapas Tiled for integrado,
+   * deverá verificar se o tile adjacente é do tipo "water".
+   *
+   * @example
+   * ```typescript
+   * if (FishingSystem.isNearWater(player, world)) {
+   *   // Pode pescar
+   * }
+   * ```
+   */
+  private static isNearWater(player: Player, world: World): boolean {
+    const directions = [
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 },
+      { dx: 1, dy: -1 },
+      { dx: -1, dy: 1 },
+      { dx: -1, dy: -1 },
+    ];
+    for (const dir of directions) {
+      const x = player.position.x + dir.dx;
+      const y = player.position.y + dir.dy;
+      if (y >= 8) {
+        return true;
       }
     }
     return false;

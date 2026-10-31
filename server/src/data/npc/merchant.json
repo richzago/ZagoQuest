@@ -27,11 +27,6 @@
       "sellPrice": 1
     },
     {
-      "itemId": "fishing/baits/cricket",
-      "buyPrice": 4,
-      "sellPrice": 2
-    },
-    {
       "itemId": "bone_sword",
       "buyPrice": 50,
       "sellPrice": 25
