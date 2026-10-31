@@ -49,6 +49,25 @@ public class LootUI : MonoBehaviour
             root.sizeDelta = new Vector2(520f, 390f);
         }
         WorldWindowLayout.PrepareList(itemsContainer);
+        // Na cena versionada o botão X existe como LootPanel/Button, mas
+        // closeButton está sem referência (fileID 0) no Inspector.
+        if (closeButton == null)
+        {
+            var closeTransform = transform.Find("Button");
+            if (closeTransform != null)
+                closeButton = closeTransform.GetComponent<Button>();
+        }
+        if (closeButton != null)
+        {
+            var closeRect = closeButton.GetComponent<RectTransform>();
+            if (closeRect != null)
+            {
+                closeRect.anchorMin = closeRect.anchorMax = new Vector2(1f, 1f);
+                closeRect.pivot = new Vector2(1f, 1f);
+                closeRect.anchoredPosition = new Vector2(-12f, -12f);
+                closeRect.sizeDelta = new Vector2(34f, 34f);
+            }
+        }
         var background = lootPanel != null ? lootPanel.GetComponent<Image>() : null;
         if (background != null) background.color = WorldWindowLayout.Background;
         WorldWindowLayout.StyleButton(closeButton);
