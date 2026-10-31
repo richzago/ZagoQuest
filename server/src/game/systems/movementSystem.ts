@@ -8,8 +8,10 @@
 import type { Player } from "../entities/player";
 import type { World } from "../world/World";
 import type { Direction } from "../../network/messages/client/movement.messages";
+import { ItemRegistry } from "../../data/items/itemRegistry";
 
-export const MIN_MOVE_INTERVAL_MS = 150; // Ajustável sem alterar os handlers.
+export const MIN_MOVE_INTERVAL_MS = 150; // Level 1, sem bônus: comportamento legado.
+export const FASTEST_MOVE_INTERVAL_MS = 75; // Cap que protege a simulação de spam.
 
 export type MoveResult = "moved" | "invalid" | "blocked" | "cooldown";
 
@@ -23,6 +25,29 @@ const OFFSETS: Record<Direction, readonly [number, number]> = {
   southeast: [1, -1],
   southwest: [-1, -1],
 };
+
+/**
+ * Ritmo autoritativo. A cada 5 níveis, o personagem ganha 2ms por passo,
+ * e bonus.speed dos equipamentos reduz mais 1ms/ponto.
+ * Nem Unity nem pacotes de rede podem atribuir velocidade arbitrária.
+ */
+export function getPlayerMoveIntervalMs(player: Player): number {
+  const level = Number.isSafeInteger(player.level) && player.level >= 1 ? player.level : 1;
+  const levelReduction = Math.floor((level - 1) / 5) * 2;
+  let itemReduction = 0;
+  for (const itemId of player.equipment.values()) {
+    try {
+      const speed = ItemRegistry.get(itemId).bonuses?.speed;
+      if (typeof speed === "number" && Number.isFinite(speed) && speed > 0)
+        itemReduction += speed;
+    } catch {
+      // Itens desconhecidos em saves antigos não podem bloquear movimento.
+    }
+  }
+  return Math.max(FASTEST_MOVE_INTERVAL_MS,
+    Math.min(MIN_MOVE_INTERVAL_MS,
+      Math.floor(MIN_MOVE_INTERVAL_MS - levelReduction - itemReduction)));
+}
 
 /** WeakMap não impede o GC de liberar jogadores desconectados. */
 const lastAcceptedMove = new WeakMap<Player, number>();
@@ -56,7 +81,7 @@ export class MovementSystem {
       return "invalid";
 
     const previous = lastAcceptedMove.get(player);
-    if (previous !== undefined && now - previous < MIN_MOVE_INTERVAL_MS)
+    if (previous !== undefined && now - previous < getPlayerMoveIntervalMs(player))
       return "cooldown";
 
     if (!world.isPositionWalkable(x as number, y as number, player.id))

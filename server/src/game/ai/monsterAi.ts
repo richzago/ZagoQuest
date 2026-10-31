@@ -22,13 +22,20 @@ export class MonsterAI {
   // CONTROLE DE MOVIMENTO
   // =========================
   private lastMoveTime: number = 0;
-  private moveCooldown: number = 1000; // 1 segundo entre movimentos (padrão)
 
-  constructor(private config: MonsterAIConfig = {}) {
-    // Permite sobrescrever o cooldown via configuração, se desejado
-    if (config.moveCooldown) {
-      this.moveCooldown = config.moveCooldown;
-    }
+  constructor(private config: MonsterAIConfig = {}) {}
+
+  /**
+   * stats.speed no JSON realmente influencia quantos tiles o monstro anda.
+   * Rat/Goblin speed=20 => 1400ms/passo. Criaturas mais rápidas poderão
+   * usar o mesmo parâmetro sem modificar o game loop nem o cliente.
+   */
+  private getMoveCooldown(monster: Monster): number {
+    if (Number.isFinite(this.config.moveCooldown) && this.config.moveCooldown! > 0)
+      return Math.max(100, this.config.moveCooldown!);
+    const speed = monster.type.stats.speed;
+    const resolved = Number.isFinite(speed) && speed! >= 0 ? speed! : 20;
+    return Math.max(350, Math.min(1800, Math.floor(1800 - resolved * 20)));
   }
 
   /**
@@ -134,7 +141,7 @@ export class MonsterAI {
     // 1. VERIFICA COOLDOWN DE MOVIMENTO
     // ==========================================================
     const now = Date.now();
-    if (now - this.lastMoveTime < this.moveCooldown) {
+    if (now - this.lastMoveTime < this.getMoveCooldown(monster)) {
       // Ainda não pode se mover novamente
       return;
     }
