@@ -85,6 +85,8 @@ test("C7: iniciar, não iniciar duas vezes e concluir no tempo do Node", (t) => 
 test("C7: cancelamento encerra timer e não entrega recompensa depois", (t) => {
   t.mock.timers.enable({apis:["setTimeout"]});
   t.mock.method(ItemRegistry,"get",(id:string)=>{
+    if(id===baitId) return {id,name:"Worm",type:"equipment",slot:EquipmentSlot.USEFUL,
+      fishingBonus:0.1} as ReturnType<typeof ItemRegistry.get>;
     if(id===rodId) return {id,name:"Test rod",type:"equipment",slot:EquipmentSlot.WEAPON,fishingTime:100,
       fishingBonus:0} as ReturnType<typeof ItemRegistry.get>;
     throw new Error("ID inesperado "+id);
@@ -121,7 +123,9 @@ test("C7: sem vara ou longe da água a pesca recusa, sem inventário falso", () 
 test("C7: ao desconectar não envia pacote tardio nem reabre pesca", (t) => {
   t.mock.timers.enable({apis:["setTimeout"]});
   t.mock.method(ItemRegistry,"get",(id:string)=>{
-    if(id===rodId) return {id,name:"Test rod",fishingTime:100,
+    if(id===baitId) return {id,name:"Worm",type:"equipment",slot:EquipmentSlot.USEFUL,
+      fishingBonus:0.1} as ReturnType<typeof ItemRegistry.get>;
+    if(id===rodId) return {id,name:"Test rod",type:"equipment",slot:EquipmentSlot.WEAPON,fishingTime:100,
       fishingBonus:0} as ReturnType<typeof ItemRegistry.get>;
     throw new Error("Item inesperado "+id);
   });
