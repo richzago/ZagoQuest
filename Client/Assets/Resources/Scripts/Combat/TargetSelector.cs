@@ -224,19 +224,22 @@ public class TargetSelector : MonoBehaviour
             !network.isConnected || network.Combat == null ||
             EntityManager.Instance == null) return;
 
+        // Resolver o próximo alvo ANTES de interromper o atual. Quando um
+        // monstro despawna entre o clique e a seleção, GetGameObject retorna
+        // null: antes enviávamos STOP duas vezes e perdíamos o alvo válido.
+        GameObject nextTarget = EntityManager.Instance.GetGameObject(targetId);
+        if (nextTarget == null)
+        {
+            Debug.LogWarning($"[TargetSelector] Alvo {targetId} não existe mais no cliente.");
+            return;
+        }
+        if (currentTargetId == targetId) return; // seleção repetida não reenvia START
+
         if (currentTarget != null)
             network.Combat.SendStopAutoAttack();
 
         currentTargetId = targetId;
-        currentTarget = EntityManager.Instance.GetGameObject(targetId);
-
-        if (currentTarget == null)
-        {
-            ClearTarget();
-            Debug.LogWarning($"[TargetSelector] Alvo {targetId} não existe mais no cliente.");
-            return;
-        }
-
+        currentTarget = nextTarget;
         ShowOutline(currentTarget.transform);
         network.Combat.SendStartAutoAttack(targetId);
     }

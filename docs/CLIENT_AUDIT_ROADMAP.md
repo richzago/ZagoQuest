@@ -1,6 +1,6 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado atualizado (31/10/2026): C0 e C1 CONCLUÍDAS; C2 funcionalmente aceita; C3 login duplicado por personagem validado no Unity e nova exclusividade por conta em implementação/QA; C4 INICIADA com PR #94 integrado e primeira bateria de testes do usuário aprovada; revisão Player/Combat continua. C5 só após C4, C8 mantém homologação E2E independente.**
+**Estado atualizado (31/10/2026): C0 e C1 CONCLUÍDAS; C2 funcionalmente aceita; C3 CONCLUÍDA/HOMOLOGADA pelo desenvolvedor (JWT, personagem e exclusividade por conta, PR #95); C4 EM AUDITORIA MINUCIOSA após primeira bateria local aprovada e PR #94 integrado, com novo PR incremental HUD/target e QA pendente. C5 só após C4; C8 mantém homologação E2E independente.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 
@@ -97,3 +97,11 @@ PR / MERGE / PRÓXIMA AÇÃO:
 **C3 ajuste de feedback:** o servidor manda `authRejected` com código de domínio `alreadyOnline` antes de fechar com 1008; UI QA mostra aviso claro de personagem conectado, sem expor JWT/UUID da sessão ativa. O segundo socket permanece rejeitado e a primeira sessão não é afetada. QA específico ainda precisa ser feito no Unity após integrar o PR.
 
 **Sequência confirmada pelo desenvolvedor:** após o ajuste do login duplicado, iniciar **C4 — Player/Combat** (input, movimento, target/auto-follow, dano/HP, morte e respawn). **Não pular para C5**; NPC/World será revisado depois da C4. C8 permanece validação final independente.
+
+## C3 encerrada e auditoria C4 ampliada — 31/10/2026
+
+**Aceite definitivo C3:** usuário informou que tudo funciona e que já testou com êxito a nova regra de apenas um personagem conectado por conta, após PR #95. A C3 está oficialmente HOMOLOGADA; não confundir com o escopo mais amplo da C8 (escala, restarts prolongados, release).
+
+**C4 atual:** já corrigidos, no PR #94, ciclo de vida das 8 InputActions do Player e envio de comandos sem conexão em TargetSelector. QA funcional anterior de combate/Alfa/Beta passou; revisão técnica aprofundada segue aberta. PR específico seguinte cobre dois bugs C4: PlayerHUD conserva singleton estático depois de OnDestroy e TargetSelector envia STOP redundante/perde seleção anterior quando o ID do novo monstro desapareceu antes de selecionar. Correções locais e teste de contrato, sem mudar Node autoritativo, cooldown, distância de ataque, Tiled ou dados PostgreSQL.
+
+**Cobertura detalhada de C4:** Node MovementSystem, move.handler, PlayerAttackSystem, attack.handler, gameStarter autoattack, CombatSystem, CombatEventBridge, DeathSystem, PlayerStatsSender; Unity PlayerController, TargetSelector, PlayerHUD, PositionHandler, PlayerStatsHandler, DamageHandler, InitHandler, AutoAttackStoppedHandler, EntityManager e TargetOutline. Matriz e scripts de QA descritos em [CLIENT_C4_PLAYER_COMBAT_AUDIT.md](CLIENT_C4_PLAYER_COMBAT_AUDIT.md). Fechamento de C4 exige QA local desta última alteração + validação da matriz Player/Combat. Não antecipar C5.

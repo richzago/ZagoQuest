@@ -47,3 +47,50 @@ test("C4: Node segue como autoridade de posição, HP e ritmo de movimento", () 
   assert.match(stats,/SetMoveIntervalMs\(stats\.moveIntervalMs\)/);
   assert.match(stats,/context\.PlayerHUD\?\.UpdateStats\(stats\)/);
 });
+
+
+test("C4: PlayerHUD não mantém singleton de cena obsoleto após destroy", () => {
+  const hud = readUnity("UI/PlayerHUD.cs");
+  assert.match(hud, /if \(Instance != null && Instance != this\)[\s\S]*?Destroy\(gameObject\);\s*return;/);
+  assert.match(hud, /void OnDestroy\(\)\s*\{[\s\S]*?if \(Instance == this\) Instance = null;/);
+  // A interface mostra os dados enviados pelo Node, sem deduzir HP ou XP.
+  assert.match(hud, /public void UpdateStats\(PlayerStatsData stats\)/);
+  assert.match(hud, /hpSlider\.value = hp/);
+  assert.match(hud, /xpSlider\.value = stats\.levelXpToNext > 0 \? stats\.levelXp : 1/);
+  assert.match(hud, /stats\.xp:N0/);
+});
+
+test("C4: troca de alvo nunca interrompe alvo anterior para selecionar monstro inexistente", () => {
+  const selector = readUnity("Combat/TargetSelector.cs");
+  const start = selector.indexOf("public void SelectTarget(string targetId)");
+  const end = selector.indexOf("public void ClearTarget()", start);
+  assert.ok(start > 0 && end > start);
+  const select = selector.slice(start, end);
+  const lookup = select.indexOf("EntityManager.Instance.GetGameObject(targetId)");
+  const empty = select.indexOf("if (nextTarget == null)");
+  const oldStop = select.indexOf("network.Combat.SendStopAutoAttack()");
+  const update = select.indexOf("currentTargetId = targetId");
+  const newStart = select.indexOf("network.Combat.SendStartAutoAttack(targetId)");
+  assert.ok(lookup >= 0 && empty > lookup && oldStop > empty &&
+    update > oldStop && newStart > update,
+    "Verificar existência do alvo antes do STOP anterior e START novo.");
+  assert.match(select, /if \(currentTargetId == targetId\) return/);
+  assert.doesNotMatch(select, /if \(nextTarget == null\)[\s\S]*?ClearTarget\(\)/,
+    "Alvo que despawnou não deve descartar a seleção anterior.");
+});
+
+test("C4: protocolo morte, HP, alvo e velocidade continua autoritativo", () => {
+  const death = readFileSync(join(process.cwd(), "src/game/systems/deathSystem.ts"), "utf8");
+  const attack = readFileSync(join(process.cwd(), "src/game/combat/playerAttackSystem.ts"), "utf8");
+  const movement = readFileSync(join(process.cwd(), "src/game/systems/movementSystem.ts"), "utf8");
+  const auto = readFileSync(join(process.cwd(), "src/game/core/gameStarter.ts"), "utf8");
+  assert.match(death, /PlayerStatsSender\.toPayload\(player\)/);
+  assert.match(death, /type: "position", x: player\.position\.x, y: player\.position\.y/);
+  assert.match(death, /type: "autoAttackStopped", reason: "Jogador morreu\."/);
+  assert.match(attack, /PLAYER_ATTACK_COOLDOWN_MS = 1000/);
+  assert.match(attack, /Math\.hypot\([\s\S]*?\) > 1\.5/);
+  assert.match(auto, /PlayerAttackSystem\.tryAttack\(player, target, world\)/);
+  assert.match(movement, /FASTEST_MOVE_INTERVAL_MS = 75/);
+  assert.match(movement, /MIN_MOVE_INTERVAL_MS = 150/);
+  assert.match(movement, /lastAcceptedMove\.set\(player, now\)/);
+});
