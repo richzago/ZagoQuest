@@ -19,6 +19,7 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class CloseBankMessage { public string type; public string npcId; }
     [Serializable] public class CloseShopMessage { public string type; public string npcId; }
     [Serializable] public class BuyItemMessage { public string type; public string npcId; public string itemId; public int amount; }
+    [Serializable] public class SellItemMessage { public string type; public string npcId; public string itemId; public int amount; }
     [Serializable] public class DepositMessage { public string type; public int amount; }
     [Serializable] public class WithdrawMessage { public string type; public int amount; }
     [Serializable] public class EquipItemMessage { public string type; public string itemId; }
