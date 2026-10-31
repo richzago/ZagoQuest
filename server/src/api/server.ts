@@ -9,7 +9,7 @@
  * @module api/server
  */
 
-import express from "express";
+import express, { type ErrorRequestHandler } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { createServer, Server as HttpServer } from "http";
@@ -29,13 +29,35 @@ const app = express();
 
 // Middlewares globais
 app.use(cors({ origin: (origin, callback) => callback(null, isCorsOriginAllowed(origin)) })); // Allowlist em produção
-app.use(express.json()); // Habilita o parsing de JSON
+app.use(express.json({ limit: "16kb" })); // Limit POST bodies for small REST contracts.
+
+const jsonInputErrors: ErrorRequestHandler = (error, _req, res, next) => {
+  const type = (error as { type?: unknown }).type;
+  if (type === "entity.too.large") {
+    res.status(413).json({ error: "Corpo da requisição excede 16 KB." });
+    return;
+  }
+  if (type === "entity.parse.failed") {
+    res.status(400).json({ error: "JSON inválido." });
+    return;
+  }
+  next(error);
+};
+app.use(jsonInputErrors);
 
 // Rotas da API
 app.use("/api/accounts", accountRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/characters", characterRoutes);
 app.use("/api/guilds", guildRoutes);
+
+// Do not let unhandled Express errors leak stack traces or infrastructure details.
+const unexpectedRestError: ErrorRequestHandler = (error, _req, res, next) => {
+  if (res.headersSent) { next(error); return; }
+  Logger.warn("[API] Falha HTTP inesperada; detalhes internos omitidos da resposta.");
+  res.status(500).json({ error: "Falha interna da API." });
+};
+app.use(unexpectedRestError);
 
 /**
  * Inicializa a conexão com o banco de dados e retorna um servidor HTTP pronto.
