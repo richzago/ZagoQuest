@@ -96,6 +96,7 @@ public class NetworkManager : MonoBehaviour
         }
 
         if (GetComponent<C7FishingUI>() == null) gameObject.AddComponent<C7FishingUI>();
+        if (GetComponent<C7UiAccessibility>() == null) gameObject.AddComponent<C7UiAccessibility>();
 
         if (requireAuthenticatedSession && !HasCredentials)
         {
