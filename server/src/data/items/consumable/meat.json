@@ -1,0 +1,9 @@
+{
+  "id": "consumable/meat",
+  "name": "Meat",
+  "description": "A hearty meal that fills you up quickly.",
+  "type": "consumable",
+  "stackable": true,
+  "value": 8,
+  "foodSeconds": 40
+}
