@@ -97,10 +97,14 @@ test("contrato real gold tem somente tipo e saldo e Unity atualiza sem limpar in
   assert.match(unity("Networking/Handlers/ServerFeedbackHandler.cs"), /UpdateGold\(gold.Value\)/);
 });
 
-test("contrato de estoque: -1 representa ilimitado, 0 esgotado", () => {
+test("Merchant usa catálogo ilimitado: UI oculta o campo legado e Node não limita compra", () => {
   const source = unity("NPC/ShopItemSlot.cs");
-  assert.match(source, /item.stock < 0 \? "Estoque ilimitado"/);
-  assert.match(source, /item.stock == 0 \? "Esgotado"/);
+  assert.match(source, /stockText\.gameObject\.SetActive\(false\)/);
+  assert.doesNotMatch(source, /item\.stock/);
+  const system = readFileSync(join(process.cwd(), "src/game/systems/shopSystem.ts"), "utf8");
+  assert.doesNotMatch(system, /item\.stock/);
+  const handler = readFileSync(join(process.cwd(), "src/network/handlers/shop.handler.ts"), "utf8");
+  assert.doesNotMatch(handler, /stock: item\.stock/);
 });
 
 test("20 comandos e schemas de cliente continuam sincronizados", () => {
