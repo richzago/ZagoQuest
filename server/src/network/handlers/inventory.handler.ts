@@ -67,7 +67,7 @@ export async function handleUseItem(
     let message = "";
     let effectApplied = false;
 
-    // Contrato real dos JSONs: effect.healHp/heelMana.
+    // Contrato real dos JSONs: effect.healHp/healMana.
     // Campos antigos flat eram inexistentes e deixavam poções sem efeito.
     const healAmount = item.effect?.healHp ?? 0;
     if (healAmount > 0) {
