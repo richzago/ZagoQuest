@@ -103,7 +103,7 @@ test("food: handler consome só uma unidade e emite snapshot ao regenerar, não 
  assert.equal(events.used[0]?.success,true);
  assert.equal(p.inventory.get("consumable/cheese"),1);
  assert.equal(p.hp,p.maxHp-10); assert.equal(p.mana,0);
- assert.equal(events.inventory,1);assert.equal(events.stats,0);
+ assert.equal(events.inventory,1);assert.equal(events.stats,1);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p)>0,true);
  // Food parcial pode ser prolongado; o teto é verificado noutro teste.
  assert.equal(FoodRegenerationSystem.canEat(p,120),false);
@@ -112,7 +112,7 @@ test("food: handler consome só uma unidade e emite snapshot ao regenerar, não 
  await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/health_potion"},ctx);
  assert.equal(events.used.at(-1)?.success,true);
  assert.ok(p.hp>p.maxHp-10);
- assert.equal(events.stats,1);
+ assert.equal(events.stats,2);
 });
 
 test("food: peixes e queijo possuem tempo positivo configurado",()=>{
@@ -239,6 +239,7 @@ test("C6 saciedade: comida que não cabe inteira é recusada sem consumir",async
  const ctx={packetSender:{inventory:{
   sendItemUsed:(_id:string,success:boolean,message:string)=>events.push({success,message}),
   sendInventory:()=>{},
+  sendPlayerStats:()=>{},
  }}} as unknown as HandlerContext;
  for(let i=0;i<5;i++)
   await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/cheese"},ctx);
