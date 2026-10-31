@@ -4,6 +4,8 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Interface TEMPORÁRIA da Fase 5, para testes em duas instâncias Unity.
@@ -20,6 +22,8 @@ public class SessionLoginDebugUI : MonoBehaviour
     private JArray characters;
     private string status = "Login de teste para sessão autenticada.";
     private bool busy;
+    private GameObject logoutOverlay;
+    private TextMeshProUGUI authFeedbackLabel;
 
     // Ícone compacto no rodapé direito. Não conflita com Status (esquerda)
     // nem com o espaço reservado para o minimapa (canto superior direito).
@@ -28,39 +32,9 @@ public class SessionLoginDebugUI : MonoBehaviour
         var network = NetworkManager.Instance;
         if (network == null || !network.requireAuthenticatedSession) return;
 
-        if (network.isConnected || network.HasCredentials)
-        {
-            // Nem durante reconexão a tela de login sobrepõe o Status.
-            // O botão de logout permanece acessível se a sessão for recusada.
-            var oldBackground = GUI.backgroundColor;
-            var oldContent = GUI.contentColor;
-            GUI.backgroundColor = new Color(0.18f, 0.25f, 0.33f, 1f);
-            GUI.contentColor = new Color(0.98f, 0.82f, 0.57f, 1f);
-            var style = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 25,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            if (GUI.Button(new Rect(Screen.width - 66, Screen.height - 66, 48, 48),
-                new GUIContent("⏻", "Sair da sessão"), style))
-            {
-                Logout();
-            }
-            GUI.backgroundColor = oldBackground;
-            GUI.contentColor = oldContent;
-            if (!network.isConnected)
-            {
-                var info = string.IsNullOrWhiteSpace(network.AuthenticationStatusMessage)
-                    ? "Reconectando..." : network.AuthenticationStatusMessage;
-                GUI.Label(new Rect(Mathf.Max(12, Screen.width - 310), Screen.height - 112,
-                    285, 46), info);
-            }
-            else if (!string.IsNullOrEmpty(GUI.tooltip))
-                GUI.Label(new Rect(Screen.width - 180, Screen.height - 90, 150, 24),
-                    GUI.tooltip);
-            return;
-        }
+        // HUD autenticada usa um botão UGUI em Canvas superior, não IMGUI
+        // (o caractere ⏻ ficava invisível sobre o Canvas da cena).
+        if (network.isConnected || network.HasCredentials) return;
 
         // Tela de entrada compacta só aparece fora da sessão autenticada.
         GUILayout.BeginArea(new Rect(16, 16, 366, 335), GUI.skin.box);
@@ -101,6 +75,90 @@ public class SessionLoginDebugUI : MonoBehaviour
         else
             GUILayout.Label(status);
         GUILayout.EndArea();
+    }
+
+    private void Update()
+    {
+        var network = NetworkManager.Instance;
+        bool visible = network != null && network.requireAuthenticatedSession &&
+            (network.isConnected || network.HasCredentials);
+        if (visible && logoutOverlay == null) BuildLogoutButton();
+        if (logoutOverlay != null && logoutOverlay.activeSelf != visible)
+            logoutOverlay.SetActive(visible);
+        if (authFeedbackLabel != null && network != null)
+        {
+            bool hasMessage = visible && !network.isConnected &&
+                !string.IsNullOrWhiteSpace(network.AuthenticationStatusMessage);
+            authFeedbackLabel.gameObject.SetActive(hasMessage);
+            if (hasMessage) authFeedbackLabel.text = network.AuthenticationStatusMessage;
+        }
+    }
+
+    /// <summary>
+    /// Canvas superior independente da Hierarchy serializada. O usuário não
+    /// precisa criar botão, prefab, imagem nem configurar Inspector.
+    /// </summary>
+    private void BuildLogoutButton()
+    {
+        logoutOverlay = new GameObject("C6LogoutOverlay", typeof(RectTransform),
+            typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        var canvas = logoutOverlay.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 500;
+        var scaler = logoutOverlay.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        var go = new GameObject("C6LogoutButton", typeof(RectTransform),
+            typeof(Image), typeof(Button));
+        go.transform.SetParent(logoutOverlay.transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1, 0);
+        rt.anchoredPosition = new Vector2(-18, 18);
+        rt.sizeDelta = new Vector2(112, 40);
+        go.GetComponent<Image>().color = new Color32(38, 51, 66, 245);
+        var btn = go.GetComponent<Button>();
+        btn.onClick.AddListener(Logout);
+        var label = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+        label.transform.SetParent(go.transform, false);
+        var text = label.GetComponent<TextMeshProUGUI>();
+        text.text = "⏻  SAIR";
+        text.alignment = TextAlignmentOptions.Center;
+        text.fontSize = 17;
+        text.color = new Color32(237, 195, 117, 255);
+        text.raycastTarget = false;
+        var labelRt = text.rectTransform;
+        labelRt.anchorMin = Vector2.zero;
+        labelRt.anchorMax = Vector2.one;
+        labelRt.offsetMin = Vector2.zero;
+        labelRt.offsetMax = Vector2.zero;
+        var feedback = new GameObject("C6AuthenticationFeedback",
+            typeof(RectTransform), typeof(TextMeshProUGUI));
+        feedback.transform.SetParent(logoutOverlay.transform, false);
+        authFeedbackLabel = feedback.GetComponent<TextMeshProUGUI>();
+        authFeedbackLabel.fontSize = 15;
+        authFeedbackLabel.enableWordWrapping = true;
+        authFeedbackLabel.color = new Color32(239, 199, 135, 255);
+        authFeedbackLabel.alignment = TextAlignmentOptions.MidlineRight;
+        authFeedbackLabel.raycastTarget = false;
+        var feedbackRect = authFeedbackLabel.rectTransform;
+        feedbackRect.anchorMin = feedbackRect.anchorMax = new Vector2(1, 0);
+        feedbackRect.pivot = new Vector2(1, 0);
+        feedbackRect.anchoredPosition = new Vector2(-18, 66);
+        feedbackRect.sizeDelta = new Vector2(500, 56);
+        authFeedbackLabel.gameObject.SetActive(false);
+        Debug.Log("[LOGIN] Botão SAIR criado automaticamente em C6LogoutOverlay.");
+    }
+
+    private void OnDestroy()
+    {
+        if (logoutOverlay != null) Destroy(logoutOverlay);
+    }
+
+    private void OnDisable()
+    {
+        if (logoutOverlay != null) logoutOverlay.SetActive(false);
     }
 
     private void Logout()

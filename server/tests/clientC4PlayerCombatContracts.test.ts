@@ -60,8 +60,8 @@ test("C4: PlayerHUD não mantém singleton de cena obsoleto após destroy", () =
   assert.match(hud, /DisplayBar\(manaSlider, mana, maxMana\)/);
   assert.match(hud, /slider\.value = Mathf\.Clamp\(value, 0, Mathf\.Max\(1, maximum\)\)/);
   // C6 compacta: o HUD oculta XP, mantendo levelXP no contrato para destaque.
-  assert.match(hud, /xpSlider\.gameObject\.SetActive\(false\)/);
-  assert.match(hud, /xpText\.gameObject\.SetActive\(false\)/);
+  assert.match(hud, /xpSlider\.gameObject\.SetActive\(true\)/);
+  assert.match(hud, /xpText\.gameObject\.SetActive\(true\)/);
   assert.match(hud, /stats\.levelXpToNext > 0/);
   assert.match(hud, /stats\.levelXp \/ stats\.levelXpToNext >= 0\.9/);
 });

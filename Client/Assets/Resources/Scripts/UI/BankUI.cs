@@ -36,7 +36,8 @@ public class BankUI : MonoBehaviour
 
     private void Start()
     {
-        WorldWindowLayout.PreparePanel(bankPanel, 480f, 370f);
+        WorldWindowLayout.PreparePanel(bankPanel, 440f, 345f);
+        WorldWindowLayout.MakeDraggable(bankPanel, "BANCO", "bank");
         // Elementos serializados do BankPanel são filhos diretos e estavam
         // distribuídos por coordenadas fixas fora da área visível da janela.
         WorldWindowLayout.Place(inventoryGoldText, 0.08f, 0.68f, 0.92f, 0.81f,

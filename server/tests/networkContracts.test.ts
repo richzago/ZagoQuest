@@ -107,8 +107,8 @@ test("Merchant usa catálogo ilimitado: UI oculta o campo legado e Node não lim
   assert.doesNotMatch(handler, /stock: item\.stock/);
 });
 
-test("20 comandos e schemas de cliente continuam sincronizados", () => {
-  assert.equal(Object.keys(handlers).length, 20);
+test("21 comandos e schemas de cliente continuam sincronizados", () => {
+  assert.equal(Object.keys(handlers).length, 21);
   for (const type of ["closeShop", "closeBank"]) {
     assert.equal(typeof handlers[type], "function");
     assert.equal(parseClientMessage(JSON.stringify({ type, npcId: "npc-1" })).ok, true);

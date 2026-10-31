@@ -3,9 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// C6: HUD compacto. Nome, nível, vida vermelha e mana azul são apenas
-/// apresentações dos snapshots recebidos do Node. XP detalhada continua
-/// disponível no Status (P), não no HUD principal.
+/// HUD compacto: HP, mana e XP do nível são snapshots autoritativos do Node.
+/// A barra de XP vermelha cresce de 0 a 100% até subir o nível.
 /// </summary>
 public class PlayerHUD : MonoBehaviour
 {
@@ -26,6 +25,7 @@ public class PlayerHUD : MonoBehaviour
     public TextMeshProUGUI fpsText;
 
     private static readonly Color HealthRed = new Color32(198, 70, 69, 255);
+    private static readonly Color ExperienceRed = new Color32(225, 53, 77, 255);
     private static readonly Color ManaBlue = new Color32(69, 144, 219, 255);
     private static readonly Color Accent = new Color32(235, 191, 109, 255);
     private static readonly Color LabelColor = new Color32(225, 231, 234, 255);
@@ -73,6 +73,7 @@ public class PlayerHUD : MonoBehaviour
         if (hpText != null) hpText.text = $"HP  {hp:N0} / {maxHp:N0}";
         if (manaText != null) manaText.text = $"MANA  {mana:N0} / {maxMana:N0}";
         if (levelText != null) levelText.text = $"NÍVEL {level:N0}";
+        // Assinatura legada não recebe limites de XP por nível.
     }
 
     /// <summary>
@@ -84,6 +85,13 @@ public class PlayerHUD : MonoBehaviour
         if (stats == null) return;
         UpdateStats(stats.hp, stats.maxHp, stats.mana, stats.maxMana,
             stats.level, stats.attack, stats.defense, stats.levelXp);
+
+        DisplayBar(xpSlider, stats.levelXpToNext > 0 ? stats.levelXp : 1,
+            stats.levelXpToNext > 0 ? stats.levelXpToNext : 1);
+        if (xpText != null)
+            xpText.text = stats.levelXpToNext > 0
+                ? $"XP {stats.levelXp:N0} / {stats.levelXpToNext:N0}"
+                : "NÍVEL MÁXIMO";
 
         if (levelText != null)
         {
@@ -112,7 +120,7 @@ public class PlayerHUD : MonoBehaviour
         root.anchorMin = root.anchorMax = new Vector2(0.5f, 1);
         root.pivot = new Vector2(0.5f, 1);
         root.anchoredPosition = new Vector2(0, -12);
-        root.sizeDelta = new Vector2(314, 156);
+        root.sizeDelta = new Vector2(314, 190);
         root.localScale = Vector3.one;
 
         var background = root.GetComponent<Image>();
@@ -142,10 +150,9 @@ public class PlayerHUD : MonoBehaviour
         PlaceBarText(hpText, bars, -65);
         PlaceBarText(manaText, bars, -105);
 
-        // A XP não ocupa espaço nem intercepta ponteiro no HUD principal.
-        // Mantemos as referências serializadas para evitar quebrar a scene.
-        if (xpSlider != null) xpSlider.gameObject.SetActive(false);
-        if (xpText != null) xpText.gameObject.SetActive(false);
+        // XP voltou ao HUD: barra VERMELHA independente da vida.
+        if (xpSlider != null) { xpSlider.gameObject.SetActive(true); StyleBar(xpSlider, -145, ExperienceRed); }
+        if (xpText != null) { xpText.gameObject.SetActive(true); PlaceBarText(xpText, bars, -145); }
 
         if (positionText != null)
         {

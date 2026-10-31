@@ -275,3 +275,44 @@ Cada alimento permite alterar SEM TypeScript os campos abaixo (reiniciar Node pa
 Comandos após PR merge: FECHAR Unity, git status, git stash push -u -m "backup Unity antes C6 satiedade/Status", git fetch origin, git switch dev, git pull --ff-only origin dev, git log -1 --oneline, git status, git stash list. NÃO executar stash pop automaticamente.
 
 **CI:** testes Node simulam relógio, porções, capacidade, poções cheias, equip único no handler; contratos estáticos validam C#. Não substitui compilação Unity e testes visuais.
+
+
+## 13. C6 — Homologação adicional: equipamento persistido, logout, saciedade, venda, caixas e XP
+
+**Relato:** 1) Bone Sword parecia equipar Bone Armor apenas na primeira vez; equipment iniciava vazio mesmo com save. 2) Logout ⏻ IMGUI não aparecia. 3) Mostrar saciedade no Status. 4) Merchant compra itens do mesmo catálogo com valor menor. 5) UI compacta e movível, com a ideia de caixas do Tibia. 6) Retornar a barra vermelha da XP no HUD.
+
+### Diagnóstico / raízes
+
+- **Bug confirmado no protocolo:** o snapshot de entrada do WS enviava init/inventory/playerStats/world mas NÃO incluía equipment; o PostgreSQL já tinha os equipamentos persistidos. Se a Bone Armor já estivesse equipada, a UI só passaria a mostrá-la quando o primeiro comando (Bone Sword) forçasse o primeiro snapshot de equipamento. Não concluir que dois itens foram equipados sem ver dois comandos WS. Corrigido adicionando sendEquipment(current) em initialSnapshot.
+- **Race Unity possível:** EquipmentHandler podia receber o primeiro snapshot antes de EquipmentUI.Start mapear os slots da Hierarchy; UI passou a armazenar o último snapshot e aplicar depois do mapeamento. O backend Player.equipItem só altera o slot do itemId recebido; não há guard temporal no Node para não bloquear equips legítimos.
+- **Logout:** o caractere Unicode na GUI imediata podia não aparecer/ser coberto pelo Canvas. Agora SessionLoginDebugUI cria um Canvas UGUI ScreenSpaceOverlay próprio de ordem 500, com botão de texto **⏻ SAIR** (mesmo que o ícone não exista na fonte, SAIR permanece legível), sem necessidade de editar hierarchy/prefab. Clicá-lo chama LogoutAuthenticatedSession, limpa credenciais em memória, encerra socket e mostra o login de novo.
+- **Saciedade:** PlayerStatsSender.toPayload agora inclui satiety, satietyMax e foodSecondsRemaining calculados pelo FoodRegenerationSystem no Node. Ao comer, inventory.handler envia playerStats sem curar antecipadamente; ao expirar, mesmo com HP/mana no máximo, o mundo emite o último playerStats para zerar saciedade exibida. StatusManager cria campo C6SatietyText em runtime, ex.: "Saciedade 40/120 | 9s". Esses números são sempre snapshots, não cálculos Unity.
+- **Merchant SELL:** ShopSystem.sellItem já existia, mas faltava WebSocket/Unity. Adicionados sellItem estrito no protocolo Zod, handleSellItem verifica NpcInteractionSystem.getActive (NPC, mundo, distância <=2), sellPrice do catálogo JSON, quantidade válida/possessão e saldo máximo; resultado sellResult, atualização inventory/gold somente após sucesso. O cliente nunca envia preço. ShopWindow passa sellPrice ao lado do buyPrice; ShopItemSlot gera segundo botão **Vender** e campo de quantidade compartilhado; sem estoque. No JSON do merchant foram incluídos exemplos de queijo, carne, Bone Armor e peixes, além dos itens anteriores. Rejeita preços de revenda >= compra (evita arbitragem) e moedas em revenda; mesmo catálogo para as duas direções.
+- **Caixas compactas**: WorldWindowLayout.MakeDraggable cria cabeçalho arrastável (runtime) em Inventário, Equipamentos, Status, Chat, Banco, Loja e Loot, sem alterar arquivos de cena. Arrastar reposiciona; a posição fica salva localmente via PlayerPrefs. Botão direito **no cabeçalho** reseta posição. Loja 500x370, Banco 440x345, Loot 450x345, Chat 720x252; painéis de inventário e equipamentos mantêm scroll/slots e as ancoragens existentes. Resizing e dock/snap automático não estão implementados nesta passagem; não confundir com drag local. O Node não conhece nem persiste posição de UI.
+- **XP**: PlayerHUD mostra de novo xpSlider/xpText, barra de XP vermelha distinta do HP, usa levelXp/levelXpToNext emitidos pelo Node (XP do nível, não cumulativa) para encher corretamente e resetar ao upar. HUD 314x190. O Status P continua detalhando XP total/histórica.
+- **Autoridade e escopo:** sem edição de .unity e sem alterar main. Food/potions seguem dados JSON configuráveis, como etapa anterior. Client apenas apresenta. Nenhum recalculo de economia/XP no Unity.
+
+### QA Editor/Windows U18–U33
+
+| ID | Cenário | Resultado esperado |
+| --- | --- | --- |
+| U18 | Relogar personagem com sword/armor já equipados | Ambas aparecem em equipment imediatamente (primeiro snapshot, sem exigir novo equip) |
+| U19 | Começar com armor persistida, equipar sword | Armor não muda, sword entra no WEAPON; Node envia apenas ação solicitada |
+| U20 | 2 contas com equipment diferente, entrar/relogar | Cada cliente mostra somente equipment da sua própria conta |
+| U21 | Após login, localizar **⏻ SAIR** canto inferior direito | Visível/clicável, sobre o Canvas, sem configurar Hierarchy |
+| U22 | Sair e entrar novamente | WS encerra, sem auto reconnect indevido, login volta sem JWT/senha antigos |
+| U23 | Comer queijo 1 unidade | Status P mostra 20/120 e segundos; regen leve após ticks |
+| U24 | Atingir 120/120 saciedade | Status exibe cheio, bloqueia food adicional; ao expirar volta para 0 |
+| U25 | Abrir Merchant próximo, comprar 1 health potion | Desconta buyPrice definido no NPC JSON, atualiza inventário/gold |
+| U26 | Vender 1 potion no Merchant | Acrescenta sellPrice do NPC (menor que buyPrice), retira 1 potion |
+| U27 | Tentar vender 2, com apenas 1, ou após se afastar do NPC | Recusa sem alterar gold/inventory |
+| U28 | Trocar para NPC Banker, tentar continuar vendendo na loja antiga | Recusa por sessão de serviço diferente |
+| U29 | Comprar/vender carne/peixe/Bone Armor | Catálogo e preços JSON corretos, sem estoque finito |
+| U30 | Arrastar cabeçalho de Shop, Bank, Status, Loot, Chat, Inv e Equip | Painéis se movem e continuam clicáveis; posição local persistida ao reiniciar Play |
+| U31 | Botão direito no cabeçalho | Restaura posição padrão da caixa |
+| U32 | Ganhar XP até subir level | Barra vermelha do HUD cresce conforme levelXp/levelXpToNext e reinicia no novo level |
+| U33 | Testar 1280x720 e 1920x1080, Editor e build Windows | Textos legíveis, sem colisão crítica; scripts C# compilam sem exception |
+
+**Testes automáticos:** autenticado WebSocket real na CI garante primeiro snapshot de equipment e relogin; economia testa compra/venda, sessão, preço adulterado, quantidade, alcance, overflow e não arbitragem; food testa satiety reportada, expiração e isolamento entre players; contrato de C# verifica botão UGUI, painel arrastável, HUD XP, Status, merchant. CI Node/PG **não compila Unity**; Editor e Windows Build são obrigatórios antes de homologar visual.
+
+**Atualizar Windows** (depois do merge): fechar Unity e servidor Node, git status; git stash push -u -m "backup Unity antes C6 merchant UI"; git fetch origin; git switch dev; git pull --ff-only origin dev; git log -1 --oneline; git status; git stash list. Nunca usar stash pop automaticamente.

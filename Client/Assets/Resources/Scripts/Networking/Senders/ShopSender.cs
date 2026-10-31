@@ -29,6 +29,13 @@ namespace ZagoQuest.Networking.Senders
             Send(new CloseShopMessage { type = "closeShop", npcId = npcId });
         }
 
+        public void SendSellItem(string npcId, string itemId, int amount)
+        {
+            if (string.IsNullOrEmpty(npcId) || string.IsNullOrEmpty(itemId) || amount <= 0) return;
+            Send(new SellItemMessage { type = "sellItem", npcId = npcId,
+                itemId = itemId, amount = amount });
+        }
+
         public void SendBuyItem(string npcId, string itemId, int amount)
         {
             var msg = new BuyItemMessage

@@ -186,8 +186,8 @@ test("C6 gameplay: HUD apenas exibe snapshot, XP total separado do progresso e b
  assert.match(hud,/slider\.value = Mathf\.Clamp\(value, 0, Mathf\.Max\(1, maximum\)\)/);
  assert.match(hud,/slider\.interactable = false/);
  assert.match(hud,/stats\.levelXpToNext > 0/);
- assert.match(hud,/xpSlider\.gameObject\.SetActive\(false\)/);
- assert.match(hud,/xpText\.gameObject\.SetActive\(false\)/);
+ assert.match(hud,/xpSlider\.gameObject\.SetActive\(true\)/);
+ assert.match(hud,/xpText\.gameObject\.SetActive\(true\)/);
  assert.doesNotMatch(hud,/SendPlayerStats|SendGold|SendXp|SendDamage/);
  assert.match(hud,/if \(Instance == this\) Instance = null/);
 });
@@ -203,7 +203,7 @@ test("C6 gameplay: HUD e chat recebem layout sem alterações na scene serializa
  assert.match(hud,/private static void StyleBar\(/);
  assert.match(hud,/background\.raycastTarget = false/);
  assert.match(chat,/private void StyleChatPanel\(\)/);
- assert.match(chat,/rect\.sizeDelta = new Vector2\(840, 252\)/);
+ assert.match(chat,/rect\.sizeDelta = new Vector2\(720, 252\)/);
  assert.match(chat,/scrollRect\.offsetMin = new Vector2\(12, 53\)/);
 });
 
@@ -309,8 +309,8 @@ test("C6 HUD compacto: barra de mana é azul, HP vermelho e XP fica no Status P"
  assert.match(hud,/StyleBar\(manaSlider, -105, ManaBlue\)/);
  assert.match(hud,/slider\.fillRect\.GetComponent<Image>\(\)/);
  assert.match(hud,/manaText\.text = \$"MANA  \{mana:N0\} \/ \{maxMana:N0\}"/);
- assert.match(hud,/xpSlider\.gameObject\.SetActive\(false\)/);
- assert.match(hud,/xpText\.gameObject\.SetActive\(false\)/);
+ assert.match(hud,/xpSlider\.gameObject\.SetActive\(true\)/);
+ assert.match(hud,/xpText\.gameObject\.SetActive\(true\)/);
  assert.match(hud,/nearLevelUp \? Accent : LabelColor/);
  assert.match(status,/experienceText\.text = stats\.levelXpToNext > 0/);
  assert.match(stats,/public int mana;/);
@@ -388,7 +388,7 @@ test("C6: Status não sobrepõe o login após autenticação e logout limpa sess
  const status=unity("Managers/StatusManager.cs");
  const network=unity("Networking/NetworkManager.cs");
  assert.match(login,/if \(network\.isConnected \|\| network\.HasCredentials\)/);
- assert.match(login,/new GUIContent\("⏻", "Sair da sessão"\)/);
+ assert.match(login,/new GameObject\("C6LogoutOverlay"/);
  assert.match(login,/network\.LogoutAuthenticatedSession\(\)/);
  assert.match(login,/StatusManager\.Instance\?\.ClosePanel\(\)/);
  assert.match(network,/public async Task LogoutAuthenticatedSession\(\)/);
@@ -413,4 +413,75 @@ test("C6: regen leve e saciedade são decididas só pelo Node e JSONs",()=>{
  assert.match(food,/satietyPoints: number/);
  assert.match(food,/portions: FoodPortion\[\]/);
  assert.doesNotMatch(food,/setInterval\(|setTimeout\(/);
+});
+
+
+test("C6 UX: snapshot inicial inclui equipamento salvo e UX impede duplo equip",()=>{
+ const server=readFileSync(join(process.cwd(),"src/network/websocket/wsServer.ts"),"utf8");
+ const handler=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
+ assert.match(server,/new InventorySender\(ws\)\.sendEquipment\(current\)/);
+ assert.match(server,/InventorySender\.send\(ws, current\)[\s\S]*?sendEquipment\(current\)[\s\S]*?PlayerStatsSender\.send/);
+ assert.match(handler,/const success = player\.equipItem\(itemId\)/);
+ const inv=unity("UI/InventoryUI.cs");
+ const ui=unity("UI/EquipmentUI.cs");
+ assert.match(ui,/latestSnapshot = new Dictionary<EquipmentSlot, string>\(equipment\)/);
+ assert.match(ui,/if \(receivedSnapshot\) OnEquipmentUpdate\(latestSnapshot\)/);
+ assert.match(inv,/slot\.SetActive\(false\);\s*Destroy\(slot\)/);
+ assert.match(inv,/EquipmentClickGuardSeconds/);
+});
+
+test("C6 UI: logout é UGUI overlay visível sem configurar a Hierarchy",()=>{
+ const login=unity("Networking/SessionLoginDebugUI.cs");
+ assert.match(login,/BuildLogoutButton\(\)/);
+ assert.match(login,/new GameObject\("C6LogoutOverlay"/);
+ assert.match(login,/typeof\(GraphicRaycaster\)/);
+ assert.match(login,/canvas\.sortingOrder = 500/);
+ assert.match(login,/btn\.onClick\.AddListener\(Logout\)/);
+ assert.match(login,/text\.text = "⏻  SAIR"/);
+ assert.match(login,/network\.LogoutAuthenticatedSession\(\)/);
+});
+
+test("C6 UI: HUD vermelho preenche XP dentro do level, Status mostra saciedade",()=>{
+ const hud=unity("UI/PlayerHUD.cs");
+ const status=unity("Managers/StatusManager.cs");
+ const data=unity("Data/PlayerStatsData.cs");
+ const sender=readFileSync(join(process.cwd(),"src/network/senders/playerStatsSender.ts"),"utf8");
+ assert.match(hud,/ExperienceRed = new Color32/);
+ assert.match(hud,/StyleBar\(xpSlider, -145, ExperienceRed\)/);
+ assert.match(hud,/DisplayBar\(xpSlider, stats\.levelXpToNext > 0 \? stats\.levelXp : 1/);
+ assert.match(hud,/xpText\.text = stats\.levelXpToNext > 0/);
+ assert.match(status,/stats\.satiety/);
+ assert.match(status,/stats\.foodSecondsRemaining/);
+ assert.match(data,/public int satiety;/);
+ assert.match(sender,/satiety: FoodRegenerationSystem\.currentSatiety\(player\)/);
+ assert.match(sender,/foodSecondsRemaining: FoodRegenerationSystem\.remainingSeconds\(player\)/);
+});
+
+test("C6 caixas: merchant, banco, inventário, equipamentos, status e loot arrastáveis",()=>{
+ const layout=unity("UI/WorldWindowLayout.cs");
+ const drag=unity("UI/C6WindowDragHandle.cs");
+ const inv=unity("UI/C6InventoryEquipmentLayout.cs");
+ for(const file of ["UI/ShopUI.cs","UI/BankUI.cs","UI/LootUI.cs","Managers/StatusManager.cs","UI/ChatUI.cs"])
+  assert.match(unity(file),/WorldWindowLayout\.MakeDraggable\(/,file);
+ assert.match(inv,/WorldWindowLayout\.MakeDraggable\(panel, title, panel\.name\)/);
+ assert.match(layout,/EnsureLabel\(Transform parent/);
+ assert.match(layout,/C6DragHeader/);
+ assert.match(drag,/PlayerPrefs\.SetFloat\(/);
+ assert.match(drag,/PlayerPrefs\.DeleteKey\(/);
+ assert.match(drag,/IPointerClickHandler/);
+});
+
+test("C6 merchant: botão venda, preço menor, feedback e protocolo de volta",()=>{
+ const row=unity("NPC/ShopItemSlot.cs");
+ const sender=unity("Networking/Senders/ShopSender.cs");
+ const registry=unity("Networking/Handlers/PacketHandlerRegistry.cs");
+ const social=readFileSync(join(process.cwd(),"src/network/messages/server/social.messages.ts"),"utf8");
+ const server=readFileSync(join(process.cwd(),"src/network/handlers/shop.handler.ts"),"utf8");
+ assert.match(row,/SetupSellButton\(\)/);
+ assert.match(row,/network\.Shop\.SendSellItem\(npcId, item\.itemId, quantity\)/);
+ assert.match(row,/item\.sellPrice/);
+ assert.match(sender,/type = "sellItem"/);
+ assert.match(registry,/Register\("sellResult", new SellResultHandler\(\)\)/);
+ assert.match(social,/ServerSellResultMessage/);
+ assert.match(server,/ShopSystem\.sellItem\(player, npc, msg\.itemId, msg\.amount\)/);
 });

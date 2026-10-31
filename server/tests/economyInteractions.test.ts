@@ -14,7 +14,8 @@ import { BankingSystem } from "../src/game/systems/bankingSystem";
 import { ShopSystem } from "../src/game/systems/shopSystem";
 import { MAX_GOLD } from "../src/game/systems/economyRules";
 import { handleOpenBank, handleDeposit, handleWithdraw } from "../src/network/handlers/bank.handler";
-import { handleOpenShop, handleBuyItem } from "../src/network/handlers/shop.handler";
+import { handleOpenShop, handleBuyItem, handleSellItem } from "../src/network/handlers/shop.handler";
+import { parseClientMessage } from "../src/network/validation/messageValidation";
 import { handleMoveDir } from "../src/network/handlers/move.handler";
 import { processChatCommand } from "../src/game/chat/chatCommands";
 import { ChatSystem } from "../src/game/chat/chatSystem";
@@ -43,6 +44,7 @@ function createContext(world: World) {
     bankError: [] as string[],
     shopWindow: [] as unknown[][],
     buyResult: [] as [boolean, string][],
+    sellResult: [] as [boolean, string][],
     shopError: [] as string[],
     position: [] as [number, number][],
     broadcast: [] as unknown[][],
@@ -63,6 +65,9 @@ function createContext(world: World) {
           events.buyResult.push([success, message]);
         },
         sendShopError: (msg: string) => { events.shopError.push(msg); },
+        sendSellResult: (success: boolean, message: string) => {
+          events.sellResult.push([success, message]);
+        },
       },
       inventory: {
         sendGold: () => { events.gold++; },
@@ -390,4 +395,95 @@ test("tentativa de abrir um comerciante inválido revoga a sessão anterior do b
   assert.equal(events.shopError.length, 1);
   assert.equal(events.bankResult[0][0], false);
   assert.equal(a.player.gold, 100);
+});
+
+
+test("C6 venda: catálogo do merchant informa preço de compra e revenda sem estoque",async()=>{
+ const a=setup(),{ctx,events}=createContext(a.world);
+ await handleOpenShop(ws,a.player,{type:"openShop",npcId:a.merchant.id},ctx);
+ const row=(events.shopWindow[0][1] as Array<Record<string,unknown>>)[0];
+ assert.equal(row.itemId,potion);
+ assert.equal(row.price,10);
+ assert.equal(row.sellPrice,5);
+ assert.equal("stock" in row,false);
+});
+
+test("C6 venda autorizada entrega gold em mãos e remove só a quantidade vendida",async()=>{
+ const a=setup(),{ctx,events}=createContext(a.world);
+ a.player.addItem(potion,3);
+ await handleOpenShop(ws,a.player,{type:"openShop",npcId:a.merchant.id},ctx);
+ await handleSellItem(ws,a.player,{type:"sellItem",npcId:a.merchant.id,itemId:potion,amount:2},ctx);
+ assert.deepEqual(events.sellResult.map(x=>x[0]),[true]);
+ assert.equal(a.player.gold,110);
+ assert.equal(a.player.inventory.get(potion),1);
+ assert.equal(events.inventory,1);
+ assert.equal(events.gold,1);
+});
+
+test("C6 venda sem abrir loja ou usando NPC errado não altera inventário e saldo",async()=>{
+ const a=setup(),{ctx,events}=createContext(a.world);
+ a.player.addItem(potion,2);
+ await handleSellItem(ws,a.player,{type:"sellItem",npcId:a.merchant.id,itemId:potion,amount:1},ctx);
+ await handleOpenShop(ws,a.player,{type:"openShop",npcId:a.merchant.id},ctx);
+ await handleSellItem(ws,a.player,{type:"sellItem",npcId:"npc-falso",itemId:potion,amount:1},ctx);
+ assert.deepEqual(events.sellResult.map(x=>x[0]),[false,false]);
+ assert.deepEqual([a.player.gold,a.player.inventory.get(potion)],[100,2]);
+});
+
+test("C6 venda fora do alcance ou após fechar sessão não funciona",async()=>{
+ const a=setup(),{ctx,events}=createContext(a.world);
+ a.player.addItem(potion,2);
+ await handleOpenShop(ws,a.player,{type:"openShop",npcId:a.merchant.id},ctx);
+ a.player.position={x:18,y:18};
+ await handleSellItem(ws,a.player,{type:"sellItem",npcId:a.merchant.id,itemId:potion,amount:1},ctx);
+ a.player.position={x:2,y:2};
+ await handleOpenShop(ws,a.player,{type:"openShop",npcId:a.merchant.id},ctx);
+ NpcInteractionSystem.close(a.player);
+ await handleSellItem(ws,a.player,{type:"sellItem",npcId:a.merchant.id,itemId:potion,amount:1},ctx);
+ assert.deepEqual(events.sellResult.map(x=>x[0]),[false,false]);
+ assert.equal(a.player.gold,100);assert.equal(a.player.inventory.get(potion),2);
+});
+
+test("C6 venda inválida: quantidade zero, negativa, fração, ausente e overflow",()=>{
+ const a=setup();a.player.addItem(potion,4);
+ for(const qty of [0,-1,1.5,NaN,Infinity,5,Number.MAX_SAFE_INTEGER])
+  assert.equal(ShopSystem.sellItem(a.player,a.merchant,potion,qty),false);
+ assert.equal(a.player.inventory.get(potion),4);
+ assert.equal(a.player.gold,100);
+});
+
+test("C6 venda não aceita arbitragem, preço maior ou igual à compra e moedas",()=>{
+ const a=setup();a.player.addItem(potion,3);
+ a.merchant.shopItems![0].sellPrice=10;
+ assert.equal(ShopSystem.sellItem(a.player,a.merchant,potion,1),false);
+ a.merchant.shopItems![0].sellPrice=11;
+ assert.equal(ShopSystem.sellItem(a.player,a.merchant,potion,1),false);
+ a.merchant.shopItems![0].sellPrice=-1;
+ assert.equal(ShopSystem.sellItem(a.player,a.merchant,potion,1),false);
+ a.merchant.shopItems![0].sellPrice=5;
+ const coin="currency/gold_coin";
+ a.merchant.shopItems!.push({itemId:coin,buyPrice:5,sellPrice:2});
+ a.player.addItem(coin,1);
+ assert.equal(ShopSystem.sellItem(a.player,a.merchant,coin,1),false);
+ assert.equal(a.player.inventory.get(potion),3);
+});
+
+test("C6 protocolo de venda: schema bloqueia preço client-side e quantidade adulterada",()=>{
+ const ok={type:"sellItem",npcId:"merchant",itemId:potion,amount:2};
+ assert.equal(parseClientMessage(JSON.stringify(ok)).ok,true);
+ for(const invalid of [
+  {...ok,price:1000000}, {...ok,amount:-1},{...ok,amount:0},
+  {...ok,amount:1.5},{...ok,npcId:""},{...ok,itemId:""},
+  {...ok,amount:"2"},
+ ])assert.equal(parseClientMessage(JSON.stringify(invalid)).ok,false,
+  JSON.stringify(invalid));
+});
+
+test("C6 venda: crédito além do limite não retira item e não altera saldo",()=>{
+ const a=setup();
+ a.player.gold=MAX_GOLD;
+ a.player.addItem(potion,1);
+ assert.equal(ShopSystem.sellItem(a.player,a.merchant,potion,1),false);
+ assert.equal(a.player.gold,MAX_GOLD);
+ assert.equal(a.player.inventory.get(potion),1);
 });

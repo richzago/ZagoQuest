@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { WebSocket } from "ws";
 import { World } from "../src/game/world/World";
 import { Player } from "../src/game/entities/player";
+import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
 import { WebSocketServer as GameWs } from "../src/network/websocket/wsServer";
 import type { AuthorizedCharacter } from "../src/network/auth/characterSessionAuth";
 import type { WebSocketSessionOptions } from "../src/network/websocket/wsServer";
@@ -415,4 +416,44 @@ test("não liberar conta para outro personagem antes do salvamento final termina
     releaseSave?.();
     await f.close();
   }
+});
+
+
+test("C6 real WS: equipamento salvo chega no primeiro snapshot e não vaza para outra conta",async()=>{
+ const f=await fixture();
+ try {
+  const a=f.players.get(A)!;
+  a.equipment.set(EquipmentSlot.WEAPON,"bone_sword");
+  a.equipment.set(EquipmentSlot.ARMOR,"bone_armor");
+  const socketA=await f.connect(),socketB=await f.connect();
+  f.auth(socketA,"token-a",A);
+  f.auth(socketB,"token-b",B);
+  const equipA=await f.waitPacket(socketA,"equipment");
+  const equipB=await f.waitPacket(socketB,"equipment");
+  assert.deepEqual(equipA.items,[
+   {slot:"weapon",itemId:"bone_sword"},
+   {slot:"armor",itemId:"bone_armor"},
+  ]);
+  assert.deepEqual(equipB.items,[]);
+  assert.equal(f.packets.get(socketA)?.filter(x=>x.type==="equipment").length,1);
+ }finally{await f.close();}
+});
+
+test("C6 real WS: relogin recupera novamente o snapshot de equipment",async()=>{
+ const f=await fixture();
+ try {
+  const p=f.players.get(A)!;
+  p.equipment.set(EquipmentSlot.WEAPON,"bone_sword");
+  const first=await f.connect();
+  f.auth(first,"token-a",A);
+  assert.deepEqual((await f.waitPacket(first,"equipment")).items,
+   [{slot:"weapon",itemId:"bone_sword"}]);
+  const closed=once(first,"close");
+  first.close();await closed;
+  await eventually(()=>f.saved.some(x=>x.id===A));
+  const second=await f.connect();
+  f.auth(second,"token-a",A);
+  assert.deepEqual((await f.waitPacket(second,"equipment")).items,
+   [{slot:"weapon",itemId:"bone_sword"}]);
+ }finally{await f.close();}
 });

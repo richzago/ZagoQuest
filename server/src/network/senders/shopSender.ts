@@ -19,6 +19,10 @@ export class ShopSender extends BaseSender {
     this.send({ type: "buyResult", success, message });
   }
 
+  sendSellResult(success: boolean, message: string): void {
+    this.send({ type: "sellResult", success, message });
+  }
+
   sendShopError(message: string): void {
     this.send({ type: "shopError", message });
   }

@@ -103,7 +103,7 @@ test("food: handler consome só uma unidade e emite snapshot ao regenerar, não 
  assert.equal(events.used[0]?.success,true);
  assert.equal(p.inventory.get("consumable/cheese"),1);
  assert.equal(p.hp,p.maxHp-10); assert.equal(p.mana,0);
- assert.equal(events.inventory,1);assert.equal(events.stats,0);
+ assert.equal(events.inventory,1);assert.equal(events.stats,1);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p)>0,true);
  // Food parcial pode ser prolongado; o teto é verificado noutro teste.
  assert.equal(FoodRegenerationSystem.canEat(p,120),false);
@@ -112,7 +112,7 @@ test("food: handler consome só uma unidade e emite snapshot ao regenerar, não 
  await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/health_potion"},ctx);
  assert.equal(events.used.at(-1)?.success,true);
  assert.ok(p.hp>p.maxHp-10);
- assert.equal(events.stats,1);
+ assert.equal(events.stats,2);
 });
 
 test("food: peixes e queijo possuem tempo positivo configurado",()=>{
@@ -239,6 +239,7 @@ test("C6 saciedade: comida que não cabe inteira é recusada sem consumir",async
  const ctx={packetSender:{inventory:{
   sendItemUsed:(_id:string,success:boolean,message:string)=>events.push({success,message}),
   sendInventory:()=>{},
+  sendPlayerStats:()=>{},
  }}} as unknown as HandlerContext;
  for(let i=0;i<5;i++)
   await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/cheese"},ctx);
@@ -301,4 +302,44 @@ test("C6: JSON com parâmetros inválidos nunca consome food",async()=>{
    assert.deepEqual(events,[false]);
    assert.equal(p.inventory.get("consumable/cheese"),1);
  } finally {item.regenTickSeconds=previous;}
+});
+
+
+test("C6: equipar espada mantém a armadura já persistida (não a equipa de novo)",async()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();
+ p.equipment.set("armor" as never,"bone_armor"); // já estava salva no Player
+ p.addItem("bone_sword",1);
+ let equipmentSnapshots=0;
+ const ctx={packetSender:{inventory:{
+  sendItemUsed:()=>{},sendInventory:()=>{},sendEquipment:()=>equipmentSnapshots++,
+  sendPlayerStats:()=>{},
+ }}} as unknown as HandlerContext;
+ await handleUseItem(ws,p,{type:"useItem",itemId:"bone_sword"},ctx);
+ assert.equal(p.equipment.get("weapon" as never),"bone_sword");
+ assert.equal(p.equipment.get("armor" as never),"bone_armor");
+ assert.equal(equipmentSnapshots,1);
+});
+
+test("C6: stats trazem saciedade e tempo restante; expiry notifica mesmo com HP/Mana cheios",()=>{
+ const p=player(), now=Date.now();
+ FoodRegenerationSystem.feed(p,6,now,20,1,1,3);
+ let stats=PlayerStatsSender.toPayload(p);
+ assert.equal(stats.satiety,20);
+ assert.equal(stats.satietyMax,120);
+ assert.equal(stats.foodSecondsRemaining,6);
+ // HP e mana cheios: ao terminar, ainda precisa notificar para atualizar Status.
+ assert.equal(FoodRegenerationSystem.tick(p,now+6001),true);
+ stats=PlayerStatsSender.toPayload(p);
+ assert.equal(stats.satiety,0);
+ assert.equal(stats.foodSecondsRemaining,0);
+ assert.equal(FoodRegenerationSystem.tick(p,now+6500),false);
+});
+
+test("C6: saciedade é independente por player, sem vazar entre personagens",()=>{
+ const a=player(), b=player();
+ FoodRegenerationSystem.feed(a,9,Date.now(),40,2,1,3);
+ assert.equal(FoodRegenerationSystem.currentSatiety(a),40);
+ assert.equal(FoodRegenerationSystem.currentSatiety(b),0);
+ assert.equal(PlayerStatsSender.toPayload(b).satiety,0);
 });

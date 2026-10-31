@@ -34,14 +34,15 @@ public class ShopUI : MonoBehaviour
 
     private void Start()
     {
-        WorldWindowLayout.PreparePanel(shopPanel, 560f, 430f);
+        WorldWindowLayout.PreparePanel(shopPanel, 500f, 370f);
+        WorldWindowLayout.MakeDraggable(shopPanel, "COMERCIANTE", "shop");
         WorldWindowLayout.PrepareList(itemsContainer);
         var scrollView = itemsContainer != null
             ? itemsContainer.GetComponentInParent<ScrollRect>() : null;
         if (scrollView != null)
         {
             WorldWindowLayout.Place(scrollView.GetComponent<RectTransform>(),
-                0.04f, 0.09f, 0.96f, 0.82f);
+                0.04f, 0.06f, 0.96f, 0.84f);
             if (scrollView.viewport != null)
                 WorldWindowLayout.Place(scrollView.viewport, 0f, 0f, 0.95f, 1f);
             if (scrollView.horizontalScrollbar != null)
@@ -89,7 +90,9 @@ public class ShopUI : MonoBehaviour
         networkManager = NetworkManager.Instance;
 
         foreach (var slot in itemSlots)
-            Destroy(slot);
+        {
+            if (slot != null) { slot.SetActive(false); Destroy(slot); }
+        }
         itemSlots.Clear();
 
         // Catálogo válido porém vazio não deve deixar a loja antiga visível.
@@ -135,8 +138,12 @@ public class ShopUI : MonoBehaviour
 
     public void ShowBuyResult(bool success, string message)
     {
-        if (ChatUI.Instance != null)
-            ChatUI.Instance.AddMessage($"Loja: {message}");
+        ChatUI.Instance?.AddMessage($"Loja: {message}");
+    }
+
+    public void ShowSellResult(bool success, string message)
+    {
+        ChatUI.Instance?.AddMessage($"Loja: {message}");
     }
 
     // =========================

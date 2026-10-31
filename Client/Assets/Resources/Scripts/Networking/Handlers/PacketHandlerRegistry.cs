@@ -37,6 +37,7 @@ namespace ZagoQuest.Networking.Handlers
             Register("playerStats", new PlayerStatsHandler());
             Register("shopWindow", new ShopWindowHandler());
             Register("buyResult", new BuyResultHandler());
+            Register("sellResult", new SellResultHandler());
             Register("shopError", new ShopErrorHandler());
             Register("bankWindow", new BankWindowHandler());
             Register("bankResult", new BankResultHandler());

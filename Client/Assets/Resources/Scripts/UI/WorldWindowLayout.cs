@@ -123,6 +123,61 @@ public static class WorldWindowLayout
         rect.localScale = Vector3.one;
     }
 
+    /// <summary>Garante rótulo em janela criada a partir da Hierarchy atual.</summary>
+    public static TextMeshProUGUI EnsureLabel(Transform parent, string name,
+        string value, int fontSize, Color color)
+    {
+        if (parent == null) return null;
+        var existing = parent.Find(name);
+        var obj = existing != null ? existing.gameObject :
+            new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+        if (existing == null) obj.transform.SetParent(parent, false);
+        var label = obj.GetComponent<TextMeshProUGUI>();
+        label.text = value;
+        label.fontSize = fontSize;
+        label.color = color;
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+        label.raycastTarget = false;
+        return label;
+    }
+
+    /// <summary>
+    /// Caixa movível ao estilo MMORPG. Configuração/posição é puramente local
+    /// via PlayerPrefs; nunca afeta gameplay ou autoridade do servidor.
+    /// Não exige modificar a cena, inspector nem prefabs serializados.
+    /// </summary>
+    public static void MakeDraggable(GameObject panel, string title, string key)
+    {
+        if (panel == null) return;
+        var existing = panel.transform.Find("C6DragHeader");
+        var obj = existing != null ? existing.gameObject :
+            new GameObject("C6DragHeader", typeof(RectTransform), typeof(Image),
+                typeof(C6WindowDragHandle));
+        if (existing == null) obj.transform.SetParent(panel.transform, false);
+        // Cabeçalho acima das áreas de scroll: de outro modo Loot/Shop
+        // capturam o raycast e o jogador não consegue arrastar a janela.
+        obj.transform.SetAsLastSibling();
+        // Botões existentes precisam continuar clicáveis sobre o cabeçalho.
+        var directButtons = panel.GetComponentsInChildren<Button>(true);
+        foreach (var button in directButtons)
+            if (button.transform.parent == panel.transform)
+                button.transform.SetAsLastSibling();
+        var rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0, 1);
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 1);
+        rect.offsetMin = new Vector2(0, -29);
+        rect.offsetMax = Vector2.zero;
+        var image = obj.GetComponent<Image>();
+        image.color = new Color32(43, 55, 67, 245);
+        image.raycastTarget = true;
+        var handle = obj.GetComponent<C6WindowDragHandle>();
+        handle.Bind(panel.GetComponent<RectTransform>(), key);
+        var label = EnsureLabel(obj.transform, "Title", title, 15, Gold);
+        label.alignment = TextAlignmentOptions.Center;
+        Place(label.rectTransform, 0.04f, 0, 0.96f, 1);
+    }
+
     public static void StyleButton(Button button)
     {
         if (button == null) return;
@@ -143,3 +198,4 @@ public static class WorldWindowLayout
         }
     }
 }
+

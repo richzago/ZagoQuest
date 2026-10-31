@@ -70,6 +70,8 @@ public static class C6InventoryEquipmentLayout
             TextAlignmentOptions.MidlineLeft);
         var header = panel.transform.Find("C6Title").GetComponent<TextMeshProUGUI>();
         header.color = Gold;
+        WorldWindowLayout.MakeDraggable(panel, title, panel.name);
+        header.gameObject.SetActive(false); // título do cabeçalho arrastável
         if (panel.transform.Find("C6CloseButton") != null) return;
         var go = new GameObject("C6CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(panel.transform, false);
@@ -148,7 +150,7 @@ public static class C6InventoryEquipmentLayout
             gold.alignment = TextAlignmentOptions.MidlineLeft;
             gold.raycastTarget = false;
         }
-        Label(panel.transform, "C6Help", "Duplo clique: equipar  ·  Botão direito: usar", 12,
+        Label(panel.transform, "C6Help", "Clique: consumir  ·  Duplo: equipar  ·  Arraste: mover", 12,
             Vector2.zero, new Vector2(1, 0),
             new Vector2(16, 6), new Vector2(-16, 30),
             TextAlignmentOptions.MidlineLeft);
@@ -166,6 +168,8 @@ public static class C6InventoryEquipmentLayout
             equipmentRect.pivot = new Vector2(1f, 0.5f);
         equipmentRect.anchoredPosition = new Vector2(-12f, 0f);
         Header(panel, "EQUIPAMENTOS", close);
+        // O reset do cabeçalho deve usar a âncora FINAL do equipamento.
+        WorldWindowLayout.MakeDraggable(panel, "EQUIPAMENTOS", panel.name);
         var container = slots as RectTransform;
         if (container == null) return;
         container.anchorMin = Vector2.zero;

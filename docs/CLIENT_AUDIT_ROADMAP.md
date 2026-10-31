@@ -216,3 +216,14 @@ QA do usuário: food funciona mas come sem capacidade; potions OK em mana/HP bai
 Poções com atributos cheios agora podem ser consumidas normalmente (gasto do jogador sem ganho); equip de bone_sword não deve equipar armor: InventoryUI desativa slots obsoletos antes de recriar e recusa duplo clique subsequente por 0.45s; confirmar em Unity. SessionLoginDebugUI oculta login quando autenticado ou reconectando, mostra apenas ícone de logout no rodapé direito; NetworkManager faz logout real (apaga credenciais e fecha WS); StatusManager ancorado no centro esquerdo, layout escuro, tecla P só autenticado e unsubscribe correto. Nenhuma mutação do main, nem de arquivos serializados Unity.
 
 Checklist de QA U9–U17 e dados de balanceamento em docs/CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md seção 12. C7 continua com auditoria documental #105, sem mudanças de gameplay até homologação C6. CI Node e PG exigida antes de merge; não equivale à compilação C# / Windows build. Fechar Unity e proteger alterações locais com stash -u antes do pull.
+
+## C6 — U18–U33 (31/10/2026): equipamento/merchant/caixas/XP
+
+- Equipamento: WS inicial não incluía equipment mesmo quando DatabasePersistence recuperava character.equipment. Agora envia equipment antes de playerStats, e EquipmentUI mantém snapshot caso chegue antes de Start mapear slots. Bone Armor aparecer após equipar Sword pode ser armadura já persistida e antes invisível. Não impor rate-limit artificial; testar com WS real.
+- Logout: SessionLoginDebugUI cria Canvas UGUI C6LogoutOverlay com SAIR visível sem Hierarchy/Inspector, apaga credenciais em memória e fecha WebSocket.
+- Saciedade no Status: contrato playerStats.satiety, satietyMax, foodSecondsRemaining, atualiza ao comer e após terminar efeito.
+- Merchant SELL: rota WS, validação Zod estrita, sessão NPC, distância, quantidade, preços buyPrice/sellPrice JSON, proteção de saldo. UI Compra/Venda e ambos preços, sem stock. Merchant agora comercializa cheese, meat, bone_armor e peixes.
+- Caixas: cabeçalho movível Chat, Status, Inventory, Equipment, Bank, Loot e Shop; posições locais persistem PlayerPrefs, clique direito no cabeçalho reseta. Redimensionamento não implementado nesta etapa.
+- HUD: XP vermelha reaparece e avança por levelXp / levelXpToNext, sem mexer na autoridade do servidor.
+
+Checklist C6 U18–U33 e limites no docs/CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md seção 13. C6 só fecha após Unity Editor e build Windows; testes Node/PG não compilam C#. Não iniciar gameplay C7 antes de homologação. Main não modificada.

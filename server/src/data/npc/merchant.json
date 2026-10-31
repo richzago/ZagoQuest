@@ -30,6 +30,41 @@
       "itemId": "bone_sword",
       "buyPrice": 50,
       "sellPrice": 25
+    },
+    {
+      "itemId": "consumable/cheese",
+      "buyPrice": 8,
+      "sellPrice": 3
+    },
+    {
+      "itemId": "consumable/meat",
+      "buyPrice": 15,
+      "sellPrice": 6
+    },
+    {
+      "itemId": "bone_armor",
+      "buyPrice": 75,
+      "sellPrice": 32
+    },
+    {
+      "itemId": "fishing/fish/trout",
+      "buyPrice": 14,
+      "sellPrice": 5
+    },
+    {
+      "itemId": "fishing/fish/salmon",
+      "buyPrice": 23,
+      "sellPrice": 9
+    },
+    {
+      "itemId": "fishing/fish/perch",
+      "buyPrice": 10,
+      "sellPrice": 4
+    },
+    {
+      "itemId": "fishing/fish/golden",
+      "buyPrice": 110,
+      "sellPrice": 45
     }
   ]
 }
