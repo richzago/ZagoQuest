@@ -97,12 +97,12 @@ const expectedShutdownOrder = [
   "waitForJobs", "flushAutosave", "closeDatabase",
 ];
 
-test("game loop tem intervalo de 1500ms e agendamentos separados de 60s/24h", () => {
+test("game loop tem intervalo de 250ms e agendamentos separados de 60s/24h", () => {
   const f = fakeSchedulers();
   const { world, player } = playerWorld();
   const game = startGameLoops(world, player, {} as WebSocketServer, f.deps);
   try {
-    assert.equal(GAME_TICK_MS, 1500);
+    assert.equal(GAME_TICK_MS, 250);
     assert.deepEqual([...f.worldTimers.values()].map(x => x.ms), [GAME_TICK_MS]);
     assert.deepEqual([...f.scheduledTimers.values()].map(x => x.ms).sort((a,b)=>a-b),
       [SCHEDULED_INTERVALS.autosave, SCHEDULED_INTERVALS.guildInactivity].sort((a,b)=>a-b));

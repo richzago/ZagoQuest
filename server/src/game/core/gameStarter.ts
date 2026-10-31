@@ -19,7 +19,8 @@ import { PlayerAttackSystem } from "../combat/playerAttackSystem";
 import { Monster } from "../entities/monster";
 
 /** Keep game tick duration separate from autosave/guild schedules. */
-export const GAME_TICK_MS = 1_500;
+// AI decisions are frequent; creature-specific cooldown controls steps.
+export const GAME_TICK_MS = 250;
 
 type Timer = ReturnType<typeof setInterval>;
 
