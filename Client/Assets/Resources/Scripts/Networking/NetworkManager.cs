@@ -18,6 +18,7 @@ public class NetworkManager : MonoBehaviour
     private string _sessionCharacterId;
     private bool _authRejected;
     private bool _changingSession;
+    private bool _awaitingAuthentication;
     private bool _everAuthenticated;
     public bool isConnected { get; private set; } = false;
 
@@ -100,7 +101,7 @@ public class NetworkManager : MonoBehaviour
         // Tentativas acontecem no ciclo de vida do Unity, sem criar timers globais.
         if (!_shuttingDown && (!_authRejected) &&
             (!requireAuthenticatedSession || HasCredentials) &&
-            !isConnected && !_connecting &&
+            !isConnected && !_connecting && !_awaitingAuthentication &&
             Time.unscaledTime >= _nextReconnectAttempt)
         {
             _ = Connect();
@@ -145,7 +146,7 @@ public class NetworkManager : MonoBehaviour
 
     private async Task Connect()
     {
-        if (_connecting || _shuttingDown || isConnected || _authRejected ||
+        if (_connecting || _shuttingDown || isConnected || _awaitingAuthentication || _authRejected ||
             (requireAuthenticatedSession && !HasCredentials)) return;
         _connecting = true;
         Debug.Log($"[NetworkManager] 🔗 Conectando em {serverUrl}...");
@@ -161,6 +162,7 @@ public class NetworkManager : MonoBehaviour
             Debug.Log("[NetworkManager] ✅ Servidor conectado/reconectado.");
             // Conexão TCP aberta NÃO significa sessão autorizada.
             isConnected = !requireAuthenticatedSession;
+            _awaitingAuthentication = requireAuthenticatedSession;
             _nextReconnectAttempt = 0f;
             _lastPlayerId = null;
             _lastInitPosition = null;
@@ -205,6 +207,7 @@ public class NetworkManager : MonoBehaviour
             if (!ReferenceEquals(_websocket, socket) || _shuttingDown) return;
             Debug.LogWarning($"[NetworkManager] Desconectado: {reason}. Nova tentativa em {ReconnectDelaySeconds}s.");
             isConnected = false;
+            _awaitingAuthentication = false;
             if (requireAuthenticatedSession && !_everAuthenticated && !_changingSession)
                 _authRejected = true;
             _changingSession = false; // não repetir credenciais recusadas a cada 2s
@@ -232,6 +235,7 @@ public class NetworkManager : MonoBehaviour
             if (!_shuttingDown && ReferenceEquals(_websocket, socket))
             {
                 isConnected = false;
+                _awaitingAuthentication = false;
                 _nextReconnectAttempt = Time.unscaledTime + ReconnectDelaySeconds;
                 Debug.LogWarning($"[NetworkManager] Conexão falhou: {error.Message}. Retentando.");
             }
@@ -259,6 +263,7 @@ public class NetworkManager : MonoBehaviour
         {
             if (json["characterId"]?.ToString() != _sessionCharacterId) return;
             _everAuthenticated = true;
+            _awaitingAuthentication = false;
             _authRejected = false;
             isConnected = true;
             Debug.Log("[NetworkManager] Sessão de personagem autenticada.");
