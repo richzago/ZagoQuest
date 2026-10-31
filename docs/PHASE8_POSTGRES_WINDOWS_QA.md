@@ -297,6 +297,27 @@ try {
 
 Confirme via SQL que a descrição não mudou.
 
+### Exercício SQL seguro de `ROLLBACK` (somente zagoquest_test)
+
+Este exercício prova o comportamento básico de uma transação SQL, **não substitui** os testes de rollback de GuildService/HTTP já executados na CI. Conecte o Query Tool à `zagoquest_test` e execute o bloco todo junto, depois de criar `Teste Alfa`:
+
+```sql
+SELECT current_database(); -- confirme 'zagoquest_test'
+SELECT name, gold FROM characters WHERE name = 'Teste Alfa';
+
+BEGIN;
+UPDATE characters
+SET gold = gold + 123
+WHERE name = 'Teste Alfa';
+
+SELECT name, gold FROM characters WHERE name = 'Teste Alfa';
+ROLLBACK;
+
+SELECT name, gold FROM characters WHERE name = 'Teste Alfa';
+```
+
+O saldo após `ROLLBACK` deverá ser igual ao saldo antes. O exercício não mantém alterações. Pare o servidor e qualquer cliente que faça autosave antes de usar o Query Tool. A CI testa separadamente a falha SQL real após o débito de gold dentro do `GuildService.createGuild`.
+
 ## 7. Unity, reconexão e persistência
 
 1. No Inspector do Unity, o `NetworkManager` deve usar `ws://localhost:3000`, com `requireAuthenticatedSession=true`.
