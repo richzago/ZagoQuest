@@ -18,6 +18,9 @@ public class InventoryUI : MonoBehaviour
     private Dictionary<string, int> items = new Dictionary<string, int>();
     private Dictionary<string, string> itemTypes = new Dictionary<string, string>();
     private int currentGold = 0;
+    // Evita que redraw do inventário equipe outro item sob o cursor em segundos.
+    private float lastEquipmentUseAt = -1f;
+    private const float EquipmentClickGuardSeconds = 0.45f;
     private List<GameObject> slotObjects = new List<GameObject>();
 
     private InputAction toggleInventoryAction;
@@ -156,7 +159,15 @@ public class InventoryUI : MonoBehaviour
             goldText.text = $"Ouro em mãos: {currentGold:N0} gold";
 
         foreach (var slot in slotObjects)
-            Destroy(slot);
+        {
+            // Destroy ocorre só no fim do frame. Desativar já evita um
+            // segundo OnPointerClick num slot antigo após snapshot de equip.
+            if (slot != null)
+            {
+                slot.SetActive(false);
+                Destroy(slot);
+            }
+        }
         slotObjects.Clear();
 
         if (slotPrefab == null || slotsGrid == null) return;
@@ -212,9 +223,18 @@ public class InventoryUI : MonoBehaviour
         var network = NetworkManager.Instance;
         if (network == null || !network.isConnected || network.Inventory == null ||
             string.IsNullOrWhiteSpace(itemId)) return;
-        // A intenção genérica "usar" é resolvida pelo Node:
-        // consumable = comer/beber; equipment = equipar; demais = recusar.
-        // Não inferir tipo pelo prefixo do itemId nem modificar a bolsa local.
+        // O clique simples em consumível já solicitou useItem no InventorySlot.
+        // O duplo clique para equipar aceita APENAS o item ainda presente no
+        // último snapshot, não o slot que tomou seu lugar num redraw.
+        if (!items.TryGetValue(itemId, out int quantity) || quantity <= 0) return;
+        if (itemTypes.TryGetValue(itemId, out string type) && type == "consumable") return;
+        float now = Time.unscaledTime;
+        if (lastEquipmentUseAt >= 0f &&
+            now >= lastEquipmentUseAt &&
+            now - lastEquipmentUseAt < EquipmentClickGuardSeconds)
+            return;
+        lastEquipmentUseAt = now;
+        // Node é o único que decide se o ID é realmente equipável.
         network.Inventory.UseItem(itemId);
     }
 
