@@ -136,3 +136,35 @@ test("C1: Grid -0.5 alinha sprite visual e jogador autoritativo nas quatro borda
     assert.match(asset, /spritePivot: \{x: 0\.5, y: 0\.5\}/);
   }
 });
+
+
+test("C1: ferramenta de diagnóstico compara sprite renderizado, centro do Grid e Collision real", () => {
+  const renderer = read("Client/Assets/Resources/Scripts/World/TiledMapRenderer.cs");
+  assert.match(renderer, /#if UNITY_EDITOR[\s\S]*?showC1BorderGizmos = false/);
+  assert.match(renderer, /OnDrawGizmos\(\)/);
+  assert.match(renderer, /GetCellCenterWorld\(cell\)/);
+  assert.match(renderer, /Color\.red : Color\.green/);
+  assert.match(renderer, /LogC1BorderAlignment\(\)/);
+  assert.match(renderer, /groundTilemap\.WorldToCell\(playerPos\)/);
+  assert.match(renderer, /groundTilemap\.GetSprite\(cell\)/);
+  assert.match(renderer, /GameManager\.Instance\.IsTileWalkable\(p\.x, p\.y\)/);
+  assert.match(renderer, /collision\.data\[row \* mapData\.width \+ x\]/);
+  assert.match(renderer, /sprite\.name/);
+  const codeBlock = renderer.slice(renderer.indexOf("#if UNITY_EDITOR"), renderer.lastIndexOf("#endif")+6);
+  assert.doesNotMatch(codeBlock, /SetTile\(|SetCollisionMatrix\(|transform\.position\s*=/,
+    "O modo diagnóstico não pode alterar posição, mapa ou colisão.");
+});
+
+test("C1: slicing de água 32px no Unity segue índice Tiled 32-39 na última linha", () => {
+  const meta = read("Client/Assets/Resources/Tilesets/[A]Water2_pipo.png.meta");
+  assert.match(meta, /spritePixelsToUnits: 32/);
+  const sheet = meta.slice(meta.indexOf("spriteSheet:"));
+  for (let i=32;i<=39;i++) {
+    const x = (i%8)*32;
+    const block = sheet.match(new RegExp("name: '\\[A\\]Water2_pipo_" + i +
+      "'\\s+rect:\\s+serializedVersion: 2\\s+x: (\\d+)\\s+y: (\\d+)"));
+    assert.ok(block, "Corte do sprite de água " + i + " não encontrado.");
+    assert.equal(Number(block[1]), x, "X do sprite " + i);
+    assert.equal(Number(block[2]), 0, "Y do sprite " + i);
+  }
+});
