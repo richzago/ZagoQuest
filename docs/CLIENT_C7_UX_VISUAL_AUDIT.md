@@ -158,3 +158,36 @@ Protocolo estrito:
 ## 9. Integração técnica
 
 Branch feat/client-c7-camera-input-fishing-ux, base dev C6 commit 293c6ff; GitHub Actions Node Linux/Windows e PostgreSQL, tests/clientC7Fishing.test.ts e tests/clientC7UxContracts.test.ts; os testes de contrato da fase 7 NÃO abrem Unity. Merge apenas na dev depois que CI aprovar; main intocada. Conferir C7-13–C7-31 no PC antes de marcar homologação visual.
+
+
+## C7 — correção isolada de clique em combate e loot (branch de homologação, sem merge)
+
+**Relato após rollback #113:** Unity quase retornou ao normal, porém o primeiro clique em monstro muitas vezes não iniciava o combate, e cadáveres nem sempre abriam o loot. A correção está isolada na branch `fix/client-c7-combat-loot-click-reliability`, sem editar câmera, layout, Tiled, inventário ou regras do Node. **Não integrar na dev antes do aceite expresso do usuário em Unity.**
+
+**Fatos confirmados por leitura:** `TargetSelector.OnMouseClick` usava `Physics2D.GetRayIntersection(ray)` e apenas um collider, podendo encontrar player/colisões intermediárias. Um segundo clique no mesmo monstro chamava `ClearTarget()` e enviava `stopAutoAttack`, alternando liga/desliga. `IsPointerOverUi` bloqueava também os `Selectable` de barras de vida WorldSpace, apesar de serem decorativas. Esses padrões são causas plausíveis das falhas descritas; a frequência real dependerá de QA Unity e da configuração da cena.
+
+**Alteração focalizada:**
+- Procurar todas as interseções `Physics2D.GetRayIntersectionAll(ray)`, ignorar colliders não interagíveis, escolher pelo sorting layer/order dos SpriteRenderers e, em empate, dar precedência ao cadáver acima do monstro. Resolver identidade por pais para suportar collider no filho do prefab.
+- Clique em monstro já selecionado não alterna/desliga o ataque. Clique em chão vazio mantém cancelamento; Espaço mantém ciclo de alvos; servidor continua decidindo início, stop e alcance.
+- `Canvas` WorldSpace de nameplates/barras não bloqueia clique do mundo. UI de tela (`ScreenSpaceOverlay/Camera`) ainda é prioritária sobre entidades. Apenas os cliques em mundo válidos são encaminhados ao Socket já autenticado.
+- Sem retries automáticos de ataque/loot, sem aumento de alcance e sem segunda via de clique (`OnMouseDown`): pacote único por clique válido.
+
+**Riscos e limites:** mudanças não foram compiladas/visualizadas no Unity deste ambiente. Há outras causas possíveis: cadáver longe (Node exige distância Manhattan até 2), alvo morto/despawn ou interface real sobre o mapa. Se loot não abrir, verificar `LootError` e o alcance em vez de aumentar permissões ou repetir comandos.
+
+### Checklist Unity antes de autorizar merge — C7-CLICK-01–12
+
+- [ ] 01: Testar clique único no centro do goblin próximo; auto ataque inicia sem insistir.
+- [ ] 02: Clique no mesmo monstro pela segunda vez não interrompe o ataque.
+- [ ] 03: Clique em chão vazio cancela alvo uma vez; o próximo clique reinicia.
+- [ ] 04: Alternar entre dois monstros e pressionar Espaço mantém seleção correta.
+- [ ] 05: Clicar nas bordas do sprite e perto da barra de HP WorldSpace interage corretamente.
+- [ ] 06: Após morte do monstro, clicar uma única vez no corpo próximo abre loot.
+- [ ] 07: Com cadáver e outro collider sobrepostos, o corpse visível é priorizado.
+- [ ] 08: Clicar em cadáver longe informa erro de alcance (não abre nem ignora validação).
+- [ ] 09: Clicar em botão/área de painel UI na frente do mundo não ataca nem abre loot.
+- [ ] 10: NPC merchant/banker e pickup no chão continuam com clique único.
+- [ ] 11: Testar com zoom +/−, F10, movimentos, reconexão e duas sessões.
+- [ ] 12: Console sem exceções; build Windows e Play Mode observados, confirmar com usuário.
+
+**Teste automatizado:** `server/tests/clientC4PlayerCombatContracts.test.ts` estendido com contratos estáticos do código e cenários matemáticos de ordenação. O CI Node **não** compila C# nem executa o EventSystem/Physics2D do Unity. Critério de merge: CI verde + relato de homologação Unity **e sinal verde explícito** do usuário. Próxima etapa de layout deve usar branch nova depois do merge aprovado.
+
