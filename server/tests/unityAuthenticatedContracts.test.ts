@@ -1,6 +1,6 @@
 /** Contratos da migração Unity/REST/WS da Fase 5; não substituem C# Play Mode. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -39,7 +39,7 @@ test("API autenticada fornece UUID real para a seleção de personagem", () => {
 
 test("C0: cena principal habilita WS JWT e inclui login QA sem guardar tokens em YAML", () => {
   const scene = readFileSync(join(process.cwd(), "..", "Client", "Assets", "scenebasic.unity"), "utf8");
-  assert.match(scene, /m_EditorClassIdentifier: Assembly-CSharp::NetworkManager[\\s\\S]*?requireAuthenticatedSession: 1/);
+  assert.match(scene, /m_EditorClassIdentifier: Assembly-CSharp::NetworkManager[\s\S]*?requireAuthenticatedSession: 1/);
   const loginMeta = readFileSync(join(unityRoot, "SessionLoginDebugUI.cs.meta"), "utf8");
   const guid = loginMeta.match(/guid: ([0-9a-f]{32})/)?.[1];
   assert.ok(guid, "Login UI tem GUID estável");
@@ -49,8 +49,7 @@ test("C0: cena principal habilita WS JWT e inclui login QA sem guardar tokens em
 
 test("C0: importação do tileset de parede preserva nomes/gids e recurso no Unity", () => {
   const root = join(process.cwd(), "..", "Client", "Assets", "Resources", "Tilesets");
-  const fs = require("node:fs");
-  assert.ok(fs.existsSync(join(root, "[A]Wall-Up1_pipo.png")), "PNG importável pelo Unity");
+  assert.ok(existsSync(join(root, "[A]Wall-Up1_pipo.png")), "PNG importável pelo Unity");
   const meta = readFileSync(join(root, "[A]Wall-Up1_pipo.png.meta"), "utf8");
   assert.match(meta, /spriteMode: 2/);
   for (let index = 0; index < 5; index++) {
