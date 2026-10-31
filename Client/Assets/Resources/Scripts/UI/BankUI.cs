@@ -22,6 +22,7 @@ public class BankUI : MonoBehaviour
     public Button withdrawButton;
 
     private string currentNpcId;
+    private bool transferPending;
 
     private void Awake()
     {
@@ -100,6 +101,7 @@ public class BankUI : MonoBehaviour
     public void ShowBankWindow(string npcId, int bankGold, int inventoryGold)
     {
         currentNpcId = npcId;
+        SetTransferPending(false);
         UpdateBalances(bankGold, inventoryGold);
         if (amountInput != null) amountInput.text = string.Empty;
 
@@ -116,7 +118,8 @@ public class BankUI : MonoBehaviour
     {
         Debug.Log($"[BankUI] bankResult: success={success}, msg={message}, banco={bankGold}, carteira={inventoryGold}");
         ChatUI.Instance?.AddMessage($"Banco: {message}");
-
+        // ACK/erro libera os botões; o saldo só muda se o Node confirmar.
+        SetTransferPending(false);
         if (!success) return;
 
         UpdateBalances(bankGold, inventoryGold);
@@ -133,6 +136,8 @@ public class BankUI : MonoBehaviour
     private bool TryGetAmount(out int amount)
     {
         amount = 0;
+
+        if (transferPending) return false;
 
         if (bankPanel == null || !bankPanel.activeInHierarchy ||
             string.IsNullOrEmpty(currentNpcId))
@@ -165,6 +170,7 @@ public class BankUI : MonoBehaviour
         if (!TryGetAmount(out int amount)) return;
 
         Debug.Log($"[BankUI] Solicitando depósito de {amount} gold.");
+        SetTransferPending(true);
         NetworkManager.Instance.Bank.SendDeposit(amount);
         // Não atualizar saldo aqui: aguardar bankResult do servidor.
     }
@@ -174,8 +180,17 @@ public class BankUI : MonoBehaviour
         if (!TryGetAmount(out int amount)) return;
 
         Debug.Log($"[BankUI] Solicitando saque de {amount} gold.");
+        SetTransferPending(true);
         NetworkManager.Instance.Bank.SendWithdraw(amount);
         // Não atualizar saldo aqui: aguardar bankResult do servidor.
+    }
+
+    /// <summary>Impede solicitações simultâneas no mesmo painel, sem tocar nos saldos.</summary>
+    private void SetTransferPending(bool pending)
+    {
+        transferPending = pending;
+        if (depositButton != null) depositButton.interactable = !pending;
+        if (withdrawButton != null) withdrawButton.interactable = !pending;
     }
 
     private void ShowLocalError(string message)
@@ -191,6 +206,7 @@ public class BankUI : MonoBehaviour
             NetworkManager.Instance?.Bank?.SendCloseBank(currentNpcId);
 
         currentNpcId = null;
+        SetTransferPending(false);
         if (amountInput != null) amountInput.text = string.Empty;
         if (bankPanel != null) bankPanel.SetActive(false);
     }
