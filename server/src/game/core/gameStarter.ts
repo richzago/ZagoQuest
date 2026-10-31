@@ -146,12 +146,14 @@ export function tickWorld(world: World, wsServer: WebSocketServer): void {
 
         const target = world.monsters.find((m) => m.id === player.currentTargetId);
         if (!target || target.hp <= 0) {
+          const stoppedTargetId = player.currentTargetId;
           player.currentTargetId = undefined;
           wsServer.sendToPlayer?.(
             player.id,
             JSON.stringify({
               type: "autoAttackStopped",
               reason: "Alvo morto ou sumiu.",
+              targetId: stoppedTargetId,
             }),
           );
           Logger.combat(`[AUTO] ${player.name} perdeu alvo (morto/sumiu)`);
@@ -181,6 +183,7 @@ export function tickWorld(world: World, wsServer: WebSocketServer): void {
                 JSON.stringify({
                   type: "autoAttackStopped",
                   reason: "Alvo morto",
+                  targetId: target.id,
                 }),
               );
               Logger.combat(`[AUTO] ${player.name} matou ${target.name}`);

@@ -19,8 +19,10 @@ export class CombatSender extends BaseSender {
   /**
    * Notifica o cliente que o ataque automático foi interrompido.
    */
-  sendAutoAttackStopped(reason: string): void {
-    this.send({ type: "autoAttackStopped", reason });
+  sendAutoAttackStopped(reason: string, targetId?: string): void {
+    // O alvo identifica a sessão de seleção a ser encerrada. Uma confirmação
+    // atrasada de STOP do alvo anterior não pode cancelar um alvo novo.
+    this.send({ type: "autoAttackStopped", reason, ...(targetId ? { targetId } : {}) });
   }
 
   /**

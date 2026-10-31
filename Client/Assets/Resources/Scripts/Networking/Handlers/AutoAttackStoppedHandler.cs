@@ -6,7 +6,11 @@ namespace ZagoQuest.Networking.Handlers
     {
         public void Handle(JObject json, NetworkContext context)
         {
-            context.TargetSelector?.ClearTarget();
+            // ACK/erro do servidor: não enviar outro stopAutoAttack para o Node.
+            context.TargetSelector?.OnServerAutoAttackStopped(
+                json.Value<string>("targetId"),
+                json.Value<string>("reason")
+            );
         }
     }
 }

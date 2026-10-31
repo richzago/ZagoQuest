@@ -216,16 +216,41 @@ public class TargetSelector : MonoBehaviour
         NetworkManager.Instance.Combat.SendStartAutoAttack(targetId);
     }
 
+    /// <summary>
+    /// Cancelamento LOCAL do usuário (clique, troca de alvo, morte/despawn):
+    /// somente nesse fluxo o cliente avisa o servidor para parar.
+    /// </summary>
     public void ClearTarget()
     {
-        if (!string.IsNullOrEmpty(currentTargetId))
-        {
-            NetworkManager.Instance.Combat.SendStopAutoAttack();
-            currentTargetId = null;
-            currentTarget = null;
-        }
+        ClearTargetInternal(true);
+    }
 
+    /// <summary>
+    /// O pacote autoAttackStopped já foi decidido pelo servidor.
+    /// Não ecoar stopAutoAttack ao recebê-lo. O targetId opcional impede que
+    /// um ACK atrasado de alvo antigo cancele a seleção mais recente.
+    /// </summary>
+    public void OnServerAutoAttackStopped(string targetId, string reason)
+    {
+        if (!string.IsNullOrEmpty(targetId) && targetId != currentTargetId)
+        {
+            Debug.Log($"[AUTO] Ignorando STOP atrasado de {targetId}: alvo atual {currentTargetId ?? "(nenhum)"}");
+            return;
+        }
+        Debug.Log($"[AUTO] Stop do servidor para {targetId ?? currentTargetId ?? "(nenhum)"}: {reason}");
+        ClearTargetInternal(false);
+    }
+
+    private void ClearTargetInternal(bool notifyServer)
+    {
+        bool hadTarget = !string.IsNullOrEmpty(currentTargetId);
+        currentTargetId = null;
+        currentTarget = null;
         HideOutline();
+
+        if (hadTarget && notifyServer && NetworkManager.Instance != null &&
+            NetworkManager.Instance.isConnected && NetworkManager.Instance.Combat != null)
+            NetworkManager.Instance.Combat.SendStopAutoAttack();
     }
 
     public void ClearTargetIfMatches(GameObject go)
