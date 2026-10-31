@@ -58,7 +58,9 @@ test("interval cannot tick outside actual duration before next world update", (t
   assert.deepEqual(damage, [3]);
 
   now += 30; // duração encerra em 50ms, antes do próximo tick do mundo
-  t.mock.timers.tick(20);
+  // 25ms atravessa claramente o próximo limite do intervalo falso (40ms):
+  // evita depender de comportamento exato na borda do relógio mockado.
+  t.mock.timers.tick(25);
   assert.deepEqual(damage, [3]);
   assert.equal(manager.has("poison"), false);
 });
