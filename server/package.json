@@ -10,6 +10,7 @@
     "start": "node dist/main.js",
     "docs:typedoc": "typedoc",
     "test:pg": "tsx --test tests/phase4PostgresIntegration.test.ts",
+    "db:init:test": "tsx src/scripts/initFreshTestDatabase.ts",
     "bench:tick": "tsx scripts/benchTick.ts",
     "smoke:dist": "tsx scripts/smokeDist.ts"
   },
