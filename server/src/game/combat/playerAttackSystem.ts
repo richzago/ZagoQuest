@@ -21,17 +21,28 @@ export type PlayerAttackResult =
   | { ok: false; reason: AttackFailureReason };
 
 export class PlayerAttackSystem {
-  /** Utilizada também na seleção de alvo para auto attack (sem atacar). */
-  static validateTarget(player: Player, monster: Monster | undefined, world: World): AttackFailureReason | undefined {
+  /**
+   * Selecionar um alvo não é atacar: o jogador pode começar a segui-lo
+   * de longe, mas dano continua condicionado ao alcance no tryAttack().
+   */
+  static validateSelectableTarget(
+    player: Player, monster: Monster | undefined, world: World,
+  ): AttackFailureReason | undefined {
     if (player.hp <= 0) return "Atacante morto";
     if (!monster || !world.monsters.includes(monster)) return "Alvo não encontrado";
     if (monster.hp <= 0 || monster.deathProcessed) return "Alvo já está morto";
-
-    const positions = [player.position.x, player.position.y,
+    const coordinates = [player.position.x, player.position.y,
       monster.position.x, monster.position.y];
-    if (!positions.every(Number.isSafeInteger) ||
-        Math.hypot(player.position.x - monster.position.x,
-          player.position.y - monster.position.y) > 1.5) return "Alvo muito longe";
+    if (!coordinates.every(Number.isSafeInteger)) return "Alvo não encontrado";
+    return undefined;
+  }
+
+  /** Mesmo alcance físico para ataque manual e o tick automático. */
+  static validateTarget(player: Player, monster: Monster | undefined, world: World): AttackFailureReason | undefined {
+    const failure = this.validateSelectableTarget(player, monster, world);
+    if (failure) return failure;
+    if (Math.hypot(player.position.x - monster!.position.x,
+      player.position.y - monster!.position.y) > 1.5) return "Alvo muito longe";
     return undefined;
   }
 

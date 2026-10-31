@@ -10,7 +10,15 @@ public class PlayerController : MonoBehaviour
     [Header("Movement")]
     public float stepDuration = 0.2f;
     private bool isMoving = false;
-    private Queue<Vector2Int> moveQueue = new Queue<Vector2Int>();
+    // Auto-follow mantém no máximo UMA solicitação em voo. O servidor
+    // confirma cada passo com PositionHandler (inclusive passos recusados).
+    private bool followPending = false;
+    private float followSentAt = 0f;
+    private float followAllowedAt = 0f;
+    private Vector2Int followFrom;
+    private bool diagonalRejected = false;
+    private const float FollowStepSeconds = 0.15f;
+    private const float FollowAckTimeoutSeconds = 0.75f;
 
     private NetworkManager networkManager;
     private Vector2Int currentGridPosition;
@@ -130,9 +138,16 @@ public class PlayerController : MonoBehaviour
 
     public void OnPositionReceived(Vector2 pos)
     {
-        currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
-        transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
-        ProcessMoveQueue();
+        var confirmed = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
+        if (followPending)
+        {
+            // Um passo rejeitado (parede/cooldown) confirma a posição anterior.
+            // Na próxima tentativa, experimente um eixo em vez da diagonal.
+            diagonalRejected = confirmed == followFrom;
+            followPending = false;
+        }
+        currentGridPosition = confirmed;
+        transform.position = new Vector3(confirmed.x, confirmed.y, 0);
     }
 
     // =========================
@@ -159,31 +174,69 @@ public class PlayerController : MonoBehaviour
     }
 
     // =========================
-    // WALK QUEUE
+    // AUTO FOLLOW (UM PASSO CONFIRMADO POR VEZ)
     // =========================
 
-    private void EnqueueDirection(Vector2Int direction)
+    /// <summary>
+    /// Persegue a posição atual do monstro. Nunca prevê a posição futura
+    /// e nunca coloca múltiplos passos no socket para furar o cooldown.
+    /// </summary>
+    public void RequestFollowTowards(Vector3 monsterWorldPosition)
     {
-        Vector2Int targetTile = currentGridPosition + direction;
-        moveQueue.Enqueue(targetTile);
-        if (!isMoving) ProcessMoveQueue();
+        if (!isReady || networkManager == null || !networkManager.isConnected) return;
+
+        if (followPending)
+        {
+            if (Time.unscaledTime - followSentAt < FollowAckTimeoutSeconds) return;
+            // Reconexão ou pacote perdido: não trava a perseguição para sempre.
+            followPending = false;
+        }
+        if (Time.unscaledTime < followAllowedAt) return;
+
+        var monster = new Vector2Int(
+            Mathf.RoundToInt(monsterWorldPosition.x),
+            Mathf.RoundToInt(monsterWorldPosition.y));
+        int dx = monster.x - currentGridPosition.x;
+        int dy = monster.y - currentGridPosition.y;
+
+        // Alcance corpo a corpo: cardinal e diagonal adjacentes (até 1.5).
+        if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) <= 1) return;
+
+        var direction = new Vector2Int(System.Math.Sign(dx), System.Math.Sign(dy));
+        if (diagonalRejected && direction.x != 0 && direction.y != 0)
+        {
+            // Se a diagonal foi bloqueada, tenta um eixo de maior distância.
+            // Os dois eixos não podem ser enviados simultaneamente.
+            if (Mathf.Abs(dx) >= Mathf.Abs(dy)) direction.y = 0;
+            else direction.x = 0;
+        }
+
+        string dir = DirectionToString(direction);
+        if (dir == null) return;
+
+        followFrom = currentGridPosition;
+        followPending = true;
+        followSentAt = Time.unscaledTime;
+        followAllowedAt = followSentAt + FollowStepSeconds;
+        diagonalRejected = false;
+        networkManager.Movement.SendMoveDir(dir);
     }
 
-    private void ProcessMoveQueue()
+    /// <summary>
+    /// Compatibilidade com código que solicite um passo de navegação.
+    /// Não enfileira passos antigos: a posição autoritativa é a referência.
+    /// </summary>
+    public void RequestMoveDirection(Vector2Int direction)
     {
-        if (moveQueue.Count == 0)
-        {
-            isMoving = false;
-            return;
-        }
-        isMoving = true;
-        Vector2Int nextTile = moveQueue.Dequeue();
-        Vector2Int dir = nextTile - currentGridPosition;
-        string dirStr = DirectionToString(dir);
-        if (dirStr != null)
-            networkManager.Movement.SendMoveDir(dirStr);
-        else
-            ProcessMoveQueue();
+        if (!isReady || networkManager == null || !networkManager.isConnected) return;
+        if (followPending || Time.unscaledTime < followAllowedAt) return;
+        string dir = DirectionToString(direction);
+        if (dir == null) return;
+        followFrom = currentGridPosition;
+        followPending = true;
+        followSentAt = Time.unscaledTime;
+        followAllowedAt = followSentAt + FollowStepSeconds;
+        networkManager.Movement.SendMoveDir(dir);
     }
 
     private string DirectionToString(Vector2Int dir)
@@ -197,12 +250,6 @@ public class PlayerController : MonoBehaviour
         if (dir.x == 1 && dir.y == -1) return "southeast";
         if (dir.x == -1 && dir.y == -1) return "southwest";
         return null;
-    }
-
-    public void RequestMoveDirection(Vector2Int direction)
-    {
-        if (!isReady) return;
-        EnqueueDirection(direction);
     }
 
     private void OnDestroy()
