@@ -89,3 +89,22 @@ test("C1: parede e água assimétricas usam linha invertida igual ao Ground e pr
   assert.equal(MovementSystem.moveDirection(water,world,"north",1000),"blocked");
   assert.deepEqual(water.position,{x:3,y:1});
 });
+
+
+test("C1: quatro bordas completas - agua e ultimo chao sem lacunas", () => {
+  const world = new World();
+  MapLoader.loadMap(world, sourceMap);
+  // Todos os eixos, não apenas uma amostra central.
+  for (let y = 3; y <= 16; y++) {
+    assert.equal(world.getTile(2, y)?.walkable, false, "água na esquerda y=" + y);
+    assert.equal(world.getTile(3, y)?.walkable, true, "último chão à esquerda y=" + y);
+    assert.equal(world.getTile(26, y)?.walkable, true, "último chão à direita y=" + y);
+    assert.equal(world.getTile(27, y)?.walkable, false, "água na direita y=" + y);
+  }
+  for (let x = 3; x <= 26; x++) {
+    assert.equal(world.getTile(x, 2)?.walkable, false, "água embaixo x=" + x);
+    assert.equal(world.getTile(x, 3)?.walkable, true, "último chão embaixo x=" + x);
+    assert.equal(world.getTile(x, 16)?.walkable, true, "último chão em cima x=" + x);
+    assert.equal(world.getTile(x, 17)?.walkable, false, "água em cima x=" + x);
+  }
+});
