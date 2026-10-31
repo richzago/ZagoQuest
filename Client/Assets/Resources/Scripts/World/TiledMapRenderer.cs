@@ -197,6 +197,93 @@ public class TiledMapRenderer : MonoBehaviour
             Debug.LogError("TiledMapRenderer: GameManager.Instance não encontrado!");
     }
 
+#if UNITY_EDITOR
+    [Header("C1 - Diagnostico visual (apenas Editor)")]
+    [Tooltip("Desenha os 4 limites de agua (vermelho) e chao (verde) no Scene/Game View quando Gizmos estiver ativo.")]
+    public bool showC1BorderGizmos = false;
+
+    // Pintar SOMENTE as celulas que formam a fronteira relevante.
+    // Nunca muda colisao ou posicoes de entidades.
+    private void OnDrawGizmos()
+    {
+        if (!showC1BorderGizmos || !Application.isPlaying || mapData == null || groundTilemap == null)
+            return;
+        var collision = mapData.layers.Find(l => l.name == "Collision" && l.type == "tilelayer");
+        if (collision == null || collision.data == null || collision.data.Length != mapData.width * mapData.height)
+            return;
+
+        for (int y = 0; y < mapData.height; y++)
+        {
+            for (int x = 0; x < mapData.width; x++)
+            {
+                // Agua e chao imediatamente adjacentes nas bordas deste mapa.
+                bool border = x == 2 || x == 3 || x == mapData.width - 4 || x == mapData.width - 3 ||
+                              y == 2 || y == 3 || y == mapData.height - 4 || y == mapData.height - 3;
+                if (!border) continue;
+
+                int row = mapData.height - 1 - y;
+                bool blocked = collision.data[row * mapData.width + x] != 0;
+                Gizmos.color = blocked ? Color.red : Color.green;
+                var cell = new Vector3Int(x, y, 0);
+                var center = groundTilemap.GetCellCenterWorld(cell);
+                // A célula física tem 1x1 unidade neste mapa, também verificada pela cena.
+                Gizmos.DrawWireCube(center, new Vector3(0.96f, 0.96f, 0.05f));
+            }
+        }
+
+        if (PlayerController.Instance != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(PlayerController.Instance.transform.position, 0.14f);
+        }
+    }
+
+    [ContextMenu("C1 QA - Registrar alinhamento das bordas no Console")]
+    public void LogC1BorderAlignment()
+    {
+        if (!Application.isPlaying || mapData == null || groundTilemap == null)
+        {
+            Debug.LogWarning("[C1 QA] Execute em Play Mode com o TiledMapRenderer carregado.");
+            return;
+        }
+
+        var ground = mapData.layers.Find(l => l.name == "Ground" && l.type == "tilelayer");
+        var collision = mapData.layers.Find(l => l.name == "Collision" && l.type == "tilelayer");
+        if (ground == null || collision == null || !HasValidTileData(ground) || !HasValidTileData(collision))
+            return;
+
+        var player = PlayerController.Instance;
+        var playerPos = player != null ? player.transform.position : Vector3.zero;
+        var playerCell = new Vector3Int(Mathf.RoundToInt(playerPos.x), Mathf.RoundToInt(playerPos.y), 0);
+        var playerVisualCell = groundTilemap.WorldToCell(playerPos);
+        Debug.Log($"[C1 QA] Player world={playerPos}; logicalCell={playerCell}; tilemap.WorldToCell={playerVisualCell}; " +
+                  $"tilemap.GetCellCenterWorld(logicalCell)={groundTilemap.GetCellCenterWorld(playerCell)}; " +
+                  $"Grid origin={groundTilemap.layoutGrid.transform.position}; Tilemap origin={groundTilemap.transform.position}; " +
+                  $"TileAnchor={groundTilemap.tileAnchor}.");
+
+        // Ordem: terra / agua imediatamente à esquerda, direita, baixo, cima.
+        Vector2Int[] samples = {
+            new Vector2Int(3, 10), new Vector2Int(2, 10),
+            new Vector2Int(26, 10), new Vector2Int(27, 10),
+            new Vector2Int(15, 3), new Vector2Int(15, 2),
+            new Vector2Int(15, 16), new Vector2Int(15, 17)
+        };
+        foreach (var p in samples)
+        {
+            int index = (mapData.height - 1 - p.y) * mapData.width + p.x;
+            int gid = ground.data[index];
+            bool blocked = collision.data[index] != 0;
+            var cell = new Vector3Int(p.x, p.y, 0);
+            var sprite = groundTilemap.GetSprite(cell);
+            bool walkableInUnity = GameManager.Instance != null && GameManager.Instance.IsTileWalkable(p.x, p.y);
+            Debug.Log($"[C1 QA] XY=({p.x},{p.y}) groundGID={gid} " +
+                      $"collisionBlocked={blocked} unityWalkable={walkableInUnity} " +
+                      $"renderSprite={(sprite == null ? "<AUSENTE>" : sprite.name)} " +
+                      $"renderCenter={groundTilemap.GetCellCenterWorld(cell)}.");
+        }
+    }
+#endif
+
     // ------------------------------------------------------------
     // SPAWN DE ENTIDADES (NPCs e MONSTROS) - OFFLINE
     // ------------------------------------------------------------
