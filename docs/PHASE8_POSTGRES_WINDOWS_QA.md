@@ -129,6 +129,43 @@ ORDER BY table_name, ordinal_position;
 
 Deve haver `accounts`, `characters`, `guilds`, `guild_members` e `migrations` (a tabela de histórico do TypeORM). Se `db:init:test` recusar o banco existente, **não** resolva apagando tabelas; confira banco/host e backup antes de qualquer ação.
 
+## 3B. Erro `relation "migrations" does not exist`: diagnóstico e SQL completo para pgAdmin
+
+O erro SQLSTATE **42P01** significa que `migrations` não foi encontrada na database/schema consultados. **Não é prova de falha no próprio arquivo de migration**: muitas vezes a database foi criada, mas o comando de inicialização das tabelas não foi executado, ou o Query Tool está conectado ao banco errado.
+
+Primeiro execute no **Query Tool** (conectado a `zagoquest_test`):
+
+```sql
+SELECT current_database() AS banco, current_schema() AS esquema, current_user AS usuario;
+SELECT to_regclass('public.migrations') AS tabela_migrations;
+SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' ORDER BY tablename;
+```
+
+- Banco correto e **zero tabelas**: siga o **passo 3** (`npm run db:init:test`, recomendado) **OU** o SQL manual abaixo; nunca ambos.
+- Banco diferente de `zagoquest_test`: selecione `zagoquest_test` no pgAdmin e abra um **novo** Query Tool; não use `\\c` no pgAdmin.
+- Algumas tabelas já existem, mas `migrations` não: **pare**; é um esquema parcial/legado. Não crie `migrations` isoladamente nem execute o SQL completo por cima. Faça inventário e backup para reconciliar o estado.
+- Cinco tabelas já existem: **não** execute inicializador novamente; use consultas e testes.
+
+**Alternativa SQL integral, somente para uma database `zagoquest_test` comprovadamente nova e vazia:** abra o arquivo [`docs/sql/PHASE8_CREATE_FRESH_TEST_SCHEMA.sql`](sql/PHASE8_CREATE_FRESH_TEST_SCHEMA.sql) e execute seu conteúdo completo de uma só vez no pgAdmin Query Tool, conectado a `zagoquest_test`. O script contém guarda de nome e banco vazio, uma transação, os quatro modelos TypeORM, tipos enum, a extensão UUID e o histórico `migrations`. Foi transcrito da baseline versionada; não substitui a evolução futura por migrations e não é um caminho de upgrade de dados existentes.
+
+> **Importante:** a CI do projeto comprova o comando TypeORM `db:init:test`; o SQL manual é a opção para executar diretamente no pgAdmin, e **não** foi executado no teu PostgreSQL. Evite rodar testes de erro ou scripts de destruição de dados numa base que queira preservar.
+
+Depois de **um** dos caminhos, valide:
+
+```sql
+SELECT current_database();
+SELECT to_regclass('public.accounts') AS accounts,
+       to_regclass('public.characters') AS characters,
+       to_regclass('public.guilds') AS guilds,
+       to_regclass('public.guild_members') AS guild_members,
+       to_regclass('public.migrations') AS migrations;
+SELECT "timestamp", "name" FROM public.migrations ORDER BY "timestamp";
+```
+
+Resultado esperado: as cinco relações não nulas e uma linha `InitialSchema1793400000000`.
+
+---
+
 ## 4. Iniciar o servidor e criar duas contas pela API
 
 Terminal A, na pasta `server/`:
