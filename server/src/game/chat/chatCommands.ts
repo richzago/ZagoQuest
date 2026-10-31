@@ -121,6 +121,8 @@ export async function processChatCommand(
     // Um novo cumprimento inicia outro contexto de diálogo. É necessário
     // abrir a janela da loja/banco novamente para autorizar transações.
     NpcInteractionSystem.close(player);
+    // Libera também diálogos antigos abertos só pelo chat, sem janela.
+    NpcInteractionSystem.releaseConversation(player, world);
     Logger.warn(`Executando /hi para ${player.name}. NPCs próximos: ...`);
     // Procura o NPC mais próximo (em até 2 tiles)
     let closestNpc: Npc | null = null;
@@ -154,18 +156,15 @@ export async function processChatCommand(
   }
 
   if (cmd === "bye" || cmd === "tchau") {
-    // Despedida revoga a autorização econômica mesmo sem NPC conversando.
+    // Captura o NPC antes de close(): a liberação econômica apaga o diálogo.
+    const talkingNpc = world.npcs.find((npc) => npc.talkingToPlayerId === player.id);
     NpcInteractionSystem.close(player);
-    // Procura NPC com o qual o jogador está conversando
-    for (const npc of world.npcs) {
-      if (npc.talkingToPlayerId === player.id) {
-        npc.isTalking = false;
-        npc.talkingToPlayerId = undefined;
-        ChatSystem.sendPrivateMessage(player, player.name, `Você se despediu de ${npc.name}.`, [
-          player,
-        ]);
-        break;
-      }
+    NpcInteractionSystem.releaseConversation(player, world);
+
+    if (talkingNpc) {
+      ChatSystem.sendPrivateMessage(
+        player, player.name, `Você se despediu de ${talkingNpc.name}.`, [player],
+      );
     }
     return true;
   }
