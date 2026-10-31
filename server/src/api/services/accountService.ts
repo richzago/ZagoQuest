@@ -14,6 +14,14 @@ import { AppDataSource } from "../data-source";
 import { Account } from "../entities/Account";
 import { createAccountSchema } from "../../shared/schemas/account.schema";
 
+/** Safe public authentication failure; never reveal which credential is wrong. */
+export class InvalidCredentialsError extends Error {
+  constructor() {
+    super("Credenciais inválidas.");
+    this.name = "InvalidCredentialsError";
+  }
+}
+
 export class AccountService {
   /**
    * Cria uma nova conta.
@@ -92,11 +100,11 @@ export class AccountService {
   static async authenticate(email: string, password: string) {
     const accountRepo = AppDataSource.getRepository(Account);
     const account = await accountRepo.findOneBy({ email });
-    if (!account) throw new Error("Conta não encontrada");
+    if (!account) throw new InvalidCredentialsError();
 
     // Compara a senha fornecida com o hash armazenado
     const valid = await bcrypt.compare(password, account.passwordHash);
-    if (!valid) throw new Error("Senha incorreta");
+    if (!valid) throw new InvalidCredentialsError();
 
     return account;
   }
