@@ -57,7 +57,8 @@ export function startGameLoops(
     return existing;
   }
 
-  const tasks = startScheduledTasks(player, deps.scheduledTasks);
+  // Consulta world.players a cada ciclo, mantendo as correções da Fase 3.
+  const tasks = startScheduledTasks(() => world.players, deps.scheduledTasks);
   const schedule = deps.scheduleWorldTick ?? ((callback, ms) => setInterval(callback, ms));
   const cancel = deps.cancelWorldTick ?? ((timer) => clearInterval(timer));
   let stopped = false;

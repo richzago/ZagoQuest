@@ -347,3 +347,111 @@ test("falha ao registrar o timer de guildas cancela autosave e permite retry", a
   }
   assert.equal(healthy.timers.size, 0);
 });
+
+test("autosave usa lista dinâmica: jogador conectado depois entra, desconectado sai", async () => {
+  const first = new Player("phase4-a", "First", 2, 2);
+  const second = new Player("phase4-b", "Second", 3, 3);
+  let active = [first];
+  const saved: string[] = [];
+  const h = harness({ saveCharacter: async (p) => { saved.push(p.id); } });
+  const task = startScheduledTasks(() => active, h.deps);
+  try {
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.deepEqual(saved, [first.id]);
+
+    active = [first, second];
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.deepEqual(saved, [first.id, first.id, second.id]);
+
+    active = [second];
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.deepEqual(saved, [first.id, first.id, second.id, second.id]);
+  } finally {
+    task.stop();
+  }
+});
+
+test("mesmo UUID duplicado na lista só é salvo uma vez por ciclo", async () => {
+  const same = player();
+  let saves = 0;
+  const h = harness({ saveCharacter: async () => { saves++; } });
+  const task = startScheduledTasks(() => [same, same], h.deps);
+  try {
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.equal(saves, 1);
+  } finally {
+    task.stop();
+  }
+});
+
+test("autosave multiplayer aguarda todos antes de novo ciclo e flush salva estado novo", async () => {
+  const first = new Player("phase4-slow-a", "SlowA", 2, 2);
+  const second = new Player("phase4-slow-b", "SlowB", 3, 3);
+  first.gold = 5;
+  second.gold = 7;
+  const snapshots: string[] = [];
+  let release!: () => void;
+  let holdFirst = true;
+  const h = harness({
+    saveCharacter: async (current) => {
+      snapshots.push(`${current.id}:${current.gold}`);
+      if (current.id === first.id && holdFirst) {
+        holdFirst = false;
+        await new Promise<void>((resolve) => { release = resolve; });
+      }
+    },
+  });
+  const task = startScheduledTasks(() => [first, second], h.deps);
+  try {
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.deepEqual(snapshots, [`${first.id}:5`, `${second.id}:7`]);
+
+    first.gold = 50;
+    second.gold = 70;
+    const final = task.flushAutosave();
+    await settle();
+    assert.equal(snapshots.length, 2, "flush deve aguardar ciclo em curso");
+    release();
+    await final;
+    assert.deepEqual(snapshots, [
+      `${first.id}:5`, `${second.id}:7`,
+      `${first.id}:50`, `${second.id}:70`,
+    ]);
+  } finally {
+    task.stop();
+  }
+});
+
+test("falha em um player não impede salvar os demais nem tentar no tick seguinte", async () => {
+  const first = new Player("phase4-fail-a", "FailA", 2, 2);
+  const second = new Player("phase4-fail-b", "FailB", 3, 3);
+  const saves: string[] = [];
+  let fail = true;
+  const h = harness({
+    saveCharacter: async (current) => {
+      saves.push(current.id);
+      if (current.id === first.id && fail) {
+        fail = false;
+        throw new Error("Temporary DB failure");
+      }
+    },
+  });
+  const task = startScheduledTasks(() => [first, second], h.deps);
+  try {
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.deepEqual(saves, [first.id, second.id]);
+    h.fire(SCHEDULED_INTERVALS.autosave);
+    await settle();
+    assert.deepEqual(saves, [first.id, second.id, first.id, second.id]);
+  } finally {
+    task.stop();
+  }
+});
