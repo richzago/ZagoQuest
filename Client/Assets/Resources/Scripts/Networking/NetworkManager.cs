@@ -13,7 +13,7 @@ public class NetworkManager : MonoBehaviour
     public static NetworkManager Instance { get; private set; }
     public string serverUrl = "ws://localhost:3000";
     [Header("Segurança de sessão — ativar junto com WS_AUTH_REQUIRED=true no Node")]
-    public bool requireAuthenticatedSession = false;
+    public bool requireAuthenticatedSession = true;
     private string _sessionToken;
     private string _sessionCharacterId;
     private bool _authRejected;
@@ -90,6 +90,11 @@ public class NetworkManager : MonoBehaviour
             Debug.Log("[NetworkManager] DragDropManager criado automaticamente.");
         }
 
+        if (requireAuthenticatedSession && !HasCredentials)
+        {
+            Debug.Log("[NETWORK][AUTH] Aguardando login via SessionLoginDebugUI; não abrir WebSocket antes do token/characterId.");
+            return;
+        }
         await Connect();
     }
 
@@ -205,8 +210,17 @@ public class NetworkManager : MonoBehaviour
         socket.OnClose += (reason) =>
         {
             if (!ReferenceEquals(_websocket, socket) || _shuttingDown) return;
-            Debug.LogWarning($"[NetworkManager] Desconectado: {reason}. Nova tentativa em {ReconnectDelaySeconds}s.");
             isConnected = false;
+            if (reason == WebSocketCloseCode.PolicyViolation)
+            {
+                Debug.LogWarning("[NETWORK][AUTH] WebSocket recusado (1008/PolicyViolation). Confere JWT, characterId, duplicidade de sessão e requireAuthenticatedSession/WS_AUTH_REQUIRED; credenciais nunca são registradas.");
+                // Auth rejected ou violação de política: não repetir tentativas em loop.
+                _authRejected = true;
+            }
+            else
+            {
+                Debug.LogWarning($"[Network] Desconectado: {reason}. Reconexão em {ReconnectDelaySeconds}s (se sessão autorizada).");
+            }
             _awaitingAuthentication = false;
             if (requireAuthenticatedSession && !_everAuthenticated && !_changingSession)
                 _authRejected = true;
