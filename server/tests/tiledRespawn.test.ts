@@ -64,19 +64,19 @@ test("optional RespawnSpawn Tiled object overrides PlayerSpawn and validates col
   };
   writeFileSync(path,JSON.stringify(base));
   const res=MapLoader.loadMap(new World(),path);
-  assert.deepEqual(res.playerSpawn,{x:2,y:2});
-  assert.deepEqual(res.respawnSpawn,{x:6,y:5});
-  // World y=5 corresponde à linha Tiled 4 (origem do Tiled fica no topo).
-  collision[(10-1-5)*10+6]=1;
+  assert.deepEqual(res.playerSpawn,{x:2,y:7});
+  assert.deepEqual(res.respawnSpawn,{x:6,y:4});
+  // World y=4 corresponde à linha Tiled 5 (origem do Tiled fica no topo).
+  collision[(10-1-4)*10+6]=1;
   writeFileSync(path,JSON.stringify(base));
   const blocked=MapLoader.loadMap(new World(),path);
   assert.equal(blocked.respawnSpawn,undefined);
 });
 
-test("real map's PlayerSpawn is (15,3) when no RespawnSpawn layer exists", () => {
+test("real map's PlayerSpawn is (15,16) when no RespawnSpawn layer exists", () => {
   const world=new World();
   const file=join(process.cwd(),"..","assets","maps","test-map.json");
   const result=MapLoader.loadMap(world,file);
-  assert.deepEqual(result.playerSpawn,{x:15,y:3});
+  assert.deepEqual(result.playerSpawn,{x:15,y:16});
   assert.equal(result.respawnSpawn,undefined);
 });

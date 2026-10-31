@@ -32,13 +32,13 @@ test("NPCSpawn settings from Tiled reach NPC AI and govern conversation distance
   const world = new World();
   const result = MapLoader.loadMap(world, mapFile);
   assert.deepEqual(result.npcs, [{
-    x: 2, y: 1, npcId: "merchant", objectId: 1, radius: 1, interactionRadius: 1, moveCooldown: 2500,
+    x: 2, y: 8, npcId: "merchant", objectId: 1, radius: 1, interactionRadius: 1, moveCooldown: 2500,
   }]);
 
   NpcLoader.loadNpcsFromTiled(world, result.npcs!);
   assert.equal(world.npcs.length, 1);
   const npc = world.npcs[0];
-  const player = new Player("player-npc", "Tester", 4, 1);
+  const player = new Player("player-npc", "Tester", 4, 8);
   world.addPlayer(player);
   npc.isTalking = true;
   npc.talkingToPlayerId = player.id;
@@ -84,7 +84,7 @@ test("dois NPCSpawn do mesmo template mantêm IDs distintos e estáveis no snaps
 
   NpcLoader.loadNpcsFromTiled(world, spawns);
   assert.deepEqual(world.npcs.map(npc => npc.id), ["5@tiled:30", "5@tiled:31"]);
-  assert.deepEqual(world.npcs.map(npc => npc.position), [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
+  assert.deepEqual(world.npcs.map(npc => npc.position), [{ x: 1, y: 8 }, { x: 4, y: 8 }]);
   assert.deepEqual(world.npcs.map(npc => npc.npcType), ["merchant", "merchant"]);
 
   NpcLoader.loadNpcsFromTiled(world, spawns); // recarga não duplica entidades

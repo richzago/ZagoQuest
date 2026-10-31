@@ -75,6 +75,15 @@ export class MapLoader {
       const raw = readFileSync(filePath, "utf-8");
       const mapData: TiledMap = JSON.parse(raw);
 
+      // Tiled usa origem no topo esquerdo; World/Unity usam Y crescendo
+      // para cima. Usar a MESMA transformação de Ground e Collision para
+      // todos os objectgroups (PlayerSpawn, RespawnSpawn, MonsterSpawn, NPCSpawn).
+      // Os objetos deste mapa são pontos (width=0, height=0).
+      const toWorldTile = (object: TiledObject) => ({
+        x: Math.floor(object.x / mapData.tilewidth),
+        y: mapData.height - 1 - Math.floor(object.y / mapData.tileheight),
+      });
+
       // 2. Redimensiona o mundo e limpa os tiles existentes
       world.width = mapData.width;
       world.height = mapData.height;
@@ -130,8 +139,7 @@ export class MapLoader {
               customType === "player";
           });
           if (playerObj) {
-            const tileX = Math.floor(playerObj.x / mapData.tilewidth);
-            const tileY = Math.floor(playerObj.y / mapData.tileheight);
+            const { x: tileX, y: tileY } = toWorldTile(playerObj);
             result.playerSpawn = { x: tileX, y: tileY };
             Logger.world(`Spawn do jogador em (${tileX}, ${tileY})`);
           } else {
@@ -148,9 +156,9 @@ export class MapLoader {
           const defaultRadius = layer.properties?.find((p) => p.name === "radius")?.value;
 
           for (const obj of layer.objects || []) {
-            // Converte coordenadas de pixels para tiles (considerando o canto superior esquerdo do objeto)
-            const tileX = Math.floor(obj.x / mapData.tilewidth);
-            const tileY = Math.floor(obj.y / mapData.tileheight);
+            // A coordenada Y dos pontos de spawn deve corresponder à célula
+            // renderizada no Ground, não à linha Tiled top-down.
+            const { x: tileX, y: tileY } = toWorldTile(obj);
 
             // Lê as propriedades do objeto (prioridade sobre as padrão da layer)
             let monsterId = obj.properties?.find((p) => p.name === "monsterId")?.value;
@@ -195,8 +203,7 @@ export class MapLoader {
             return label === "respawn" || label === "player" || custom === "respawn";
           });
           if (obj) {
-            const x = Math.floor(obj.x / mapData.tilewidth);
-            const y = Math.floor(obj.y / mapData.tileheight);
+            const { x, y } = toWorldTile(obj);
             result.respawnSpawn = { x, y };
           } else {
             Logger.warn("[MapLoader] RespawnSpawn sem objeto player/respawn; usando PlayerSpawn.");
@@ -212,8 +219,7 @@ export class MapLoader {
               );
               continue;
             }
-            const x = Math.floor(obj.x / mapData.tilewidth);
-            const y = Math.floor(obj.y / mapData.tileheight);
+            const { x, y } = toWorldTile(obj);
             result.npcs = result.npcs || [];
             const property = (name: string): number | undefined => {
               const value = obj.properties?.find((p) => p.name === name)?.value;

@@ -1,7 +1,7 @@
 # C1 — Auditoria de Tiled, sprites, layers e colisão (31/10/2026)
 
 **Fonte:** `assets/maps/test-map.json` (Node) e `Client/Assets/Resources/Maps/test-map.json` (Unity).
-**Status:** inventário estático inicial concluído; **Play Mode e colisão do mapa ainda aguardam testes do desenvolvedor**.
+**Status atualizado (31/10/2026):** alinhamento Grid/água/colisão VALIDADO LOCALMENTE pelo desenvolvedor; conversão Y das object layers (spawns) em andamento e requer QA antes de encerrar C1. As seções antigas abaixo registram o histórico de problemas já corrigidos.
 
 ## Verificações feitas no repositório
 
@@ -163,3 +163,36 @@ O `TiledMapRenderer.cs` recebe ferramentas **somente no Editor**, `#if UNITY_EDI
 5. **Não ajustar Collision uma casa para mascarar a diferença, nem migrar posições SQL/spawns neste PR de instrumentação.** Corrigir somente após o resultado determinar a camada responsável.
 
 Status: C0 encerrada; C1 em validação e investigação; C3/C8 independentes.
+
+## C1 — Aceite visual e revisão final de spawns (31/10/2026)
+
+### Evidência de aceite local
+O desenvolvedor informou "Era isso mesmo, corrigido, podemos prosseguir" e forneceu diagnóstico [C1 QA] com Player world=(24,7), logicalCell=(24,7), WorldToCell=(24,7), GetCellCenterWorld=(24,7), Grid origin=(-0.5,-0.5) e TileAnchor=(0.5,0.5). Amostras das quatro bordas: chão collisionBlocked=False/unityWalkable=True; água collisionBlocked=True/unityWalkable=False. **Alinhamento visual e bloqueio de água validados no Unity.**
+
+### Último bug: objetos Tiled com eixo Y invertido
+
+**BUG P1 comprovado em MapLoader:** o desenho (Ground) e a matriz Collision já espelham a linha Tiled, que cresce para baixo, usando worldY = height - 1 - tiledRow. Entretanto PlayerSpawn, RespawnSpawn, MonsterSpawn e NPCSpawn usavam diretamente floor(obj.y / tileheight) como World Y. O resultado era posicionar os objetos do lado vertical oposto ao desenhado no Tiled.
+
+**Correção mínima:** a conversão compartilhada dos objectgroups passa a usar x = floor(obj.x / tilewidth), y = height - 1 - floor(obj.y / tileheight). Não alterar os JSONs, sprites, Grid, Collision, lógica autoritativa de movimento nem dados SQL.
+
+| Objeto no test-map 30×20 | Antes (Node antigo) | Após PR |
+|---|---|---|
+| PlayerSpawn | (15,3) | **(15,16)** |
+| Goblin | (4,14) | **(4,5)** |
+| Banker | (25,6) | **(25,13)** |
+| Merchant | (25,14) | **(25,5)** |
+| RespawnSpawn | Não existe no mapa atual | Y convertido em mapas que o possuírem |
+
+**Proteção de persistência:** PlayerLoader preserva a última posição válida salva no PostgreSQL; não há migração ou reset de personagens. A mudança afeta o primeiro spawn de **personagens novos**, respawn após morte e as posições de NPCs e monstros no bootstrap. O teste de regressão garante que personagem existente na posição (15,10) permaneça nela mesmo após o PlayerSpawn mudar.
+
+**Testes CI:** mapa real e mapa sintético assimétrico para todas as object layers; testes de NPC, respawn, colisão e personagem persistido ajustados. O backend roda os testes, mas a CI não executa Unity.
+
+### QA necessário antes de fechar a C1
+
+1. Após merge na dev, atualizar com git status e pull seguro; reiniciar o servidor.
+2. Verificar que Teste Alfa e Beta voltam às posições **persistidas**, sem teleporte automático ao novo PlayerSpawn.
+3. Verificar que o Node informa novo PlayerSpawn (15,16), Goblin (4,5), Banker (25,13) e Merchant (25,5).
+4. Verificar no Play Mode que NPCs e monstros aparecem sobre o chão correto do Tiled e mantêm suas interações.
+5. Com personagem novo **em banco descartável**, validar spawn em (15,16) ou próximo se ocupado. Não alterar contas reais só para testar.
+6. Confirmar que água segue bloqueada nos quatro limites.
+7. Após aceite local específico, marcar C1 concluída; prosseguir a C2 — Lifecycle/Entities, mantendo C8 com homologação integrada própria.
