@@ -92,6 +92,9 @@ public class LootUI : MonoBehaviour
         if (closeButton != null) closeButton.onClick.AddListener(CloseLootWindow);
         if (takeAllButton != null) takeAllButton.onClick.AddListener(TakeAllLoot);
         if (lootPanel != null) lootPanel.SetActive(false);
+        // Na scene o X é irmão de PanelVisual, portanto deve ser ocultado
+        // explicitamente quando o loot estiver fechado.
+        if (closeButton != null) closeButton.gameObject.SetActive(false);
     }
 
     public void ShowLootWindow(string corpseId, LootItem[] items)
@@ -103,6 +106,7 @@ public class LootUI : MonoBehaviour
         if (items != null) visibleItems.AddRange(items);
         RebuildRows();
         if (lootPanel != null) lootPanel.SetActive(true);
+        if (closeButton != null) closeButton.gameObject.SetActive(true);
     }
 
     private void RebuildRows()
@@ -201,6 +205,7 @@ public class LootUI : MonoBehaviour
         awaitingServer = false;
         visibleItems.Clear();
         if (lootPanel != null) lootPanel.SetActive(false);
+        if (closeButton != null) closeButton.gameObject.SetActive(false);
     }
 
     private void OnDestroy()
