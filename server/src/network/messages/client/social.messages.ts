@@ -29,6 +29,14 @@ export interface ClientBuyItemMessage {
   amount: number;
 }
 
+/** Venda de itens do catálogo da sessão de comerciante. */
+export interface ClientSellItemMessage {
+  type: "sellItem";
+  npcId: string;
+  itemId: string;
+  amount: number;
+}
+
 /**
  * Abrir banco.
  */
