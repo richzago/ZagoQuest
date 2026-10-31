@@ -159,7 +159,7 @@ public class TargetSelector : MonoBehaviour
             // ====================
             else if (corpse != null)
             {
-                if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
+                if (!string.IsNullOrEmpty(corpse.corpseId))
                 {
                     Debug.Log($"[TargetSelector] Clique no corpse ID {corpse.corpseId}");
                     network.Inventory?.SendLoot(corpse.corpseId);
@@ -192,7 +192,7 @@ public class TargetSelector : MonoBehaviour
                 }
             }
             // ====================
-            // 4. CLIQUE EM OUTRO LUGAR → CANCELA TARGET
+            // 5. CLIQUE EM OUTRO LUGAR → CANCELA TARGET
             // ====================
             else
             {
