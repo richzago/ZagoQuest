@@ -31,7 +31,10 @@ export interface ServerPlayerStatsMessage {
   xpToNext: number;      // Limite absoluto de XP do próximo nível
   levelXp: number;       // XP dentro do nível atual
   levelXpToNext: number; // XP necessário dentro do nível
-  lifetimeXp: number;    // Todo XP recebido durante a trajetória
+  lifetimeXp: number;
+  satiety?: number;
+  satietyMax?: number;
+  foodSecondsRemaining?: number;    // Todo XP recebido durante a trajetória
   // Compatibilidade temporária com antigos consumidores.
   experience?: number;
   experienceToNext?: number;
