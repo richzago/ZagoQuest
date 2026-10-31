@@ -7,7 +7,7 @@
  */
 
 import { Request, Response } from "express";
-import { GuildService } from "../services/guildService";
+import { GuildService, GuildRuleError } from "../services/guildService";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware";
 import { parseGuildPagination } from "../pagination";
 
@@ -119,7 +119,7 @@ export class GuildController {
       await GuildService.setDescription(characterName, description);
       res.json({ message: "Descrição atualizada com sucesso" });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar guilda" });
+      res.status(error instanceof GuildRuleError ? 400 : 500).json({ error: error instanceof GuildRuleError ? error.message : "Falha interna ao processar guilda." });
     }
   }
 
@@ -135,7 +135,7 @@ export class GuildController {
       await GuildService.setProfileImage(characterName, imageUrl);
       res.json({ message: "Imagem de perfil atualizada com sucesso" });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar guilda" });
+      res.status(error instanceof GuildRuleError ? 400 : 500).json({ error: error instanceof GuildRuleError ? error.message : "Falha interna ao processar guilda." });
     }
   }
 
@@ -151,7 +151,7 @@ export class GuildController {
       await GuildService.setCoverImage(characterName, imageUrl);
       res.json({ message: "Imagem de capa atualizada com sucesso" });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar guilda" });
+      res.status(error instanceof GuildRuleError ? 400 : 500).json({ error: error instanceof GuildRuleError ? error.message : "Falha interna ao processar guilda." });
     }
   }
 
@@ -168,7 +168,7 @@ export class GuildController {
       const guild = await GuildService.createGuild(characterName, guildName, description);
       res.status(201).json({ id: guild.id, name: guild.name, description: guild.description });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao criar guilda" });
+      res.status(error instanceof GuildRuleError ? 400 : 500).json({ error: error instanceof GuildRuleError ? error.message : "Falha interna ao processar guilda." });
     }
   }
 
