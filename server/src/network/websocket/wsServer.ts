@@ -24,6 +24,9 @@ import { CombatEventBridge } from "./combatEventBridge";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { Corpse } from "../../game/entities/corpse";
 import { Monster } from "../../game/entities/monster";
+import { authorizeCharacterSession, type AuthorizedCharacter } from "../auth/characterSessionAuth";
+import { DatabasePersistence } from "../../game/systems/databasePersistence";
+import { z } from "zod";
 // Importar os novos senders específicos
 import {
   InitialStateSender,
@@ -36,6 +39,23 @@ import {
  * Servidor WebSocket responsável por receber comandos dos clientes
  * e enviar atualizações do mundo.
  */
+const authenticatePacket = z.strictObject({
+  type: z.literal("authenticate"),
+  token: z.string().min(1).max(8192),
+  characterId: z.uuid(),
+});
+
+/**
+ * Auth é obrigatória em produção. Em desenvolvimento a flag explícita
+ * WS_AUTH_REQUIRED=true ativa o handshake sem quebrar o cliente legado.
+ * Injeção permite integração socket real sem PostgreSQL em testes unitários.
+ */
+export interface WebSocketSessionOptions {
+  authRequired?: boolean;
+  authorize?: (token: string, characterId: string) => Promise<AuthorizedCharacter | null>;
+  loadPlayer?: (authorized: AuthorizedCharacter) => Promise<Player | null>;
+}
+
 export class WebSocketServer {
   private wss: WSServer;
   private world: World;
@@ -46,8 +66,18 @@ export class WebSocketServer {
   private stopping = false;
   private closePromise?: Promise<void>;
   private static instance: WebSocketServer | undefined;
+  private readonly authRequired: boolean;
+  private readonly authorizeSession: (token: string, characterId: string) => Promise<AuthorizedCharacter | null>;
+  private readonly loadSessionPlayer: (authorized: AuthorizedCharacter) => Promise<Player | null>;
+  private readonly reservedCharacterIds = new Set<string>();
+  private readonly pendingSessionSaves = new Set<Promise<void>>();
 
-  constructor(server: HttpServer, world: World) {
+  constructor(server: HttpServer, world: World, options: WebSocketSessionOptions = {}) {
+    this.authRequired = process.env.NODE_ENV === "production" ||
+      (options.authRequired ?? process.env.WS_AUTH_REQUIRED === "true");
+    this.authorizeSession = options.authorize ?? authorizeCharacterSession;
+    this.loadSessionPlayer = options.loadPlayer ??
+      ((authorized) => DatabasePersistence.loadCharacter(authorized.characterName));
     WebSocketServer.instance = this;
     this.world = world;
     this.broadcast = new BroadcastService(world);
@@ -61,26 +91,15 @@ export class WebSocketServer {
 
   private init(): void {
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-      Logger.system(`Cliente conectado: ${req.socket.remoteAddress}`);
       if (this.stopping) {
         ws.close(1001, "Servidor encerrando.");
         return;
       }
-
-      // IMPORTANTE: não existe autenticação de socket ainda. Enquanto o jogo
-      // é single-player, impedimos DOIS sockets de controlar world.players[0].
-      // Isto NÃO substitui login/JWT por personagem em um MMORPG público.
-      const player = this.world.players[0];
-      if (!player) {
-        ws.close(1008, "Nenhum personagem disponivel.");
-        return;
-      }
-      if ([...this.clients.values()].some((connected) => connected.id === player.id)) {
-        Logger.warn(`Conexão duplicada recusada para ${player.name}.`);
-        ws.close(1008, "Personagem ja conectado.");
-        return;
-      }
-
+      // Não registrar socket anônimo no BroadcastService.
+      let player: Player | undefined;
+      let authPending = false;
+      let sessionClosing = false;
+      let invalidPackets = 0;
       const limiter = new MessageRateLimiter();
       const sender = new PacketSender(ws);
       const ctx = new HandlerContext(this.world, this, sender, this.broadcast);
@@ -88,96 +107,166 @@ export class WebSocketServer {
         Logger.error(`[NETWORK] Falha no handler: ${String(error)}`);
       });
       this.messageQueues.set(ws, queue);
-      let invalidPackets = 0;
-      const MAX_INVALID_PACKETS = 3;
 
-      this.clients.set(ws, player);
-      this.broadcast.registerClient(ws, player);
-      Logger.system(`Jogador ${player.name} (ID ${player.id}) associado ao socket.`);
+      const initialSnapshot = (current: Player) => {
+        InitialStateSender.send(ws, current);
+        InventorySender.send(ws, current);
+        PlayerStatsSender.send(ws, current);
+        WorldStateSender.send(ws, this.world);
+      };
+      const attach = (current: Player) => {
+        player = current;
+        this.clients.set(ws, current);
+        this.broadcast.registerClient(ws, current);
+        // Token e segredos nunca entram no log.
+        Logger.system(`Personagem ${current.name} (${current.id}) associado ao socket.`);
+      };
+      const duplicate = (characterId: string) =>
+        this.reservedCharacterIds.has(characterId) ||
+        [...this.clients.values()].some((current) => current.id === characterId);
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      if (this.authRequired) {
+        deadline = setTimeout(() => {
+          if (!player && ws.readyState === WebSocket.OPEN) {
+            ws.close(1008, "Autenticacao nao recebida.");
+          }
+        }, 8000);
+        deadline.unref?.();
+      } else {
+        // Apenas o modo legado LOCAL mantém o bootstrap world.players[0].
+        // Produção rejeita esta modalidade sem JWT.
+        const legacy = this.world.players[0];
+        if (!legacy || duplicate(legacy.id)) {
+          ws.close(1008, "Personagem indisponivel.");
+        } else {
+          attach(legacy);
+          initialSnapshot(legacy);
+        }
+      }
 
-      // O erro do próprio WebSocket (inclusive payload excessivo) deve ter
-      // listener; caso contrário um evento "error" pode derrubar o Node.
       ws.on("error", (error) => {
-        Logger.warn(`[NETWORK] Erro no socket de ${player.name}: ${String(error)}`);
+        Logger.warn(`[NETWORK] Falha de socket: ${String(error)}`);
       });
 
       ws.on("close", () => {
-        // Timers pertencem à sessão: desconexão não pode conceder loot
-        // ou skill de pesca enquanto não existe cliente autorizado.
-        FishingSystem.cancelFishing(player);
-        // Nunca reutilizar uma sessão econômica após desconectar/reconectar.
-        NpcInteractionSystem.close(player);
-        Logger.system(`Cliente ${player.name} desconectado.`);
-        this.broadcast.unregisterClient(ws);
-        this.clients.delete(ws);
-        // A disconnected socket can still have an async handler executing.
-        // Keep its queue visible to shutdown until the handler finishes.
-        if (queue.pending === 0) {
-          this.messageQueues.delete(ws);
-        } else {
-          void queue.whenIdle().then(() => {
-            if (this.messageQueues.get(ws) === queue) this.messageQueues.delete(ws);
-          });
+        if (deadline) clearTimeout(deadline);
+        sessionClosing = true;
+        const closingPlayer = player;
+        if (closingPlayer) {
+          FishingSystem.cancelFishing(closingPlayer);
+          NpcInteractionSystem.close(closingPlayer);
+          this.broadcast.unregisterClient(ws);
+          this.clients.delete(ws);
         }
+        // Um login subsequente deste UUID só será aceito após salvar dados.
+        const finishing = (async () => {
+          await queue.whenIdle();
+          if (closingPlayer && this.authRequired) {
+            try { await DatabasePersistence.saveCharacter(closingPlayer); }
+            catch (error) {
+              Logger.error(`[SESSION] Falha salvando ${closingPlayer.name}: ${String(error)}`);
+            } finally {
+              this.reservedCharacterIds.delete(closingPlayer.id);
+            }
+          }
+        })();
+        this.pendingSessionSaves.add(finishing);
+        void finishing.finally(() => {
+          this.pendingSessionSaves.delete(finishing);
+          if (this.messageQueues.get(ws) === queue) this.messageQueues.delete(ws);
+        });
       });
 
-      // Trata mensagens em ordem. JSON.parse nunca recebe entrada não validada
-      // por tamanho; os handlers nunca recebem objetos fora do schema.
       ws.on("message", (data, isBinary) => {
-        if (this.stopping || ws.readyState !== WebSocket.OPEN) return;
-
+        if (this.stopping || sessionClosing || ws.readyState !== WebSocket.OPEN) return;
         if (isBinary) {
           ws.close(1003, "Apenas JSON texto e permitido.");
           return;
         }
-
-        // Limite de pacotes por segundo, inclusive pacotes malformados.
         if (!limiter.allow()) {
-          Logger.warn(`[NETWORK] Excesso de mensagens de ${player.name}.`);
           ws.close(1008, "Limite de mensagens excedido.");
           return;
         }
-
-        const parsed = parseClientMessage(data.toString());
-        if (!parsed.ok) {
-          invalidPackets++;
-          Logger.warn(`[NETWORK] Mensagem rejeitada de ${player.name}: ${parsed.reason}`);
-          if (invalidPackets >= MAX_INVALID_PACKETS) {
-            ws.close(1008, "Mensagens invalidas repetidas.");
-          } else {
-            ws.send(JSON.stringify({
-              type: "networkError",
-              message: "Mensagem invalida.",
-            }));
+        const raw = data.toString();
+        if (this.authRequired && !player) {
+          // Um socket não pode executar comandos antes da autenticação nem
+          // iniciar diversas operações SQL de login ao mesmo tempo.
+          if (authPending) {
+            ws.close(1008, "Autenticacao em andamento.");
+            return;
           }
+          let decoded: unknown;
+          try { decoded = JSON.parse(raw); } catch {
+            ws.close(1008, "Autenticacao invalida.");
+            return;
+          }
+          const parsed = authenticatePacket.safeParse(decoded);
+          if (!parsed.success) {
+            ws.close(1008, "Autenticacao invalida.");
+            return;
+          }
+          authPending = true;
+          void (async () => {
+            let reservedId: string | undefined;
+            try {
+              const identity = await this.authorizeSession(parsed.data.token, parsed.data.characterId);
+              if (!identity || this.stopping || sessionClosing || ws.readyState !== WebSocket.OPEN) {
+                if (ws.readyState === WebSocket.OPEN) ws.close(1008, "Acesso negado.");
+                return;
+              }
+              if (duplicate(identity.characterId)) {
+                ws.close(1008, "Personagem ja conectado.");
+                return;
+              }
+              reservedId = identity.characterId;
+              this.reservedCharacterIds.add(reservedId);
+              const existing = this.world.players.find((current) => current.id === reservedId);
+              const loaded = existing ?? await this.loadSessionPlayer(identity);
+              if (!loaded || loaded.id !== reservedId || this.stopping ||
+                  sessionClosing || ws.readyState !== WebSocket.OPEN) {
+                if (ws.readyState === WebSocket.OPEN) ws.close(1008, "Personagem indisponivel.");
+                return;
+              }
+              if (!existing) this.world.addPlayer(loaded);
+              attach(loaded);
+              reservedId = undefined; // a sessão agora é responsável pela reserva
+              if (deadline) clearTimeout(deadline);
+              ws.send(JSON.stringify({ type: "authenticated", characterId: loaded.id }));
+              initialSnapshot(loaded);
+            } catch (error) {
+              Logger.error(`[SESSION] Falha no login do personagem: ${String(error)}`);
+              if (ws.readyState === WebSocket.OPEN) ws.close(1011, "Falha ao autenticar.");
+            } finally {
+              if (reservedId) this.reservedCharacterIds.delete(reservedId);
+              authPending = false;
+            }
+          })();
           return;
         }
-
-        // Defesa contra handlers do protótipo ("constructor", "toString", etc.).
-        // O schema já restringe tipos; a checagem do próprio objeto é redundância.
+        if (!player) return; // socket legado recusado, ainda não fechado
+        const parsed = parseClientMessage(raw);
+        if (!parsed.ok) {
+          invalidPackets++;
+          if (invalidPackets >= 3) ws.close(1008, "Mensagens invalidas repetidas.");
+          else ws.send(JSON.stringify({ type: "networkError", message: "Mensagem invalida." }));
+          return;
+        }
         const type = parsed.message.type;
         if (!Object.prototype.hasOwnProperty.call(handlers, type)) {
           ws.close(1008, "Comando desconhecido.");
           return;
         }
+        const currentPlayer = player;
         const handler = handlers[type] as HandlerFn;
-
-        // Um socket não pode enfileirar trabalho ilimitado enquanto o banco
-        // ou um handler assíncrono estiver lento.
         if (!queue.enqueue(async () => {
-          if (this.stopping || ws.readyState !== WebSocket.OPEN || this.clients.get(ws) !== player) return;
-          await handler(ws, player, parsed.message, ctx);
+          if (!this.stopping && !sessionClosing && ws.readyState === WebSocket.OPEN &&
+              this.clients.get(ws) === currentPlayer) {
+            await handler(ws, currentPlayer, parsed.message, ctx);
+          }
         })) {
-          Logger.warn(`[NETWORK] Fila cheia para ${player.name}.`);
           ws.close(1008, "Fila de comandos excedida.");
         }
       });
-
-      // Protocolo existente do Unity: dados iniciais sem mudanças.
-      InitialStateSender.send(ws, player);
-      InventorySender.send(ws, player);
-      PlayerStatsSender.send(ws, player);
-      WorldStateSender.send(ws, this.world);
     });
   }
 
@@ -211,6 +300,7 @@ export class WebSocketServer {
           });
         });
       } finally {
+        await Promise.allSettled([...this.pendingSessionSaves]);
         this.combatEvents.dispose();
         this.messageQueues.clear();
         this.clients.clear();
