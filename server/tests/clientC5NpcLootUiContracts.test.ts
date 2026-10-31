@@ -67,7 +67,7 @@ test("C5: loja e banco usam mesma identidade visual sem alterar autoridade econo
   assert.match(item,/int\.TryParse\(amountInput\.text, out quantity\)/);
   assert.match(item,/quantity <= 0/);
   assert.match(item,/network\.Shop\.SendBuyItem\(npcId, item\.itemId, quantity\)/);
-  assert.match(bank,/WorldWindowLayout\.PreparePanel\(bankPanel, 480f, 370f\)/);
+  assert.match(bank,/WorldWindowLayout\.PreparePanel\(bankPanel, 440f, 345f\)/);
   assert.match(bank,/NetworkManager\.Instance\.Bank\.SendDeposit\(amount\)/);
   assert.match(bank,/NetworkManager\.Instance\.Bank\.SendWithdraw\(amount\)/);
   assert.match(layout,/LayoutElement/);
