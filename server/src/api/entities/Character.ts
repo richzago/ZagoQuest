@@ -84,11 +84,11 @@ export class Character {
   maxHp: number;
 
   /** Pontos de mana atuais. */
-  @Column({ type: "int", default: 0 })
+  @Column({ type: "int", default: 50 })
   mana: number;
 
   /** Pontos de mana máximos. */
-  @Column({ type: "int", default: 0 })
+  @Column({ type: "int", default: 50 })
   maxMana: number;
 
   /** Inventário do personagem (itemId → quantidade). Armazenado como JSONB. */
