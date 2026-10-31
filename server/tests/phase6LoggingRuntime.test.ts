@@ -15,7 +15,7 @@ test("logs ocultam JWT Bearer, senha em JSON e connection URL", () => {
   for (const secret of ["eyJhbG", "123abc", "hello", "hidden", "private"]) {
     assert.equal(clean.includes(secret), false, secret);
   }
-  assert.match(clean, /Bearer \[REDACTED\]/);
+  assert.match(clean, /Authorization: \[REDACTED\]/);
   assert.match(clean, /password="\[REDACTED\]/);
   assert.match(clean, /postgresql:\/\/\[REDACTED\]@/);
 });
