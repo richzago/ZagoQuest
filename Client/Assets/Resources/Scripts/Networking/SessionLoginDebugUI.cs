@@ -21,12 +21,44 @@ public class SessionLoginDebugUI : MonoBehaviour
     private string status = "Login de teste para sessão autenticada.";
     private bool busy;
 
+    // Ícone compacto no rodapé direito. Não conflita com Status (esquerda)
+    // nem com o espaço reservado para o minimapa (canto superior direito).
     private void OnGUI()
     {
-        if (NetworkManager.Instance == null ||
-            !NetworkManager.Instance.requireAuthenticatedSession) return;
-        GUILayout.BeginArea(new Rect(12, 12, 360, 330), GUI.skin.box);
-        GUILayout.Label("ZagoQuest - Sessão autenticada (QA)");
+        var network = NetworkManager.Instance;
+        if (network == null || !network.requireAuthenticatedSession) return;
+
+        if (network.isConnected)
+        {
+            // Nada de caixa de login após autenticar. Apenas Logout visível.
+            var oldBackground = GUI.backgroundColor;
+            var oldContent = GUI.contentColor;
+            GUI.backgroundColor = new Color(0.18f, 0.25f, 0.33f, 1f);
+            GUI.contentColor = new Color(0.98f, 0.82f, 0.57f, 1f);
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 25,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            if (GUI.Button(new Rect(Screen.width - 66, Screen.height - 66, 48, 48),
+                new GUIContent("⏻", "Sair da sessão"), style))
+            {
+                Logout();
+            }
+            GUI.backgroundColor = oldBackground;
+            GUI.contentColor = oldContent;
+            if (!string.IsNullOrEmpty(GUI.tooltip))
+                GUI.Label(new Rect(Screen.width - 180, Screen.height - 90, 150, 24),
+                    GUI.tooltip);
+            return;
+        }
+
+        // Tela de entrada compacta só aparece fora da sessão autenticada.
+        GUILayout.BeginArea(new Rect(16, 16, 366, 335), GUI.skin.box);
+        var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
+        GUILayout.Label("ZAGOQUEST  |  ENTRAR", title);
+        GUILayout.Space(6);
 
         if (characters == null)
         {
@@ -35,36 +67,48 @@ public class SessionLoginDebugUI : MonoBehaviour
             GUILayout.Label("Senha");
             password = GUILayout.PasswordField(password, '*');
             GUI.enabled = !busy;
-            if (GUILayout.Button(busy ? "Autenticando..." : "Entrar"))
+            if (GUILayout.Button(busy ? "Autenticando..." : "Entrar", GUILayout.Height(36)))
                 StartCoroutine(Login());
             GUI.enabled = true;
         }
         else
         {
-            GUILayout.Label("Escolhe um personagem da tua conta:");
+            GUILayout.Label("Escolha o personagem:");
             foreach (var entry in characters)
             {
                 var id = entry["id"]?.ToString();
                 var name = entry["name"]?.ToString();
                 if (string.IsNullOrEmpty(id)) continue;
-                if (GUILayout.Button(name))
+                if (GUILayout.Button(name, GUILayout.Height(34)))
                 {
-                    NetworkManager.Instance.ConfigureAuthenticatedSession(token, id);
+                    network.ConfigureAuthenticatedSession(token, id);
                     status = "Conectando personagem selecionado...";
                 }
             }
         }
 
-        // Mensagem da camada WS, inclusive personagem já conectado.
-        // O login REST pode ser válido mesmo quando o personagem está online.
-        var manager = NetworkManager.Instance;
-        if (!string.IsNullOrWhiteSpace(manager.AuthenticationStatusMessage))
-            GUILayout.Label(manager.AuthenticationStatusMessage);
-        else if (manager.isConnected)
-            GUILayout.Label("Personagem conectado.");
+        GUILayout.Space(8);
+        if (!string.IsNullOrWhiteSpace(network.AuthenticationStatusMessage))
+            GUILayout.Label(network.AuthenticationStatusMessage);
         else
             GUILayout.Label(status);
         GUILayout.EndArea();
+    }
+
+    private void Logout()
+    {
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected) return;
+        // Não reter JWT, lista de personagens nem dados de login no painel.
+        email = "";
+        password = "";
+        accountId = null;
+        token = null;
+        characters = null;
+        busy = false;
+        status = "Sessão encerrada. Faça login para voltar.";
+        _ = network.LogoutAuthenticatedSession();
+        StatusManager.Instance?.ClosePanel();
     }
 
     private IEnumerator Login()
