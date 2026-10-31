@@ -421,7 +421,14 @@ public class TargetSelector : MonoBehaviour
         if (canvas == null || canvas.renderMode == RenderMode.WorldSpace)
             return false; // nameplates e barras de HP não são UI bloqueadora
 
+        // Respeitar fade também de BOTÕES: um painel completamente
+        // oculto via CanvasGroup não pode bloquear mundo por Selectable.
+        CanvasGroup[] groups = go.GetComponentsInParent<CanvasGroup>();
+        foreach (var group in groups)
+            if (group != null && group.alpha <= 0.001f) return false;
+
         // Um controle interativo pode ter Image invisível de propósito.
+        // O EventSystem já aplica interatividade/blocksRaycasts.
         if (go.GetComponentInParent<Selectable>() != null ||
             go.GetComponentInParent<C6WindowDragHandle>() != null)
             return true;
@@ -432,11 +439,6 @@ public class TargetSelector : MonoBehaviour
         if (graphic == null || !graphic.raycastTarget ||
             graphic.color.a <= 0.001f || graphic.canvasRenderer.GetAlpha() <= 0.001f)
             return false;
-
-        // Respeitar fade de painéis: CanvasGroup.alpha=0 também é invisível.
-        CanvasGroup[] groups = go.GetComponentsInParent<CanvasGroup>();
-        foreach (var group in groups)
-            if (group != null && group.alpha <= 0.001f) return false;
 
         return true; // fundo VISÍVEL de janela deve continuar protegendo o mundo
     }
