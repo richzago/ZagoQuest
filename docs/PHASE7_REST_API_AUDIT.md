@@ -55,3 +55,20 @@ A API **não está homologada para Internet**. O teste PostgreSQL do GitHub Acti
 - [ ] Consolidar documentos/contratos, testar na `dev` e reconciliar checklist Notion.
 
 Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitui homologação delas.
+
+
+## Rodadas seguintes (31/10/2026)
+
+### PR #68 — segurança HTTP pública (integrado na dev)
+
+- CORS explicitamente limitado em produção; `CORS_ALLOWED_ORIGINS` aceita origens exatas. Unity nativo sem `Origin` preservado.
+- `POST /api/sessions`: 20 requisições por IP a cada 5 minutos; `POST /api/accounts`: 5 requisições por IP por hora; resposta `429` com `Retry-After`.
+- O mecanismo é em memória e **não substitui** proxy/WAF com proteção distribuída. A validação com usuários simultâneos/atrás de NAT continua pendente.
+
+### PR #69 — validação da listagem pública de guildas (esta rodada)
+
+- Remover `parseInt(query.page) || 1` e `parseInt(query.limit) || 10/100`: agora somente inteiros decimais estritamente positivos, `page` até 10.000 e `limit` até 100; `400` para campos inválidos.
+- Sanitizar resposta `500` de `GET /api/guilds/rank/level`, `GET /api/guilds/rank/kills`, `GET /api/guilds/list` e `GET /api/guilds/:guildName` sem expor mensagens SQL.
+- Sucesso `200 {page, limit, total, data}` preservado; detalhes `404` continuam iguais; campo de histórico `logs` segue oculto.
+- Unit tests do controller e teste HTTP real com PostgreSQL efêmero cobrindo paginação válida e negativos.
+- Status deste PR depende de aprovação da CI e merge; nenhuma evidência manual Unity/PostgreSQL local nesta rodada.

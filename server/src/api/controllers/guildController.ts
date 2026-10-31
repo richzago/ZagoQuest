@@ -9,6 +9,7 @@
 import { Request, Response } from "express";
 import { GuildService } from "../services/guildService";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware";
+import { parseGuildPagination } from "../pagination";
 
 export class GuildController {
 
@@ -49,34 +50,46 @@ export class GuildController {
   // ========== Rankings ==========
   static async getRankByLevel(req: Request, res: Response) {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const pagination = parseGuildPagination(req.query, 10);
+      if (!pagination) {
+        res.status(400).json({ error: "Paginação inválida." });
+        return;
+      }
+      const { page, limit } = pagination;
       const { data, total } = await GuildService.getRankByLevel(page, limit);
       res.json({ page, limit, total, data });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Falha ao consultar guildas." });
     }
   }
 
   static async getRankByKills(req: Request, res: Response) {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const pagination = parseGuildPagination(req.query, 10);
+      if (!pagination) {
+        res.status(400).json({ error: "Paginação inválida." });
+        return;
+      }
+      const { page, limit } = pagination;
       const { data, total } = await GuildService.getRankByKills(page, limit);
       res.json({ page, limit, total, data });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Falha ao consultar guildas." });
     }
   }
 
   static async listAllGuilds(req: Request, res: Response) {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 100;
+      const pagination = parseGuildPagination(req.query, 100);
+      if (!pagination) {
+        res.status(400).json({ error: "Paginação inválida." });
+        return;
+      }
+      const { page, limit } = pagination;
       const { data, total } = await GuildService.listAllGuilds(page, limit);
       res.json({ page, limit, total, data });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Falha ao consultar guildas." });
     }
   }
 
@@ -90,7 +103,7 @@ export class GuildController {
       const { logs, ...safeGuild } = guild;
       res.json(safeGuild);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Falha ao consultar guildas." });
     }
   }
 
