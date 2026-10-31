@@ -42,3 +42,24 @@ test("C1: Collision só alimenta a matriz; não é desenhada como layer visual",
   assert.match(source, /SetCollisionMatrix\(blocked, mapData\.width, mapData\.height\)/);
   assert.match(source, /missingGids\.Add\(gid\)/);
 });
+
+test("C1: decoração compartilha o Grid do chão e pula camadas vazias", () => {
+  const source = read("Client/Assets/Resources/Scripts/World/TiledMapRenderer.cs");
+  assert.match(source, /layerObj\.transform\.SetParent\(groundTilemap\.transform\.parent, false\)/);
+  assert.match(source, /layerObj\.transform\.localPosition = groundTilemap\.transform\.localPosition/);
+  assert.match(source, /layerObj\.transform\.localRotation = groundTilemap\.transform\.localRotation/);
+  assert.match(source, /layerObj\.transform\.localScale = groundTilemap\.transform\.localScale/);
+  assert.doesNotMatch(source, /layerObj\.transform\.SetParent\(this\.transform\)/);
+  assert.match(source, /Array\.Exists\(layer\.data, gid => gid != 0\)/);
+  assert.match(source, /if \(!HasValidTileData\(layer\)\) continue/);
+  assert.match(source, /if \(!HasValidTileData\(collision\)\) return/);
+  assert.match(source, /if \(!HasValidTileData\(layer\)\) return/);
+});
+
+test("C1: a cena principal associa Ground ao Grid, não ao MapManager", () => {
+  const scene = read("Client/Assets/scenebasic.unity");
+  assert.match(scene, /m_EditorClassIdentifier: Assembly-CSharp::TiledMapRenderer[\s\S]*?groundTilemap: \{fileID: 880854271\}/);
+  assert.match(scene, /m_Name: MapManager/);
+  assert.match(scene, /m_Name: Grid/);
+  assert.match(scene, /m_Father: \{fileID: 1217622213\}/);
+});
