@@ -65,7 +65,7 @@ test("C0: build Player não deixa else vazio após remover UNITY_EDITOR", () => 
 
   // Simula a retirada do bloco de Debug.Log delimitado por UNITY_EDITOR
   // no build standalone. O else precisa ter corpo mesmo sem o log.
-  const playerMode = handler.replace(/^[ \\t]*#if UNITY_EDITOR\\r?\\n[\\s\\S]*?^[ \\t]*#endif\\r?\\n/gm, "");
-  assert.match(playerMode, /if\\s*\\(handler != null\\)\\s*\\{\\s*handler\\.Handle\\(json, _context\\);\\s*\\}\\s*else\\s*\\{\\s*\\}/,
+  const playerMode = handler.replace(/^[ \t]*#if UNITY_EDITOR\r?\n[\s\S]*?^[ \t]*#endif\r?\n/gm, "");
+  assert.match(playerMode, /if\s*\(handler != null\)\s*\{\s*handler\.Handle\(json, _context\);\s*\}\s*else\s*\{\s*\}/,
     "No executável Windows, o else deve continuar sendo um bloco válido sem UNITY_EDITOR");
 });
