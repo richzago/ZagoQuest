@@ -73,6 +73,10 @@ export class WebSocketServer {
   private readonly loadSessionPlayer: (authorized: AuthorizedCharacter) => Promise<Player | null>;
   private readonly saveSessionPlayer: (player: Player) => Promise<void>;
   private readonly reservedCharacterIds = new Set<string>();
+  // Account IDs always come from the verified JWT + character ownership check.
+  // Keep a reservation during loading AND final save, not only for open sockets.
+  private readonly reservedAccountIds = new Set<string>();
+  private readonly socketAccountIds = new Map<WebSocket, string>();
   private readonly pendingSessionSaves = new Set<Promise<void>>();
 
   constructor(server: HttpServer, world: World, options: WebSocketSessionOptions = {}) {
@@ -118,9 +122,10 @@ export class WebSocketServer {
         PlayerStatsSender.send(ws, current);
         WorldStateSender.send(ws, this.world, current, [...this.clients.values()]);
       };
-      const attach = (current: Player) => {
+      const attach = (current: Player, accountId?: string) => {
         player = current;
         this.clients.set(ws, current);
+        if (accountId) this.socketAccountIds.set(ws, accountId);
         this.broadcast.registerClient(ws, current);
         // Token e segredos nunca entram no log.
         Logger.system(`Personagem ${current.name} (${current.id}) associado ao socket.`);
@@ -128,6 +133,23 @@ export class WebSocketServer {
       const duplicate = (characterId: string) =>
         this.reservedCharacterIds.has(characterId) ||
         [...this.clients.values()].some((current) => current.id === characterId);
+      const duplicateAccount = (accountId: string) =>
+        this.reservedAccountIds.has(accountId) ||
+        [...this.socketAccountIds.values()].includes(accountId);
+      const refuseOnline = (reason: "alreadyOnline" | "accountAlreadyOnline") => {
+        const characterOnline = reason === "alreadyOnline";
+        const message = characterOnline ? "Personagem ja conectado." : "Conta ja possui personagem conectado.";
+        const refusal = JSON.stringify({ type: "authRejected", reason });
+        // NativeWebSocket only exposes close code, not textual reason: flush
+        // the domain error first. Never send tokens, account IDs or other names.
+        try {
+          ws.send(refusal, () => {
+            if (ws.readyState === WebSocket.OPEN) ws.close(1008, message);
+          });
+        } catch {
+          if (ws.readyState === WebSocket.OPEN) ws.close(1008, message);
+        }
+      };
       let deadline: ReturnType<typeof setTimeout> | undefined;
       if (this.authRequired) {
         deadline = setTimeout(() => {
@@ -156,6 +178,14 @@ export class WebSocketServer {
         if (deadline) clearTimeout(deadline);
         sessionClosing = true;
         const closingPlayer = player;
+        const closingAccountId = this.socketAccountIds.get(ws);
+        // Block reconnects to this account (even another character) until
+        // the last queued command and final DB save have completed.
+        if (closingPlayer && this.authRequired) {
+          this.reservedCharacterIds.add(closingPlayer.id);
+          if (closingAccountId) this.reservedAccountIds.add(closingAccountId);
+        }
+        this.socketAccountIds.delete(ws);
         if (closingPlayer) {
           FishingSystem.cancelFishing(closingPlayer);
           NpcInteractionSystem.close(closingPlayer);
@@ -165,13 +195,16 @@ export class WebSocketServer {
         }
         // Um login subsequente deste UUID só será aceito após salvar dados.
         const finishing = (async () => {
-          await queue.whenIdle();
-          if (closingPlayer && this.authRequired) {
-            try { await this.saveSessionPlayer(closingPlayer); }
-            catch (error) {
-              Logger.error(`[SESSION] Falha salvando ${closingPlayer.name}: ${String(error)}`);
-            } finally {
+          try {
+            await queue.whenIdle();
+            if (closingPlayer && this.authRequired)
+              await this.saveSessionPlayer(closingPlayer);
+          } catch (error) {
+            Logger.error(`[SESSION] Falha encerrando/salvando ${closingPlayer?.name ?? "sessão"}: ${String(error)}`);
+          } finally {
+            if (closingPlayer && this.authRequired) {
               this.reservedCharacterIds.delete(closingPlayer.id);
+              if (closingAccountId) this.reservedAccountIds.delete(closingAccountId);
             }
           }
         })();
@@ -213,6 +246,7 @@ export class WebSocketServer {
           authPending = true;
           void (async () => {
             let reservedId: string | undefined;
+            let reservedAccountId: string | undefined;
             try {
               const identity = await this.authorizeSession(parsed.data.token, parsed.data.characterId);
               if (!identity || this.stopping || sessionClosing || ws.readyState !== WebSocket.OPEN) {
@@ -220,27 +254,19 @@ export class WebSocketServer {
                 return;
               }
               if (duplicate(identity.characterId)) {
-                // O cliente NativeWebSocket expõe o código do fechamento, mas
-                // não o texto da reason. Enviar um erro de domínio ANTES do
-                // close para que a UI informe o motivo com precisão, sem
-                // vazar JWT nem aceitar uma segunda sessão deste UUID.
-                const refusal = JSON.stringify({
-                  type: "authRejected",
-                  reason: "alreadyOnline",
-                });
-                try {
-                  ws.send(refusal, () => {
-                    if (ws.readyState === WebSocket.OPEN)
-                      ws.close(1008, "Personagem ja conectado.");
-                  });
-                } catch {
-                  if (ws.readyState === WebSocket.OPEN)
-                    ws.close(1008, "Personagem ja conectado.");
-                }
+                refuseOnline("alreadyOnline");
                 return;
               }
+              if (duplicateAccount(identity.accountId)) {
+                refuseOnline("accountAlreadyOnline");
+                return;
+              }
+              // No await between this check and both reservations: simultaneous
+              // handshakes on the same account cannot win with different UUIDs.
               reservedId = identity.characterId;
+              reservedAccountId = identity.accountId;
               this.reservedCharacterIds.add(reservedId);
+              this.reservedAccountIds.add(reservedAccountId);
               const existing = this.world.players.find((current) => current.id === reservedId);
               const loaded = existing ?? await this.loadSessionPlayer(identity);
               if (!loaded || loaded.id !== reservedId || this.stopping ||
@@ -258,8 +284,12 @@ export class WebSocketServer {
                 }
                 this.world.addPlayer(loaded);
               }
-              attach(loaded);
-              reservedId = undefined; // a sessão agora é responsável pela reserva
+              attach(loaded, identity.accountId);
+              // The active socket now holds the exclusive account slot.
+              this.reservedCharacterIds.delete(reservedId);
+              this.reservedAccountIds.delete(reservedAccountId!);
+              reservedId = undefined;
+              reservedAccountId = undefined;
               if (deadline) clearTimeout(deadline);
               ws.send(JSON.stringify({ type: "authenticated", characterId: loaded.id }));
               initialSnapshot(loaded);
@@ -269,6 +299,7 @@ export class WebSocketServer {
               if (ws.readyState === WebSocket.OPEN) ws.close(1011, "Falha ao autenticar.");
             } finally {
               if (reservedId) this.reservedCharacterIds.delete(reservedId);
+              if (reservedAccountId) this.reservedAccountIds.delete(reservedAccountId);
               authPending = false;
             }
           })();
@@ -335,6 +366,9 @@ export class WebSocketServer {
         this.combatEvents.dispose();
         this.messageQueues.clear();
         this.clients.clear();
+        this.socketAccountIds.clear();
+        this.reservedCharacterIds.clear();
+        this.reservedAccountIds.clear();
         if (WebSocketServer.instance === this) WebSocketServer.instance = undefined;
       }
     })();
