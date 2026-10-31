@@ -171,8 +171,22 @@ public sealed class C7DockLayout : MonoBehaviour
         panel.anchoredPosition = Vector2.zero;
         panel.sizeDelta = new Vector2(0, layout.preferredHeight);
 
-        if (panel.GetComponent<LootUI>() != null &&
-            panel.GetComponent<CanvasGroup>() == null)
+        // O LootUI usa um root separado de PanelVisual: sem ajustar esse filho,
+        // ele mantém 450px e invade a barra lateral mesmo com root dockado.
+        var loot = panel.GetComponent<LootUI>();
+        if (loot != null && loot.lootPanel != null)
+        {
+            var visual = loot.lootPanel.GetComponent<RectTransform>();
+            if (visual != null)
+            {
+                visual.anchorMin = Vector2.zero;
+                visual.anchorMax = Vector2.one;
+                visual.offsetMin = Vector2.zero;
+                visual.offsetMax = Vector2.zero;
+                visual.localScale = Vector3.one;
+            }
+        }
+        if (loot != null && panel.GetComponent<CanvasGroup>() == null)
             panel.gameObject.AddComponent<CanvasGroup>();
         AddResizeGrip(panel);
         var header = panel.Find("C6DragHeader/Title")?.GetComponent<TextMeshProUGUI>();
