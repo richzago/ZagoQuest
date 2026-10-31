@@ -203,7 +203,7 @@ test("C6 gameplay: HUD e chat recebem layout sem alterações na scene serializa
  assert.match(hud,/private static void StyleBar\(/);
  assert.match(hud,/background\.raycastTarget = false/);
  assert.match(chat,/private void StyleChatPanel\(\)/);
- assert.match(chat,/rect\.sizeDelta = new Vector2\(840, 252\)/);
+ assert.match(chat,/rect\.sizeDelta = new Vector2\(720, 252\)/);
  assert.match(chat,/scrollRect\.offsetMin = new Vector2\(12, 53\)/);
 });
 
@@ -461,7 +461,7 @@ test("C6 caixas: merchant, banco, inventário, equipamentos, status e loot arras
  const layout=unity("UI/WorldWindowLayout.cs");
  const drag=unity("UI/C6WindowDragHandle.cs");
  const inv=unity("UI/C6InventoryEquipmentLayout.cs");
- for(const file of ["UI/ShopUI.cs","UI/BankUI.cs","UI/LootUI.cs","Managers/StatusManager.cs"])
+ for(const file of ["UI/ShopUI.cs","UI/BankUI.cs","UI/LootUI.cs","Managers/StatusManager.cs","UI/ChatUI.cs"])
   assert.match(unity(file),/WorldWindowLayout\.MakeDraggable\(/,file);
  assert.match(inv,/WorldWindowLayout\.MakeDraggable\(panel, title, panel\.name\)/);
  assert.match(layout,/EnsureLabel\(Transform parent/);
