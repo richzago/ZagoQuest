@@ -10,12 +10,17 @@ namespace ZagoQuest.Networking.Handlers
         {
             var invMsg = json.ToObject<InventoryMessage>();
             var itemsDict = new Dictionary<string, int>();
+            var itemTypes = new Dictionary<string, string>();
             if (invMsg.items != null)
             {
                 foreach (var item in invMsg.items)
+                {
                     itemsDict[item.itemId] = item.amount;
+                    if (!string.IsNullOrWhiteSpace(item.itemType))
+                        itemTypes[item.itemId] = item.itemType;
+                }
             }
-            context.InventoryUI?.HandleInventory(invMsg.gold, itemsDict);
+            context.InventoryUI?.HandleInventory(invMsg.gold, itemsDict, itemTypes);
         }
     }
 }
