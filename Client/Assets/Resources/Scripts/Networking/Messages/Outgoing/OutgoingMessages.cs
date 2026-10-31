@@ -4,6 +4,8 @@ using System;
 namespace ZagoQuest.Networking.Messages
 {
     [Serializable] public class MoveMessage { public string type; public float x, y; }
+    [Serializable] public class StartFishingMessage { public string type; }
+    [Serializable] public class CancelFishingMessage { public string type; }
     [Serializable] public class ChatMessage { public string type; public string message; }
     [Serializable] public class AttackMessage { public string type; public string targetId; }
     [Serializable] public class LootMessage { public string type; public string corpseId; }
