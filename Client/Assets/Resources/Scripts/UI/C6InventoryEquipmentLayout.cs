@@ -168,6 +168,8 @@ public static class C6InventoryEquipmentLayout
             equipmentRect.pivot = new Vector2(1f, 0.5f);
         equipmentRect.anchoredPosition = new Vector2(-12f, 0f);
         Header(panel, "EQUIPAMENTOS", close);
+        // O reset do cabeçalho deve usar a âncora FINAL do equipamento.
+        WorldWindowLayout.MakeDraggable(panel, "EQUIPAMENTOS", panel.name);
         var container = slots as RectTransform;
         if (container == null) return;
         container.anchorMin = Vector2.zero;
