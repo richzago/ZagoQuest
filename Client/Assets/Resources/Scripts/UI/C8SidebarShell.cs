@@ -26,6 +26,9 @@ public sealed class C8SidebarShell : MonoBehaviour
     private GameObject canvasRoot;
     private RectTransform equipmentHost;
     private RectTransform dynamicHost;
+    private RectTransform dynamicSection;
+    private GameObject dynamicHint;
+    private float lastDynamicHeight = -1f;
     private EquipmentUI dockedEquipment;
     private Transform originalEquipmentParent;
     private float lastEquipmentWidth = -1f;
@@ -48,6 +51,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         // EquipmentUI.Start aplica C6InventoryEquipmentLayout e reparenta
         // a HUD. Esperar o C6DragHeader existir evita corrida de Start().
         if (equipmentHost == null) return;
+        AdjustDynamicPlaceholder();
         if (dockedEquipment == null)
             TryDockExistingEquipment();
 
@@ -145,6 +149,7 @@ public sealed class C8SidebarShell : MonoBehaviour
             typeof(RectTransform), typeof(Image));
         dynamicSection.transform.SetParent(surface.transform, false);
         var dr = (RectTransform)dynamicSection.transform;
+        this.dynamicSection = dr;
         dr.anchorMin = Vector2.zero;
         dr.anchorMax = Vector2.one;
         dr.offsetMin = new Vector2(13f, 15f);
@@ -155,9 +160,23 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddText(dynamicSection.transform, "DynamicTitle", "MOCHILAS  /  LOOT", 9, 30, 14, Text);
         AddText(dynamicSection.transform, "DynamicHint",
             "Espaco reservado para janelas dinamicas", 39, 45, 11, Muted);
+        dynamicHint = dynamicSection.transform.Find("DynamicHint").gameObject;
         dynamicHost = Holder(dynamicSection.transform, "SidebarDynamicHost",
             Vector2.zero, Vector2.one, new Vector2(10, 9), new Vector2(-10, -91));
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
+    }
+
+    private void AdjustDynamicPlaceholder()
+    {
+        if (dynamicSection == null || dynamicHost == null) return;
+        // F10 chega a 130%. A altura util do Canvas diminui: nunca
+        // deixar offset de host invertido em 1280x720 / 1920x1080.
+        float height = dynamicSection.rect.height;
+        if (Mathf.Abs(height - lastDynamicHeight) <= 0.5f) return;
+        lastDynamicHeight = height;
+        float header = Mathf.Min(91f, Mathf.Max(39f, height - 10f));
+        dynamicHost.offsetMax = new Vector2(-10f, -header);
+        if (dynamicHint != null) dynamicHint.SetActive(height >= 125f);
     }
 
     private void TryDockExistingEquipment()
@@ -372,5 +391,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         canvasRoot = null;
         equipmentHost = null;
         dynamicHost = null;
+        dynamicSection = null;
+        dynamicHint = null;
     }
 }
