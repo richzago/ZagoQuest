@@ -254,8 +254,10 @@ O dock também permitia altura mínima de 145px para qualquer painel, inclusive 
 - Camera.rect retorna a `(0,0,1,1)`; o desenho do mundo usa a câmera integral. Uma sidebar opaca sobreposta mantém o HUD separado visualmente, sem região de renderização parcial da URP.
 - `C7DockLayout.TryGetWorldInsets` fornece larguras/alturas reservadas em **pixels físicos**, derivados de CanvasScaler/Screen, respeitando F10. Quando deslogado ou sem sidebar, retorna false.
 - `CameraFollow` desloca o enquadramento para o centro da região realmente livre e realiza uma segunda correção após o clamp de mapa para impedir que o personagem apareça atrás da sidebar ou chat, inclusive junto às quatro bordas e em zoom diferente. Próximo aos extremos, é possível aparecer fundo vazio fora do mapa; isso **não cria novos tiles** e precisa ser verificado visualmente.
-- Resizing respeita altura mínima proporcional ao painel, e Equipamentos não pode ficar abaixo de 380px. Mantém largura fixa, rolagem, drag/reorder, persistência por PlayerPrefs e servidor autoritativo. A arquitetura e as regras de pesca do #111 permanecem intactas.
+- Resizing respeita altura mínima proporcional ao painel, e Equipamentos não pode ficar abaixo de 460px. Mantém largura fixa, rolagem, drag/reorder, persistência por PlayerPrefs e servidor autoritativo. A arquitetura e as regras de pesca do #111 permanecem intactas.
 - Teste `server/tests/clientC71DockContracts.test.ts` atualizado: contratos C# com nova estratégia, e **135 cenários matemáticos** independentes (3 resoluções × 3 escalas × 3 zooms × 5 posições). São modelos/contratos estáticos, NÃO testes de render Unity.
+
+**Achado adicional confirmado por dimensões:** a antiga grade 3×82px precisava de 278px incluindo espaçamento/padding, mas a largura interna útil do inventário dockado é de 264px. Ajuste para 3×76px (260px ocupados), preservando os slots e impedindo corte horizontal.
 
 ### 11.3 Casos de aceite obrigatórios: C7-53–C7-69
 
