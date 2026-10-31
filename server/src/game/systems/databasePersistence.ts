@@ -16,6 +16,7 @@ import { SkillType } from "../../shared/enums/skillType.enum";
 import { SkillState } from "../../shared/interfaces/playerSave.interface";
 import { Vocation } from "../../shared/enums/vocation.enum";
 import { Logger } from "../core/logger/logger";
+import { withCharacterWriteLock } from "./characterWriteLock";
 
 export class DatabasePersistence {
   private static characterRepo = AppDataSource.getRepository(Character);
@@ -81,6 +82,7 @@ export class DatabasePersistence {
    * @param player - Instância do jogador
    */
   static async saveCharacter(player: Player): Promise<void> {
+    return withCharacterWriteLock(player.id, async () => {
     // UUID é a identidade estável; nomes podem mudar.
     let character = await this.characterRepo.findOne({ where: { id: player.id } });
     if (!character) {
@@ -115,5 +117,6 @@ export class DatabasePersistence {
     );
 
     await this.characterRepo.save(character);
+    });
   }
 }
