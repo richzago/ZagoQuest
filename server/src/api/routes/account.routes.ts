@@ -33,6 +33,7 @@
 
 import { Router } from "express";
 import { AccountController } from "../controllers/accountController";
+import { registrationRateLimit } from "../middlewares/publicRateLimit";
 
 const router = Router();
 
@@ -44,6 +45,6 @@ const router = Router();
  * @param {Object} req.body - Dados da conta (email, cellphone, fullName, cpf, birthDate, password, confirmPassword, address)
  * @returns {Object} 201 Created com { id, email } ou 400 Bad Request com erro.
  */
-router.post("/", AccountController.create);
+router.post("/", registrationRateLimit, AccountController.create);
 
 export default router;
