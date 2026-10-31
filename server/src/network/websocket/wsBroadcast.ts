@@ -171,7 +171,7 @@ export class BroadcastService implements IBroadcastService {
    * Transmite o spawn de um monstro.
    */
   public broadcastPlayerSpawn(player: Player, excludeSocket?: WebSocket): void {
-    this.broadcastMessage(JSON.stringify({ type: "spawn", id: player.id,
+    this.broadcastMessage(JSON.stringify({ type: "spawn", entityType: "player", id: player.id,
       name: player.name, x: player.position.x, y: player.position.y,
       hp: player.hp, maxHp: player.maxHp }), excludeSocket);
   }
