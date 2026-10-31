@@ -44,6 +44,9 @@ export class Player extends Creature {
   /** Dinheiro depositado no banco */
   bankGold: number = 0;
 
+  /** Taxa reservada para rollback de uma operação REST ainda pendente. */
+  private reservedGold = 0;
+
   /** Indica se o jogador está no processo de pesca (para cancelar ao mover) */
   isFishing: boolean = false;
 
@@ -312,7 +315,7 @@ export class Player extends Creature {
 
     if (isCoin(itemId)) {
       const gold = getCoinValue(itemId) * amount;
-      return Number.isSafeInteger(gold) && canCreditGold(this.gold, gold);
+      return Number.isSafeInteger(gold) && this.canReceiveGold(gold);
     }
 
     const current = this.inventory.get(itemId) ?? 0;
@@ -342,7 +345,7 @@ export class Player extends Creature {
       }
     }
 
-    if (!canCreditGold(this.gold, goldToAdd)) return false;
+    if (!this.canReceiveGold(goldToAdd)) return false;
     for (const [itemId, amount] of pending) {
       const current = this.inventory.get(itemId) ?? 0;
       if (!Number.isSafeInteger(current) || current < 0 ||
@@ -441,11 +444,41 @@ export class Player extends Creature {
   // GERENCIAMENTO DE GOLD
   // =========================
 
-  /** Credita gold válido, respeitando o limite do banco PostgreSQL. */
+  /**
+   * Gold reservado já saiu da carteira, mas seu valor precisa ficar disponível
+   * para devolução se o PostgreSQL fizer ROLLBACK.
+   */
+  canReceiveGold(amount: number): boolean {
+    return canCreditGold(this.gold + this.reservedGold, amount);
+  }
+
+  /** Credita sem consumir o espaço reservado para eventual rollback. */
   addGold(amount: number): boolean {
-    if (!isValidQuantity(amount) || !canCreditGold(this.gold, amount)) return false;
+    if (!isValidQuantity(amount) || !this.canReceiveGold(amount)) return false;
     this.gold += amount;
     return true;
+  }
+
+  /** Reserva a taxa antes da gravação assíncrona na transação. */
+  reserveGold(amount: number): boolean {
+    if (!this.removeGold(amount)) return false;
+    this.reservedGold += amount;
+    return true;
+  }
+
+  /** Confirma o débito (já descontado) após COMMIT. */
+  commitReservedGold(amount: number): void {
+    if (!isValidQuantity(amount) || this.reservedGold < amount)
+      throw new Error("Reserva de gold inconsistente.");
+    this.reservedGold -= amount;
+  }
+
+  /** Restaura a carteira após ROLLBACK. */
+  rollbackReservedGold(amount: number): void {
+    if (!isValidQuantity(amount) || this.reservedGold < amount)
+      throw new Error("Reserva de gold inconsistente.");
+    this.reservedGold -= amount;
+    this.gold += amount;
   }
 
   /** Debita gold válido, sem permitir saldos negativos ou quantidades negativas. */

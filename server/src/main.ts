@@ -26,6 +26,7 @@ import { closeHttp, listenHttp, resolveApiPort } from "./game/core/httpLifecycle
 import { Logger } from "./game/core/logger/logger";
 import type { World } from "./game/world/World";
 import { WebSocketServer } from "./network/websocket/wsServer";
+import { OnlinePlayerDirectory } from "./game/systems/onlinePlayerDirectory";
 
 async function bootstrap(): Promise<void> {
   let httpServer: HttpServer | undefined;
@@ -33,6 +34,7 @@ async function bootstrap(): Promise<void> {
   let world: World | undefined;
   let gameLoops: GameLoopsHandle | undefined;
   let disposeListeners: (() => void) | undefined;
+  let disposeDirectory: (() => void) | undefined;
 
   // Always close resources in the reverse direction of startup, even if
   // a later step fails; failed steps do not prevent a final DB close.
@@ -47,6 +49,7 @@ async function bootstrap(): Promise<void> {
       try {
         if (AppDataSource.isInitialized) await AppDataSource.destroy();
       } finally {
+        disposeDirectory?.();
         disposeListeners?.();
       }
     },
@@ -68,6 +71,11 @@ async function bootstrap(): Promise<void> {
     const characterName = process.env.CHARACTER_NAME || "Richard";
     const initialized = await createWorldAndPlayer(characterName);
     world = initialized.world;
+    // REST e WebSocket devem referenciar o MESMO Player vivo.
+    disposeDirectory = OnlinePlayerDirectory.bind(
+      () => world!.players,
+      (player) => wsServer?.sendToPlayer(player.id, JSON.stringify({ type: "gold", gold: player.gold })),
+    );
 
     // WebSocket shares the same HTTP server and world.
     wsServer = new WebSocketServer(httpServer, world);

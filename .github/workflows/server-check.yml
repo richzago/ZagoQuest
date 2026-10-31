@@ -26,3 +26,43 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+
+  postgres-integration:
+    # A base deste job é DESCARTÁVEL; jamais apontar para o PostgreSQL do dev.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zagoquest_ci
+          POSTGRES_USER: zago_ci
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zago_ci -d zagoquest_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    env:
+      RUN_PG_TESTS: "true"
+      NODE_ENV: development
+      DB_SYNCHRONIZE: "true"
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: zagoquest_ci
+      DB_USER: zago_ci
+      DB_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:pg
