@@ -1,5 +1,8 @@
 # ZagoQuest — C7: Auditoria de UX e funcionalidades visuais do cliente Unity
 
+> **Rollback C7.1 — 31/10/2026.** A homologação visual do PR [#111](https://github.com/richzago/ZagoQuest/pull/111) falhou (painéis sobrepostos e artefatos de mapa). O código de produção do cliente e servidor voltou **exatamente ao snapshot C7 / PR #110**, commit `ce506b69756124444a43e8ae03444187da8b396a`, via rollback reversível da branch `dev` (sem force push). O experimento [PR #112](https://github.com/richzago/ZagoQuest/pull/112) foi abandonado. Este documento conserva os testes C7-01–31; os testes/manuais da C7.1 **não devem ser tratados como comportamentos já implementados**. Reconferir UI, cena e fishing em Unity Editor + Windows build. **Somente após aceite manual da base restaurada** será criada nova branch isolada para dock lateral, redimensionamento e regras adicionais de pesca. CI Node não é evidência de QA visual.
+
+
 **Abertura técnica:** 31/10/2026  
 **Base de implementação:** `dev` após C6 [PR #109](https://github.com/richzago/ZagoQuest/pull/109), commit `293c6ff88d50d1daebe60d84ba9370f8f3fe399d`.  
 **Estado:** C7 implementada em branch de feature, testes Node e QA manual Unity diferenciados. A matriz C7-01–C7-12 inicial permanece útil, complementada pelos casos C7-13–C7-31 abaixo; não declarar homologação visual sem Editor/build.  
