@@ -139,3 +139,113 @@ test("C6 visual: recursos Unity e nomes dos slots permanecem compatíveis",()=>{
  assert.match(invSlot,/Resources\.Load<Sprite>\(\$"Icons\/\{itemId\}"\)/);
  assert.doesNotMatch(equipment,/Sprite\.Create|new Texture2D/);
 });
+
+
+test("C6 gameplay: chat não envia em Update/Enter e usa apenas submit TMP ou botão",()=>{
+ const chat=unity("UI/ChatUI.cs");
+ const update=chat.slice(chat.indexOf("private void Update()"),chat.indexOf("private void ActivateChat()"));
+ assert.match(update,/pressedEnter && lastSubmitFrame != Time\.frameCount/);
+ assert.match(update,/ActivateChat\(\)/);
+ assert.doesNotMatch(update,/SendChat\(\)|\.Chat\.SendChat/);
+ assert.match(chat,/inputField\.onSubmit\.AddListener\(OnSubmit\)/);
+ assert.match(chat,/sendButton\.onClick\.AddListener\(SendChat\)/);
+ assert.match(chat,/lastSendFrame == Time\.frameCount/);
+ assert.match(chat,/lastSubmitFrame = Time\.frameCount/);
+ assert.match(chat,/network\.Chat\.SendChat\(outgoing\)/);
+ assert.match(chat,/inputField\.onSelect\.AddListener\(OnSelect\)/);
+});
+
+test("C6 gameplay: chat valida rede, mantém mensagem offline e preserva canais do Node",()=>{
+ const chat=unity("UI/ChatUI.cs");
+ assert.match(chat,/!network\.isConnected \|\| network\.Chat == null/);
+ assert.match(chat,/return; \/\/ Mantém o texto para o jogador tentar novamente/);
+ assert.match(chat,/"trade" => "\/t " \+ message/);
+ assert.match(chat,/"support" => "\/s " \+ message/);
+ assert.match(chat,/"guild" => "\/gmsg " \+ message/);
+ assert.match(chat,/message\.StartsWith\("\/"\)/);
+ assert.match(chat,/chatDisplay\.richText = false/);
+ assert.match(chat,/MaxVisibleMessages = 160/);
+ assert.match(chat,/recentMessages\.Count > MaxVisibleMessages/);
+ assert.match(chat,/inputField\.onSubmit\.RemoveListener\(OnSubmit\)/);
+ assert.match(chat,/inputField\.onSelect\.RemoveListener\(OnSelect\)/);
+ assert.match(chat,/inputField\.onDeselect\.RemoveListener\(OnDeselect\)/);
+ assert.match(chat,/if \(Instance == this\) Instance = null/);
+ assert.match(chat,/OnDisable\(\) => IsChatActive = false/);
+});
+
+test("C6 gameplay: HUD apenas exibe snapshot, XP total separado do progresso e barras seguras",()=>{
+ const hud=unity("UI/PlayerHUD.cs");
+ const handler=unity("Networking/Handlers/PlayerStatsHandler.cs");
+ assert.match(handler,/context\.PlayerHUD\?\.UpdateStats\(stats\)/);
+ assert.match(hud,/UpdateStats\(PlayerStatsData stats\)/);
+ assert.match(hud,/stats\.levelXpToNext/);
+ assert.match(hud,/stats\.levelXp/);
+ assert.match(hud,/stats\.xp/);
+ assert.match(hud,/slider\.maxValue = Mathf\.Max\(1, maximum\)/);
+ assert.match(hud,/slider\.value = Mathf\.Clamp\(value, 0, Mathf\.Max\(1, maximum\)\)/);
+ assert.match(hud,/slider\.interactable = false/);
+ assert.match(hud,/if \(stats\.levelXpToNext <= 0\)/);
+ assert.doesNotMatch(hud,/SendPlayerStats|SendGold|SendXp|SendDamage/);
+ assert.match(hud,/if \(Instance == this\) Instance = null/);
+});
+
+test("C6 gameplay: HUD e chat recebem layout sem alterações na scene serializada",()=>{
+ const hud=unity("UI/PlayerHUD.cs");
+ const chat=unity("UI/ChatUI.cs");
+ const scene=readFileSync(join(process.cwd(),"..","Client","Assets","scenebasic.unity"),"utf8");
+ for(const name of ["m_Name: TopCenter","m_Name: PlayerBars","m_Name: ChatPanel",
+ "m_Name: TabButtons","m_Name: ChatScrollView","m_Name: ChatInput","m_Name: SendButton"])
+  assert.ok(scene.includes(name),"Elemento da cena ausente: "+name);
+ assert.match(hud,/private void StyleGameplayHud\(\)/);
+ assert.match(hud,/private static void PlaceBar\(/);
+ assert.match(hud,/image\.raycastTarget = false/);
+ assert.match(chat,/private void StyleChatPanel\(\)/);
+ assert.match(chat,/rect\.sizeDelta = new Vector2\(840, 252\)/);
+ assert.match(chat,/scrollRect\.offsetMin = new Vector2\(12, 53\)/);
+});
+
+test("C6 economia: depósito e saque não enviam duplo clique antes do ACK",()=>{
+ const bank=unity("UI/BankUI.cs");
+ assert.match(bank,/private bool transferPending/);
+ assert.match(bank,/if \(transferPending\) return false/);
+ assert.match(bank,/SetTransferPending\(true\);\s*NetworkManager\.Instance\.Bank\.SendDeposit\(amount\)/);
+ assert.match(bank,/SetTransferPending\(true\);\s*NetworkManager\.Instance\.Bank\.SendWithdraw\(amount\)/);
+ assert.match(bank,/SetTransferPending\(false\);\s*if \(!success\) return;/);
+ assert.match(bank,/if \(depositButton != null\) depositButton\.interactable = !pending/);
+ assert.match(bank,/if \(withdrawButton != null\) withdrawButton\.interactable = !pending/);
+ assert.doesNotMatch(bank,/bankGold\s*[-+*/]=|inventoryGold\s*[-+*/]=/);
+});
+
+test("C6 inventário, loja e loot: somente solicitações e confirmação do Node",()=>{
+ const inv=unity("UI/InventoryUI.cs");
+ const eq=unity("UI/EquipmentUI.cs");
+ const loot=unity("UI/LootUI.cs");
+ const shop=unity("UI/ShopUI.cs");
+ assert.match(inv,/HandleInventory\(int gold, Dictionary<string, int> newItems\)/);
+ assert.match(inv,/network\.Inventory\.SendEquipItem\(itemId\)/);
+ assert.match(eq,/OnEquipmentUpdate\(Dictionary<EquipmentSlot, string> equipment\)/);
+ assert.match(loot,/private bool awaitingServer/);
+ assert.match(loot,/if \(!ReadyToTake\(\)/);
+ assert.match(loot,/public void OnLootTaken\(string corpseId, int\? itemIndex\)/);
+ assert.match(loot,/if \(corpseId != currentCorpseId\) return/);
+ assert.match(shop,/public void ShowBuyResult\(bool success, string message\)/);
+ assert.match(shop,/NetworkManager\.Instance\?\.Shop\?\.SendCloseShop\(currentNpcId\)/);
+});
+
+
+test("C6 estados vazios: inventory, loot e shop sem itens não exibem estado antigo",()=>{
+ const inv=unity("UI/InventoryUI.cs");
+ const loot=unity("UI/LootUI.cs");
+ const shop=unity("UI/ShopUI.cs");
+ assert.match(inv,/ShowEmptyState\(items\.Count == 0\)/);
+ assert.match(inv,/C6EmptyInventoryLabel/);
+ assert.match(inv,/labelObject\.SetActive\(empty\)/);
+ assert.match(shop,/if \(items == null\)/);
+ assert.match(shop,/if \(items\.Length == 0\)/);
+ assert.match(shop,/C6ShopEmptyState/);
+ assert.match(shop,/itemSlots\.Clear\(\)/);
+ assert.match(loot,/if \(visibleItems\.Count == 0\)/);
+ assert.match(loot,/C6LootEmptyState/);
+ assert.match(loot,/takeAllButton\.interactable = visibleItems\.Count > 0 && !awaitingServer/);
+ assert.match(loot,/itemSlots\.Clear\(\)/);
+});

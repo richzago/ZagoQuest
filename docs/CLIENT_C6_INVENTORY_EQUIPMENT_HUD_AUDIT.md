@@ -70,3 +70,57 @@ Proposta a ser refinada após inspeção/prints:
 - **Input/multiplayer:** atalhos não interferem no chat, foco, drags, trocas rápidas e reconnect; nenhuma decisão de autoridade transferida para Unity.
 
 **Critério de conclusão C6:** inventário e equipamentos funcionais (equip/unequip/use/drop sem duplicação), HUD fiel aos dados Node, UI organizada/legível e responsiva, testes CI + QA explícito do desenvolvedor. Não antecipar C7/C8.
+
+
+## 7. Auditoria cruzada C6: sete UIs e autoridade — 31/10/2026
+
+O desenvolvedor reportou funcionamento aparentemente correto das interfaces depois de #101. Esse relato é aceite funcional preliminar, não substitui QA detalhado de HUD/chat/concorrência.
+
+| Componente | Revisão do código | Verificação restante |
+| --- | --- | --- |
+| InventoryUI | Gold e itens vêm dos handlers; botão e atalhos enviam intenção | Pilhas, double-click, múltiplos itens, UI com chat focado |
+| EquipmentUI | Snapshot limpa slots ausentes; nunca cria item | Equip/unequip, slot errado, inventário cheio |
+| LootUI | Espera ACK lootTaken; erros reabilitam interação; índice e corpseId conferidos | 1/3/8 itens, scroll, disputa Alfa/Beta, ACK tardio |
+| ShopUI | Compra via sender; catálogo e saldo vêm do Node | Quantidade zero/grande, cliques rápidos, Merchant ilimitado |
+| BankUI | Banco/carteira só por bankWindow/bankResult; lock de cliques até ACK | Saque/depósito concorrente e erro, reabrir após desconexão |
+| PlayerHUD | Exibe PlayerStatsData; XP total distinto de progresso; clamp só visual | Nível, morte, cura, reconnect, duas resoluções |
+| ChatUI | Submit TMP + botão; Update apenas abre input; canais são prefixos enviados ao Node | Envio único, foco mouse, Enter/numpad, permissões e desconexão |
+
+**Bug real do chat corrigido nesta branch:** Enter podia enviar via Update e onSubmit simultaneamente, além de reabrir chat no mesmo frame. A correção centraliza envio, protege frame, usa callbacks nomeados e removíveis, acompanha onSelect/onDeselect, mostra erro offline sem perder rascunho, limita o histórico a 160 mensagens e desativa interpretação RichText. Node permanece autoridade dos canais/comandos.
+
+**HUD:** agrupamento visual dos componentes de TopCenter/PlayerBars em runtime sem editar a cena. Barras não interativas e normalizadas só para apresentação; XP cumulativo e progresso distintos; média de FPS a cada 0,5 s. Não alterar dano, posição, XP, velocidade ou atributos do jogo.
+
+**Banco:** um único depósito/saque pendente por janela. Botões desabilitados até bankResult e liberados também em erro/fechamento. Não aplicar saldo local nem reenviar automaticamente após timeout (para evitar operação duplicada sem idempotência do servidor). Persistem riscos de sessão com conexão perdida e de ACK atrasado, a verificar em C8.
+
+### QA local obrigatório — Unity Editor + build Windows
+
+Usar 1280x720 e 1920x1080, Editor Alfa + build Beta, Console e logs do Node. Cada caso deve registrar PASSOU/FALHOU, resultado real, evidências e resolução.
+
+| Caso | Procedimento | Esperado |
+| --- | --- | --- |
+| C6-01 | Entrar Alfa e Beta | HUD/chat legíveis, sem erros da Unity |
+| C6-02 | Clicar chat com mouse, digitar i e WASD | Inventário e movimento não disparam |
+| C6-03 | Enter ativa chat; texto + Enter (repetir numpad) | Apenas UMA mensagem; não reabre no mesmo frame |
+| C6-04 | Enviar pelo botão; selecionar Local/Trade/Support/Guild | Prefixos corretos, só Node autoriza |
+| C6-05 | Tentar enviar offline, reconectar | Aviso; texto não some; sem reenvio automático |
+| C6-06 | Esc e três reentradas no Play Mode | Foco e listeners limpos |
+| C6-07 | Combate, cura, level-up, morte/respawn | Valores iguais ao Node, XP total separado, FPS estável |
+| C6-08 | Inventário vazio/12+ itens/pilhas, scroll, I e X | Acesso a todos os itens, sem sobreposição |
+| C6-09 | Equip/unequip, duplo clique, slots incompatíveis e drag | Só snapshots confirmados alteram slots |
+| C6-10 | Depósito/saque e duplo clique rápido | Uma solicitação por resultado, botões aguardam ACK |
+| C6-11 | Comprar 0, quantidade inválida e normal; spam | Sem gold local fictício; Merchant sem limite stock |
+| C6-12 | Loot de 1/3/8 itens, TakeAll, disputa dois clientes | Rolagem, índices e erros, sem duplicação |
+| C6-13 | Alternar duas resoluções com painéis/chat abertos | HUD, chat, inventário, equipamentos acessíveis |
+
+Comandos locais, SEMPRE fechar Unity primeiro:
+
+    git status
+    git stash push -u -m "backup Unity antes de atualizar C6"
+    git fetch origin
+    git switch dev
+    git pull --ff-only origin dev
+    git log -1 --oneline
+    git status
+    git stash list
+
+Não usar stash pop automaticamente: revisar o stash antes de recuperar mudanças de cena/prefab. CI Node checa contratos C# estaticamente, não compila nem executa C#/Canvas. C6 só se encerra após homologação local; C7/C8 continuam independentes.

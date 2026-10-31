@@ -55,8 +55,11 @@ test("C4: PlayerHUD não mantém singleton de cena obsoleto após destroy", () =
   assert.match(hud, /void OnDestroy\(\)\s*\{[\s\S]*?if \(Instance == this\) Instance = null;/);
   // A interface mostra os dados enviados pelo Node, sem deduzir HP ou XP.
   assert.match(hud, /public void UpdateStats\(PlayerStatsData stats\)/);
-  assert.match(hud, /hpSlider\.value = hp/);
-  assert.match(hud, /xpSlider\.value = stats\.levelXpToNext > 0 \? stats\.levelXp : 1/);
+  // C6 centralizou a atualização em DisplayBar (clamp somente visual).
+  assert.match(hud, /DisplayBar\(hpSlider, hp, maxHp\)/);
+  assert.match(hud, /DisplayBar\(xpSlider, xp, currentXpToNext\)/);
+  assert.match(hud, /slider\.value = Mathf\.Clamp\(value, 0, Mathf\.Max\(1, maximum\)\)/);
+  assert.match(hud, /if \(stats\.levelXpToNext <= 0\)[\s\S]*?DisplayBar\(xpSlider, 1, 1\)/);
   assert.match(hud, /stats\.xp:N0/);
 });
 

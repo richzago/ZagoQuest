@@ -121,6 +121,23 @@ public class LootUI : MonoBehaviour
             return;
         }
 
+        // A janela pode ser aberta com cadáver vazio; sinalizar em vez
+        // de deixar uma área sem contexto ou botão TakeAll clicável.
+        if (visibleItems.Count == 0)
+        {
+            var empty = new GameObject("C6LootEmptyState", typeof(RectTransform),
+                typeof(Image), typeof(LayoutElement));
+            empty.transform.SetParent(itemsContainer, false);
+            WorldWindowLayout.PrepareRow(empty, 58f, false);
+            var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(empty.transform, false);
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            label.text = "O cadáver não contém itens.";
+            WorldWindowLayout.Place(label, 0.04f, 0.05f, 0.96f, 0.95f,
+                17, WorldWindowLayout.Muted);
+            itemSlots.Add(empty);
+        }
+
         for (int i = 0; i < visibleItems.Count; i++)
         {
             GameObject slot = Instantiate(lootItemPrefab, itemsContainer, false);
