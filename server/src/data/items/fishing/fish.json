@@ -6,8 +6,11 @@
     "type": "consumable",
     "stackable": true,
     "value": 5,
-    "foodSeconds": 30,
-    "satietyPoints": 30
+    "foodSeconds": 9,
+    "satietyPoints": 30,
+    "regenHpPerTick": 1,
+    "regenManaPerTick": 1,
+    "regenTickSeconds": 3
   },
   {
     "id": "fishing/fish/salmon",
@@ -16,8 +19,11 @@
     "type": "consumable",
     "stackable": true,
     "value": 8,
-    "foodSeconds": 40,
-    "satietyPoints": 40
+    "foodSeconds": 9,
+    "satietyPoints": 40,
+    "regenHpPerTick": 2,
+    "regenManaPerTick": 1,
+    "regenTickSeconds": 3
   },
   {
     "id": "fishing/fish/perch",
@@ -26,8 +32,11 @@
     "type": "consumable",
     "stackable": true,
     "value": 4,
-    "foodSeconds": 20,
-    "satietyPoints": 20
+    "foodSeconds": 6,
+    "satietyPoints": 20,
+    "regenHpPerTick": 1,
+    "regenManaPerTick": 1,
+    "regenTickSeconds": 3
   },
   {
     "id": "fishing/fish/golden",
@@ -36,7 +45,10 @@
     "type": "consumable",
     "stackable": true,
     "value": 50,
-    "foodSeconds": 40,
-    "satietyPoints": 40
+    "foodSeconds": 12,
+    "satietyPoints": 40,
+    "regenHpPerTick": 2,
+    "regenManaPerTick": 1,
+    "regenTickSeconds": 3
   }
 ]
