@@ -151,6 +151,7 @@ public class InventoryUI : MonoBehaviour
         slotObjects.Clear();
 
         if (slotPrefab == null || slotsGrid == null) return;
+        ShowEmptyState(items.Count == 0);
         foreach (var kvp in items)
         {
             GameObject slot = Instantiate(slotPrefab, slotsGrid);
@@ -162,6 +163,34 @@ public class InventoryUI : MonoBehaviour
             }
             slotObjects.Add(slot);
         }
+    }
+
+    /// <summary>Estado vazio puramente visual; não altera a lista do servidor.</summary>
+    private void ShowEmptyState(bool empty)
+    {
+        if (inventoryPanel == null) return;
+        var viewport = inventoryPanel.transform.Find("C6InventoryViewport");
+        if (viewport == null) return;
+        var existing = viewport.Find("C6EmptyInventoryLabel");
+        GameObject labelObject = existing != null ? existing.gameObject : null;
+        if (labelObject == null && empty)
+        {
+            labelObject = new GameObject("C6EmptyInventoryLabel",
+                typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(viewport, false);
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            label.text = "Inventário vazio";
+            label.fontSize = 18;
+            label.color = new Color32(181, 196, 207, 255);
+            label.alignment = TextAlignmentOptions.Center;
+            label.raycastTarget = false;
+            var rect = label.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+        if (labelObject != null) labelObject.SetActive(empty);
     }
 
     // =========================
