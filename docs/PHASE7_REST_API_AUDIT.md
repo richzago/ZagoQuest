@@ -108,3 +108,11 @@ Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitu
 - **Bug de contrato:** `GET /api/guilds/:guildName` espalhava a entidade TypeORM inteira, removendo apenas `logs`. Uma coluna futura seria exposta automaticamente. Agora retorna DTO explícito de metadados públicos.
 - **Testes:** Zod de URL, rota de detalhe com campos internos simulados e HTTP+PG16 com edição de imagem segura vs insegura. URLs já persistidas anteriormente **não** são reescritas; o cliente web deve tratar URLs como dados não confiáveis e aplicar CSP apropriada.
 - CI e homologação local ainda precisam de validação.
+
+
+## Rodada de encerramento — corpo HTTP e senhas (PR #74, 31/10/2026)
+
+- **Bug real de segurança de cadastro:** `createAccountSchema` aceitava senha de comprimento ilimitado; bcrypt usa no máximo 72 **bytes UTF-8**, então senhas distintas com mesmo prefixo poderiam produzir o mesmo hash. Agora novas senhas exigem 8 ou mais caracteres e máximo 72 bytes UTF-8. Login de contas históricas continua com o limite anterior de 1024 caracteres, evitando bloqueio automático antes de migração de credenciais.
+- **Limites de campos:** email até 254, nome completo até 120, endereço até 500 e data obrigatoriamente `YYYY-MM-DD`, com idade mínima de 16 anos. Não normalizamos email de contas legadas sem avaliar colisões/case-insensitive e migração.
+- **HTTP:** `express.json({limit:'16kb'})`; JSON malformado retorna 400 e payload acima do limite 413, ambos com erros genéricos. Erros não tratados do Express retornam 500 sanitizado, inclusive o caso de uma futura rota falhar.
+- **Teste:** validação UTF-8 na fronteira de 72 bytes (acentos), data/tamanhos e requisições HTTP reais para 400/413, sem PostgreSQL. Validação no Unity/login e migração de contas históricas permanecem pendentes.
