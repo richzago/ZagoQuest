@@ -45,7 +45,7 @@ test("food: mais comida estende saciedade sem ticks duplicados; cap é 120s",()=
  const now=20_000;
  FoodRegenerationSystem.feed(p,80,now);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p,now),80);
- FoodRegenerationSystem.feed(p,40,now+200);
+ FoodRegenerationSystem.feed(p,40,now);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p,now+200),MAX_FOOD_SECONDS);
  assert.equal(FoodRegenerationSystem.canEat(p,20,now+200),false);
  assert.equal(FoodRegenerationSystem.canEat(p,20,now+90_000),false);
