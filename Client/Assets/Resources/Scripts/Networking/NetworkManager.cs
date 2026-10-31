@@ -17,6 +17,9 @@ public class NetworkManager : MonoBehaviour
     private string _sessionToken;
     private string _sessionCharacterId;
     private bool _authRejected;
+    private bool _authFeedbackReceived;
+    // Apenas mensagens de interface: nunca guardar JWT ou senha aqui.
+    public string AuthenticationStatusMessage { get; private set; } = "";
     private bool _changingSession;
     private bool _awaitingAuthentication;
     private bool _everAuthenticated;
@@ -137,6 +140,8 @@ public class NetworkManager : MonoBehaviour
         _sessionCharacterId = characterId;
         _everAuthenticated = false;
         _authRejected = false;
+        _authFeedbackReceived = false;
+        AuthenticationStatusMessage = "";
         _nextReconnectAttempt = 0f;
         // Uma sessão antiga não pode se transformar em outra identidade.
         if (_websocket != null && _websocket.State == WebSocketState.Open)
@@ -172,6 +177,7 @@ public class NetworkManager : MonoBehaviour
             _nextReconnectAttempt = 0f;
             _lastPlayerId = null;
             _lastInitPosition = null;
+            _authFeedbackReceived = false;
 
             // Não limpar no OnOpen: o snapshot inicial pode estar na fila
             // de mensagens quando a confirmação de abertura é processada.
@@ -217,6 +223,8 @@ public class NetworkManager : MonoBehaviour
                 Debug.LogWarning("[NETWORK][AUTH] WebSocket recusado (1008/PolicyViolation). Confere JWT, characterId, duplicidade de sessão e requireAuthenticatedSession/WS_AUTH_REQUIRED; credenciais nunca são registradas.");
                 // Auth rejected ou violação de política: não repetir tentativas em loop.
                 _authRejected = true;
+                if (!_authFeedbackReceived && !_changingSession)
+                    AuthenticationStatusMessage = "Não foi possível entrar. Verifica a sessão e os dados do personagem.";
             }
             else
             {
@@ -274,12 +282,27 @@ public class NetworkManager : MonoBehaviour
 
         string type = json["type"]?.ToString();
         if (string.IsNullOrEmpty(type)) return;
+        // Mensagem explícita enviada pelo Node antes de 1008: a NativeWebSocket
+        // normalmente só entrega o código do fechamento, não a razão textual.
+        // Processar ANTES do bloqueio geral de pacotes não autenticados.
+        if (type == "authRejected" && requireAuthenticatedSession && !isConnected)
+        {
+            _authFeedbackReceived = true;
+            _authRejected = true;
+            _awaitingAuthentication = false;
+            AuthenticationStatusMessage = json["reason"]?.ToString() == "alreadyOnline"
+                ? "Este personagem já está conectado. Desconecta a sessão anterior para entrar novamente."
+                : "Autenticação recusada. Verifica tua sessão e tenta novamente.";
+            Debug.LogWarning("[NETWORK][AUTH] " + AuthenticationStatusMessage);
+            return;
+        }
         if (type == "authenticated" && requireAuthenticatedSession)
         {
             if (json["characterId"]?.ToString() != _sessionCharacterId) return;
             _everAuthenticated = true;
             _awaitingAuthentication = false;
             _authRejected = false;
+            AuthenticationStatusMessage = "";
             isConnected = true;
             Debug.Log("[NetworkManager] Sessão de personagem autenticada.");
             return;
