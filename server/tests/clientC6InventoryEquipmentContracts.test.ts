@@ -68,7 +68,7 @@ test("C6 visual: grade rolável e drop no inventário mesmo vazio",()=>{
  assert.match(layout,/grid\.constraintCount = 3/);
  assert.match(layout,/RectMask2D/);
  assert.match(layout,/ScrollRect/);
- assert.match(layout,/class C6InventoryDropTarget/);
+ assert.match(unity("UI/C6InventoryDropTarget.cs"),/class C6InventoryDropTarget/);
  assert.match(layout,/drag\.DropOnInventorySlot\(\)/);
  assert.match(layout,/EquipmentSlot\.HELMET/);
  assert.match(inv,/C6InventoryEquipmentLayout\.Inventory/);
