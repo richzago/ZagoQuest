@@ -21,12 +21,21 @@ public class EntityManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return; // a duplicata não deve registrar prefabs nem processar snapshots
+        }
 
+        Instance = this;
         prefabMap["goblin"] = (goblinPrefab, true);
         prefabMap["merchant"] = (merchantPrefab, false);
         prefabMap["banker"] = (bankerPrefab, false);
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     /// <summary>
@@ -122,14 +131,11 @@ public class EntityManager : MonoBehaviour
         go = Instantiate(prefab, pos, Quaternion.identity);
         entities[id] = go;
 
-        // Remove componentes antigos (caso o prefab os tenha)
-        var oldIdentity = go.GetComponent<EntityIdentity>();
-        if (oldIdentity != null) Destroy(oldIdentity);
-        var oldMonster = go.GetComponent<MonsterIdentity>();
-        if (oldMonster != null) Destroy(oldMonster);
-
-        // Adiciona identidade genérica
-        EntityIdentity identity = go.AddComponent<EntityIdentity>();
+        // Os prefabs podem já conter scripts de identidade. Destroy() é
+        // adiado até o fim do frame: destruir e adicionar outro criava duas
+        // identidades transitórias e poderia perder referências de outros scripts.
+        EntityIdentity identity = go.GetComponent<EntityIdentity>();
+        if (identity == null) identity = go.AddComponent<EntityIdentity>();
         identity.entityId = id;
 
         // ====================
@@ -137,7 +143,8 @@ public class EntityManager : MonoBehaviour
         // ====================
         if (isMonster)
         {
-            MonsterIdentity monsterId = go.AddComponent<MonsterIdentity>();
+            MonsterIdentity monsterId = go.GetComponent<MonsterIdentity>();
+            if (monsterId == null) monsterId = go.AddComponent<MonsterIdentity>();
             monsterId.entityId = id;
 
             // --- Barra de vida e nome (UI) ---
@@ -211,8 +218,11 @@ public class EntityManager : MonoBehaviour
     /// </summary>
     public void ClearNetworkEntities()
     {
-        if (entities.Count == 0) return;
+        // Limpar a seleção inclusive quando o Dictionary já está vazio:
+        // o alvo visual não pode sobreviver à sessão anterior.
         TargetSelector.Instance?.ClearTarget();
+        if (entities.Count == 0) return;
+
         foreach (var pair in entities)
         {
             NameplateManager.Instance?.RemoveNameplate(pair.Key);
