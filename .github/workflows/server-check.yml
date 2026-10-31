@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+        env:
+          # Test legacy and JWT sessions even if the runtime requires WS auth.
+          WS_AUTH_REQUIRED: "true"
       - run: npm run bench:tick
         if: matrix.os == 'ubuntu-latest'
 
