@@ -194,6 +194,8 @@ public class StatusManager : MonoBehaviour
         satietyText = WorldWindowLayout.EnsureLabel(statusPanel.transform, "C6SatietyText",
             "Saciedade  0/120", 14, Light);
         StyleLabel(satietyText, 426, 25, 14, Gold);
+        WorldWindowLayout.MakeDraggable(statusPanel, "PERSONAGEM  /  STATUS", "status");
+        title.SetActive(false);
 
         if (closeButton != null)
         {
