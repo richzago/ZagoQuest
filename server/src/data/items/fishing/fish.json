@@ -5,7 +5,8 @@
     "description": "A tasty freshwater fish.",
     "type": "consumable",
     "stackable": true,
-    "value": 5
+    "value": 5,
+    "foodSeconds": 45
   },
   {
     "id": "fishing/fish/salmon",
@@ -13,7 +14,8 @@
     "description": "A fatty, flavorful fish.",
     "type": "consumable",
     "stackable": true,
-    "value": 8
+    "value": 8,
+    "foodSeconds": 60
   },
   {
     "id": "fishing/fish/perch",
@@ -21,7 +23,8 @@
     "description": "A small but tasty fish.",
     "type": "consumable",
     "stackable": true,
-    "value": 4
+    "value": 4,
+    "foodSeconds": 30
   },
   {
     "id": "fishing/fish/golden",
@@ -29,6 +32,7 @@
     "description": "A rare and valuable fish.",
     "type": "consumable",
     "stackable": true,
-    "value": 50
+    "value": 50,
+    "foodSeconds": 90
   }
 ]

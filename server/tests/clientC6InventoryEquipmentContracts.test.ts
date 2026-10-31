@@ -180,11 +180,14 @@ test("C6 gameplay: HUD apenas exibe snapshot, XP total separado do progresso e b
  assert.match(hud,/UpdateStats\(PlayerStatsData stats\)/);
  assert.match(hud,/stats\.levelXpToNext/);
  assert.match(hud,/stats\.levelXp/);
- assert.match(hud,/stats\.xp/);
+ assert.match(hud,/stats\.mana/);
+ assert.match(hud,/stats\.maxMana/);
  assert.match(hud,/slider\.maxValue = Mathf\.Max\(1, maximum\)/);
  assert.match(hud,/slider\.value = Mathf\.Clamp\(value, 0, Mathf\.Max\(1, maximum\)\)/);
  assert.match(hud,/slider\.interactable = false/);
- assert.match(hud,/if \(stats\.levelXpToNext <= 0\)/);
+ assert.match(hud,/stats\.levelXpToNext > 0/);
+ assert.match(hud,/xpSlider\.gameObject\.SetActive\(false\)/);
+ assert.match(hud,/xpText\.gameObject\.SetActive\(false\)/);
  assert.doesNotMatch(hud,/SendPlayerStats|SendGold|SendXp|SendDamage/);
  assert.match(hud,/if \(Instance == this\) Instance = null/);
 });
@@ -197,8 +200,8 @@ test("C6 gameplay: HUD e chat recebem layout sem alterações na scene serializa
  "m_Name: TabButtons","m_Name: ChatScrollView","m_Name: ChatInput","m_Name: SendButton"])
   assert.ok(scene.includes(name),"Elemento da cena ausente: "+name);
  assert.match(hud,/private void StyleGameplayHud\(\)/);
- assert.match(hud,/private static void PlaceBar\(/);
- assert.match(hud,/image\.raycastTarget = false/);
+ assert.match(hud,/private static void StyleBar\(/);
+ assert.match(hud,/background\.raycastTarget = false/);
  assert.match(chat,/private void StyleChatPanel\(\)/);
  assert.match(chat,/rect\.sizeDelta = new Vector2\(840, 252\)/);
  assert.match(chat,/scrollRect\.offsetMin = new Vector2\(12, 53\)/);
@@ -293,4 +296,32 @@ test("C6 P1 drag distante: término único e feedback amigável no inventário/e
  assert.match(drag,/ChatUI\.Instance\?\.AddMessage\("Drop: " \+ message\)/);
  assert.match(error,/Debug\.LogWarning/);
  assert.doesNotMatch(error,/Debug\.LogError/);
+});
+
+
+test("C6 HUD compacto: barra de mana é azul, HP vermelho e XP fica no Status P",()=>{
+ const hud=unity("UI/PlayerHUD.cs");
+ const status=unity("Managers/StatusManager.cs");
+ const stats=unity("Data/PlayerStatsData.cs");
+ assert.match(hud,/ManaBlue = new Color32\(69, 144, 219, 255\)/);
+ assert.match(hud,/HealthRed = new Color32\(198, 70, 69, 255\)/);
+ assert.match(hud,/StyleBar\(hpSlider, -65, HealthRed\)/);
+ assert.match(hud,/StyleBar\(manaSlider, -105, ManaBlue\)/);
+ assert.match(hud,/slider\.fillRect\.GetComponent<Image>\(\)/);
+ assert.match(hud,/manaText\.text = \$"MANA  \{mana:N0\} \/ \{maxMana:N0\}"/);
+ assert.match(hud,/xpSlider\.gameObject\.SetActive\(false\)/);
+ assert.match(hud,/xpText\.gameObject\.SetActive\(false\)/);
+ assert.match(hud,/nearLevelUp \? Accent : LabelColor/);
+ assert.match(status,/experienceText\.text = stats\.levelXpToNext > 0/);
+ assert.match(stats,/public int mana;/);
+ assert.match(stats,/public int maxMana;/);
+});
+
+test("C6 layout: equipamento na direita central deixa topo direito para minimapa",()=>{
+ const layout=unity("UI/C6InventoryEquipmentLayout.cs");
+ assert.match(layout,/equipmentRect\.anchorMin = equipmentRect\.anchorMax/);
+ assert.match(layout,/new Vector2\(1f, 0\.5f\)/);
+ assert.match(layout,/equipmentRect\.anchoredPosition = new Vector2\(-12f, 0f\)/);
+ assert.match(layout,/Dock\(panel, 360, 308\)/);
+ assert.match(layout,/Dock\(panel, 276, 16\)/);
 });

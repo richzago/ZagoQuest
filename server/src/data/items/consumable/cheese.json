@@ -4,5 +4,6 @@
   "description": "A piece of cheese. Rats love it.",
   "type": "consumable",
   "stackable": false,
-  "value": 5
+  "value": 5,
+  "foodSeconds": 40
 }

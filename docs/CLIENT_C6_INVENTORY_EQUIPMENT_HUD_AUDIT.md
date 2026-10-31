@@ -157,3 +157,39 @@ O PR [#102](https://github.com/richzago/ZagoQuest/pull/102) foi MERGED na dev no
 | D10 | Inspecionar Unity Console e servidor após rejeição | Apenas warning/aviso esperado, UI ainda responde a cliques/atalhos |
 
 **Critério para C7:** integrar o PR após CI Windows/Linux/PG verde, mas aguardar reteste local D1–D10 para marcar a C6 homologada. Não afirmar que o servidor estava removendo item: o código recusa antes de mutar o estado.
+
+## 10. C6 — HUD compacto, equipamento centro direito e food (31/10/2026)
+
+Pedido do desenvolvedor: remover XP do HUD, mostrar nome+nivel, HP vermelho e mana azul, tornar painel mais compacto, mover equipamentos para o centro direito (minimapa futuro no topo direito) e fazer food recuperar HP/mana ao longo do tempo.
+
+**Bug real mana:** characterService criava personagens com mana/maxMana 0/0 apesar de Player/Vocation.NONE prever 50/50. Criação API corrigida para 50/50. DatabasePersistence recupera apenas saves com maxMana<=0, após recalcular vocação; mana legitima 0 com maxMana positivo permanece 0. Schema PostgreSQL legado mantém default 0; o endpoint define explicitamente os dois valores, sem migracao destrutiva.
+
+**HUD:** PlayerHUD recebe snapshots do Node; fill HPBar vermelho e ManaBar azul aplicado via Slider.fillRect (o tema antigo alterava HPSlider/ManaSlider da tela Status, não os do HUD principal). XPSlider e XPText do HUD ocultos sem apagar referências da cena; Status (P) segue mostrando XP. O nível fica destacado visualmente ao cruzar 90% de XP do nível, sem XP numérica no HUD.
+
+**Layout equipamento:** anchor/pivot (1,0.5), anchoredPosition (-12,0), largura 276 e altura 500. Inventory permanece à esquerda, sem sobreposição horizontal. Topo direito reservado a minimapa não implementado.
+
+**Food:** não existia regeneração por comer; condições existentes eram DoT e poções instantâneas. FoodRegenerationSystem no Node acrescenta saciedade até 120s (estado temporário em memória por sessão) e regenera 2 HP + 1 mana a cada 2s, respeitando max, sem ressuscitar. Queijo 40s, truta 45s, salmão 60s, perca 30s, peixe dourado 90s. Consumir retira UMA unidade e só envia inventory; tick do Node envia playerStats quando HP/mana mudar. Saciedade não persiste entre logins; HP/mana recuperados seguem persistencia existente. Poções mantêm recuperação instantânea. Não criar timer Unity nem incrementar stats no cliente.
+
+### QA Unity Editor + build Windows (C6-H)
+
+| ID | Teste | Resultado esperado |
+| --- | --- | --- |
+| H1 | Personagem novo e save antigo 0/0 | Novo 50/50; legado reparado; mana 0/50 legítima preservada |
+| H2 | HUD 1280x720 e 1920x1080 | Nome, nível, HP vermelho, mana azul, XP oculta; Status/P conserva XP |
+| H3 | Chegar a 90% da XP do nível | Level destaca visualmente, XP não aparece |
+| H4 | Abrir inventário e equipamentos | Equipamentos no centro direito, slots clicáveis e topo direito livre |
+| H5 | Comer queijo com HP e mana baixos | 1 alimento consumido; +2 HP e +1 mana por 2s, HUD reflete Node |
+| H6 | Comer repetidamente e tentar no teto | Duração soma até 120s, sem ticks duplicados; recusa sem consumo |
+| H7 | Comer com HP cheio e mana baixa | Só mana aumenta; ambos são limitados ao máximo |
+| H8 | Usar poção HP/mana | Recuperação instantânea existente preservada |
+| H9 | Morte, reconnect durante comida | Não ressuscita, não dá tick duplicado; food é sessão local |
+| H10 | Testar Alfa e Beta simultâneos | Cada personagem recebe seus stats; sem vazamento entre jogadores |
+
+Automação: foodRegeneration.test.ts exercita timer fake, teto de saciedade, tick de servidor, consumo/poção; characterPersistence.test.ts testa legacy 0/0 versus 0/50; clientC4/C6 contracts atualizados. CI Node não compila C# nem substitui QA visual. Só homologar C6 após H1-H10 e reteste D1-D10 do drop.
+
+Para atualizar: fechar Unity; git stash push -u -m "backup Unity antes do C6 HUD food"; git fetch origin; git switch dev; git pull --ff-only origin dev; git status; git stash list. NUNCA aplicar stash pop automaticamente.
+
+
+### Reteste adicional — poções existentes (bug real detectado pelos testes novos)
+
+A nova suíte de food revelou que o handler de consumíveis esperava healAmount/manaAmount como campos diretos, mas os JSONs health_potion e mana_potion usam effect.healHp e effect.healMana. O Node negava a poção mesmo quando HP/mana estavam baixos. Corrigido por tipagem de ItemType.effect e leitura do contrato real. Adicionado teste real de ambas poções (recuperação imediata, clamp e rejeição sem consumir quando cheio), preservando food com efeito gradual. A CI só conta o teste foodRegeneration quando o arquivo é incluído explicitamente em server/package.json (npm test enumera cada arquivo). Incluir H8 com HP e mana potions e confirmar no Unity, além dos 10 casos principais.

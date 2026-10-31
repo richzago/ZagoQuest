@@ -158,6 +158,13 @@ public static class C6InventoryEquipmentLayout
     {
         if (panel == null || slots == null) return;
         Dock(panel, 276, 16);
+        // Equipamentos no CENTRO DIREITO. O canto superior direito fica
+        // reservado ao minimapa futuro (sem criar placeholder ou alterar .unity).
+        // Inventário segue à esquerda: ambos permanecem clicáveis quando abertos.
+        var equipmentRect = panel.GetComponent<RectTransform>();
+        equipmentRect.anchorMin = equipmentRect.anchorMax =
+            equipmentRect.pivot = new Vector2(1f, 0.5f);
+        equipmentRect.anchoredPosition = new Vector2(-12f, 0f);
         Header(panel, "EQUIPAMENTOS", close);
         var container = slots as RectTransform;
         if (container == null) return;

@@ -46,6 +46,9 @@ export class DatabasePersistence {
     player.experienceToNext = ExperienceSystem.getRequiredXp(player.level);
     player.hp = character.hp;
     player.maxHp = character.maxHp;
+    // Personagens criados pelo serviço antigo tinham mana/maxMana 0/0.
+    // Recuperamos apenas esse legado; mana 0 com máximo positivo é legítima.
+    const legacyZeroMaxMana = character.maxMana <= 0;
     player.mana = character.mana;
     player.maxMana = character.maxMana;
     player.gold = character.gold;
@@ -74,6 +77,10 @@ export class DatabasePersistence {
     }
 
     player.recalculateStats();
+    if (legacyZeroMaxMana && player.maxMana > 0) {
+      player.mana = player.maxMana;
+      Logger.system(`[MANA] ${player.name}: mana base legada 0/0 restaurada para ${player.maxMana}.`);
+    }
     return player;
   }
 
