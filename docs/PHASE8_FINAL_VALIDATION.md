@@ -32,7 +32,7 @@ A Fase 8 não adiciona sistemas de gameplay: verifica a integração entre Data,
 3. Backup restaurável e anotação privada das configurações. NÃO compartilhar `.env`, senha, JWT ou CPF real.
 4. `DB_SYNCHRONIZE=false` no banco que contenha qualquer dado a preservar. **Não executar `npm run test:pg` nem `npm run smoke:dist` localmente**: estes scripts são exclusivos de `zagoquest_ci` efêmero no GitHub Actions.
 5. `WS_AUTH_REQUIRED=true` e Unity `requireAuthenticatedSession=true`, com `SessionLoginDebugUI` configurada para os testes da Fase 5/7.
-6. Banco e esquema devem estar PREPARADOS. Como **não há migrations TypeORM versionadas** na árvore atual, não tentar criar esquema num banco vazio ativando synchronize sobre dados importantes. Registrar a ausência como bloqueio e planejar migração numa cópia descartável com backup.
+6. Banco e esquema devem estar PREPARADOS. O projeto agora possui a migration inicial **somente para database NOVA e vazia** e o comando protegido `npm run db:init:test`. Aplique somente seguindo `docs/PHASE8_POSTGRES_WINDOWS_QA.md`. Migrar banco existente/histórico requer um plano diferente e backup restaurável. Nunca ativar synchronize sobre dados importantes.
 
 ### Comandos Windows — somente leitura/build, sem alterar o banco
 
@@ -105,7 +105,7 @@ LOG: somente trechos sem segredo
 
 | Prioridade | Risco | Próximo passo e regra de segurança |
 | --- | --- | --- |
-| P0 homologação dados | **Nenhuma migration TypeORM versionada no repositório** | Inventariar schema real e divergências; criar, revisar e testar migrations em base **descartável** com backup. Não ativar `synchronize=true` na base real. |
+| P0 homologação dados | **Migration baseline apenas para database NOVA de teste; dados existentes não migrados** | CI prova o schema no PostgreSQL 16 descartável com `DB_SYNCHRONIZE=false`. Inventariar dados/JSONB históricos e testar upgrade separado antes de bancos com saves. |
 | P1 dados históricos | `Character.accountId` nullable/legado, JSONB inventory/equipment/skills e XP antigos | Regras de associação, validação/reparo de saves em cópia antes de migrar. |
 | P1 QA E2E | Ainda não houve confirmação de Play Mode autenticado de dois clientes Unity | Rodar F8-05..F8-12 com duas contas/UUIDs e registrar logs. |
 | P1 robustez | Startup/timeout/shutdown local e cenários de carga não reproduzidos com usuários reais | Executar F8-01/F8-13/F8-14 em ambiente isolado, medir erros e prioridades. |
@@ -116,10 +116,10 @@ LOG: somente trechos sem segredo
 
 - [x] Baseline automatizado no SHA inicial da Fase 8 com Windows/Linux, PG efêmero e smoke dist aprovados.
 - [ ] Todos os casos locais aplicáveis da matriz executados, com evidências do usuário e sem P0/P1 reproduzido.
-- [ ] Estratégia de migrations segura e esquema do banco de teste validado; nunca alterar dados importantes sem backup/restauração.
+- [x] Estratégia segura de inicialização para **nova base vazia** com migration versionada, guarda por DB_NAME/host/opt-in e CI PostgreSQL com synchronize OFF. A migração de **banco já populado** e backup/restauração local ainda dependem de validação manual; não incluídos na baseline.
 - [ ] Fases 5.2, 6.2 e 7.2 reconciliadas com resultados reais no Notion.
 - [ ] Testes de regressão final na `dev` do SHA final, após qualquer PR corretivo.
-- [ ] Relatório final com arquitetura, contratos, riscos residuais, limitações visuais e decisões de gameplay.
+- [x] Relatório técnico de encerramento do escopo automatizado em `docs/PHASE8_TECHNICAL_FINAL_REPORT.md`; homologação Unity, PG local e migração de dados legados continuam pendentes.
 - [ ] Decisão explícita e **separada** sobre produção: sem promessas de segurança ou capacidade com base só em benchmark headless.
 
-**Próxima ação:** usar a matriz em ciclos pequenos, começando com F8-01 a F8-04 (boot e autenticação REST/PG local) e depois F8-05 a F8-12 (Unity + WS + persistência), sem pular as pendências de migrations/backup.
+**Próxima ação:** seguir `docs/PHASE8_POSTGRES_WINDOWS_QA.md` para criar o banco de teste via pgAdmin/psql, aplicar a migration inicial sem synchronize e executar F8-01..04 (REST) e F8-05..12 (Unity). Os testes manuais continuam sem evidências de execução até o usuário realizá-los.

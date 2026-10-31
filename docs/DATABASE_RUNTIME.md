@@ -12,7 +12,7 @@
 
 ## Local development
 
-From the `server/` directory, copy `.env.example` to `.env` and set your own DB credentials and JWT secret. The example opts into schema synchronization **only for local development**.
+From the `server/` directory, copy `.env.example` to `.env` and set your own DB credentials and JWT secret. The example keeps schema synchronization **disabled by default**. For a NEW empty and disposable `zagoquest_test` database, use the guarded `npm run db:init:test` flow described in `docs/PHASE8_POSTGRES_WINDOWS_QA.md`.
 
 ```powershell
 Copy-Item .env.example .env
@@ -28,7 +28,7 @@ Existing local `.env` files must set both `NODE_ENV=development` and `DB_SYNCHRO
 
 TypeORM `synchronize` can alter table schemas automatically. It is now disabled outside explicit development opt-in and `DB_SYNCHRONIZE=true` in production aborts initialization.
 
-**Production deployment is still blocked** until reviewed, versioned TypeORM migrations are created and tested against a database copy. This PR deliberately does not silently generate migrations or modify existing data.
+A baseline TypeORM migration now exists for **new, empty disposable databases only**. It is exercised with `DB_SYNCHRONIZE=false` in PostgreSQL 16 CI. **Production/legacy deployment remains blocked** until a separate upgrade migration for existing saves and schema has been reviewed and tested against a restorable copy. Automatic migration at server boot is disabled; no existing data is silently modified.
 
 ## Regression tests
 

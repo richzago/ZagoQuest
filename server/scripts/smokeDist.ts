@@ -32,7 +32,7 @@ await once(portProbe, "close");
 const child = spawn(process.execPath, ["dist/main.js"], {
   cwd, stdio: ["ignore", "pipe", "pipe"],
   env: { ...process.env, API_PORT: String(port), CHARACTER_NAME: "CiDistSmoke",
-    LOG_LEVEL: "INFO", DB_SYNCHRONIZE: "true" },
+    LOG_LEVEL: "INFO", DB_SYNCHRONIZE: "false" },
 });
 
 let stdout = "";

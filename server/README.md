@@ -25,7 +25,7 @@ npm run dev
 
 Para testar o binário compilado, após o build, interrompa `npm run dev` e execute `npm start` (equivale a `node dist/main.js`). O banco precisa estar disponível; o servidor não deve tentar recriar tabelas em bases com dados reais. Pare com **Ctrl+C** e confira os logs de `[SHUTDOWN]`. Nunca rode duas instâncias na mesma porta.
 
-**Aviso de banco:** o `.env.example` tem `DB_SYNCHRONIZE=false`. É a configuração recomendada. Se o banco `zagoquest_test` estiver vazio, ele não ganhará schema automaticamente: use um backup restaurável de uma base de teste já preparada ou um processo de migração revisado. Não ative `synchronize=true` num banco com saves importantes. Migrations TypeORM versionadas estão pendentes.
+**Aviso de banco:** o `.env.example` tem `DB_SYNCHRONIZE=false`. É a configuração recomendada. Se o banco `zagoquest_test` estiver vazio, ele não ganhará schema automaticamente: use um backup restaurável de uma base de teste já preparada ou um processo de migração revisado. Não ative `synchronize=true` num banco com saves importantes. Há agora uma migration inicial versionada **somente para banco novo e vazio**, executada via comando protegido `npm run db:init:test` no `zagoquest_test`. Veja `docs/PHASE8_POSTGRES_WINDOWS_QA.md`. Migrations de atualização de dados antigos continuam pendentes.
 
 ## Variáveis importantes
 
@@ -72,7 +72,7 @@ O benchmark usa `World`/`Monster`/`MonsterAI` reais, mas **sem Unity, clientes r
 - **Fase 5:** a autenticação WS por JWT e escolha do personagem foi implementada no [PR #61](https://github.com/richzago/ZagoQuest/pull/61). **Integração antecipada autorizada sem Play Mode local:** ainda exigem validação dois clientes Unity + PostgreSQL de teste, reconexão, viewport e timers. Habilite `WS_AUTH_REQUIRED=true` em desenvolvimento e `requireAuthenticatedSession=true` no Unity. Em produção a autenticação é obrigatória; não exponha modo legado.
 - **Fase 6:** logs/configuração/shutdown instrumentados ([PR #62](https://github.com/richzago/ZagoQuest/pull/62)); medição de tick e benchmark ([PR #63](https://github.com/richzago/ZagoQuest/pull/63)); smoke dist ([PR #64](https://github.com/richzago/ZagoQuest/pull/64), sujeito à CI).
 - **Fase 7 (código auditado e validado automaticamente; QA 7.2 pendente):** 12 endpoints, login/JWT, CORS/limites, cadastro/Character/Guild com conflitos e erros seguros, URLs de imagem/DTO, limites de JSON e senha, PRs #67–#74. Contratos em `docs/API_REST_CONTRACT_V1.md`, auditoria em `docs/PHASE7_REST_API_AUDIT.md`. Testes HTTP/PG16 da CI não substituem duas contas no Unity + PostgreSQL local.
-- **Fase 8 (INICIADA):** matriz de validação final em `docs/PHASE8_FINAL_VALIDATION.md`: build/testes, duas contas no REST/Unity/WS, gameplay, save/restart, carga, shutdown e bloqueadores. Ainda NÃO homologada; migrations TypeORM versionadas e testes locais permanecem pendentes.
+- **Fase 8 (automação/documentação finalizadas; QA local pendente):** matriz de validação final em `docs/PHASE8_FINAL_VALIDATION.md`: build/testes, duas contas no REST/Unity/WS, gameplay, save/restart, carga, shutdown e bloqueadores. Ainda NÃO homologada; migrations TypeORM versionadas e testes locais permanecem pendentes.
 
 ## Diagnóstico de problemas
 
@@ -82,4 +82,4 @@ O benchmark usa `World`/`Monster`/`MonsterAI` reais, mas **sem Unity, clientes r
 - **Sinal de desligamento:** aguardar `[SHUTDOWN] Finalizado`. Se uma etapa demorar mais de 15 s, o watchdog avisa mas **não interrompe** a operação de salvamento. Forçar encerramento poderá perder dados.
 - **Unity desconectado:** checar protocolo e flag de autenticação correspondentes à mesma branch. Não misturar um Unity da PR #61 com a `dev` sem o servidor do mesmo PR.
 
-Mais detalhes: `docs/PHASE6_INFRASTRUCTURE_AUDIT.md`, `docs/PHASE6_PERFORMANCE_BENCHMARK.md`.
+Mais detalhes: `docs/PHASE6_INFRASTRUCTURE_AUDIT.md`, `docs/PHASE6_PERFORMANCE_BENCHMARK.md`, `docs/PHASE8_POSTGRES_WINDOWS_QA.md` e `docs/PHASE8_TECHNICAL_FINAL_REPORT.md`.

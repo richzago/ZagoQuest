@@ -41,8 +41,12 @@ async function fixture(gold: number) {
 }
 
 before(async () => {
-  assert.equal(AppDataSource.options.synchronize, true, "Schema sync só é aceito nesta base descartável de CI.");
+  assert.equal(AppDataSource.options.synchronize, false,
+    "CI PostgreSQL deve utilizar baseline versionada, não synchronize.");
   await AppDataSource.initialize();
+  const versions = await AppDataSource.query('SELECT "name" FROM "migrations"') as Array<{ name: string }>;
+  assert.ok(versions.some(v => v.name === "InitialSchema1793400000000"),
+    "A migration versionada deve ser aplicada antes dos testes PostgreSQL.");
 });
 after(async () => {
   if (AppDataSource.isInitialized) await AppDataSource.destroy();
