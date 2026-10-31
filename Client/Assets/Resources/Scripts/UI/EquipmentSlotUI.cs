@@ -91,27 +91,26 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
             slotText.gameObject.SetActive(true);
         }
 
-        // 🔥 Ícone do item (placeholder)
+        // Sem sprite: o texto identifica o item. Evitar Texture2D/Sprite
+        // novos para cada snapshot de equipamento recebido do Node.
         if (itemIcon != null)
         {
-            // Tenta carregar um sprite do Resources (ex: "Icons/" + itemId)
-            // Se não tiver, usa um quadrado branco.
-            Sprite sprite = Resources.Load<Sprite>($"Icons/{itemId}") ??
-                            Resources.Load<Sprite>("Icons/default");
-            if (sprite != null)
-                itemIcon.sprite = sprite;
-            else
-            {
-                // Fallback: criar um sprite simples
-                Texture2D tex = new Texture2D(64, 64);
-                Color[] colors = new Color[64 * 64];
-                for (int i = 0; i < colors.Length; i++) colors[i] = Color.gray;
-                tex.SetPixels(colors);
-                tex.Apply();
-                itemIcon.sprite = Sprite.Create(tex, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f));
-            }
+            var sprite = Resources.Load<Sprite>($"Icons/{itemId}") ??
+                         Resources.Load<Sprite>("Icons/default");
+            itemIcon.sprite = sprite;
+            itemIcon.enabled = sprite != null;
+            itemIcon.preserveAspect = true;
+            itemIcon.raycastTarget = false;
             itemIcon.color = Color.white;
-            itemIcon.enabled = true;
+        }
+        if (slotText != null)
+        {
+            slotText.color = new Color32(236, 236, 230, 255);
+            slotText.enableAutoSizing = true;
+            slotText.fontSizeMin = 9;
+            slotText.fontSizeMax = 12;
+            slotText.alignment = TextAlignmentOptions.Center;
+            slotText.raycastTarget = false;
         }
 
         Debug.Log($"[EquipmentSlotUI] Item definido: {itemId} no slot {slotType}");
@@ -122,8 +121,9 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
         currentItemId = null;
         if (slotText != null)
         {
-            slotText.text = string.Empty;
-            slotText.gameObject.SetActive(false);
+            slotText.text = slotType.ToString();
+            slotText.color = new Color32(154, 168, 179, 255);
+            slotText.gameObject.SetActive(true);
         }
         if (itemIcon != null)
         {

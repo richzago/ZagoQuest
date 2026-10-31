@@ -45,19 +45,66 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         this.amount = amount;
         this.networkManager = networkManager;
 
-        // Extrai nome curto para exibição
         string shortName = itemId.Contains("/") ? itemId.Substring(itemId.LastIndexOf('/') + 1) : itemId;
         shortName = shortName.Replace("_", " ");
-
-        if (nameText != null) nameText.text = shortName;
+        // Nome no rodapé e quantidade no canto: não repetir o nome duas vezes.
+        var background = GetComponent<Image>();
+        if (background == null) background = gameObject.AddComponent<Image>();
+        background.color = new Color32(33, 46, 61, 245);
+        background.raycastTarget = true;
+        if (itemIcon != null)
+        {
+            var sprite = Resources.Load<Sprite>($"Icons/{itemId}") ??
+                         Resources.Load<Sprite>("Icons/default");
+            itemIcon.sprite = sprite;
+            itemIcon.color = sprite != null ? Color.white : new Color32(59, 74, 88, 235);
+            itemIcon.preserveAspect = sprite != null;
+            itemIcon.raycastTarget = false;
+            var rect = itemIcon.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0, 12);
+            rect.sizeDelta = new Vector2(50, 50);
+        }
+        if (nameText != null)
+        {
+            nameText.text = shortName;
+            nameText.gameObject.SetActive(true);
+            nameText.fontSize = 13;
+            if (nameText is TextMeshProUGUI label)
+            {
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 10;
+                label.fontSizeMax = 13;
+                label.alignment = TextAlignmentOptions.Center;
+                label.raycastTarget = false;
+                label.rectTransform.anchorMin = Vector2.zero;
+                label.rectTransform.anchorMax = new Vector2(1, 0.33f);
+                label.rectTransform.offsetMin = new Vector2(4, 2);
+                label.rectTransform.offsetMax = new Vector2(-4, 0);
+                label.color = new Color32(236, 236, 230, 255);
+            }
+        }
         if (amountText != null)
         {
-            if (amount > 1) amountText.text = $"{shortName} x{amount}";
-            else amountText.text = shortName;
+            amountText.text = amount > 1 ? $"x{amount:N0}" : string.Empty;
+            amountText.gameObject.SetActive(amount > 1);
+            amountText.fontSize = 14;
+            if (amountText is TextMeshProUGUI quantity)
+            {
+                quantity.alignment = TextAlignmentOptions.TopRight;
+                quantity.raycastTarget = false;
+                quantity.rectTransform.anchorMin = new Vector2(0.48f, 0.7f);
+                quantity.rectTransform.anchorMax = Vector2.one;
+                quantity.rectTransform.offsetMin = Vector2.zero;
+                quantity.rectTransform.offsetMax = new Vector2(-3, -2);
+                quantity.color = new Color32(237, 193, 110, 255);
+            }
         }
-
-        // TODO: Carregar ícone do item (ex: ItemDatabase.GetIcon(itemId))
-        // if (itemIcon != null) itemIcon.sprite = ...
+        // ClickArea é decorativo na cena (Button sem listener).
+        // Desativa seu raycast para o InventorySlot receber clique/drag.
+        var clickArea = transform.Find("ClickArea");
+        if (clickArea != null && clickArea.TryGetComponent<Image>(out var clickImage))
+            clickImage.raycastTarget = false;
     }
 
     // =========================
@@ -68,7 +115,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     {
         Debug.Log($"[InventorySlot] 🖱️ OnPointerClick: {itemId}, button={eventData.button}");
         // Se estiver arrastando, ignora clique
-        if (DragDropManager.Instance.IsDragging()) return;
+        if (DragDropManager.Instance != null && DragDropManager.Instance.IsDragging()) return;
 
         // Clique direito → usar item
         if (eventData.button == PointerEventData.InputButton.Right)
