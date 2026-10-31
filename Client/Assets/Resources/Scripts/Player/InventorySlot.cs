@@ -146,6 +146,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             hasFirstClick = false;
             float now = Time.unscaledTime;
             if (lastConsumableItem == itemId && lastConsumableRequestAt >= 0 &&
+                now >= lastConsumableRequestAt &&
                 now - lastConsumableRequestAt <= DOUBLE_CLICK_INTERVAL)
                 return;
             var network = NetworkManager.Instance ?? networkManager;
