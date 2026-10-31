@@ -111,7 +111,8 @@ export class FishingSystem {
 
     let baitId: string | null = null;
     for (const [itemId] of player.inventory) {
-      if (itemId.startsWith("fishing/bait/")) {
+      // IDs canônicos do ItemRegistry: fishing/baits/worm, .../cricket.
+      if (itemId.startsWith("fishing/baits/")) {
         baitId = itemId;
         break;
       }
