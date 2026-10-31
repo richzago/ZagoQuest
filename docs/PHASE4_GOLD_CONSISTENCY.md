@@ -50,3 +50,14 @@ npm run dev
 Se a branch já existir: `git switch fix/phase4-guild-online-gold` e `git pull --ff-only origin fix/phase4-guild-online-gold`. Não usar `reset --hard`, não compartilhar JWT ou senha.
 
 **Smoke test manual:** personagem de teste com nível >= 100, carteira >= 20.000 e conta com permissão. Ganhar/usar gold no jogo e confirmar que o saldo apresentado é o mesmo que a cobrança usa. Criar guilda uma vez e verificar carteira online e `characters.gold`. Encerrar com Ctrl+C, reiniciar e comparar. Teste de rollback/erro simulado só na base isolada e com roteiro específico.
+
+
+## Integração real com PostgreSQL descartável (CI)
+
+A partir deste PR, `npm run test:pg` exercita o PostgreSQL 16 real em um **job separado Linux**, usando serviço efêmero criado pelo GitHub Actions. `DB_SYNCHRONIZE=true` é usado **apenas para criar o schema dessa base descartável** e não comprova migrations versionadas. Windows/Linux continuam executando o conjunto normal de testes.
+
+O arquivo `tests/phase4PostgresIntegration.test.ts` recusa executar sem TODAS as variáveis `RUN_PG_TESTS=true`, `NODE_ENV=development` e `DB_NAME=zagoquest_ci`, evitando a execução acidental contra `zagoquest` ou `zagoquest_test` do usuário. O job executa operações SQL somente na base isolada `zagoquest_ci`.
+
+Cenários: saldo online versus registro SQL desatualizado e autosave, débito offline, rollback transacional real mediante trigger temporária que força erro após desconto, e duas criações concorrentes que devem resultar em uma única cobrança e membro.
+
+A aprovação desses testes comprova apenas o ambiente PostgreSQL descartável da CI. Não substitui backup/restauração e teste de jogo local; não valida dados históricos da base do usuário nem migrations TypeORM.
