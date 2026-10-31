@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System.Collections.Generic;
 
 
 public class PlayerController : MonoBehaviour
@@ -9,7 +8,6 @@ public class PlayerController : MonoBehaviour
 
     [Header("Movement")]
     public float stepDuration = 0.2f;
-    private bool isMoving = false;
     // Auto-follow mantém no máximo UMA solicitação em voo. O servidor
     // confirma cada passo com PositionHandler (inclusive passos recusados).
     private bool followPending = false;
@@ -173,25 +171,6 @@ public class PlayerController : MonoBehaviour
     // =========================
     // MOVIMENTO
     // =========================
-
-    private void SendDirection(string dir)
-    {
-        Debug.Log($"[PlayerController] 🎮 SendDirection: {dir}, isReady={isReady}, networkManager={(networkManager != null ? "EXISTE" : "NULL")}");
-
-        if (!isReady)
-        {
-            Debug.LogWarning($"[PlayerController] ⚠️ SendDirection ignorado: isReady = false");
-            return;
-        }
-
-        if (networkManager == null || !networkManager.isConnected)
-        {
-            Debug.LogWarning($"[PlayerController] ⚠️ SendDirection ignorado: networkManager = {networkManager != null}, isConnected = {networkManager?.isConnected ?? false}");
-            return;
-        }
-
-        networkManager.Movement.SendMoveDir(dir);
-    }
 
     /// <summary>
     /// O servidor envia o ritmo permitido via playerStats. O cliente só

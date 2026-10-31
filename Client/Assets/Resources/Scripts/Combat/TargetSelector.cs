@@ -39,7 +39,6 @@ public class TargetSelector : MonoBehaviour
     private GameObject currentTarget = null;
     private bool autoFollowEnabled = true;
     private float nextFollowStepTime = 0f;
-    private float followStepInterval = 0.15f;
 
     private GameObject currentOutline;
     private TargetOutline outlineScript;
