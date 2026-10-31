@@ -49,6 +49,23 @@ public class LootUI : MonoBehaviour
             root.sizeDelta = new Vector2(520f, 390f);
         }
         WorldWindowLayout.PrepareList(itemsContainer);
+        var scrollView = itemsContainer != null
+            ? itemsContainer.GetComponentInParent<ScrollRect>() : null;
+        if (scrollView != null)
+        {
+            // O ItemContainer estava fixado em 606x326 dentro de um painel
+            // menor, com Viewport de tamanho ZERO. Corrigir sem editar YAML.
+            WorldWindowLayout.Place(scrollView.GetComponent<RectTransform>(),
+                0.04f, 0.21f, 0.96f, 0.86f);
+            if (scrollView.viewport != null)
+                WorldWindowLayout.Place(scrollView.viewport, 0f, 0f, 0.95f, 1f);
+            if (scrollView.horizontalScrollbar != null)
+                scrollView.horizontalScrollbar.gameObject.SetActive(false);
+            scrollView.horizontalScrollbar = null;
+        }
+        if (takeAllButton != null)
+            WorldWindowLayout.Place(takeAllButton.GetComponent<RectTransform>(),
+                0.64f, 0.04f, 0.95f, 0.17f);
         // Na cena versionada o botão X existe como LootPanel/Button, mas
         // closeButton está sem referência (fileID 0) no Inspector.
         if (closeButton == null)
