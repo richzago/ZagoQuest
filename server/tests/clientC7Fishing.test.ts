@@ -7,17 +7,23 @@ import { Player } from "../src/game/entities/player";
 import { World } from "../src/game/world/World";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
 import { FishingSystem } from "../src/game/systems/fishingSystem";
+import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
 import { handleStartFishing, handleCancelFishing } from "../src/network/handlers/fishing.handler";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 import { parseClientMessage } from "../src/network/validation/messageValidation";
 
 const rodId = "fishing/rods/basic_rod";
+const baitId = "fishing/baits/worm";
 function setup() {
   const player = new Player("fisher", "Angler", 3, 8);
   const world = new World();
   world.generateMap(12, 12);
+  world.getTile(4,8)!.isWater = true;
+  player.equipment.set(EquipmentSlot.WEAPON,rodId);
+  player.equipment.set(EquipmentSlot.USEFUL,baitId);
+  player.addItem(baitId,1);
   const messages: Array<Record<string, unknown>> = [];
-  let inventories = 0, stats = 0;
+  let inventories = 0, stats = 0, equipment = 0;
   const ws = {
     readyState: Socket.OPEN,
     send: (data: string) => messages.push(JSON.parse(data) as Record<string, unknown>),
@@ -26,12 +32,13 @@ function setup() {
     world,
     packetSender: { inventory: {
       sendInventory: () => inventories++,
+      sendEquipment: () => equipment++,
       sendPlayerStats: () => stats++,
     }},
   } as unknown as HandlerContext;
-  player.addItem(rodId, 1);
   return { player, world, ws, ctx, messages,
     get inventories() { return inventories; },
+    get equipment() { return equipment; },
     get stats() { return stats; },
   };
 }
@@ -48,7 +55,9 @@ test("C7: comandos de pesca são estritos e não aceitam tempo/recompensa do cli
 test("C7: iniciar, não iniciar duas vezes e concluir no tempo do Node", (t) => {
   t.mock.timers.enable({apis:["setTimeout"]});
   t.mock.method(ItemRegistry,"get", (id:string)=>{
-    if(id===rodId) return {id,name:"Test rod",fishingTime:100,
+    if(id===baitId) return {id,name:"Worm",type:"equipment",slot:EquipmentSlot.USEFUL,
+      fishingBonus:0.1} as ReturnType<typeof ItemRegistry.get>;
+    if(id===rodId) return {id,name:"Test rod",type:"equipment",slot:EquipmentSlot.WEAPON,fishingTime:100,
       fishingBonus:0} as ReturnType<typeof ItemRegistry.get>;
     throw new Error("Item inesperado: "+id);
   });
@@ -59,6 +68,7 @@ test("C7: iniciar, não iniciar duas vezes e concluir no tempo do Node", (t) => 
   assert.deepEqual(f.messages.map(x=>x.state),["started"]);
   assert.equal(f.messages[0].durationMs,100);
   assert.equal(f.inventories,1);
+  assert.equal(f.equipment,1);
   handleStartFishing(f.ws,f.player,{type:"startFishing"},f.ctx);
   assert.deepEqual(f.messages.map(x=>x.state),["started","rejected"]);
   t.mock.timers.tick(99);
@@ -75,7 +85,7 @@ test("C7: iniciar, não iniciar duas vezes e concluir no tempo do Node", (t) => 
 test("C7: cancelamento encerra timer e não entrega recompensa depois", (t) => {
   t.mock.timers.enable({apis:["setTimeout"]});
   t.mock.method(ItemRegistry,"get",(id:string)=>{
-    if(id===rodId) return {id,name:"Test rod",fishingTime:100,
+    if(id===rodId) return {id,name:"Test rod",type:"equipment",slot:EquipmentSlot.WEAPON,fishingTime:100,
       fishingBonus:0} as ReturnType<typeof ItemRegistry.get>;
     throw new Error("ID inesperado "+id);
   });
@@ -96,10 +106,11 @@ test("C7: cancelamento encerra timer e não entrega recompensa depois", (t) => {
 test("C7: sem vara ou longe da água a pesca recusa, sem inventário falso", () => {
   const f=setup();
   f.player.inventory.clear();
+  f.player.equipment.delete(EquipmentSlot.WEAPON);
   handleStartFishing(f.ws,f.player,{type:"startFishing"},f.ctx);
   assert.equal(f.messages.at(-1)?.state,"rejected");
   assert.equal(f.inventories,0);
-  f.player.addItem(rodId,1);
+  f.player.equipment.set(EquipmentSlot.WEAPON,rodId);
   f.player.position={x:3,y:2};
   handleStartFishing(f.ws,f.player,{type:"startFishing"},f.ctx);
   assert.equal(f.messages.at(-1)?.state,"rejected");
