@@ -18,7 +18,7 @@ Base local padrão: `http://127.0.0.1:3000`. HTTP REST e WebSocket usam o mesmo 
 | POST | `/api/accounts` | `email`, `cellphone`, `fullName`, `cpf`, `birthDate`, `password`, `confirmPassword`, `address` | 201 `{id,email}` | 400 validação, 409 duplicidade (email/CPF sem distinção), 429 abuso, 500 falha interna |
 | POST | `/api/sessions` | `email`, `password` | 200 `{token,accountId}` | 400 formato inválido, 401 credenciais genéricas, 429 limite, 500 falha interna |
 
-Cadastro valida via `createAccountSchema`: CPF com dígitos válidos, telefone `+55` seguido de 10–11 dígitos, data de nascimento com idade mínima de 16 anos, senha de pelo menos 6 caracteres e confirmação idêntica. A política de 72 bytes do bcrypt e normalização de email ainda estão sob auditoria; não interpretar isso como aprovação de produção.
+Cadastro valida via `createAccountSchema`: CPF com dígitos válidos, telefone `+55` seguido de 10–11 dígitos, data de nascimento `YYYY-MM-DD` e idade mínima de 16 anos. **Novas senhas exigem 8 ou mais caracteres e até 72 bytes UTF-8 (bcrypt)**; confirmação idêntica. Email até 254 caracteres, nome até 120 e endereço até 500. Login legado continua aceitando senhas mais longas para não bloquear contas existentes; normalização/migração de emails históricos exige plano separado.
 
 O login usa validação Zod: email válido até 254 caracteres, senha não vazia de até 1024 caracteres, sem campos extras.
 
@@ -52,6 +52,11 @@ Paginação: `page` de 1 a 10.000, `limit` de 1 a 100. Valores inválidos recebe
 | PUT | `/api/guilds/:guildName/cover-image` | `{characterName,imageUrl}` | 200 `{message}` |
 
 Todos exigem JWT da conta proprietária do personagem indicado. Edições exigem que o personagem pertença à guilda indicada na URL e seja o **líder**. O serviço revalida papel antes de persistir. Criar guilda exige personagem level 100+, 20.000 gold e não pertencer a outra guilda. Cobrança + criação de guilda + líder ocorrem na mesma transação PostgreSQL com lock sobre `Character`; para Player online, a reserva de gold é conciliada com memória do jogo. HTTP 401 = não autenticado; 403 = personagem/guilda alheios; 400 = validação ou regra de guilda; 500 = erro interno sanitizado. URLs de imagem de Guild são validadas: HTTPS obrigatório (até 2048 caracteres e sem credenciais), exceção HTTP para localhost/127.0.0.1 apenas em desenvolvimento. O detalhe público retorna apenas campos previamente selecionados no DTO, não todo o objeto ORM. Ainda é recomendável CSP no futuro cliente web.
+
+## Proteções de payload e HTTP
+
+- Todas as rotas JSON aceitam corpos de até **16 KB**, retornando `413` para excesso e `400` para JSON malformado; erros internos inesperados da API retornam `500` sem detalhes SQL.
+- Esta restrição não altera mensagens WebSocket nem uploads binários (que ainda não existem na API REST).
 
 ## Limites e CORS
 
