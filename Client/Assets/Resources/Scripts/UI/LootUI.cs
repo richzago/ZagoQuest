@@ -46,8 +46,9 @@ public class LootUI : MonoBehaviour
             root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
             root.pivot = new Vector2(0.5f, 0.5f);
             root.anchoredPosition = new Vector2(185f, 0f);
-            root.sizeDelta = new Vector2(520f, 390f);
+            root.sizeDelta = new Vector2(450f, 345f);
         }
+        WorldWindowLayout.MakeDraggable(gameObject, "LOOT", "loot");
         WorldWindowLayout.PrepareList(itemsContainer);
         var scrollView = itemsContainer != null
             ? itemsContainer.GetComponentInParent<ScrollRect>() : null;
@@ -92,6 +93,8 @@ public class LootUI : MonoBehaviour
         if (closeButton != null) closeButton.onClick.AddListener(CloseLootWindow);
         if (takeAllButton != null) takeAllButton.onClick.AddListener(TakeAllLoot);
         if (lootPanel != null) lootPanel.SetActive(false);
+        var dragHeader = transform.Find("C6DragHeader");
+        if (dragHeader != null) dragHeader.gameObject.SetActive(false);
         // Na scene o X é irmão de PanelVisual, portanto deve ser ocultado
         // explicitamente quando o loot estiver fechado.
         if (closeButton != null) closeButton.gameObject.SetActive(false);
@@ -106,6 +109,8 @@ public class LootUI : MonoBehaviour
         if (items != null) visibleItems.AddRange(items);
         RebuildRows();
         if (lootPanel != null) lootPanel.SetActive(true);
+        var header = transform.Find("C6DragHeader");
+        if (header != null) header.gameObject.SetActive(true);
         if (closeButton != null) closeButton.gameObject.SetActive(true);
     }
 
@@ -222,6 +227,8 @@ public class LootUI : MonoBehaviour
         awaitingServer = false;
         visibleItems.Clear();
         if (lootPanel != null) lootPanel.SetActive(false);
+        var header = transform.Find("C6DragHeader");
+        if (header != null) header.gameObject.SetActive(false);
         if (closeButton != null) closeButton.gameObject.SetActive(false);
     }
 
