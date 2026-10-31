@@ -72,3 +72,19 @@ A fase **C1 está concluída por aceite local do desenvolvedor**. Ele confirmou 
 8. Registrar diferenças entre `spawn`, `despawn`, reconexão e renderização; enviar somente erros relevantes do Console e resultados, sem tokens/senhas.
 
 **Critério para fechar C2:** nenhum GameObject/network ID duplicado ou persistente entre sessões, seleção/HP/nameplates atualizados e testes locais de desconexão/reconexão aprovados. As auditorias C3/C8 continuarão cobrindo autenticação e E2E completo.
+
+## C2 — Aceite funcional e correção de pool de textos (31/10/2026)
+
+**Aceite do desenvolvedor:** relatou "tudo certo, podemos prosseguir!" após testes Alfa/Beta, combate, morte e reconexão. Logs do Node: Beta morreu por Goblin, perdeu 2 XP, renasceu em (15,16) com HP cheio e Goblin perdeu o alvo. Logs Unity anexados: spawn de Beta, Goblin, Banker, Merchant e Corpse; despawn de Goblin e Corpse por IDs; Goblin novo com outro ID; despawn e posterior novo spawn do mesmo UUID de Beta, sem log de objeto duplicado.
+
+**Limite da evidência:** logs não provam testes prolongados de reinício do servidor ou de reload da cena; estes seguem para C8. Posições de NPCs e Goblin na hora do spawn da rede podem variar do Tiled por movimento/AI.
+
+### BUG P2 comprovado — FloatingText nunca retornava à pool
+
+O arquivo do Console anexado registra repetidos avisos `[FLOATING] Pool vazio. Criando nova instância.` durante o combate. Causa exata na dev: o NameplateManager preenche uma fila com 10 FloatingText, mas Animate() terminava com Destroy(gameObject), sem chamar ReturnFloatingText. Após 10 hits, cada novo texto precisa ser instanciado. OnEnable também iniciava a coroutine antes de ShowFloatingText configurar texto/posição, exigindo StopAllCoroutines e reinício imediato.
+
+**Correção:** FloatingText recebe referência do owner, devolve GameObject ao manager no fim, e não inicia Animate no OnEnable. ShowFloatingText configura posição, texto e owner, ativa o objeto e inicia uma única coroutine. Valida Camera.main antes de consumir a fila, ignora entradas destruídas e mantém expansão elástica para rajadas além de 10 hits simultâneos. Sem mudanças no damage packet, Node ou economia.
+
+**Testes:** contratos C# estáticos da pool adicionados ao clientC2LifecycleContracts.test.ts, executados por npm test na CI. Não substituem a execução Unity. A confirmação local pontual pendente é bater no Goblin por mais de 20 hits e verificar que não aparecem avisos recorrentes de pool vazia nem erros de animação.
+
+**Status:** C2 funcionalmente aceita para os cenários executados; correção do aviso P2 submetida com QA visual específico aberto. C3 iniciada em paralelo. C8 segue responsável pelos cenários E2E não demonstrados.
