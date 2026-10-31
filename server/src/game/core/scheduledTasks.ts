@@ -38,13 +38,14 @@ export interface ScheduledTasksHandle {
   waitForIdle(): Promise<void>;
 }
 
-// A aplicação atual possui um único mundo e um jogador inicial.
-// Um controlador ativo evita duplicar autosave e processamento de guildas.
+// A aplicação ainda inicia um jogador, mas o scheduler consulta dinamicamente
+// todos os personagens do mundo a cada ciclo (futuros logins/logouts).
+// Um controlador ativo evita timers duplicados no processo.
 let activeTasks: ScheduledTasksHandle | undefined;
 
 /** Inicia o autosave e a rotina de guildas (idempotente até stop()). */
 export function startScheduledTasks(
-  player: Player,
+  players: Player | (() => readonly Player[]),
   deps: ScheduledTaskDependencies = {},
 ): ScheduledTasksHandle {
   if (activeTasks) {
@@ -52,6 +53,8 @@ export function startScheduledTasks(
     return activeTasks;
   }
 
+  // Compatibilidade com testes/chamadores antigos que passam um Player isolado.
+  const getPlayers = typeof players === "function" ? players : () => [players];
   const save = deps.saveCharacter ?? ((p: Player) => DatabasePersistence.saveCharacter(p));
   const processGuilds = deps.processGuildInactivity ?? (() => GuildService.processInactivity());
   const schedule = deps.schedule ?? ((callback, ms) => setInterval(callback, ms));
@@ -62,22 +65,48 @@ export function startScheduledTasks(
   let guildInFlight: Promise<void> | undefined;
   let finalSave: Promise<void> | undefined;
 
-  /** Retorna a Promise já ativa em vez de iniciar um segundo salvamento. */
+  /**
+   * Um ciclo salva cada UUID ativo no máximo uma vez. Personagens distintos
+   * podem salvar em paralelo; o próximo ciclo só começa quando TODOS terminarem.
+   * Promise.allSettled impede que a falha de A cancele a gravação de B.
+   */
   const runSave = (): Promise<void> => {
     if (saveInFlight) return saveInFlight;
 
-    const task = Promise.resolve().then(() => save(player));
+    const task = Promise.resolve().then(async () => {
+      const activePlayers = new Map<string, Player>();
+      for (const current of getPlayers()) {
+        activePlayers.set(current.id, current);
+      }
+
+      const results = await Promise.allSettled(
+        [...activePlayers.values()].map(async (current) => {
+          try {
+            await save(current);
+            Logger.system(`[AUTOSAVE] ${current.name} salvo.`);
+          } catch (error) {
+            Logger.error(`[AUTOSAVE] Falha ao salvar ${current.name}: ${String(error)}`);
+            throw error;
+          }
+        }),
+      );
+
+      const failures = results.filter(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+      if (failures.length === 1) throw failures[0].reason;
+      if (failures.length > 1) {
+        throw new Error(`[AUTOSAVE] ${failures.length} personagens falharam no ciclo.`);
+      }
+    });
     saveInFlight = task;
 
-    // Trata erros de tarefas disparadas pelo timer; flush também pode await.
+    // Trata erro de timer sem gerar unhandledRejection; flush ainda recebe a falha.
     void task.then(
-      () => {
-        saveInFlight = undefined;
-        Logger.system(`[AUTOSAVE] ${player.name} salvo.`);
-      },
+      () => { saveInFlight = undefined; },
       (error: unknown) => {
         saveInFlight = undefined;
-        Logger.error(`[AUTOSAVE] Falha ao salvar ${player.name}: ${String(error)}`);
+        Logger.error(`[AUTOSAVE] Ciclo incompleto: ${String(error)}`);
       },
     );
     return task;
@@ -143,6 +172,6 @@ export function startScheduledTasks(
   };
 
   activeTasks = controller;
-  Logger.system("[SCHEDULED] Autosave a cada 60s; guildas a cada 24h.");
+  Logger.system("[SCHEDULED] Autosave de todos os jogadores a cada 60s; guildas a cada 24h.");
   return controller;
 }
