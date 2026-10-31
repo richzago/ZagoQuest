@@ -55,7 +55,15 @@ public class SessionLoginDebugUI : MonoBehaviour
             }
         }
 
-        GUILayout.Label(status);
+        // Mensagem da camada WS, inclusive personagem já conectado.
+        // O login REST pode ser válido mesmo quando o personagem está online.
+        var manager = NetworkManager.Instance;
+        if (!string.IsNullOrWhiteSpace(manager.AuthenticationStatusMessage))
+            GUILayout.Label(manager.AuthenticationStatusMessage);
+        else if (manager.isConnected)
+            GUILayout.Label("Personagem conectado.");
+        else
+            GUILayout.Label(status);
         GUILayout.EndArea();
     }
 
