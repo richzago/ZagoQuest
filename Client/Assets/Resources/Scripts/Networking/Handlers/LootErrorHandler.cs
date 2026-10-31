@@ -6,8 +6,8 @@ namespace ZagoQuest.Networking.Handlers
     {
         public void Handle(JObject json, NetworkContext context)
         {
-            // var lootErrorMsg = json.ToObject<LootErrorMessage>();
-            // Debug.LogError($"Erro ao lootear: {lootErrorMsg.message}");
+            context.LootUI?.OnLootError(
+                json["message"]?.ToString() ?? "O servidor recusou a coleta.");
         }
     }
 }
