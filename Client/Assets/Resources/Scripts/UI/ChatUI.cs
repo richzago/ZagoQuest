@@ -195,14 +195,15 @@ public class ChatUI : MonoBehaviour
         rect.anchorMin = rect.anchorMax = Vector2.zero;
         rect.pivot = Vector2.zero;
         rect.anchoredPosition = new Vector2(16, 16);
-        rect.sizeDelta = new Vector2(840, 252);
+        rect.sizeDelta = new Vector2(720, 252);
         rect.localScale = Vector3.one;
+        WorldWindowLayout.MakeDraggable(gameObject, "CHAT", "chat");
 
         var tabs = transform.Find("TabButtons") as RectTransform;
         if (tabs != null)
         {
             tabs.anchorMin = tabs.anchorMax = tabs.pivot = new Vector2(0, 1);
-            tabs.anchoredPosition = new Vector2(12, -10);
+            tabs.anchoredPosition = new Vector2(12, -39);
             tabs.sizeDelta = new Vector2(440, 32);
         }
         Button[] channels = { localButton, tradeButton, supportButton, guildButton };
@@ -222,7 +223,7 @@ public class ChatUI : MonoBehaviour
             scrollRect.anchorMin = Vector2.zero;
             scrollRect.anchorMax = Vector2.one;
             scrollRect.offsetMin = new Vector2(12, 53);
-            scrollRect.offsetMax = new Vector2(-12, -49);
+            scrollRect.offsetMax = new Vector2(-12, -79);
         }
 
         var inputRect = inputField.transform as RectTransform;
