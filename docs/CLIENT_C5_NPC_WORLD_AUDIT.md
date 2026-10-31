@@ -1,6 +1,6 @@
 # C5 — NPC/World: auditoria técnica, contratos e roteiro de homologação
 
-**Iniciada:** 31/10/2026 · **Status:** INVENTÁRIO E MATRIZ INICIAL CONCLUÍDOS; investigação/QA específicos C5 em andamento. **Sem correções de gameplay C5 aplicadas nesta entrega.**
+**Iniciada:** 31/10/2026 · **Status:** C5 EM ANDAMENTO; auditoria de NPC/World iniciada e correção funcional/visual de Loot, Merchant e Banker preparada em PR incremental. **QA Unity pendente: não declarar UI corrigida ou C5 homologada antes do aceite.** O Node continua autoritativo; nenhuma regra econômica alterada neste PR.
 
 ## 1. Pré-requisito e metodologia
 
@@ -77,3 +77,53 @@ A fase **C4 — Player/Combat está concluída/homologada** após **10/10 cenár
 - Cadáver/loot sem duplicação, com transferências válidas e mensagens em ambos os clientes.
 - Bugs reproduzidos corrigidos com testes Node + Unity, CI verde, docs/Notion sincronizados.
 - **C5 só será homologada após aceite explícito do desenvolvedor.** C6 e C8 permanecem independentes.
+
+## 8. Ampliação aprovada pelo desenvolvedor — interfaces NPC e cadáver/loot na C5
+
+O desenvolvedor solicitou expressamente incluir **o layout visual de Merchant, Banker e a interação de cadáver/loot ainda na C5**, porque os problemas já impedem clicar nos itens a partir do segundo. **C6** tratará o layout e a usabilidade de **Inventário, Equipamentos e HUD/gameplay** com outra bateria específica. A autoria do layout será por **C# em runtime**, preservando os objetos e referências serializadas da cena, sem exigir intervenção manual em cada RectTransform da Hierarchy.
+
+### 8.1. Bugs reais confirmados na cena e nos scripts atuais
+
+**C5-P1/P2 — Loot com linhas colapsadas e cliques interceptados.** A `scenebasic.unity` referencia `LootPanel`, `ItemContainer`, `Viewport` e `Content`. O `Viewport` do loot tinha `m_AnchorMin={0,0}`, `m_AnchorMax={0,0}`, `m_SizeDelta={0,0}`, tornando sua área de visualização efetiva nula. O `Content` tinha `VerticalLayoutGroup.childControlWidth=0` e `childControlHeight=0`, logo os filhos do prefab retinham seu layout fixo ao serem empilhados. `LootItemSlot.prefab` tinha os dois textos TMP com `m_RaycastTarget=1`, interceptando cliques no componente `IPointerClickHandler` da raiz. A coleta exigia `clickCount == 2`. O botão de fechar existe em `LootPanel/Button`, mas o campo `closeButton` no `LootUI` está serializado como `fileID: 0` (não atribuído). A raiz `LootPanel` também tem `Image.raycastTarget=1` mesmo transparente. **Resultado: janela desalinhada, área clicável reduzida, cliques no mundo bloqueados e seleção extremamente difícil.**
+
+**C5-P2 — Loot parcial fechava a janela por qualquer confirmação.** O `LootTakenHandler` atual chamava `CloseLootWindow()` sem examinar `itemIndex`. O Node envia `lootTaken {corpseId,itemIndex}` para coleta individual e omite o índice no `takeAll`. Portanto, a janela era descartada após pegar apenas um item, exigindo reabri-la e tornando confuso o deslocamento dos índices. O `LootErrorHandler` ignorava erros totalmente, sem liberar o estado visual.
+
+**C5-P2 — Merchant com prefab desproporcional e lista sem controle de altura.** O prefab `ShopItemSlot_Temp.prefab` tinha um root de **400×300** e seus campos de nome/preço/estoque/input/botão em coordenadas absolutas; o `ShopPanel` utiliza uma lista cujo `VerticalLayoutGroup` também serializa `childControlHeight=0`. Isso distorce linhas, causa sobreposição e cliques em botões errados. `ShopUI.OnDestroy` estava vazio e sua duplicata inicializava após Destroy, podendo manter singleton obsoleto. A quantidade visual do prefab existia, mas `ShopItemSlot` ignorava seu TMP_InputField e enviava sempre compra de 1.
+
+**C5-P2 — Banker desalinhado por coordenadas absolutas.** No `BankPanel` de 400×300, `BankGoldText`, `GoldText`, input e botões tinham RectTransforms com posições fora da área ou excessivamente afastadas. Essa correção é **cosmética + responsiva**, não modifica validações de depósito/saque.
+
+### 8.2. Implementação da interface na branch C5
+
+| Arquivo | Mudança |
+| --- | --- |
+| `UI/WorldWindowLayout.cs` + `.meta` | Helper compartilhado: painel com paleta escura, `VerticalLayoutGroup` controlando largura/altura, `ContentSizeFitter` por altura preferida, ScrollRect vertical, rows com `LayoutElement`, colunas por âncoras, labels sem bloquear raycast, botões com estilo uniforme |
+| `UI/LootUI.cs` | Reposicionar painel/ItemContainer/Viewport, desabilitar raycast da raiz transparente, recuperar botão Close da Hierarchy e o botão TakeAll, lista de linhas 56 px; coleta apenas com conexão válida e uma solicitação pendente; manter lista aberta após retirada individual e recomputar índices conforme ACK |
+| `UI/LootItemSlot.cs` | Toda linha clicável por **um clique esquerdo**; TMP labels sem raycast; nome e quantidade em colunas responsivas |
+| `Networking/Handlers/LootTakenHandler.cs` | Interpretar `corpseId` e `itemIndex` e chamar `LootUI.OnLootTaken` em vez de fechar tudo |
+| `Networking/Handlers/LootErrorHandler.cs` | Propagar erro do Node, liberar botão e informar no chat |
+| `UI/ShopUI.cs` | Layout de lista, viewport, scroll vertical, slots de 76 px; lifecycle de singleton, listener de fechar estável e referência Network atual |
+| `NPC/ShopItemSlot.cs` | Nome/preço/estoque/input/comprar alinhados por âncoras; ler quantidade inteira positiva do campo se presente; verificar estoque local para feedback e **delegar compra ao Node** (que revalida tudo) |
+| `UI/BankUI.cs` | Painel centralizado, saldos e input alinhados, botões comprar/depositar/sacar/fechar com tema consistente; lógica de saldos permanece somente via resposta Node |
+| `server/tests/clientC5NpcLootUiContracts.test.ts` | Contratos de layout/scroll/raycast, clique único, `lootTaken` parcial, recusa de erro, quantidade e preservação da autorização econômica; adicionado a `npm test` |
+
+**Proteção de multiplayer e economia:** `LootUI` só remove o item exibido **após** receber `lootTaken`; o cliente não presume item/gold disponível. O backend continua validando distância, itemIndex, quantidade, capacidade, estoque e saldos; nenhum handler Node foi alterado neste PR. Durante uma coleta em voo, cliques adicionais ficam temporariamente bloqueados para não enviar dois índices concorrentes. Se um ACK chegar de outro corpse, ignorá-lo. `lootError` libera a tentativa e mostra mensagem. A lista pode ser reaberta para receber snapshot autoritativo se outro jogador tiver mudado o cadáver.
+
+### 8.3. Limites da entrega, classificação e riscos
+
+- **Correções comprovadas de layout/contrato:** Viewport nulo, VerticalLayoutGroup sem controle de altura, textos TMP bloqueando clique, duplo clique difícil, closeButton sem referência, lootTaken parcial fechado sempre, prefab shop com root 300px e campo quantidade ignorado.
+- **Pontos que ainda exigem Unity:** ordem efetiva dos elementos na UI com o `ZagoQuestUiTheme` ativo, máscara/scroll com 1/3/8 itens, resoluções 1280×720/1920×1080, painel aberto após afastar-se de NPC, dois clientes coletando o mesmo cadáver.
+- **Futuro C6:** redesign de inventário, equipamentos e HUD/gameplay; não alterar código dessas áreas na C5. Se a UI de loja e banco precisar de novos ícones/sprites/arte, isso é polimento adicional, distinto do bloqueio funcional C5.
+- **Não declarar C5 encerrada só pela CI:** testes de C# são estáticos. Exigir execução de Play Mode e build Windows, com evidência de funcionamento.
+
+### 8.4. Checklist adicional de homologação C5 — UI/UX
+
+1. Abrir cadáver com **3 ou mais itens diferentes**. Confirmar que todas as linhas estão visíveis, **nenhum texto ocupa a área de outra linha**, o primeiro/segundo/terceiro item respondem a **um clique**; itens 4–8 permitem scroll vertical com mouse. O painel fica dentro da tela e pode ser fechado no X.
+2. Clicar no **segundo item**: somente ele deve ser adicionado ao inventário após ACK; o painel mantém os demais itens, com índices reajustados e botão TakeAll funcionando. Repetir até zerar. Reabrir e confirmar item não duplicado. Testar clicar duas vezes rapidamente: não duplica coleta.
+3. Com corpo vazio, distante, removido ou inventário sem espaço: servidor recusa; erro aparece no ChatUI, botão volta a funcionar e gold/itens não são criados. Não forçar drop artificial na conta principal.
+4. Abrir Merchant: todas as linhas têm nome/preço/estoque/quantidade/botão alinhados; scroll da lista; comprar 1 e quantidade maior, inválida e acima do estoque; observar `buyResult` e mudanças somente após Node confirmar.
+5. Abrir Banker: saldos, quantidade, depósito, saque e fechar ficam dentro do painel; testar quantidade válida/zero/saldo insuficiente/fora do alcance, sem discrepância de gold. Abrir/fechar repetidamente sem botões duplicados.
+6. Alternar loja/banco/loot com Alfa e Beta, testar NPC ocupado, afastamento, desconexão e reconexão. Nenhuma UI deve permitir operação econômica depois que o Node revoga a sessão.
+7. Repetir Play Mode e build Windows. Console sem `MissingReferenceException`, `NullReferenceException` ou `RectTransform`/LayoutGroup warnings, sem painéis fora do viewport.
+8. Enviar screenshots de Inspector/Hierarchy somente se houver falha de configuração ainda não coberta por runtime; assim podemos corrigir o prefab/scene depois com evidência, sem reintroduzir mudanças manuais na C1/C4.
+
+**Critério de aceite específico para encerramento C5:** servidor e Unity passam testes de NPC/Monster, autorização de shop/bank/loot, concorrência e layout/seleção funcional de itens múltiplos, com resultados localmente aprovados pelo desenvolvedor. C6 será a etapa de inventário/equipamentos/HUD.
