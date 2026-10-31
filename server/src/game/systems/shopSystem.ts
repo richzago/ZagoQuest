@@ -50,6 +50,8 @@ export class ShopSystem {
     if (!isValidItemId(itemId) || !isValidQuantity(quantity)) return false;
     const item = npc.shopItems?.find((entry) => entry.itemId === itemId);
     if (!item || !Number.isSafeInteger(item.sellPrice) || item.sellPrice < 0 ||
+        !Number.isSafeInteger(item.buyPrice) || item.sellPrice >= item.buyPrice ||
+        isCoin(itemId) ||
         !player.hasItem(itemId, quantity)) return false;
 
     const earned = item.sellPrice * quantity;
