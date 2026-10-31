@@ -89,6 +89,9 @@ test("C7.1: painéis menores, controles merchant em duas linhas, pesca entra no 
  assert.match(fish,/panelObject\.SetActive\(connected\)/);
  assert.match(shop,/0\.28f, 0\.06f, 0\.60f, 0\.35f/);
  assert.match(shop,/0\.64f, 0\.06f, 0\.96f, 0\.35f/);
- assert.match(slots,/grid\.cellSize = new Vector2\(82, 82\)/);
+ assert.match(slots,/grid\.cellSize = new Vector2\(76, 76\)/);
+ // Largura interna do inventário: (314 - 12 - 6) - 32 = 264px.
+ // Conteúdo: 3 células de 76, 2 espaços de 6, padding 10+10 = 260px.
+ assert.ok(3*76 + 2*6 + 20 <= 314 - 12 - 6 - 32);
  assert.match(inv,/rect\.sizeDelta = new Vector2\(42, 42\)/);
 });
