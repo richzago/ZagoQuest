@@ -233,3 +233,51 @@ Branch feat/client-c7-camera-input-fishing-ux, base dev C6 commit 293c6ff; GitHu
 - **P3 performance:** monitorar quantidade de re-layouts e reparenting no Profiler do Unity em 60+ min, especialmente quando muitos itens ou jogadores estão visíveis.
 
 **Não confundir:** dock/resizing, tile.isWater e equipment Useful fazem parte desta correção; melhorias opcionais acima ficam fora do aceite obrigatório e não bloqueiam CR8 salvo defeito P0/P1 detectado em QA.
+
+
+---
+
+## 11. C7.2 — regressão visual após o merge #111 (31/10/2026)
+
+**Estado:** correção candidata em branch `fix/client-c71-viewport-overlap-regression`, **ainda não homologada no Unity**; não liberar CR8 nem fazer merge afirmando que a cena está boa apenas por testes do Node.
+
+### 11.1 Relato e evidências
+
+O usuário executou Play Mode após integrar o PR #111 e observou (a) janelas sobrepostas; (b) cantos do mapa com imagens aparentemente sobrepostas; (c) interface muito quebrada. Isso **invalida o aceite visual da C7.1**, apesar dos 526 testes Node anteriores e da CI verde.
+
+A revisão de `scenebasic.unity` mostra uma Main Camera com URP, Canvas de Overlay 1920×1080 e o TiledMapRenderer separado. Em `C7DockLayout.cs`, a alteração mais agressiva introduzida pelo #111 foi `worldCamera.rect = new Rect(0, y, width, 1f - y)`, recalculado em LateUpdate. Isso pode deixar regiões da tela fora do clear/render da câmera, em especial ao mudar resolução e F10. **Hipótese forte, não causa empiricamente comprovada** até reproduzir e inspecionar frame no Editor. O TiledMapRenderer não foi alterado pelo #111, portanto não presumir automaticamente novos GIDs ou erro de Tiled.
+
+O dock também permitia altura mínima de 145px para qualquer painel, inclusive Equipamentos com quatro fileiras, podendo deixar controles visualmente além do painel e produzir aparente sobreposição. Esse defeito é comprovável na leitura do código, mas a reprodução exata em cada painel requer QA.
+
+### 11.2 Correções candidatas
+
+- Camera.rect retorna a `(0,0,1,1)`; o desenho do mundo usa a câmera integral. Uma sidebar opaca sobreposta mantém o HUD separado visualmente, sem região de renderização parcial da URP.
+- `C7DockLayout.TryGetWorldInsets` fornece larguras/alturas reservadas em **pixels físicos**, derivados de CanvasScaler/Screen, respeitando F10. Quando deslogado ou sem sidebar, retorna false.
+- `CameraFollow` desloca o enquadramento para o centro da região realmente livre e realiza uma segunda correção após o clamp de mapa para impedir que o personagem apareça atrás da sidebar ou chat, inclusive junto às quatro bordas e em zoom diferente. Próximo aos extremos, é possível aparecer fundo vazio fora do mapa; isso **não cria novos tiles** e precisa ser verificado visualmente.
+- Resizing respeita altura mínima proporcional ao painel, e Equipamentos não pode ficar abaixo de 380px. Mantém largura fixa, rolagem, drag/reorder, persistência por PlayerPrefs e servidor autoritativo. A arquitetura e as regras de pesca do #111 permanecem intactas.
+- Teste `server/tests/clientC71DockContracts.test.ts` atualizado: contratos C# com nova estratégia, e **135 cenários matemáticos** independentes (3 resoluções × 3 escalas × 3 zooms × 5 posições). São modelos/contratos estáticos, NÃO testes de render Unity.
+
+### 11.3 Casos de aceite obrigatórios: C7-53–C7-69
+
+| Caso | Execução no Editor e build Windows | Aceite |
+| --- | --- | --- |
+| C7-53 | Play Mode, sem interagir, em 1920×1080 | Apenas uma imagem do mundo, cantos sem duplicação/ghosting |
+| C7-54 | Caminhar por todos os cantos (3,3), (26,3), (3,16), (26,16) | Player sempre visível; não desenhar segundo mapa ou tiles falsos |
+| C7-55 | Repetir com zoom 3.5, 6.5 e 12 | Câmera não salta, não recorta o player atrás do dock |
+| C7-56 | Repetir em 1280×720 e 1024×768 | Sem HUD bloqueando o personagem e sem distorção do mundo |
+| C7-57 | Alternar F10 três vezes (100/115/130%) | Câmera mantém área segura e UI redimensiona coerentemente |
+| C7-58 | Abrir simultaneamente Inventory/Equipment/Status/Shop/Bank/Loot/Fishing | Somente uma coluna, sem janelas sobrepostas; rolagem acessa todas |
+| C7-59 | Redimensionar Equipamento até altura mínima | Todos os slots permanecem dentro da caixa; só altura muda |
+| C7-60 | Redimensionar Shop/Bank/Inventory e rolar | Todos os botões permanecem clicáveis, sem vazamento da janela seguinte |
+| C7-61 | Reordenar painéis pelo título, restaurar altura por botão direito | Ordem/altura atualizadas sem abrir nova janela flutuante |
+| C7-62 | Esconder cada caixa, logout, relogin | Caixa oculta libera layout e não bloqueia raycast |
+| C7-63 | Abrir chat e digitar R, +, -, I, F10 | Nenhuma ação involuntária enquanto digita |
+| C7-64 | Movimentar player na margem inferior com chat visível | Chat não cobre o player nem intercepta input do mundo fora da faixa |
+| C7-65 | Clicar num monstro atrás da sidebar/loja e fora dela | Clique em UI não ataca; no mundo obedece regras do Node |
+| C7-66 | Repetir Play Mode 3 vezes e inspecionar Hierarchy | Sem Canvas/sidebar/Tilemap duplicados, sem MissingReferenceException |
+| C7-67 | Inspecionar Console por GIDs, sorting, NullReference e erros | Zero novos erros C# e nenhum sprite/GID ausente regressivo |
+| C7-68 | Pescar na água inferior e centro seco após a correção | Regras autoritativas de água, isca Useful e vara Weapon preservadas |
+| C7-69 | Build Windows, abrir duas sessões e testar NPC/loot/combat/chat | Sem regressão funcional e sem artefatos visuais |
+
+**Gate de merge:** testes CI Node/Linux/Windows/PG devem passar; QA Unity Editor e build Windows devem ser registrados com evidências para os P0/P1. Se o Editor não estiver disponível, registrar o bloqueio e deixar o PR aberto. Não alterar `main` e não avançar à CR8. Se o usuário encontrar um defeito, reparar na branch e repetir QA.
+
