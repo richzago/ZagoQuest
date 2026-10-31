@@ -2,40 +2,30 @@ using UnityEngine;
 
 namespace ZagoQuest.Networking
 {
+    /// <summary>
+    /// Contexto da conexão. Managers de cena são resolvidos no momento do
+    /// pacote: uma UI criada após Awake ou recriada no reconnect não pode
+    /// deixar o handler preso a uma instância null/destruída.
+    /// </summary>
     public class NetworkContext
     {
         public NetworkManager NetworkManager { get; }
-        public GameManager GameManager { get; }
-        // Resolve at packet arrival: Awake ordering must not drop world entities.
+        public GameManager GameManager => global::GameManager.Instance;
         public EntityManager EntityManager => global::EntityManager.Instance;
-        public ChatUI ChatUI { get; }
-        public LootUI LootUI { get; }
-        public TargetSelector TargetSelector { get; }
-        public NameplateManager NameplateManager { get; }
-        public InventoryUI InventoryUI { get; }
-        public EquipmentUI EquipmentUI { get; }
-        // Resolver ao receber o pacote: Awake do NetworkManager pode anteceder Awake da UI.
+        public ChatUI ChatUI => global::ChatUI.Instance;
+        public LootUI LootUI => global::LootUI.Instance;
+        public TargetSelector TargetSelector => global::TargetSelector.Instance;
+        public NameplateManager NameplateManager => global::NameplateManager.Instance;
+        public InventoryUI InventoryUI => global::InventoryUI.Instance;
+        public EquipmentUI EquipmentUI => global::EquipmentUI.Instance;
         public ShopUI ShopUI => global::ShopUI.Instance;
-        // Resolver ao receber o pacote: Awake do NetworkManager pode anteceder Awake da UI.
         public BankUI BankUI => global::BankUI.Instance;
-        public PlayerHUD PlayerHUD { get; }
-        public StatusManager StatusManager { get; }
+        public PlayerHUD PlayerHUD => global::PlayerHUD.Instance;
+        public StatusManager StatusManager => global::StatusManager.Instance;
 
         public NetworkContext(NetworkManager networkManager)
         {
             NetworkManager = networkManager;
-
-            // Todos os singletons
-            GameManager = GameManager.Instance;
-            ChatUI = ChatUI.Instance;
-            LootUI = LootUI.Instance;
-            TargetSelector = TargetSelector.Instance;
-            NameplateManager = NameplateManager.Instance;
-            InventoryUI = InventoryUI.Instance;
-            EquipmentUI = EquipmentUI.Instance;
-            PlayerHUD = PlayerHUD.Instance;
-            StatusManager = StatusManager.Instance;
         }
-
     }
 }
