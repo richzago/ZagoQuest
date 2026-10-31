@@ -155,3 +155,14 @@ O desenvolvedor informou que os testes funcionais e visuais da C5 após o PR #98
 ## 31/10/2026 — C6 redesign visual 1 (PR draft)
 
 Branch feat/client-c6-inventory-equipment-visual criada após PR #100; grade rolável 3 colunas, slots e fontes legíveis, painéis lado a lado, equipamento corporal, fallback sem alocação de sprite e drop para área vazia do inventário. Contratos continuam sob autoridade Node. CI estática e QA Unity Editor+Windows pendentes: NÃO declarar C6 homologada; não integrar à dev antes dos testes. Detalhes em CLIENT_C6_VISUAL_UI_PASS.md.
+
+
+## 31/10/2026 — C6 HUD/Chat/economia: nova etapa em branch de PR
+
+Após o PR #101 integrado na dev, o desenvolvedor confirmou que a interface está aparentemente correta e pediu continuação da revisão integral de InventoryUI, EquipmentUI, LootUI, ShopUI, BankUI, PlayerHUD e ChatUI.
+
+Branch de trabalho: feat/client-c6-hud-chat-hardening. Ajustes: Enter/onSubmit não envia duas mensagens; mouse ativa o estado do chat, listeners são removidos e histórico é limitado; chat e painel de barras posicionados com layout de runtime; PlayerHUD usa clamp somente visual, distingue XP de nível/XP total e FPS amostrado; BankUI impede duas transferências antes de bankResult (sem alterar saldos localmente). Testes C6 estáticos ampliados. Código e matriz de QA no relatório CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md, seção 7.
+
+Não transformar testes automatizados de Node em alegação de compilação C# ou QA visual. A C6 só será HOMOLOGADA após testes Editor + Windows nas duas resoluções, inventário/equip, Chat Enter/tecla I, banco/loja/loot e dois clientes. C5 recebeu aceite positivo do usuário; últimos detalhes do #99 considerados aparentemente corretos conforme relato, sem inventar logs. Main intacta.
+
+**Orientação local permanente:** antes de atualizar dev, fechar Unity e usar git stash push -u -m "backup Unity antes de atualizar C6"; depois git fetch origin, git switch dev, git pull --ff-only origin dev. Revisar stash list; NÃO dar stash pop automaticamente.
