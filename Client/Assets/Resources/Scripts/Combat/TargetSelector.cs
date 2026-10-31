@@ -91,7 +91,7 @@ public class TargetSelector : MonoBehaviour
         // Nunca calcular a distância usando o transform deste componente.
         // PlayerController usa exclusivamente a última posição validada pelo Node.
         PlayerController.Instance.RequestFollowTowards(currentTarget.transform.position);
-        nextFollowStepTime = Time.time + followStepInterval;
+        nextFollowStepTime = Time.time + PlayerController.Instance.FollowIntervalSeconds;
     }
 
     void OnDestroy()

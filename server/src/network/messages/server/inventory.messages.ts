@@ -23,6 +23,7 @@ export interface ServerPlayerStatsMessage {
   mana: number;
   maxMana: number;
   level: number;
+  moveIntervalMs: number; // cooldown real do passo; autoritativo no Node
   attack: number;
   defense: number;
   armor: number;

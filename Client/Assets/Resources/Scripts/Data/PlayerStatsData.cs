@@ -9,6 +9,7 @@ public class PlayerStatsData
     public int mana;
     public int maxMana;
     public int level;
+    public int moveIntervalMs; // informado pelo servidor, não escolhido pelo cliente
     public int attack;
     public int defense;
     public int armor;

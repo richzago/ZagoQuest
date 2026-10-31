@@ -17,7 +17,9 @@ public class PlayerController : MonoBehaviour
     private float followAllowedAt = 0f;
     private Vector2Int followFrom;
     private bool diagonalRejected = false;
-    private const float FollowStepSeconds = 0.15f;
+    private float followStepSeconds = 0.15f; // atualizado pelo PlayerStatsSender
+    public float FollowIntervalSeconds => followStepSeconds;
+    private float manualOverrideUntil = 0f;
     private const float FollowAckTimeoutSeconds = 0.75f;
 
     private NetworkManager networkManager;
@@ -56,14 +58,8 @@ public class PlayerController : MonoBehaviour
         moveSoutheast = new InputAction("SE", binding: "<Keyboard>/c");
         moveSouthwest = new InputAction("SW", binding: "<Keyboard>/z");
 
-        moveNorth.performed += _ => SendDirection("north");
-        moveSouth.performed += _ => SendDirection("south");
-        moveEast.performed += _ => SendDirection("east");
-        moveWest.performed += _ => SendDirection("west");
-        moveNortheast.performed += _ => SendDirection("northeast");
-        moveNorthwest.performed += _ => SendDirection("northwest");
-        moveSoutheast.performed += _ => SendDirection("southeast");
-        moveSouthwest.performed += _ => SendDirection("southwest");
+        // Teclas são amostradas no Update para suportar segurar WASD.
+        // Isso evita uma fila de InputAction.performed sem ACK do Node.
 
         Debug.Log("[PlayerController] ✅ InputActions configuradas.");
     }
@@ -79,6 +75,27 @@ public class PlayerController : MonoBehaviour
         moveNorthwest.Enable();
         moveSoutheast.Enable();
         moveSouthwest.Enable();
+    }
+
+    private void Update()
+    {
+        if (ChatUI.IsChatActive || !isReady) return;
+
+        // Segurar WASD envia no máximo um passo por confirmação de posição.
+        // As teclas diagonais explícitas têm prioridade sobre cardinais.
+        Vector2Int direction = Vector2Int.zero;
+        if (moveNortheast.IsPressed()) direction = new Vector2Int(1, 1);
+        else if (moveNorthwest.IsPressed()) direction = new Vector2Int(-1, 1);
+        else if (moveSoutheast.IsPressed()) direction = new Vector2Int(1, -1);
+        else if (moveSouthwest.IsPressed()) direction = new Vector2Int(-1, -1);
+        else
+        {
+            direction.x = (moveEast.IsPressed() ? 1 : 0) - (moveWest.IsPressed() ? 1 : 0);
+            direction.y = (moveNorth.IsPressed() ? 1 : 0) - (moveSouth.IsPressed() ? 1 : 0);
+        }
+        if (direction == Vector2Int.zero) return;
+        manualOverrideUntil = Time.unscaledTime + followStepSeconds * 2f;
+        RequestMoveDirection(direction);
     }
 
     private void OnDisable()
@@ -129,6 +146,9 @@ public class PlayerController : MonoBehaviour
 
     public void OnServerInit(string _, Vector2 pos)
     {
+        followPending = false;
+        followAllowedAt = 0f;
+        diagonalRejected = false;
         Debug.Log($"[PlayerController] 📍 OnServerInit - posição recebida: ({pos.x}, {pos.y})");
         currentGridPosition = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
         transform.position = new Vector3(currentGridPosition.x, currentGridPosition.y, 0);
@@ -173,6 +193,16 @@ public class PlayerController : MonoBehaviour
         networkManager.Movement.SendMoveDir(dir);
     }
 
+    /// <summary>
+    /// O servidor envia o ritmo permitido via playerStats. O cliente só
+    /// agenda solicitações; o Node mantém o limite autoritativo.
+    /// </summary>
+    public void SetMoveIntervalMs(int milliseconds)
+    {
+        if (milliseconds < 75 || milliseconds > 150) return;
+        followStepSeconds = milliseconds / 1000f;
+    }
+
     // =========================
     // AUTO FOLLOW (UM PASSO CONFIRMADO POR VEZ)
     // =========================
@@ -184,6 +214,7 @@ public class PlayerController : MonoBehaviour
     public void RequestFollowTowards(Vector3 monsterWorldPosition)
     {
         if (!isReady || networkManager == null || !networkManager.isConnected) return;
+        if (Time.unscaledTime < manualOverrideUntil) return;
 
         if (followPending)
         {
@@ -217,7 +248,7 @@ public class PlayerController : MonoBehaviour
         followFrom = currentGridPosition;
         followPending = true;
         followSentAt = Time.unscaledTime;
-        followAllowedAt = followSentAt + FollowStepSeconds;
+        followAllowedAt = followSentAt + followStepSeconds;
         diagonalRejected = false;
         networkManager.Movement.SendMoveDir(dir);
     }
@@ -229,13 +260,14 @@ public class PlayerController : MonoBehaviour
     public void RequestMoveDirection(Vector2Int direction)
     {
         if (!isReady || networkManager == null || !networkManager.isConnected) return;
-        if (followPending || Time.unscaledTime < followAllowedAt) return;
+        if (followPending && Time.unscaledTime - followSentAt < FollowAckTimeoutSeconds) return;
+        if (Time.unscaledTime < followAllowedAt) return;
         string dir = DirectionToString(direction);
         if (dir == null) return;
         followFrom = currentGridPosition;
         followPending = true;
         followSentAt = Time.unscaledTime;
-        followAllowedAt = followSentAt + FollowStepSeconds;
+        followAllowedAt = followSentAt + followStepSeconds;
         networkManager.Movement.SendMoveDir(dir);
     }
 
