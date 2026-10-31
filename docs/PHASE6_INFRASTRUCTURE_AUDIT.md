@@ -56,3 +56,9 @@ Para `npm run dev` / `npm start`, confirmar `server/.env` apontando para um PG d
 - [ ] Medir tick p50/p95/p99, CPU/RSS/filas sob carga e registrar máquina/cenário/amostras.
 - [ ] Definir estratégia de rotação/limite/retention de logs e padronização dos demais erros.
 - [ ] Testar backup/restauração e finalizar documentação operacional antes de concluir a Fase 6.
+
+## PR de robustez do build dist (adição posterior)
+
+`npm run smoke:dist` é um teste **destrutivo apenas na base efêmera `zagoquest_ci`** do GitHub Actions. Recusa explicitamente qualquer outro `DB_NAME`. Executa `node dist/main.js` com cwd `server/`, exige que o mapa Tiled tenha sido carregado (sem fallback procedural), acessa rota REST protegida sem JWT (401), envia SIGTERM, aguarda shutdown gracioso e verifica personagem persistido após reabrir PostgreSQL. O CI em Ubuntu executa o comando **após** build e integração PG. O script não precisa de Unity e não comprova builds Windows/Unity, mas confirma o layout dos JSONs em `server/src/data` e mapa em `assets/maps` em Linux CI.
+
+O smoke só está disponível no job PG descartável; **não executar** `npm run smoke:dist` na máquina local com saves. Para o Windows local: `npm ci; npm run build; npm start` com .env apontando para banco de teste e Ctrl+C manual.
