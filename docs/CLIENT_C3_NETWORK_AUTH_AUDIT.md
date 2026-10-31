@@ -65,3 +65,21 @@
 **QA Unity necessário:** autenticar Teste Alfa no Editor; tentar Teste Alfa em build Windows: segunda UI deve mostrar o aviso e não entrar no mundo; Alfa no Editor continua podendo andar. Fechar o primeiro, escolher o personagem novamente no segundo cliente e confirmar que entra após logout/salvamento. Testar Teste Beta simultaneamente para garantir que outra conta continua funcionando. Não registrar credenciais.
 
 **Sequência do roadmap corrigida pelo desenvolvedor:** depois desta correção C3, **iniciar C4 — Player/Combat**, não C5. C5 — NPC/World permanece na ordem seguinte. A C3 tem QA pontual do novo feedback ainda pendente; C4 pode ser auditada em paralelo, sem declarar a C3 integralmente homologada até aceite do aviso.
+
+## C3.3 — Exclusividade de sessão por CONTA, além do personagem (31/10/2026)
+
+**Nova decisão de design do desenvolvedor, após QA da C3/C4:** mesmo quando personagens são diferentes, a mesma conta não deve controlar dois personagens simultaneamente. Contas distintas continuam podendo jogar juntas. O usuário validou os testes anteriores do cliente, inclusive o feedback `alreadyOnline`.
+
+**Regra na autoridade do Node:** `authorizeCharacterSession()` comprova propriedade via JWT HS256 + SQL com accountId/characterId. `wsServer.ts` mantém `socketAccountIds` para slots de conta autenticados e `reservedAccountIds` durante handshake e salvamento final. Sem `await` entre teste e reserva do slot, dois logins concorrentes de personagens diferentes da mesma conta não conseguem autenticar ambos. Checar duplicação de characterId primeiro para manter o retorno específico antigo `alreadyOnline`; se apenas accountId duplica, enviar `authRejected` com `reason: accountAlreadyOnline` antes de WS close 1008.
+
+**Fechamento consistente:** ao fechar socket associado à conta, reservar o personagem E a conta antes de excluir registros ativos; aguardar `OrderedMessageQueue.whenIdle()` e gravação `saveSessionPlayer` antes de liberar ambos os slots em `finally`, inclusive após falhas. Evita troca de personagem que leia/grave estado enquanto a sessão anterior ainda encerra. Tokens, IDs de conta e identidades de outros personagens nunca são enviados na mensagem de recusa. O modo legado local sem JWT continua isolado das restrições por conta.
+
+**Mensagem Unity:** `Esta conta já possui um personagem conectado. Desconecta a sessão anterior para entrar com outro.` exibida em `SessionLoginDebugUI` via `NetworkManager.AuthenticationStatusMessage`, com o mesmo bloqueio de tentativas automáticas de reconexão já existente.
+
+**Testes de integração com WebSocket real:** personagens Alice e Clara com token da mesma conta, Bruno com outra. Validar que Alice+C nunca se autenticam juntas, Alice+B coexistem, disputa concorrente Alice/C tem exatamente um vencedor, logout seguido de save libera entrada de Clara e save pendente impede entrada de Clara. Os testes anteriores de duplicação do mesmo UUID e isolamento A/B permanecem ativos. Testes estáticos de feedback C3 revisados para o novo método compartilhado de recusa.
+
+**Limite de arquitetura:** slot é mantido em memória no processo do mundo Node atual (um servidor autoritativo). Para múltiplas instâncias ou shards distribuídos, um lock centralizado transacional ou Redis com TTL/ownership será requisito de escala futura — não implementar preventivamente neste PR.
+
+**QA Unity ainda necessário:** com a conta Alfa possuindo personagens A e C, conectar A no Editor; tentar C na build Windows e receber aviso da conta ocupada, sem despawn de A; testar Beta de outra conta; sair de A e selecionar C, conferindo acesso após persistência. Validar o mesmo personagem continua mostrando a mensagem antiga. Não registrar JWT/credenciais.
+
+**Andamento C4:** os testes Player/Combat foram aprovados pelo desenvolvedor em 31/10/2026; começar o aprofundamento técnico de C4 depois desta proteção, sem pular para C5.
