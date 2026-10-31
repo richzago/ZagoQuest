@@ -77,10 +77,17 @@ export async function createWorldAndPlayer(
       `Não foi possível carregar o mapa Tiled (${mapPath}): ${reason}. Usando mapa procedural.`,
     );
     world.generateMap(20, 10);
+    // Apenas quando não há mapa Tiled: fallback da worldFactory, não do Unity.
+    world.playerRespawn = { ...playerSpawn };
   }
 
   if (mapResult) {
     playerSpawn = mapResult.playerSpawn ?? playerSpawn;
+    // Tiled é a origem das coordenadas, World mantém apenas snapshot validado.
+    const respawn = mapResult.respawnSpawn ?? playerSpawn;
+    world.playerRespawn = world.getTile(respawn.x, respawn.y)?.walkable
+      ? { ...respawn } : { ...playerSpawn };
+    Logger.world(`Respawn do jogador definido pelo Tiled: (${world.playerRespawn.x}, ${world.playerRespawn.y})`);
     // Entity loader errors must propagate. Silently switching to the fallback
     // would hide a broken registry/NPC config and leave a partially loaded World.
     if (mapResult.monsters.length) MonsterLoader.spawnMonsters(world, mapResult.monsters);

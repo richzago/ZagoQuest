@@ -25,6 +25,8 @@ import type { NpcSpawnData } from "../../shared/interfaces/spawn.interface";
 export interface MapLoadResult {
   /** Posição (em tiles) onde o jogador deve nascer */
   playerSpawn?: { x: number; y: number };
+  /** Optional independent Tiled RespawnSpawn layer; defaults to PlayerSpawn. */
+  respawnSpawn?: { x: number; y: number };
   /** Lista de monstros a serem instanciados */
   monsters: Array<{
     x: number;
@@ -179,6 +181,24 @@ export class MapLoader {
             );
           }
         }
+        // -------------------- RESPAWN DO JOGADOR --------------------
+        // A layer RespawnSpawn é opcional. Sem ela, usa-se PlayerSpawn.
+        // Nenhuma coordenada do cliente ou valor fixo no DeathSystem.
+        else if (layer.name === "RespawnSpawn") {
+          const obj = layer.objects?.find((candidate) => {
+            const label = (candidate.name || candidate.type || "").trim().toLowerCase();
+            const custom = candidate.properties?.find((p) =>
+              p.name === "type" || p.name === "spawnType")?.value;
+            return label === "respawn" || label === "player" || custom === "respawn";
+          });
+          if (obj) {
+            const x = Math.floor(obj.x / mapData.tilewidth);
+            const y = Math.floor(obj.y / mapData.tileheight);
+            result.respawnSpawn = { x, y };
+          } else {
+            Logger.warn("[MapLoader] RespawnSpawn sem objeto player/respawn; usando PlayerSpawn.");
+          }
+        }
         // --------------------  NPC SPAWN --------------------
         else if (layer.name === "NPCSpawn") {
           for (const obj of layer.objects || []) {
@@ -205,6 +225,14 @@ export class MapLoader {
             Logger.world(`[MapLoader] Spawn de NPC '${npcId}' em (${x}, ${y})`);
           }
         }
+      }
+
+      // Validar o ponto de renascimento DEPOIS de todas as layers:
+      // a ordem de Collision e ObjectLayer no Tiled não importa.
+      if (result.respawnSpawn && !world.getTile(
+        result.respawnSpawn.x, result.respawnSpawn.y)?.walkable) {
+        Logger.warn("[MapLoader] RespawnSpawn em tile bloqueado ou fora do mapa. Usando PlayerSpawn.");
+        result.respawnSpawn = undefined;
       }
 
       Logger.world(`Mapa carregado: ${mapData.width}x${mapData.height} de ${filePath}`);

@@ -81,6 +81,9 @@ export class World {
   /** Pontos fixos do Tiled (um por objeto), referenciados pelo spawnPointId do monstro. */
   spawnPoints: MonsterSpawnData[] = [];
 
+  /** Read from the Tiled map at boot, authoritative player resurrection point. */
+  playerRespawn?: { x: number; y: number };
+
   public itemsOnGround: ItemOnGround[] = [];
 
   // =========================
