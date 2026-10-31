@@ -38,6 +38,8 @@ const validMessages = [
   { type: "openShop", npcId: "merchant-1" },
   { type: "buyItem", npcId: "merchant-1", itemId: "consumable/health_potion", amount: 3 },
   { type: "sellItem", npcId: "merchant-1", itemId: "consumable/health_potion", amount: 2 },
+  { type: "startFishing" },
+  { type: "cancelFishing" },
   { type: "openBank", npcId: "banker-1" },
   { type: "deposit", amount: 200 },
   { type: "withdraw", amount: 100 },
@@ -45,13 +47,13 @@ const validMessages = [
   { type: "closeBank", npcId: "banker-1" },
 ] as const;
 
-test("todos os 21 tipos de mensagem do cliente são aceitos com campos válidos", () => {
+test("todos os 23 tipos de mensagem do cliente são aceitos com campos válidos", () => {
   for (const message of validMessages) {
     const parsed = parseClientMessage(JSON.stringify(message));
     assert.equal(parsed.ok, true, `Comando rejeitado: ${JSON.stringify(message)}`);
     if (parsed.ok) assert.equal(parsed.message.type, message.type);
   }
-  assert.equal(new Set(validMessages.map((v) => v.type)).size, 21);
+  assert.equal(new Set(validMessages.map((v) => v.type)).size, 23);
 });
 
 test("esquemas cobrem exatamente os tipos registrados nos handlers", () => {

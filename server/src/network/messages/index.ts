@@ -33,6 +33,8 @@ import type {
   ClientOpenShopMessage,
   ClientBuyItemMessage,
   ClientSellItemMessage,
+  ClientStartFishingMessage,
+  ClientCancelFishingMessage,
   ClientOpenBankMessage,
   ClientDepositMessage,
   ClientWithdrawMessage,
@@ -77,6 +79,7 @@ import type {
   ServerShopWindowMessage,
   ServerBuyResultMessage,
   ServerSellResultMessage,
+  ServerFishingStatusMessage,
   ServerShopErrorMessage,
   ServerBankWindowMessage,
   ServerBankResultMessage,
@@ -103,6 +106,8 @@ export type ClientMessage =
   | ClientOpenShopMessage
   | ClientBuyItemMessage
   | ClientSellItemMessage
+  | ClientStartFishingMessage
+  | ClientCancelFishingMessage
   | ClientOpenBankMessage
   | ClientDepositMessage
   | ClientWithdrawMessage
@@ -138,6 +143,7 @@ export type ServerMessage =
   | ServerShopWindowMessage
   | ServerBuyResultMessage
   | ServerSellResultMessage
+  | ServerFishingStatusMessage
   | ServerShopErrorMessage
   | ServerBankWindowMessage
   | ServerBankResultMessage

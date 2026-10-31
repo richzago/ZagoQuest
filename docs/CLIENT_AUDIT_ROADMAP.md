@@ -227,3 +227,14 @@ Checklist de QA U9–U17 e dados de balanceamento em docs/CLIENT_C6_INVENTORY_EQ
 - HUD: XP vermelha reaparece e avança por levelXp / levelXpToNext, sem mexer na autoridade do servidor.
 
 Checklist C6 U18–U33 e limites no docs/CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md seção 13. C6 só fecha após Unity Editor e build Windows; testes Node/PG não compilam C#. Não iniciar gameplay C7 antes de homologação. Main não modificada.
+
+## 31/10/2026 — C7 UX/Camera/Visual Fishing: implementação para merge dev
+
+C6 foi homologada pelo usuário. C7 auditada desde PR #105, agora implementada conforme docs/CLIENT_C7_UX_VISUAL_AUDIT.md seções 6–9. Prioridade:
+- C7-A CameraFollow: suavização 30/60/120 FPS independente, zoom +/- com PlayerPrefs, clamping visual ao Tiled MapWidth/Height e snap após teleporte/respawn. TiledMapRenderer não sobrescreve ortho size da camera controlada.
+- C7-B input: TargetSelector evita mirar/loot/NPC atrás de Canvas (EventSystem.RaycastAll); Espaco seleciona por distância ao PlayerController, não ao transform do próprio TargetSelector, estável por distância/ID. R, +/-, F10 respeitam chat/TMP input.
+- C7-C acessibilidade/UI: C7UiAccessibility F10 escalas 100/115/130% local sem redesenhar sprites mundo; Canvas de pesca 420, logout C6 500; CanvasScaler reference 1920x1080 atual; avaliar legibilidade real 1280x720/1920x1080.
+- C7-D pesca: feature visual nova, NÃO bug do backend: FishingSystem já tem vara, isca, skill, recompensa e timer. Novos comandos WS startFishing/cancelFishing (Zod estrito), packet fishingStatus, callbacks opcionais WeakMap com cancel/completion, UI automática C7FishingUI com painel, botão, estado, progresso visual e R. Só Node concede itens, tempo, skill. **isNearWater ainda usa Y>=8 simulado**; requer depois tile water Tiled autoritativo; sem bobber/linha/áudio ainda.
+- C7-E regressão: novos tests/clientC7Fishing.test.ts com FakeTimers, testes clientC7UxContracts, 23 mensagens schema+handler sincronizadas; QA Unity C7-13–C7-31 e C7-01–C7-12; não confundir CI Node com compilação C# do Unity.
+
+Classificação explícita: BUG REAL (lerp FPS, centro de alvo); RISCO (clique UI, resolução, zoom, reconnect, sorting); FEATURE (pesca cliente); DÍVIDA TÉCNICA (tiles de água, assets e acessibilidade avançada); SUGESTÃO FUTURA (minimizar/dock/resize, tooltips, bobber visual). Não reescrever backend nem mudar drop XP/gold/economia/movimento. Branch dev somente; main intocada. QA manual Unity e build Windows necessários após merge.

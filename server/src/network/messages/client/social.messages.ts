@@ -75,3 +75,7 @@ export interface ClientCloseShopMessage {
   type: "closeShop";
   npcId: string;
 }
+
+/** C7: UI de pesca não escolhe recompensa, duração, item ou posição. */
+export interface ClientStartFishingMessage { type: "startFishing"; }
+export interface ClientCancelFishingMessage { type: "cancelFishing"; }

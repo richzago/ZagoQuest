@@ -23,6 +23,7 @@ import {
   handlePickupItem,
 } from "./inventory.handler";
 import { handleOpenShop, handleBuyItem, handleSellItem, handleCloseShop } from "./shop.handler";
+import { handleStartFishing, handleCancelFishing } from "./fishing.handler";
 import { handleOpenBank, handleDeposit, handleWithdraw, handleCloseBank } from "./bank.handler";
 
 /**
@@ -68,6 +69,10 @@ export const handlers: Record<string, HandlerFn> = {
   buyItem: handleBuyItem,
   sellItem: handleSellItem,
   closeShop: handleCloseShop,
+
+  // Pesca — Node decide tempo, água, vara e isca.
+  startFishing: handleStartFishing,
+  cancelFishing: handleCancelFishing,
 
   // Bank
   openBank: handleOpenBank,

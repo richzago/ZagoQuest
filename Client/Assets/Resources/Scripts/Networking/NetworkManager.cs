@@ -36,6 +36,7 @@ public class NetworkManager : MonoBehaviour
     public ChatSender Chat { get; private set; }
     public ShopSender Shop { get; private set; }
     public BankSender Bank { get; private set; }
+    public FishingSender Fishing { get; private set; }
 
     // =========================
     // CAMPOS PRIVADOS
@@ -93,6 +94,9 @@ public class NetworkManager : MonoBehaviour
             go.AddComponent<DragDropManager>();
             Debug.Log("[NetworkManager] DragDropManager criado automaticamente.");
         }
+
+        if (GetComponent<C7FishingUI>() == null) gameObject.AddComponent<C7FishingUI>();
+        if (GetComponent<C7UiAccessibility>() == null) gameObject.AddComponent<C7UiAccessibility>();
 
         if (requireAuthenticatedSession && !HasCredentials)
         {
@@ -224,6 +228,7 @@ public class NetworkManager : MonoBehaviour
             Chat = new ChatSender(socket);
             Shop = new ShopSender(socket);
             Bank = new BankSender(socket);
+            Fishing = new FishingSender(socket);
             Debug.Log("[NetworkManager] ✅ Senders e estado de rede renovados.");
             if (requireAuthenticatedSession)
             {

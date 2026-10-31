@@ -358,6 +358,8 @@ public class TiledMapRenderer : MonoBehaviour
         Camera cam = Camera.main;
         if (cam == null) return;
         cam.transform.position = new Vector3(mapData.width / 2f, mapData.height / 2f, -10f);
-        cam.orthographicSize = mapData.height / 2f;
+        // C7: CameraFollow controla zoom; não sobrescrever ao importar mapa.
+        if (cam.GetComponent<CameraFollow>() == null)
+            cam.orthographicSize = mapData.height / 2f;
     }
 }
