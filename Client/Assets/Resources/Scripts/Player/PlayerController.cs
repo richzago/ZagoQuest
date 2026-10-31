@@ -64,15 +64,16 @@ public class PlayerController : MonoBehaviour
 
     private void OnEnable()
     {
+        if (Instance != this) return;
         Debug.Log("[PlayerController] OnEnable - Habilitando InputActions");
-        moveNorth.Enable();
-        moveSouth.Enable();
-        moveEast.Enable();
-        moveWest.Enable();
-        moveNortheast.Enable();
-        moveNorthwest.Enable();
-        moveSoutheast.Enable();
-        moveSouthwest.Enable();
+        moveNorth?.Enable();
+        moveSouth?.Enable();
+        moveEast?.Enable();
+        moveWest?.Enable();
+        moveNortheast?.Enable();
+        moveNorthwest?.Enable();
+        moveSoutheast?.Enable();
+        moveSouthwest?.Enable();
     }
 
     private void Update()
@@ -98,14 +99,14 @@ public class PlayerController : MonoBehaviour
 
     private void OnDisable()
     {
-        moveNorth.Disable();
-        moveSouth.Disable();
-        moveEast.Disable();
-        moveWest.Disable();
-        moveNortheast.Disable();
-        moveNorthwest.Disable();
-        moveSoutheast.Disable();
-        moveSouthwest.Disable();
+        moveNorth?.Disable();
+        moveSouth?.Disable();
+        moveEast?.Disable();
+        moveWest?.Disable();
+        moveNortheast?.Disable();
+        moveNorthwest?.Disable();
+        moveSoutheast?.Disable();
+        moveSouthwest?.Disable();
     }
 
     private void Start()
@@ -265,6 +266,16 @@ public class PlayerController : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Limpeza - nada necessário
+        if (Instance == this) Instance = null;
+        // As InputActions são alocadas no Awake: liberar recursos ao trocar
+        // de cena/reabrir Play Mode, mesmo que OnDisable já as tenha desativado.
+        moveNorth?.Dispose();
+        moveSouth?.Dispose();
+        moveEast?.Dispose();
+        moveWest?.Dispose();
+        moveNortheast?.Dispose();
+        moveNorthwest?.Dispose();
+        moveSoutheast?.Dispose();
+        moveSouthwest?.Dispose();
     }
 }

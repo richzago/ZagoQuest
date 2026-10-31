@@ -120,8 +120,14 @@ public class TargetSelector : MonoBehaviour
     private void OnMouseClick()
     {
         if (ChatUI.IsChatActive) return;
+        // Cliques em alvos, cadáveres e itens não podem enviar pacotes
+        // enquanto o socket ainda autentica ou após uma desconexão.
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected) return;
+        var camera = Camera.main;
+        if (camera == null) return;
 
-        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Ray ray = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
         RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
         if (hit.collider != null)
         {
@@ -151,7 +157,7 @@ public class TargetSelector : MonoBehaviour
                 if (corpse != null && !string.IsNullOrEmpty(corpse.corpseId))
                 {
                     Debug.Log($"[TargetSelector] Clique no corpse ID {corpse.corpseId}");
-                    NetworkManager.Instance.Inventory.SendLoot(corpse.corpseId);
+                    network.Inventory?.SendLoot(corpse.corpseId);
                 }
                 else
                 {
@@ -174,7 +180,7 @@ public class TargetSelector : MonoBehaviour
                 if (item != null && !string.IsNullOrEmpty(item.groundItemId))
                 {
                     Debug.Log($"[TargetSelector] Clicou no item {item.itemName} (ID: {item.groundItemId})");
-                    NetworkManager.Instance.Inventory.SendPickupItem(item.groundItemId);
+                    network.Inventory?.SendPickupItem(item.groundItemId);
                 }
                 else
                 {
@@ -213,8 +219,13 @@ public class TargetSelector : MonoBehaviour
 
     public void SelectTarget(string targetId)
     {
+        var network = NetworkManager.Instance;
+        if (string.IsNullOrEmpty(targetId) || network == null ||
+            !network.isConnected || network.Combat == null ||
+            EntityManager.Instance == null) return;
+
         if (currentTarget != null)
-            NetworkManager.Instance.Combat.SendStopAutoAttack();
+            network.Combat.SendStopAutoAttack();
 
         currentTargetId = targetId;
         currentTarget = EntityManager.Instance.GetGameObject(targetId);
@@ -227,7 +238,7 @@ public class TargetSelector : MonoBehaviour
         }
 
         ShowOutline(currentTarget.transform);
-        NetworkManager.Instance.Combat.SendStartAutoAttack(targetId);
+        network.Combat.SendStartAutoAttack(targetId);
     }
 
     /// <summary>
