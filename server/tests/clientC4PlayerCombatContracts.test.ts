@@ -100,3 +100,56 @@ test("C4: protocolo morte, HP, alvo e velocidade continua autoritativo", () => {
   assert.match(movement, /MIN_MOVE_INTERVAL_MS = 150/);
   assert.match(movement, /lastAcceptedMove\.set\(player, now\)/);
 });
+
+test("C7 bugfix: clique único em monstro e corpse usa todos os colliders visíveis", () => {
+  const selector = readUnity("Combat/TargetSelector.cs");
+  const onClick = selector.slice(selector.indexOf("private void OnMouseClick()"),
+    selector.indexOf("private void OnAttackKey()"));
+  const hitPick = selector.slice(selector.indexOf("private enum WorldClickKind"),
+    selector.indexOf("private bool IsPointerOverUi()"));
+
+  assert.match(onClick, /Collider2D clicked = FindWorldClickCollider\(ray\)/);
+  assert.doesNotMatch(onClick, /Physics2D\.GetRayIntersection\(ray\)/);
+  assert.match(hitPick, /Physics2D\.GetRayIntersectionAll\(ray\)/);
+  assert.match(hitPick, /if \(kind == WorldClickKind\.None\) continue/);
+  assert.match(hitPick, /SortingLayer\.GetLayerValueFromID\(sprite\.sortingLayerID\)/);
+  assert.match(hitPick, /kind == WorldClickKind\.Corpse \? 4/);
+  assert.match(hitPick, /kind == WorldClickKind\.Monster \? 3/);
+  assert.match(hitPick, /bestPriority = priority/);
+
+  assert.match(onClick, /var monster = clicked\.GetComponentInParent<MonsterIdentity>\(\)/);
+  assert.match(onClick, /var corpse = clicked\.GetComponentInParent<CorpseIdentity>\(\)/);
+  assert.match(onClick, /if \(monster != null\)[\s\S]*?SelectTarget\(clickedId\)/);
+  assert.doesNotMatch(onClick, /if \(currentTargetId == clickedId\)[\s\S]*?ClearTarget\(\)/);
+  assert.match(onClick, /network\.Inventory\?\.SendLoot\(corpse\.corpseId\)/);
+  assert.match(onClick, /else\s*\{\s*ClearTarget\(\)/);
+  assert.match(selector, /if \(currentTargetId == targetId\) return/);
+  assert.match(selector, /if \(canvas != null && canvas\.renderMode != RenderMode\.WorldSpace\)/);
+  assert.doesNotMatch(selector, /hit\.gameObject\.GetComponentInParent<Selectable>\(\)/);
+
+  // O Node continua validando loot e dano; não ampliar alcance pelo cliente.
+  const loot = readFileSync(join(process.cwd(), "src/network/handlers/loot.handler.ts"), "utf8");
+  assert.match(loot, /if \(dx \+ dy > 2\)/);
+  const attack = readFileSync(join(process.cwd(), "src/network/handlers/attack.handler.ts"), "utf8");
+  assert.match(attack, /PlayerAttackSystem\.validateSelectableTarget\(player, target, ctx\.world\)/);
+});
+
+test("C7 bugfix: ordem de colisores não determina interação por sorte", () => {
+  type Clickable = { type: "monster" | "corpse" | "npc" | "item" | "scenery";
+    layer: number; sorting: number; distance: number };
+  const rank: Record<Clickable["type"], number> =
+    { corpse: 4, monster: 3, item: 2, npc: 1, scenery: -1 };
+  const choose = (colliders: Clickable[]) => colliders
+    .filter(c => c.type !== "scenery")
+    .sort((a,b) => b.layer - a.layer || b.sorting - a.sorting ||
+      rank[b.type] - rank[a.type] || a.distance - b.distance)[0]?.type;
+  const corpse: Clickable = {type:"corpse", layer:0, sorting:10, distance:10};
+  const monster: Clickable = {type:"monster", layer:0, sorting:10, distance:10};
+  const playerCollider: Clickable = {type:"scenery", layer:0, sorting:100, distance:1};
+  assert.equal(choose([playerCollider,monster]), "monster");
+  assert.equal(choose([monster,playerCollider]), "monster");
+  assert.equal(choose([monster,corpse]), "corpse");
+  assert.equal(choose([corpse,monster]), "corpse");
+  assert.equal(choose([playerCollider]), undefined);
+  assert.equal(choose([{...monster,sorting:12},corpse]), "monster");
+});
