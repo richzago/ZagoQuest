@@ -95,9 +95,12 @@ export class MapLoader {
         for (let y = 0; y < collisionLayer.height; y++) {
           for (let x = 0; x < collisionLayer.width; x++) {
             const idx = y * collisionLayer.width + x;
-            // Qualquer tile diferente de 0 na camada de colisão bloqueia o movimento
+            // Tiled guarda a linha 0 no TOPO, mas Unity e World usam Y
+            // crescente para CIMA. Espelhar a posição da Collision da
+            // mesma forma que TiledMapRenderer.DrawLayer faz no Ground.
             if (collisionLayer.data[idx] !== 0) {
-              const tile = world.getTile(x, y);
+              const worldY = mapData.height - 1 - y;
+              const tile = world.getTile(x, worldY);
               if (tile) tile.walkable = false;
             }
           }

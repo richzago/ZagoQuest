@@ -63,3 +63,12 @@ test("C1: a cena principal associa Ground ao Grid, não ao MapManager", () => {
   assert.match(scene, /m_Name: Grid/);
   assert.match(scene, /m_Father: \{fileID: 1217622213\}/);
 });
+
+test("C1: Node e Unity convertem o eixo Y da Collision igual ao Ground", () => {
+  const node = read("server/src/game/loaders/mapLoader.ts");
+  const unity = read("Client/Assets/Resources/Scripts/World/TiledMapRenderer.cs");
+  assert.match(node, /const worldY = mapData\.height - 1 - y/);
+  assert.match(node, /world\.getTile\(x, worldY\)/);
+  assert.match(unity, /new Vector3Int\(x, mapData\.height - 1 - y, 0\)/);
+  assert.match(unity, /blocked\[x, mapData\.height - 1 - y\] = collision\.data\[idx\] != 0/);
+});
