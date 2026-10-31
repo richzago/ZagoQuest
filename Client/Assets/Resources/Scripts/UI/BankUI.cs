@@ -35,6 +35,43 @@ public class BankUI : MonoBehaviour
 
     private void Start()
     {
+        WorldWindowLayout.PreparePanel(bankPanel, 480f, 370f);
+        // Elementos serializados do BankPanel são filhos diretos e estavam
+        // distribuídos por coordenadas fixas fora da área visível da janela.
+        WorldWindowLayout.Place(inventoryGoldText, 0.08f, 0.68f, 0.92f, 0.81f,
+            18, WorldWindowLayout.Label);
+        WorldWindowLayout.Place(bankGoldText, 0.08f, 0.53f, 0.92f, 0.66f,
+            18, WorldWindowLayout.Gold);
+        if (amountInput != null)
+            WorldWindowLayout.Place(amountInput.GetComponent<RectTransform>(),
+                0.08f, 0.35f, 0.92f, 0.48f);
+        if (depositButton != null)
+            WorldWindowLayout.Place(depositButton.GetComponent<RectTransform>(),
+                0.08f, 0.16f, 0.48f, 0.30f);
+        if (withdrawButton != null)
+            WorldWindowLayout.Place(withdrawButton.GetComponent<RectTransform>(),
+                0.52f, 0.16f, 0.92f, 0.30f);
+        if (closeButton != null)
+            WorldWindowLayout.Place(closeButton.GetComponent<RectTransform>(),
+                0.76f, 0.87f, 0.94f, 0.96f);
+        WorldWindowLayout.StyleButton(closeButton);
+        WorldWindowLayout.StyleButton(depositButton);
+        WorldWindowLayout.StyleButton(withdrawButton);
+        if (bankGoldText != null)
+        {
+            bankGoldText.color = WorldWindowLayout.Gold;
+            bankGoldText.enableAutoSizing = true;
+            bankGoldText.fontSizeMin = 14;
+        }
+        if (inventoryGoldText != null)
+        {
+            inventoryGoldText.color = WorldWindowLayout.Label;
+            inventoryGoldText.enableAutoSizing = true;
+            inventoryGoldText.fontSizeMin = 14;
+        }
+        if (amountInput != null && amountInput.targetGraphic is Image amountBackground)
+            amountBackground.color = WorldWindowLayout.Row;
+
         // Registrar SOMENTE uma vez, em código. Os OnClick persistentes da
         // cena são vazios para não enviar duas transferências por clique.
         if (closeButton != null) closeButton.onClick.AddListener(CloseBank);

@@ -24,24 +24,40 @@ public class ShopUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
+        if (Instance != null && Instance != this)
+        {
             Destroy(gameObject);
+            return;
+        }
+        Instance = this;
     }
 
     private void Start()
     {
+        WorldWindowLayout.PreparePanel(shopPanel, 560f, 430f);
+        WorldWindowLayout.PrepareList(itemsContainer);
+        var scrollView = itemsContainer != null
+            ? itemsContainer.GetComponentInParent<ScrollRect>() : null;
+        if (scrollView != null)
+        {
+            WorldWindowLayout.Place(scrollView.GetComponent<RectTransform>(),
+                0.04f, 0.09f, 0.96f, 0.82f);
+            if (scrollView.viewport != null)
+                WorldWindowLayout.Place(scrollView.viewport, 0f, 0f, 0.95f, 1f);
+            if (scrollView.horizontalScrollbar != null)
+                scrollView.horizontalScrollbar.gameObject.SetActive(false);
+            scrollView.horizontalScrollbar = null;
+        }
+        WorldWindowLayout.StyleButton(closeButton);
         networkManager = NetworkManager.Instance;
         if (networkManager == null)
         {
-            Debug.LogError("ShopUI: NetworkManager não encontrado!");
-            return;
+            Debug.LogWarning("ShopUI: NetworkManager ainda não encontrado (será consultado ao comprar).");
         }
 
 
         if (closeButton != null)
-            closeButton.onClick.AddListener(() => CloseShop());
+            closeButton.onClick.AddListener(CloseShop);
         else
             Debug.LogWarning("ShopUI: closeButton não atribuído!");
 
@@ -64,18 +80,23 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
+        if (string.IsNullOrEmpty(npcId) || shopItemPrefab == null || itemsContainer == null)
+        {
+            Debug.LogError("[ShopUI] Dados ou referências do Inspector ausentes.");
+            return;
+        }
         currentNpcId = npcId;
+        networkManager = NetworkManager.Instance;
 
         foreach (var slot in itemSlots)
             Destroy(slot);
         itemSlots.Clear();
 
-        foreach (var item in items)
+        for (int i = 0; i < items.Length; i++)
         {
-            if (shopItemPrefab == null) { Debug.LogError("ShopUI: shopItemPrefab não atribuído!"); return; }
-            if (itemsContainer == null) { Debug.LogError("ShopUI: itemsContainer não atribuído!"); return; }
-
-            GameObject slot = Instantiate(shopItemPrefab, itemsContainer);
+            var item = items[i];
+            GameObject slot = Instantiate(shopItemPrefab, itemsContainer, false);
+            WorldWindowLayout.PrepareRow(slot, 76f, i % 2 == 1);
             ShopItemSlot slotScript = slot.GetComponent<ShopItemSlot>();
             if (slotScript != null)
                 slotScript.Setup(currentNpcId, item, networkManager);
@@ -88,6 +109,9 @@ public class ShopUI : MonoBehaviour
         if (shopPanel != null)
         {
             shopPanel.SetActive(true);
+            var scroll = itemsContainer.GetComponentInParent<ScrollRect>();
+            if (scroll != null) scroll.verticalNormalizedPosition = 1f;
+            Canvas.ForceUpdateCanvases();
             Debug.Log("ShopUI: ShopPanel ativado.");
         }
     }
@@ -121,7 +145,7 @@ public class ShopUI : MonoBehaviour
         // Um fechamento atrasado carrega o ID desta janela (não o NPC atual
         // escolhido pelo servidor). Isso protege a sessão de outro serviço.
         if (shopPanel != null && shopPanel.activeSelf && !string.IsNullOrEmpty(currentNpcId))
-            networkManager?.Shop?.SendCloseShop(currentNpcId);
+            NetworkManager.Instance?.Shop?.SendCloseShop(currentNpcId);
 
         currentNpcId = null;
         if (shopPanel != null)
@@ -134,6 +158,7 @@ public class ShopUI : MonoBehaviour
 
     private void OnDestroy()
     {
-
+        if (closeButton != null) closeButton.onClick.RemoveListener(CloseShop);
+        if (Instance == this) Instance = null;
     }
 }

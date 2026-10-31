@@ -128,3 +128,19 @@ PR / MERGE / PRÓXIMA AÇÃO:
 **C5 — NPC/World INICIADA:** [relatório específico](CLIENT_C5_NPC_WORLD_AUDIT.md). Primeira auditoria de `NpcLoader`, `NpcAI`, `MonsterAI`, `NpcInteractionSystem`, `ClickInteract`, handlers Shop/Bank/Loot, UI de loja/banco/loot, cadáver e AI. Separar bugs comprovados, riscos a reproduzir, diferenças de regra, melhorias UI da C6. **Não antecipar alterações no servidor ou Unity antes de testes e evidências.**
 
 **Próxima etapa:** definir matriz C5 (NPC merchant/banker, conversa e afastamento, IA e ocupação, saque/depósito/compra com autorização, cadáver e loot em dois clientes), depois corrigir incrementalmente qualquer defeito comprovado em PR dedicado, com CI e QA local.
+
+## C5 ampliada para UI de NPC/loot; C6 inventário/equipamentos/HUD (31/10/2026)
+
+**Solicitação do desenvolvedor:** a C5 deverá corrigir e homologar **tanto os contratos NPC/World quanto o layout usável de Merchant/Banker e cadáver/loot**. Relato: janela de cadáver com "divs" desalinhadas, primeiro item clicável e demais quase impossíveis de selecionar; painéis NPC esteticamente inconsistentes. A **C6** ficará responsável por redesenho/organização de **InventoryUI, EquipmentUI e HUD/gameplay geral**, sem misturar as correções desta entrega.
+
+**C5 — BUGS REAIS após inspeção de `scenebasic.unity`, prefabs e scripts:**
+- Viewport do ItemContainer de loot serializado com anchors/SizeDelta zero; Content VerticalLayoutGroup não controla largura/altura; LootItemSlot TMP com raycastTarget true nos labels; dois cliques exigidos; LootUI closeButton sem referência e raiz transparente interceptando cliques.
+- LootTakenHandler fechava janela para todo `lootTaken`, inclusive coleta individual, mesmo quando restavam itens e índices de loot mudavam. LootErrorHandler ignorava erros.
+- ShopItemSlot_Temp.prefab root 400×300 e filhos absolutos, sem linha/layout responsivo; ShopUI com lifecycle incompleto, quantidade visual da loja ignorada ao comprar.
+- Banco: saldos e botões em offsets absolutos fora de alinhamento.
+
+**C5 — CORREÇÃO INCREMENTAL NA BRANCH:** novo helper WorldWindowLayout com scroll vertical, ContentSizeFitter/VerticalLayoutGroup, linhas com LayoutElement e rótulos sem raycast; ajuste de RectTransforms em runtime, sem mexer em arquivos .unity/.prefab; interação loot de um clique e confirmação `lootTaken` individual, preservando outros itens; mensagens de erro; Merchant/Banker alinhados e com paleta consistente. Testes de contratos C# em `clientC5NpcLootUiContracts.test.ts` integrados à CI; **Play Mode não coberto pela CI**.
+
+**QA para fechar C5:** manter matriz de `docs/CLIENT_C5_NPC_WORLD_AUDIT.md` e acrescentar: 3+ itens de corpse acessíveis (inclusive segundo e terceiro), 4–8 itens com scroll, coleta parcial e takeAll sem duplicação, janela fechável, Merchant catálogo/quantidade/saldo/estoque, Banker saldos/campos/botões, NPCs em disputa Alfa/Beta, distância e revogação de autorização, logout/reconnect, ausência de UI fora do viewport a 1280×720/1920×1080. **Não declarar C5 encerrada até aceite explícito do desenvolvedor.**
+
+**C6 BACKLOG DECLARADO:** estudar `InventoryUI.cs`, `EquipmentUI.cs`, `PlayerHUD.cs`, Canvas/CanvasScaler, prefabs de slots/ícones e hierarquia `scenebasic.unity`; projetar layout consistente em dark fantasy legível, interações equip/unequip/drop, hotkeys e estados vazios, coordenadas/âncoras/scroll, responsividade 16:9. Testes de UI no Unity obrigatórios. Não alterar Server Inventory/Equipment sem defeito comprovado.

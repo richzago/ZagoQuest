@@ -1,8 +1,9 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using ZagoQuest.Networking.Messages; // ← ADICIONADO
+using ZagoQuest.Networking.Messages;
 
+/// <summary>Uma linha de mercadoria, com quantidade e botão responsivo.</summary>
 public class ShopItemSlot : MonoBehaviour
 {
     [Header("UI References")]
@@ -12,28 +13,53 @@ public class ShopItemSlot : MonoBehaviour
     public Button buyButton;
 
     private string npcId;
-    private ShopItem item; // ← agora é do namespace Messages
+    private ShopItem item;
     private NetworkManager networkManager;
+    private TMP_InputField amountInput;
 
-    public void Setup(string npcId, ShopItem item, NetworkManager networkManager)
+    public void Setup(string id, ShopItem shopItem, NetworkManager manager)
     {
-        this.npcId = npcId;
-        this.item = item;
-        this.networkManager = networkManager;
+        npcId = id;
+        item = shopItem;
+        networkManager = manager;
+        amountInput = GetComponentInChildren<TMP_InputField>(true);
 
         if (itemNameText != null)
+        {
             itemNameText.text = item.name;
+            WorldWindowLayout.Place(itemNameText, 0.04f, 0.44f, 0.53f, 0.96f,
+                17, WorldWindowLayout.Label);
+        }
         if (priceText != null)
-            priceText.text = $"{item.price} gold";
+        {
+            priceText.text = item.price + " gold";
+            WorldWindowLayout.Place(priceText, 0.04f, 0.03f, 0.38f, 0.43f,
+                14, WorldWindowLayout.Gold);
+        }
         if (stockText != null)
-            // Contrato do servidor: -1 significa estoque ilimitado,
-            // 0 significa esgotado e valores positivos são a quantidade disponível.
-            stockText.text = item.stock < 0 ? "Estoque ilimitado"
-                : item.stock == 0 ? "Esgotado" : $"Estoque: {item.stock}";
+        {
+            stockText.text = item.stock < 0 ? "Estoque ilimitado" :
+                item.stock == 0 ? "Esgotado" : "Estoque: " + item.stock;
+            WorldWindowLayout.Place(stockText, 0.39f, 0.03f, 0.67f, 0.43f,
+                13, WorldWindowLayout.Muted);
+        }
+
+        if (amountInput != null)
+        {
+            amountInput.contentType = TMP_InputField.ContentType.IntegerNumber;
+            amountInput.text = "1";
+            WorldWindowLayout.Place(amountInput.GetComponent<RectTransform>(),
+                0.68f, 0.23f, 0.79f, 0.77f);
+            if (amountInput.textComponent != null)
+                amountInput.textComponent.raycastTarget = false;
+        }
 
         if (buyButton != null)
         {
-            buyButton.onClick.RemoveAllListeners();
+            WorldWindowLayout.Place(buyButton.GetComponent<RectTransform>(),
+                0.81f, 0.18f, 0.98f, 0.82f);
+            WorldWindowLayout.StyleButton(buyButton);
+            buyButton.onClick.RemoveListener(BuyItem);
             buyButton.onClick.AddListener(BuyItem);
             buyButton.interactable = item.stock != 0;
         }
@@ -41,9 +67,27 @@ public class ShopItemSlot : MonoBehaviour
 
     private void BuyItem()
     {
-        if (networkManager != null && !string.IsNullOrEmpty(npcId))
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected || network.Shop == null ||
+            string.IsNullOrEmpty(npcId)) return;
+
+        int quantity = 1;
+        if (amountInput != null &&
+            (!int.TryParse(amountInput.text, out quantity) || quantity <= 0))
         {
-            networkManager.Shop.SendBuyItem(npcId, item.itemId, 1);
+            ChatUI.Instance?.AddMessage("Loja: informe uma quantidade válida.");
+            return;
         }
+        if (item.stock >= 0 && quantity > item.stock)
+        {
+            ChatUI.Instance?.AddMessage("Loja: quantidade acima do estoque.");
+            return;
+        }
+        network.Shop.SendBuyItem(npcId, item.itemId, quantity);
+    }
+
+    private void OnDestroy()
+    {
+        if (buyButton != null) buyButton.onClick.RemoveListener(BuyItem);
     }
 }

@@ -1,41 +1,43 @@
-using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
+using UnityEngine;
 using UnityEngine.EventSystems;
 using ZagoQuest.Networking.Messages;
 
+/// <summary>
+/// Toda a linha de loot é clicável com UM clique. Rótulos TMP não bloqueiam
+/// o raycast no Image do root. LootUI impede comandos repetidos até lootTaken.
+/// </summary>
 public class LootItemSlot : MonoBehaviour, IPointerClickHandler
 {
     [Header("UI References")]
     public TextMeshProUGUI itemNameText;
     public TextMeshProUGUI amountText;
 
-    private LootItem item;
     private int index;
     private System.Action<int> onItemClick;
 
-    public void Setup(LootItem item, int index, System.Action<int> onItemClick)
+    public void Setup(LootItem item, int itemIndex, System.Action<int> callback)
     {
-        this.item = item;
-        this.index = index;
-        this.onItemClick = onItemClick;
-
+        index = itemIndex;
+        onItemClick = callback;
         if (itemNameText != null)
+        {
             itemNameText.text = item.itemName;
+            WorldWindowLayout.Place(itemNameText, 0.04f, 0.07f, 0.76f, 0.93f,
+                17, WorldWindowLayout.Label);
+        }
         if (amountText != null)
-            amountText.text = $"{item.amount}x";
+        {
+            amountText.text = item.amount + "x";
+            WorldWindowLayout.Place(amountText, 0.79f, 0.07f, 0.96f, 0.93f,
+                16, WorldWindowLayout.Gold);
+            amountText.alignment = TextAlignmentOptions.MidlineRight;
+        }
     }
-
-    // =========================
-    // CLIQUE
-    // =========================
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.clickCount == 2) // Duplo clique
-        {
-            Debug.Log($"[LootItemSlot] Duplo clique em {item.itemName} (índice {index})");
+        if (eventData.button == PointerEventData.InputButton.Left)
             onItemClick?.Invoke(index);
-        }
     }
 }

@@ -319,3 +319,50 @@ test("loot de corpse transfere tudo e remove o cadáver", async () => {
   assert.equal(player.gold, 5);
   assert.equal(world.corpses.length, 0);
 });
+
+
+test("C5: loot individual pelo indice intermediário preserva os outros itens e reajusta indices", async () => {
+  const world = new World();
+  world.generateMap(10,10);
+  const player = createPlayer();
+  world.addPlayer(player);
+  const corpse = new Corpse("corpse-c5-partial", 2, 2, [
+    { itemId: potion, amount: 1 },
+    { itemId: potion, amount: 2 },
+    { itemId: potion, amount: 3 },
+  ]);
+  world.addCorpse(corpse);
+  const {ctx,errors}=createContext(world);
+  const taken: Array<[string, number | undefined]> = [];
+  const despawns:string[] = [];
+  (ctx.packetSender.loot as any).sendLootTaken = (id:string,index?:number) => {
+    taken.push([id,index]);
+  };
+  (ctx.broadcast as any).broadcastDespawn = (id:string) => despawns.push(id);
+
+  const take = (itemIndex:number) => handleTakeLoot(ws,player,{
+    type:"takeLoot",corpseId:corpse.id,takeAll:false,itemIndex,
+  },ctx);
+
+  await take(1); // selecionou o segundo item
+  assert.deepEqual(corpse.loot.map(x=>x.amount),[1,3]);
+  assert.equal(player.inventory.get(potion),2);
+  assert.equal(world.corpses.length,1);
+  assert.deepEqual(taken,[[corpse.id,1]]);
+  assert.deepEqual(despawns,[]);
+
+  await take(1); // último item agora ocupa o índice 1
+  assert.deepEqual(corpse.loot.map(x=>x.amount),[1]);
+  assert.equal(player.inventory.get(potion),5);
+  await take(0);
+  assert.equal(player.inventory.get(potion),6);
+  assert.equal(world.corpses.length,0);
+  assert.deepEqual(taken,[[corpse.id,1],[corpse.id,1],[corpse.id,0]]);
+  assert.deepEqual(despawns,[corpse.id]);
+  assert.deepEqual(errors,[]);
+
+  // Item ou cadáver já consumido nunca pode ser coletado outra vez.
+  await take(0);
+  assert.equal(player.inventory.get(potion),6);
+  assert.ok(errors.some(e=>e.includes("Corpse not found")));
+});
