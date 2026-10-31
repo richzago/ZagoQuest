@@ -1,6 +1,6 @@
 # ZagoQuest — C6: Inventory / Equipment / HUD, auditoria funcional e visual
 
-**Início:** 31/10/2026 · **Estado:** C6 INICIADA pela baseline técnica. A fase não está homologada; redesign visual ainda pendente de auditoria dos prefabs, Canvas, resoluções e QA Editor/build.
+**Início:** 31/10/2026 · **Estado:** C6 IMPLEMENTADA EM ETAPAS na dev (#100, #101, #102); CI Node PASS 463/463 Windows/Linux e PostgreSQL no #102. A fase NÃO está homologada: falta QA visual/funcional da Unity Editor + build Windows.
 
 ## 1. Handoff e escopo da fase
 
@@ -124,3 +124,8 @@ Comandos locais, SEMPRE fechar Unity primeiro:
     git stash list
 
 Não usar stash pop automaticamente: revisar o stash antes de recuperar mudanças de cena/prefab. CI Node checa contratos C# estaticamente, não compila nem executa C#/Canvas. C6 só se encerra após homologação local; C7/C8 continuam independentes.
+
+
+## 8. Evidência de integração após QA automatizado
+
+O PR [#102](https://github.com/richzago/ZagoQuest/pull/102) foi MERGED na dev no commit 26526d3c38623113402332e62b3f1ba3aa4ffd90. A [CI pré-merge](https://github.com/richzago/ZagoQuest/actions/runs/41230928166) terminou SUCCESS em Windows/Linux/PostgreSQL: 463 testes, zero falhas. O caso C4 do PlayerHUD foi adaptado ao helper DisplayBar sem remover a checagem do XP total/level e singleton. Testes de contrato cobrem também estados vazios (inventário, loja e loot). [CI pós-merge](https://github.com/richzago/ZagoQuest/actions/runs/41231055822) iniciada; conclusão a confirmar. C6 exige os 13 testes manuais da seção 7 e comparação de imagens. Main intacta.
