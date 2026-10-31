@@ -90,3 +90,12 @@ Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitu
 - Teste real HTTP/PG16 descartável: dois titulares de `Account`, cada qual com um `Character` próprio; tentativa de criar por personagem alheio recebe 403; proprietário cria por 20.000 gold; edição alheia recebe 403; atualização do líder recebe 200. Trigger SQL simula erro após a cobrança: resposta 500 sem mensagem SQL, gold preservado e nenhuma guilda criada. Duas chamadas REST concorrentes para o mesmo personagem: apenas uma guilda criada e apenas uma taxa debitada.
 - Teste unitário adicional valida mapeamento 400/500 nos quatro endpoints protegidos.
 - Cuidado: os logs de Guild ainda são escritos em operação separada após atualização de metadados; essa atomicidade é item de robustez futuro. Não confundir esta validação PG16 efêmera com homologação do PostgreSQL local e Unity.
+
+
+## Rodada de encerramento — Character REST (PR #72, 31/10/2026)
+
+- **Bug confirmado:** `CharacterController.create/list` respondia 400 com `error.message` para toda exceção, incluindo erro de conexão/consulta SQL. Isso vazava informação de infraestrutura e classificava falha do servidor como erro do usuário.
+- **Bug sob concorrência:** a pré-consulta `findOneBy({name})` não impedia duas contas de tentar inserir o mesmo nome simultaneamente; conflito unique poderia escapar com mensagem SQL. PostgreSQL mantém a constraint única como garantia final.
+- **Correções:** erros de input tipados 400; conflito de personagem 409; conta assinada que não existe mais 401 genérico; falha SQL/outros erros 500 sem detalhes internos. Consulta de Character sempre por ID da conta do JWT; acesso cruzado segue 403.
+- **Validação:** `world` obrigatório não vazio (ou padrão `main`) limitado a 32 caracteres alfanuméricos/underscore/hífen. Não altera nomes de personagens ou gameplay.
+- **Testes:** contrato unitário 400/401/403/409/500 e HTTP com PG16 descartável: duas contas e criação concorrente de mesmo nome, uma 201 e uma 409, sem alterar conta alheia. CI/merge e smoke Unity ainda precisam de comprovação.
