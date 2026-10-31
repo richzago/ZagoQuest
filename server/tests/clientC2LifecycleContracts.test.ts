@@ -61,3 +61,27 @@ test("C2: fechamento da sessão remove seleção, avatares, itens e nameplates a
   assert.match(despawn, /context.EntityManager\?\.DespawnEntity\(despawnMsg.id\)/);
   assert.match(entity, /entities\.Remove\(id\)/);
 });
+
+
+test("C2: textos flutuantes retornam ao pool e não criam coroutines duplicadas", () => {
+  const floating = read("UI/FloatingText.cs");
+  const manager = read("UI/NameplateManager.cs");
+
+  assert.match(floating, /public void ConfigurePool\(NameplateManager owner\)/);
+  assert.match(floating, /poolOwner\.ReturnFloatingText\(gameObject\)/);
+  assert.doesNotMatch(floating, /void OnEnable\(\)\s*\{\s*StartCoroutine\(Animate\(\)\)/,
+    "SetActive(true) não deve iniciar uma animação antes de SetText");
+  assert.match(manager, /ftScript\.ConfigurePool\(this\)/);
+  assert.match(manager, /ftScript\.SetText\(text, color\)/);
+  assert.match(manager, /ftScript\.StopAllCoroutines\(\)/);
+  assert.match(manager, /ft\.SetActive\(true\)/);
+  assert.match(manager, /ftScript\.StartCoroutine\(ftScript\.Animate\(\)\)/);
+  assert.match(manager, /while \(floatingTextPool\.Count > 0\)/);
+  assert.match(manager, /if \(ft == null \|\| !ft\.activeSelf\) return/);
+  assert.match(manager, /ft\.SetActive\(false\);\s*floatingTextPool\.Enqueue\(ft\)/);
+  assert.doesNotMatch(manager, /Pool vazio\. Criando nova instância/,
+    "Pool pode expandir em rajadas, mas não deve gerar aviso a cada hit");
+  assert.ok(manager.indexOf("var camera = Camera.main;") <
+    manager.indexOf("GameObject ft = GetFloatingTextFromPool()"),
+    "Não consumir objeto do pool antes de confirmar que há Camera.main");
+});
