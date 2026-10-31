@@ -238,3 +238,17 @@ C6 foi homologada pelo usuário. C7 auditada desde PR #105, agora implementada c
 - C7-E regressão: novos tests/clientC7Fishing.test.ts com FakeTimers, testes clientC7UxContracts, 23 mensagens schema+handler sincronizadas; QA Unity C7-13–C7-31 e C7-01–C7-12; não confundir CI Node com compilação C# do Unity.
 
 Classificação explícita: BUG REAL (lerp FPS, centro de alvo); RISCO (clique UI, resolução, zoom, reconnect, sorting); FEATURE (pesca cliente); DÍVIDA TÉCNICA (tiles de água, assets e acessibilidade avançada); SUGESTÃO FUTURA (minimizar/dock/resize, tooltips, bobber visual). Não reescrever backend nem mudar drop XP/gold/economia/movimento. Branch dev somente; main intocada. QA manual Unity e build Windows necessários após merge.
+
+## C7.1 — correções de UX/dock e pesca Tiled obrigatórias antes da CR8
+
+**31/10/2026** — Usuário homologou C7 inicial e relatou que painéis ocultam avatar, sobrepõem-se e precisam ter largura fixa com resize apenas vertical. Backend FishingSystem usava Y>=8 e inventário em vez de equipamento Weapon/Useful. Diagnóstico real com mapa Tiled 30x20 (Water1 GID 36..75, 264 tiles), servidor/Unity com mesmo JSON.
+
+**Implementado em feature PR #111:**
+- C7DockLayout e C7DockResizeGrip, criados no Unity sem alterar Hierarchy: sidebar à direita, ScrollRect, VerticalLayoutGroup com painel de altura personalizável (PlayerPrefs) e largura fixa, drag do cabeçalho reordena, botão direito reseta altura. Chat inferior, Camera.rect separa área útil e sidebar/chat: o player não fica atrás de UI, CameraFollow usa aspecto efetivo do viewport. Inventário grid 3x82, nome temporário, loja redesenhada em duas linhas para Buy/Sell.
+- Tile.isWater carregado do Tiled por GID de tileset Water/propriedade type=water e layers Ground/Water/Decoration, Y invertido igual collision. FishingSystem.isNearWater consulta tiles adjacentes reais, sem Y>=8, incluindo limite inferior Y2 vs chão Y3; procedural sem água não permite fishing.
+- Fishing Rod continua item type equipment slot weapon, mas precisa ser efetivamente equipado. Worm/cricket e legacy bait_worm agora equipment slot USEFUL; cada tentativa requer ambos, consome do inventário da mesma isca primeiro e a unidade do Useful por último, esvaziando slot. O Node valida e envia snapshots; `fishingBonus` e `fishingTime` configuráveis em JSON; merchant vende worm/cricket.
+- Regressões: testes do mapa original e das 4 bordas, dry center, rod/worm equipamento, 3 casts consumindo estoque, recusa sem item/água, testes de contrato C#, regressões Node Linux/Windows/PG.
+
+**Obrigatório antes da CR8:** QA visual Unity Editor 6000.4.10f1/Windows build; ver docs/CLIENT_C7_UX_VISUAL_AUDIT.md seção 10 e C7-32 a C7-52. Testar duas sessões, 1280×720/1920×1080, F10, logout, Merchant, Banker, Loot, pesca, scroll/resize e quadro de camera; identificar P0/P1 antes de avançar. CI Node NÃO compila Unity C#. Main intacta; branch final `dev` após merge.
+
+**Melhorias opcionais P2/P3:** nomes curtos/tooltips e sprites reais, persistência da ordem das janelas, indicativo de scroll, áudio/boia/linha, escolha do tile de água via mouse (com alcance autoritativo), monitorar GC e perfis de render em sessões longas.
