@@ -26,6 +26,7 @@ import { Corpse } from "../../game/entities/corpse";
 import { Monster } from "../../game/entities/monster";
 import { authorizeCharacterSession, type AuthorizedCharacter } from "../auth/characterSessionAuth";
 import { DatabasePersistence } from "../../game/systems/databasePersistence";
+import { isSafePlayerPosition, findSafePlayerPosition } from "../../game/world/playerPosition";
 import { z } from "zod";
 // Importar os novos senders específicos
 import {
@@ -231,7 +232,16 @@ export class WebSocketServer {
                 if (ws.readyState === WebSocket.OPEN) ws.close(1008, "Personagem indisponivel.");
                 return;
               }
-              if (!existing) this.world.addPlayer(loaded);
+              if (!existing) {
+                // Um personagem novo criado via REST ainda pode ter posX/posY=0.
+                // Somente o servidor valida posição; fallback Tiled se inválida.
+                if (!isSafePlayerPosition(this.world, loaded.position)) {
+                  loaded.position = findSafePlayerPosition(
+                    this.world, this.world.playerRespawn ?? { x: 2, y: 2 },
+                  );
+                }
+                this.world.addPlayer(loaded);
+              }
               attach(loaded);
               reservedId = undefined; // a sessão agora é responsável pela reserva
               if (deadline) clearTimeout(deadline);
