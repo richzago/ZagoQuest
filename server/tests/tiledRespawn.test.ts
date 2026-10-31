@@ -66,7 +66,8 @@ test("optional RespawnSpawn Tiled object overrides PlayerSpawn and validates col
   const res=MapLoader.loadMap(new World(),path);
   assert.deepEqual(res.playerSpawn,{x:2,y:2});
   assert.deepEqual(res.respawnSpawn,{x:6,y:5});
-  collision[5*10+6]=1;
+  // World y=5 corresponde à linha Tiled 4 (origem do Tiled fica no topo).
+  collision[(10-1-5)*10+6]=1;
   writeFileSync(path,JSON.stringify(base));
   const blocked=MapLoader.loadMap(new World(),path);
   assert.equal(blocked.respawnSpawn,undefined);
