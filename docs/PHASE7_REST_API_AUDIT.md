@@ -99,3 +99,12 @@ Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitu
 - **Correções:** erros de input tipados 400; conflito de personagem 409; conta assinada que não existe mais 401 genérico; falha SQL/outros erros 500 sem detalhes internos. Consulta de Character sempre por ID da conta do JWT; acesso cruzado segue 403.
 - **Validação:** `world` obrigatório não vazio (ou padrão `main`) limitado a 32 caracteres alfanuméricos/underscore/hífen. Não altera nomes de personagens ou gameplay.
 - **Testes:** contrato unitário 400/401/403/409/500 e HTTP com PG16 descartável: duas contas e criação concorrente de mesmo nome, uma 201 e uma 409, sem alterar conta alheia. CI/merge e smoke Unity ainda precisam de comprovação.
+
+
+## Rodada de encerramento — Guild URL e DTO público (PR #73, 31/10/2026)
+
+- **Bug confirmado:** PUT de imagem de guilda aceitava qualquer texto não vazio e persistia protocolos perigosos como `javascript:`; scripts/HTML poderiam consumir esse valor posteriormente.
+- **Correção:** `guildImageUrlSchema` permite somente URL HTTPS (máximo 2048 caracteres, sem credenciais). `http://localhost` ou `127.0.0.1` é permitido apenas em `NODE_ENV=development` para QA local.
+- **Bug de contrato:** `GET /api/guilds/:guildName` espalhava a entidade TypeORM inteira, removendo apenas `logs`. Uma coluna futura seria exposta automaticamente. Agora retorna DTO explícito de metadados públicos.
+- **Testes:** Zod de URL, rota de detalhe com campos internos simulados e HTTP+PG16 com edição de imagem segura vs insegura. URLs já persistidas anteriormente **não** são reescritas; o cliente web deve tratar URLs como dados não confiáveis e aplicar CSP apropriada.
+- CI e homologação local ainda precisam de validação.
