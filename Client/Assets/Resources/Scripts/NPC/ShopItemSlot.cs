@@ -23,27 +23,21 @@ public class ShopItemSlot : MonoBehaviour
         item = shopItem;
         networkManager = manager;
         amountInput = GetComponentInChildren<TMP_InputField>(true);
+        // Campo antigo do prefab preservado na serialização; não exibir estoque.
+        if (stockText != null) stockText.gameObject.SetActive(false);
 
         if (itemNameText != null)
         {
             itemNameText.text = item.name;
-            WorldWindowLayout.Place(itemNameText, 0.04f, 0.44f, 0.53f, 0.96f,
+            WorldWindowLayout.Place(itemNameText, 0.04f, 0.39f, 0.66f, 0.96f,
                 17, WorldWindowLayout.Label);
         }
         if (priceText != null)
         {
             priceText.text = item.price + " gold";
-            WorldWindowLayout.Place(priceText, 0.04f, 0.03f, 0.38f, 0.43f,
+            WorldWindowLayout.Place(priceText, 0.04f, 0.03f, 0.66f, 0.39f,
                 14, WorldWindowLayout.Gold);
         }
-        if (stockText != null)
-        {
-            stockText.text = item.stock < 0 ? "Estoque ilimitado" :
-                item.stock == 0 ? "Esgotado" : "Estoque: " + item.stock;
-            WorldWindowLayout.Place(stockText, 0.39f, 0.03f, 0.67f, 0.43f,
-                13, WorldWindowLayout.Muted);
-        }
-
         if (amountInput != null)
         {
             amountInput.contentType = TMP_InputField.ContentType.IntegerNumber;
@@ -61,7 +55,7 @@ public class ShopItemSlot : MonoBehaviour
             WorldWindowLayout.StyleButton(buyButton);
             buyButton.onClick.RemoveListener(BuyItem);
             buyButton.onClick.AddListener(BuyItem);
-            buyButton.interactable = item.stock != 0;
+            buyButton.interactable = true;
         }
     }
 
@@ -76,11 +70,6 @@ public class ShopItemSlot : MonoBehaviour
             (!int.TryParse(amountInput.text, out quantity) || quantity <= 0))
         {
             ChatUI.Instance?.AddMessage("Loja: informe uma quantidade válida.");
-            return;
-        }
-        if (item.stock >= 0 && quantity > item.stock)
-        {
-            ChatUI.Instance?.AddMessage("Loja: quantidade acima do estoque.");
             return;
         }
         network.Shop.SendBuyItem(npcId, item.itemId, quantity);
