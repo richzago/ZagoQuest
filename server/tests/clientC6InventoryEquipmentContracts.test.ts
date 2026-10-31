@@ -349,3 +349,25 @@ test("C6 regressão: duplo clique envia useItem para consumíveis E equipamentos
  assert.match(backend,/item\.effect\?\.healMana/);
  assert.match(backend,/if \(item\.type === "equipment"\)[\s\S]*?player\.equipItem\(itemId\)/);
 });
+
+
+test("C6: clique simples consome por itemType do Node; equipamento usa useItem no duplo clique",()=>{
+ const slot=unity("Player/InventorySlot.cs");
+ const inv=unity("UI/InventoryUI.cs");
+ const handler=unity("Networking/Handlers/InventoryHandler.cs");
+ const dto=unity("Networking/Messages/Incoming/IncomingMessages.cs");
+ const sender=readFileSync(join(process.cwd(),"src/network/senders/inventorySender.ts"),"utf8");
+ const model=readFileSync(join(process.cwd(),"src/network/messages/server/inventory.messages.ts"),"utf8");
+ assert.match(sender,/itemType = ItemRegistry\.get\(itemId\)\.type/);
+ assert.match(model,/itemType\?: string/);
+ assert.match(dto,/public string itemType;/);
+ assert.match(handler,/itemTypes\[item\.itemId\] = item\.itemType/);
+ assert.match(handler,/HandleInventory\(invMsg\.gold, itemsDict, itemTypes\)/);
+ assert.match(inv,/itemTypes\.TryGetValue\(kvp\.Key, out string type\)/);
+ assert.match(inv,/slotScript\.Setup\(kvp\.Key, kvp\.Value, NetworkManager\.Instance \?\? networkManager, type\)/);
+ assert.match(slot,/string itemType = null/);
+ assert.match(slot,/itemType == "consumable"/);
+ assert.match(slot,/lastConsumableRequestAt <= DOUBLE_CLICK_INTERVAL/);
+ assert.match(slot,/network\.Inventory\.UseItem\(itemId\)/);
+ assert.doesNotMatch(inv.slice(inv.indexOf("private void OnSlotDoubleClicked(")),/SendEquipItem\(itemId\)/);
+});
