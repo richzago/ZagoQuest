@@ -26,7 +26,8 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
     private void Start()
     {
         if (!isSubscribed) SubscribeToNetworkEvents();
-        ClearItem();
+        // Não apagar snapshot recebido antes de Start por corrida de scene/network.
+        if (string.IsNullOrEmpty(currentItemId)) ClearItem();
     }
 
     // =========================
@@ -174,8 +175,20 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
             return;
         }
 
-        Debug.Log($"[EquipmentSlotUI] Drop recebido: {draggedItemId} → equipando no slot {slotType}");
-        DragDropManager.Instance.EndDrag();
+        if (!DragDropManager.Instance.IsFromInventory())
+        {
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected || network.Inventory == null)
+        {
+            Debug.LogWarning("[EquipmentSlotUI] Não é possível equipar sem sessão ativa.");
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
+        // O servidor valida tipo, slot compatível, quantidade e propriedade.
+        DragDropManager.Instance.DropOnEquipmentSlot(slotType);
     }
 
     // =========================
@@ -186,13 +199,14 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
     {
         if (string.IsNullOrEmpty(currentItemId)) return;
         Debug.Log($"[EquipmentSlotUI] Iniciou arraste de {currentItemId} do slot {slotType}");
-        DragDropManager.Instance.StartDrag(currentItemId, this);
+        DragDropManager.Instance?.StartDrag(currentItemId, this);
     }
 
     public void OnDrag(PointerEventData eventData) { }
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        if (DragDropManager.Instance == null || !DragDropManager.Instance.IsDragging()) return;
         Debug.Log($"[EquipmentSlotUI] Finalizou arraste de {currentItemId}");
         if (string.IsNullOrEmpty(currentItemId))
         {
@@ -202,7 +216,7 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
         // 🔥 CORRIGIDO: pointerCurrentRaycast é struct, acesse diretamente .gameObject
         GameObject target = eventData.pointerCurrentRaycast.gameObject;
-        if (target != null && target.GetComponent<InventorySlot>() != null)
+        if (target != null && target.GetComponentInParent<InventorySlot>() != null)
         {
             // Já tratado pelo InventorySlot.OnDrop
             Debug.Log("[EquipmentSlotUI] Drop sobre InventorySlot → desequipamento será tratado lá.");
@@ -210,6 +224,17 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
             return;
         }
 
+        // Soltar sobre UI não significa drop no chão.
+        if (target != null && target.GetComponentInParent<Canvas>() != null)
+        {
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
+        if (Camera.main == null)
+        {
+            DragDropManager.Instance.EndDrag();
+            return;
+        }
         // Soltou no chão
         Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
         worldPos.z = 0;
