@@ -53,3 +53,20 @@ export const editGuildDescriptionSchema = z.object({
     .min(1, "Descrição é obrigatória")
     .max(500, "Descrição deve ter no máximo 500 caracteres"),
 });
+
+
+/** Only web-safe image URLs, max 2048 chars, without embedded credentials.
+ * Non-TLS loopback images are allowed only in local development for Unity QA.
+ */
+export const guildImageUrlSchema = z.string().min(1).max(2048).url().refine((value) => {
+  try {
+    const url = new URL(value);
+    if (url.username || url.password) return false;
+    if (url.protocol === "https:") return true;
+    return process.env.NODE_ENV === "development" &&
+      url.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}, "imageUrl deve ser HTTPS válido (HTTP localhost apenas em desenvolvimento)");
