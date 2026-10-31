@@ -166,7 +166,9 @@ export function tickWorld(world: World, wsServer: WebSocketServer): void {
           Logger.combat(`[AUTO] ${player.name} distância de ${target.name}: ${distance}`);
         }
 
-        if (distance <= 1) {
+        // Ataque manual aceita adjacência diagonal (hipotenusa <= 1.5).
+        // Usar a MESMA regra aqui evita o autoataque falhar só na diagonal.
+        if (!PlayerAttackSystem.validateTarget(player, target, world)) {
           try {
             // Compartilha alcance/cooldown com ataque manual; o dano é
             // propagado UMA vez por CombatEventBridge (COMBAT_DAMAGE).
