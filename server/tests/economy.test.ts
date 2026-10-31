@@ -368,3 +368,35 @@ test("C5: loot individual pelo indice intermediário preserva os outros itens e 
   assert.equal(player.inventory.get(potion),6);
   assert.ok(errors.some(e=>e.includes("Corpse not found")));
 });
+
+
+test("drop distante e diagonal acima de Manhattan 2 recusa sem consumir item", async()=>{
+ const world=new World();
+ world.generateMap(10,10);
+ const player=createPlayer(); // tile (2,2)
+ player.addItem(potion,5);
+ const {ctx,errors}=createContext(world);
+ for(const [x,y] of [[5,2],[2,5],[4,3],[3,4],[9,9],[-1,2]]){
+  const before=errors.length;
+  await handleDropItem(ws,player,{type:"dropItem",itemId:potion,amount:1,x,y},ctx);
+  assert.equal(errors.length,before+1,"drop ("+x+","+y+") deve ser negado");
+  assert.equal(player.inventory.get(potion),5);
+  assert.equal(world.itemsOnGround.length,0);
+ }
+});
+
+test("drop na fronteira Manhattan 2 aceita cardinal e diagonal",async()=>{
+ for(const [x,y] of [[4,2],[2,4],[3,3]]){
+  const world=new World();
+  world.generateMap(10,10);
+  const player=createPlayer();
+  player.addItem(potion,1);
+  const {ctx,errors}=createContext(world);
+  await handleDropItem(ws,player,{type:"dropItem",itemId:potion,amount:1,x,y},ctx);
+  assert.deepEqual(errors,[]);
+  assert.equal(player.inventory.has(potion),false);
+  assert.equal(world.itemsOnGround.length,1);
+  assert.equal(world.itemsOnGround[0].position.x,x);
+  assert.equal(world.itemsOnGround[0].position.y,y);
+ }
+});
