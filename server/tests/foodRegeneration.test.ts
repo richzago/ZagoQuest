@@ -163,6 +163,7 @@ test("C6: useItem equipa espada, mas equipItem não consome nem equipa alimento"
  ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
  const p=player();
  p.addItem("bone_sword",1);
+ p.addItem("bone_armor",1);
  p.addItem("consumable/cheese",1);
  const responses={used:[] as boolean[],errors:[] as string[],inventory:0,equipment:0,stats:0};
  const ctx={packetSender:{inventory:{
@@ -176,6 +177,8 @@ test("C6: useItem equipa espada, mas equipItem não consome nem equipa alimento"
  assert.deepEqual(responses.used,[true]);
  assert.equal(p.equipment.has("weapon" as never),true);
  assert.equal(p.inventory.has("bone_sword"),false);
+ assert.equal(p.inventory.get("bone_armor"),1);
+ assert.equal(p.equipment.has("armor" as never),false);
  assert.equal(responses.equipment,1);
  await handleEquipItem(ws,p,{type:"equipItem",itemId:"consumable/cheese"},ctx);
  assert.equal(p.inventory.get("consumable/cheese"),1);
@@ -265,6 +268,7 @@ test("C6 saciedade: alimentos possuem durações variadas e nunca ultrapassam te
 
 
 test("C6: queijo seguido de carne preserva as taxas e dura pouco",()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
  const p=player();p.hp=1;p.mana=1;const start=200000;
  const cheese=ItemRegistry.get("consumable/cheese");
  const meat=ItemRegistry.get("consumable/meat");
