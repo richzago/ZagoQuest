@@ -27,6 +27,7 @@
 
 import { Router } from "express";
 import { SessionController } from "../controllers/sessionContoller";
+import { loginRateLimit } from "../middlewares/publicRateLimit";
 
 const router = Router();
 
@@ -38,6 +39,6 @@ const router = Router();
  * @param {Object} req.body - email e password
  * @returns {Object} 200 OK com { token, accountId } ou 401 Unauthorized.
  */
-router.post("/", SessionController.login);
+router.post("/", loginRateLimit, SessionController.login);
 
 export default router;

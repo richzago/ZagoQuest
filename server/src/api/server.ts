@@ -19,6 +19,7 @@ import sessionRoutes from "./routes/session.routes";
 import characterRoutes from "./routes/character.routes";
 import { AppDataSource } from "./data-source";
 import guildRoutes from "./routes/guild.routes";
+import { isCorsOriginAllowed } from "./middlewares/corsPolicy";
 
 // Carrega as variáveis de ambiente
 dotenv.config();
@@ -27,7 +28,7 @@ dotenv.config();
 const app = express();
 
 // Middlewares globais
-app.use(cors()); // Permite requisições de diferentes origens
+app.use(cors({ origin: (origin, callback) => callback(null, isCorsOriginAllowed(origin)) })); // Allowlist em produção
 app.use(express.json()); // Habilita o parsing de JSON
 
 // Rotas da API
