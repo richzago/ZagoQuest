@@ -1,6 +1,6 @@
 # Fase 5 — Matriz Network, handshake autenticado e roteiro de QA Unity/PostgreSQL
 
-> **Status: em desenvolvimento / QA. Não concluído.** O protocolo autenticado é ativado com `WS_AUTH_REQUIRED=true` no ambiente de desenvolvimento. Em produção é obrigatório. Sem essa configuração, o modo legado local mantém os testes e o Unity atual. **Não publicar servidor legacy em rede aberta.**
+> **Status: integração antecipada autorizada; homologação Unity/PostgreSQL local continua pendente.** O protocolo autenticado é ativado com `WS_AUTH_REQUIRED=true` no ambiente de desenvolvimento. Em produção é obrigatório. Sem essa configuração, o modo legado local mantém os testes e o Unity atual. **Não publicar servidor legacy em rede aberta.**
 
 ## Matriz cliente → Node (validação Zod e handlers)
 
@@ -68,8 +68,8 @@ npm run dev
 ## Implantação incremental
 
 - PR #59 e #60: integrados na `dev`, testados em CI (gold SQL/pg + autenticação independente).
-- Este PR: mudança de protocolo **não deve ser mesclada até os testes Unity + PostgreSQL** com a nova UI. `main` intacta.
-- Depois do QA: corrigir problemas reportados, CI Windows/Linux, merge para `dev` sem `force-push`. Documentar o commit final no checklist e auditoria Notion.
+- O usuário autorizou o merge antecipado do protocolo na `dev` sem os testes locais. Isso não significa que a Fase 5 foi homologada. `main` intacta.
+- Depois dos testes locais: corrigir eventuais regressões em PRs específicos; atualizar o checklist e a auditoria com evidências reais do Unity.
 
 ## Decisões adicionais e correções de QA
 
