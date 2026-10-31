@@ -23,6 +23,7 @@ public class SessionLoginDebugUI : MonoBehaviour
     private string status = "Login de teste para sessão autenticada.";
     private bool busy;
     private GameObject logoutOverlay;
+    private TextMeshProUGUI authFeedbackLabel;
 
     // Ícone compacto no rodapé direito. Não conflita com Status (esquerda)
     // nem com o espaço reservado para o minimapa (canto superior direito).
@@ -84,6 +85,13 @@ public class SessionLoginDebugUI : MonoBehaviour
         if (visible && logoutOverlay == null) BuildLogoutButton();
         if (logoutOverlay != null && logoutOverlay.activeSelf != visible)
             logoutOverlay.SetActive(visible);
+        if (authFeedbackLabel != null && network != null)
+        {
+            bool hasMessage = visible && !network.isConnected &&
+                !string.IsNullOrWhiteSpace(network.AuthenticationStatusMessage);
+            authFeedbackLabel.gameObject.SetActive(hasMessage);
+            if (hasMessage) authFeedbackLabel.text = network.AuthenticationStatusMessage;
+        }
     }
 
     /// <summary>
@@ -125,6 +133,21 @@ public class SessionLoginDebugUI : MonoBehaviour
         labelRt.anchorMax = Vector2.one;
         labelRt.offsetMin = Vector2.zero;
         labelRt.offsetMax = Vector2.zero;
+        var feedback = new GameObject("C6AuthenticationFeedback",
+            typeof(RectTransform), typeof(TextMeshProUGUI));
+        feedback.transform.SetParent(logoutOverlay.transform, false);
+        authFeedbackLabel = feedback.GetComponent<TextMeshProUGUI>();
+        authFeedbackLabel.fontSize = 15;
+        authFeedbackLabel.enableWordWrapping = true;
+        authFeedbackLabel.color = new Color32(239, 199, 135, 255);
+        authFeedbackLabel.alignment = TextAlignmentOptions.MidlineRight;
+        authFeedbackLabel.raycastTarget = false;
+        var feedbackRect = authFeedbackLabel.rectTransform;
+        feedbackRect.anchorMin = feedbackRect.anchorMax = new Vector2(1, 0);
+        feedbackRect.pivot = new Vector2(1, 0);
+        feedbackRect.anchoredPosition = new Vector2(-18, 66);
+        feedbackRect.sizeDelta = new Vector2(500, 56);
+        authFeedbackLabel.gameObject.SetActive(false);
         Debug.Log("[LOGIN] Botão SAIR criado automaticamente em C6LogoutOverlay.");
     }
 
