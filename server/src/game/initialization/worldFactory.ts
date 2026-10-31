@@ -54,7 +54,8 @@ import type { MapLoadResult } from "../loaders/mapLoader";
  */
 export async function createWorldAndPlayer(
   playerName: string,
-): Promise<{ world: World; player: Player }> {
+  options: { skipBootstrapPlayer?: boolean } = {},
+): Promise<{ world: World; player: Player | undefined }> {
   // =========================
   // 1. Criar mundo vazio
   // =========================
@@ -97,11 +98,14 @@ export async function createWorldAndPlayer(
   // =========================
   // 3. Carregar ou criar jogador
   // =========================
-  const player = await PlayerLoader.loadOrCreatePlayer(playerName, playerSpawn, world);
+  // No protocolo autenticado NÃO criar/carregar um personagem sem login:
+  // isso geraria um player fantasma e salvaria uma conta legado por engano.
+  if (options.skipBootstrapPlayer) {
+    Logger.system("[WORLD] Aguardando sessões autenticadas; sem jogador legado no bootstrap.");
+    return { world, player: undefined };
+  }
 
-  // =========================
-  // 4. Adicionar jogador ao mundo
-  // =========================
+  const player = await PlayerLoader.loadOrCreatePlayer(playerName, playerSpawn, world);
   world.addPlayer(player);
   Logger.world(
     `Player spawn: ${player.name} na posição (${player.position.x}, ${player.position.y})`,
