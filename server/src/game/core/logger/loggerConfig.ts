@@ -27,7 +27,11 @@ export const LoggerConfig = {
    * Ordem: DEBUG (0) < INFO (1) < WARN (2) < ERROR (3).
    * Exemplo: se level = LogLevel.INFO, mensagens DEBUG são ignoradas.
    */
-  level: LogLevel.DEBUG,
+  level: process.env.LOG_LEVEL === "DEBUG" ? LogLevel.DEBUG :
+    process.env.LOG_LEVEL === "WARN" ? LogLevel.WARN :
+    process.env.LOG_LEVEL === "ERROR" ? LogLevel.ERROR :
+    process.env.LOG_LEVEL === "INFO" ? LogLevel.INFO :
+    process.env.NODE_ENV === "production" ? LogLevel.INFO : LogLevel.DEBUG,
 
   /**
    * Habilita a escrita dos logs em arquivos (dentro da pasta `logs/`).

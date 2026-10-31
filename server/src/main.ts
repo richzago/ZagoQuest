@@ -27,6 +27,7 @@ import { Logger } from "./game/core/logger/logger";
 import type { World } from "./game/world/World";
 import { WebSocketServer } from "./network/websocket/wsServer";
 import { OnlinePlayerDirectory } from "./game/systems/onlinePlayerDirectory";
+import { validateServerRuntime } from "./game/core/runtimeConfig";
 
 async function bootstrap(): Promise<void> {
   let httpServer: HttpServer | undefined;
@@ -56,6 +57,7 @@ async function bootstrap(): Promise<void> {
   });
 
   try {
+    validateServerRuntime();
     Logger.system("ZagoQuest iniciando...");
     disposeListeners = registerEventListeners();
     ConditionRegistry.load();
