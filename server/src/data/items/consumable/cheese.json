@@ -5,5 +5,5 @@
   "type": "consumable",
   "stackable": false,
   "value": 5,
-  "foodSeconds": 40
+  "foodSeconds": 20
 }
