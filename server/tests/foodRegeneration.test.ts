@@ -120,3 +120,35 @@ test("food: peixes e queijo possuem tempo positivo configurado",()=>{
   assert.ok(value && value>0 && value<=MAX_FOOD_SECONDS,id);
  }
 });
+
+
+test("pocoes: canonical effect.healHp/healMana restaura no ato sem exceder máximo",async()=>{
+ ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
+ const p=player();
+ const used:Array<{item:string;success:boolean}>=[];
+ let stats=0; let inventory=0;
+ const ctx={packetSender:{inventory:{
+  sendItemUsed:(id:string,success:boolean)=>used.push({item:id,success}),
+  sendInventory:()=>inventory++,
+  sendPlayerStats:()=>stats++,
+ }}} as unknown as HandlerContext;
+ p.hp=p.maxHp-9;p.mana=p.maxMana-10;
+ p.addItem("consumable/health_potion",1);
+ p.addItem("consumable/mana_potion",1);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/health_potion"},ctx);
+ assert.equal(p.hp,p.maxHp);
+ assert.equal(p.mana,p.maxMana-10);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/mana_potion"},ctx);
+ assert.equal(p.mana,p.maxMana);
+ assert.equal(p.inventory.has("consumable/health_potion"),false);
+ assert.equal(p.inventory.has("consumable/mana_potion"),false);
+ assert.deepEqual(used.map(x=>x.success),[true,true]);
+ assert.equal(stats,2);assert.equal(inventory,2);
+
+ // Recuperação cheia deve recusar sem consumir outra poção.
+ p.addItem("consumable/mana_potion",1);
+ await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/mana_potion"},ctx);
+ assert.equal(used.at(-1)?.success,false);
+ assert.equal(p.inventory.get("consumable/mana_potion"),1);
+ assert.equal(stats,2);
+});
