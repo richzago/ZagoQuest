@@ -138,7 +138,9 @@ export class FoodRegenerationSystem {
       if (nowMs < portion.endAt) break;
       state.portions.shift();
     }
-    if (state.portions.length === 0) activeFood.delete(player);
-    return player.hp !== hpBefore || player.mana !== manaBefore;
+    const ended = state.portions.length === 0;
+    if (ended) activeFood.delete(player);
+    // Mesmo com HP/mana cheios, atualizar Status quando a barriga esvaziar.
+    return ended || player.hp !== hpBefore || player.mana !== manaBefore;
   }
 }
