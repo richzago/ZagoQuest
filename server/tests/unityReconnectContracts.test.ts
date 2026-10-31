@@ -32,7 +32,9 @@ test("Unity resets obsolete session entities before new spawn snapshot", () => {
 test("Unity stops reconnection when NetworkManager is destroyed", () => {
   const manager = unity("Networking/NetworkManager.cs");
   assert.match(manager, /_shuttingDown = true/);
-  assert.match(manager, /if \(!_shuttingDown && !isConnected/);
+  assert.match(manager, /if \(!_shuttingDown &&/);
+  assert.match(manager, /!isConnected && !_connecting/);
+  assert.match(manager, /_authRejected/);
   assert.match(manager, /if \(Instance == this\) Instance = null/);
 });
 
@@ -49,7 +51,7 @@ test("spawn resolves EntityManager on reception instead of capturing an Awake-ti
 
 test("network clears old entities on close, never after a new socket opens", () => {
   const manager = unity("Networking/NetworkManager.cs");
-  const onOpen = manager.split("socket.OnOpen += () =>")[1]?.split("socket.OnError +=")[0] ?? "";
+  const onOpen = manager.split(/socket\\.OnOpen \\+= (?:async )?\\(\\) =>/)[1]?.split("socket.OnError +=")[0] ?? "";
   const onClose = manager.split("socket.OnClose += (reason) =>")[1]?.split("socket.OnMessage +=")[0] ?? "";
   assert.ok(onOpen.length > 0 && onClose.length > 0);
   assert.doesNotMatch(onOpen, /ClearNetworkEntities\(/);
