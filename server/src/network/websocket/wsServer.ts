@@ -54,6 +54,7 @@ export interface WebSocketSessionOptions {
   authRequired?: boolean;
   authorize?: (token: string, characterId: string) => Promise<AuthorizedCharacter | null>;
   loadPlayer?: (authorized: AuthorizedCharacter) => Promise<Player | null>;
+  savePlayer?: (player: Player) => Promise<void>;
 }
 
 export class WebSocketServer {
@@ -69,6 +70,7 @@ export class WebSocketServer {
   private readonly authRequired: boolean;
   private readonly authorizeSession: (token: string, characterId: string) => Promise<AuthorizedCharacter | null>;
   private readonly loadSessionPlayer: (authorized: AuthorizedCharacter) => Promise<Player | null>;
+  private readonly saveSessionPlayer: (player: Player) => Promise<void>;
   private readonly reservedCharacterIds = new Set<string>();
   private readonly pendingSessionSaves = new Set<Promise<void>>();
 
@@ -78,6 +80,7 @@ export class WebSocketServer {
     this.authorizeSession = options.authorize ?? authorizeCharacterSession;
     this.loadSessionPlayer = options.loadPlayer ??
       ((authorized) => DatabasePersistence.loadCharacter(authorized.characterName));
+    this.saveSessionPlayer = options.savePlayer ?? ((current) => DatabasePersistence.saveCharacter(current));
     WebSocketServer.instance = this;
     this.world = world;
     this.broadcast = new BroadcastService(world);
@@ -163,7 +166,7 @@ export class WebSocketServer {
         const finishing = (async () => {
           await queue.whenIdle();
           if (closingPlayer && this.authRequired) {
-            try { await DatabasePersistence.saveCharacter(closingPlayer); }
+            try { await this.saveSessionPlayer(closingPlayer); }
             catch (error) {
               Logger.error(`[SESSION] Falha salvando ${closingPlayer.name}: ${String(error)}`);
             } finally {
