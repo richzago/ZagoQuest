@@ -5,7 +5,7 @@ using UnityEngine.UI;
 /// <summary>
 /// C8 / UI 2A: sidebar minimalista com quatro zonas.
 /// Reusa o EquipmentPanel REAL da cena (com os dez EquipmentSlotUI originais),
-/// sem clonar UI, mudar handlers, CameraFollow, pesca ou gameplay.
+/// sem clonar UI, alterar handlers, lógica da câmera, pesca ou gameplay.
 /// World input: Canvas raiz SEM Graphic; apenas superficies visiveis bloqueiam.
 /// </summary>
 [DisallowMultipleComponent]
