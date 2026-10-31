@@ -1,6 +1,6 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
-**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA; C4 CONCLUÍDA/HOMOLOGADA (10/10 Unity); C5 aprovada funcional e visualmente pelo desenvolvedor após PR #98, refinamentos finais Banker/Merchant no PR #99 integrado (QA local desses dois itens pendente); C6 INICIADA — baseline Inventory/Equipment e redesign HUD em auditoria (PR #100). C7/C8 futuras.**
+**Estado atualizado (31/10/2026): C0/C1 CONCLUÍDAS; C2 aceita funcionalmente; C3 CONCLUÍDA/HOMOLOGADA; C4 CONCLUÍDA/HOMOLOGADA (10/10 Unity); C5 aceita funcionalmente pelo desenvolvedor (Banker/Merchant relatados como aparentemente corretos); C6 INTEGRADA PARCIALMENTE à dev com PRs #100, #101 e #102, CI verde e QA Unity do último layout/chat pendente; C7/C8 futuras.**
 **Branch de referência:** `dev` — preservar `main`.
 **Notion:** [Auditoria viva do cliente Unity — roteiro C0–C8](https://app.notion.com/p/40aec07d7c4f818eac62d7d6a2b2d933).
 
@@ -166,3 +166,12 @@ Branch de trabalho: feat/client-c6-hud-chat-hardening. Ajustes: Enter/onSubmit n
 Não transformar testes automatizados de Node em alegação de compilação C# ou QA visual. A C6 só será HOMOLOGADA após testes Editor + Windows nas duas resoluções, inventário/equip, Chat Enter/tecla I, banco/loja/loot e dois clientes. C5 recebeu aceite positivo do usuário; últimos detalhes do #99 considerados aparentemente corretos conforme relato, sem inventar logs. Main intacta.
 
 **Orientação local permanente:** antes de atualizar dev, fechar Unity e usar git stash push -u -m "backup Unity antes de atualizar C6"; depois git fetch origin, git switch dev, git pull --ff-only origin dev. Revisar stash list; NÃO dar stash pop automaticamente.
+
+
+## C6 integrada — PR #102 e resultado da CI (31/10/2026)
+
+[PR #102](https://github.com/richzago/ZagoQuest/pull/102) MERGED na dev em 26526d3c38623113402332e62b3f1ba3aa4ffd90, após [CI pré-merge #41230928166](https://github.com/richzago/ZagoQuest/actions/runs/41230928166) PASS em Windows, Linux e PostgreSQL. Foram 463/463 testes Node aprovados; contratos C# são estáticos e não provam compilação Unity nem layout visual. [CI push da dev #41231055822](https://github.com/richzago/ZagoQuest/actions/runs/41231055822) iniciada, aguardar conclusão pós-merge.
+
+Escopo: C6 inventário/equipamentos (#100/#101), chat/HUD e estados vazios, prevenção de duplo Enter, bloqueio de transferência bancária e regressão C4 (#102). C5 manteve aceite reportado. C6 não está HOMOLOGADA sem roteiro dos 13 casos Unity no relatório CLIENT_C6_INVENTORY_EQUIPMENT_HUD_AUDIT.md (Editor + Windows, duas resoluções, dois clientes, Enter/foco/atalho, XP/HP, drag/drop, loot/banco/loja). Main intacta.
+
+Para atualizar localmente sem perder dados: fechar Unity; git status; git stash push -u -m "backup Unity antes de atualizar C6"; git fetch origin; git switch dev; git pull --ff-only origin dev; git log -1 --oneline; git status; git stash list. Nunca executar stash pop automaticamente.
