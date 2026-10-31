@@ -60,7 +60,7 @@ O benchmark usa `World`/`Monster`/`MonsterAI` reais, mas **sem Unity, clientes r
 ## Estado das fases
 
 - **Fase 4:** autosave, restauração de posição e correção de gold integrados à `dev`. Migrations TypeORM e validação de JSONB histórico ainda pendentes.
-- **Fase 5:** o PR de autenticação por JWT no WS e integração Unity é [#61](https://github.com/richzago/ZagoQuest/pull/61), **Draft, não mesclado** até teste obrigatório com dois clientes Unity e PostgreSQL de teste. O modo legado em `dev` não autentica sockets; não usá-lo publicamente.
+- **Fase 5:** a autenticação WS por JWT e escolha do personagem foi implementada no [PR #61](https://github.com/richzago/ZagoQuest/pull/61). **Integração antecipada autorizada sem Play Mode local:** ainda exigem validação dois clientes Unity + PostgreSQL de teste, reconexão, viewport e timers. Habilite `WS_AUTH_REQUIRED=true` em desenvolvimento e `requireAuthenticatedSession=true` no Unity. Em produção a autenticação é obrigatória; não exponha modo legado.
 - **Fase 6:** logs/configuração/shutdown instrumentados ([PR #62](https://github.com/richzago/ZagoQuest/pull/62)); medição de tick e benchmark ([PR #63](https://github.com/richzago/ZagoQuest/pull/63)); smoke dist ([PR #64](https://github.com/richzago/ZagoQuest/pull/64), sujeito à CI).
 - **Fase 7:** revisão ampla da API REST fica para o final do backend.
 

@@ -49,7 +49,7 @@ const activeWorlds = new WeakMap<World, GameLoopsHandle>();
  */
 export function startGameLoops(
   world: World,
-  player: Player,
+  player: Player | undefined, // sessão autenticada começa sem jogador legado
   wsServer: WebSocketServer,
   deps: GameLoopDependencies = {},
 ): GameLoopsHandle {

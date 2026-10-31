@@ -8,6 +8,7 @@
 
 import { WebSocket } from "ws";
 import { World } from "../../game/world/World";
+import type { Player } from "../../game/entities/player";
 import { Logger } from "../../game/core/logger/logger";
 import { BaseSender } from "./base/baseSender";
 
@@ -15,8 +16,19 @@ export class WorldStateSender extends BaseSender {
   /**
    * Envia todas as entidades do mundo para o cliente.
    */
-  public sendWorldState(world: World): void {
+  public sendWorldState(world: World, viewer?: Player, onlinePlayers: readonly Player[] = []): void {
     let count = 0;
+
+    // Em modo autenticado, cada recém-chegado recebe os outros jogadores ONLINE,
+    // não o próprio avatar nem personagens desconectados que ainda estão em memória.
+    const peers = new Set<string>();
+    for (const other of onlinePlayers) {
+      if (other.id === viewer?.id || peers.has(other.id)) continue;
+      peers.add(other.id);
+      this.send({ type: "spawn", id: other.id, name: other.name,
+        x: other.position.x, y: other.position.y, hp: other.hp, maxHp: other.maxHp });
+      count++;
+    }
 
     // Envia monstros
     for (const monster of world.monsters) {
@@ -78,8 +90,8 @@ export class WorldStateSender extends BaseSender {
   /**
    * Método estático para uso rápido.
    */
-  public static send(ws: WebSocket, world: World): void {
+  public static send(ws: WebSocket, world: World, viewer?: Player, onlinePlayers?: readonly Player[]): void {
     const sender = new WorldStateSender(ws);
-    sender.sendWorldState(world);
+    sender.sendWorldState(world, viewer, onlinePlayers);
   }
 }

@@ -100,6 +100,7 @@ export class CharacterService {
     return await characterRepo.find({
       where: { account: { id: accountId } },
       select: {
+        id: true, // necessário para handshake WS com UUID, sem expor dados privados
         name: true,
         gender: true,
         world: true,

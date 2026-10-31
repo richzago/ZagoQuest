@@ -71,7 +71,11 @@ async function bootstrap(): Promise<void> {
     httpServer = await startApi();
 
     const characterName = process.env.CHARACTER_NAME || "Richard";
-    const initialized = await createWorldAndPlayer(characterName);
+    const authenticatedSessions = process.env.NODE_ENV === "production" ||
+      process.env.WS_AUTH_REQUIRED === "true";
+    const initialized = await createWorldAndPlayer(characterName, {
+      skipBootstrapPlayer: authenticatedSessions,
+    });
     world = initialized.world;
     // REST e WebSocket devem referenciar o MESMO Player vivo.
     disposeDirectory = OnlinePlayerDirectory.bind(
@@ -89,7 +93,9 @@ async function bootstrap(): Promise<void> {
 
     gameLoops = startGameLoops(world, initialized.player, wsServer);
     setupGracefulShutdown(shutdown);
-    Logger.system(`API + WebSocket na porta ${port}; personagem: ${characterName}.`);
+    Logger.system(authenticatedSessions
+      ? `API + WebSocket na porta ${port}; aguardando login autenticado.`
+      : `API + WebSocket na porta ${port}; personagem legado: ${characterName}.`);
   } catch (error) {
     Logger.error(`Falha no bootstrap: ${String(error)}`);
     // Includes partially opened WebSocket, HTTP and PostgreSQL resources.

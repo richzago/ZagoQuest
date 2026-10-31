@@ -3,6 +3,16 @@
  * NUNCA executar contra a base local zagoquest. Opt-in obrigatório.
  */
 import assert from "node:assert/strict";
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import jwt from "jsonwebtoken";
+import { WebSocket } from "ws";
+import { Account } from "../src/api/entities/Account";
+import { World } from "../src/game/world/World";
+import { WebSocketServer as GameWs } from "../src/network/websocket/wsServer";
+import { authorizeCharacterSession } from "../src/network/auth/characterSessionAuth";
+import { listenHttp, closeHttp } from "../src/game/core/httpLifecycle";
 import { before, after, test } from "node:test";
 import { AppDataSource } from "../src/api/data-source";
 import { Character } from "../src/api/entities/Character";
@@ -112,4 +122,89 @@ test("PostgreSQL real: chamadas concorrentes não cobram duas vezes", async () =
     assert.equal(saved.gold, 35_000);
     assert.equal(await AppDataSource.getRepository(GuildMember).count({ where: { characterId: row.id } }), 1);
   } finally { cleanup(); }
+});
+
+test("PostgreSQL real: sessão WebSocket JWT de duas contas, rejeição cruzada e persistência no logout", async () => {
+  const accountRepo = AppDataSource.getRepository(Account);
+  const accountA = await accountRepo.save(accountRepo.create({
+    email: "ci-phase5-a@example.test", cellphone: "00000000001",
+    fullName: "CI Account A", cpf: "00000000001", birthDate: "1990-01-01",
+    passwordHash: "ci-not-real", address: "Disposable CI",
+  }));
+  const accountB = await accountRepo.save(accountRepo.create({
+    email: "ci-phase5-b@example.test", cellphone: "00000000002",
+    fullName: "CI Account B", cpf: "00000000002", birthDate: "1990-01-01",
+    passwordHash: "ci-not-real", address: "Disposable CI",
+  }));
+  const a = await fixture(300);
+  const b = await fixture(500);
+  const repo = AppDataSource.getRepository(Character);
+  await repo.update({ id: a.id }, { accountId: accountA.id });
+  await repo.update({ id: b.id }, { accountId: accountB.id });
+
+  const originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = "ci-phase5-jwt-secret-not-for-production";
+  const tokenA = jwt.sign({ id: accountA.id }, process.env.JWT_SECRET, { expiresIn: "2h" });
+  const tokenB = jwt.sign({ id: accountB.id }, process.env.JWT_SECRET, { expiresIn: "2h" });
+  const http = createServer();
+  const world = new World();
+  world.generateMap(16, 16);
+  const game = new GameWs(http, world, { authRequired: true });
+  const sockets: WebSocket[] = [];
+  const authenticated = (ws: WebSocket): Promise<{ characterId: string }> => new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Timeout esperando authenticated")), 4000);
+    const receive = (raw: WebSocket.RawData) => {
+      const packet = JSON.parse(raw.toString());
+      if (packet.type !== "authenticated") return;
+      clearTimeout(timeout);
+      ws.off("message", receive);
+      resolve(packet);
+    };
+    ws.on("message", receive);
+  });
+  try {
+    await listenHttp(http, 0);
+    const connect = async () => {
+      const ws = new WebSocket(`ws://127.0.0.1:${(http.address() as AddressInfo).port}`);
+      sockets.push(ws);
+      await once(ws, "open");
+      return ws;
+    };
+    const first = await connect();
+    const firstAck = authenticated(first);
+    first.send(JSON.stringify({ type: "authenticate", token: tokenA, characterId: a.id }));
+    assert.equal((await firstAck).characterId, a.id);
+
+    const second = await connect();
+    const secondAck = authenticated(second);
+    second.send(JSON.stringify({ type: "authenticate", token: tokenB, characterId: b.id }));
+    assert.equal((await secondAck).characterId, b.id);
+
+    const foreign = await connect();
+    const closed = once(foreign, "close");
+    foreign.send(JSON.stringify({ type: "authenticate", token: tokenA, characterId: b.id }));
+    const [code] = await closed;
+    assert.equal(code, 1008);
+    assert.equal(game.getBroadcastService().getClients().size, 2);
+
+    // Outro jogador pode nascer num tile alternativo quando o inicial já está ocupado.
+    const otherStartX = world.players.find(p => p.id === b.id)!.position.x;
+    first.send(JSON.stringify({ type: "moveDir", dir: "east" }));
+    for (let tries = 0; tries < 120 && world.players.find(p => p.id === a.id)?.position.x !== 1; tries++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    assert.equal(world.players.find(p => p.id === a.id)?.position.x, 1);
+    assert.equal(world.players.find(p => p.id === b.id)?.position.x, otherStartX);
+
+    await game.close();
+    const reloaded = await repo.findOneByOrFail({ id: a.id });
+    assert.equal(reloaded.posX, 1, "logout/shutdown must flush position");
+    assert.equal((await repo.findOneByOrFail({ id: b.id })).posX, otherStartX);
+  } finally {
+    for (const ws of sockets) if (ws.readyState !== WebSocket.CLOSED) ws.terminate();
+    await game.close();
+    await closeHttp(http);
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  }
 });

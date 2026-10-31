@@ -12,6 +12,14 @@ public class NetworkManager : MonoBehaviour
 {
     public static NetworkManager Instance { get; private set; }
     public string serverUrl = "ws://localhost:3000";
+    [Header("Segurança de sessão — ativar junto com WS_AUTH_REQUIRED=true no Node")]
+    public bool requireAuthenticatedSession = false;
+    private string _sessionToken;
+    private string _sessionCharacterId;
+    private bool _authRejected;
+    private bool _changingSession;
+    private bool _awaitingAuthentication;
+    private bool _everAuthenticated;
     public bool isConnected { get; private set; } = false;
 
     // =========================
@@ -91,7 +99,9 @@ public class NetworkManager : MonoBehaviour
         _websocket?.DispatchMessageQueue();
 #endif
         // Tentativas acontecem no ciclo de vida do Unity, sem criar timers globais.
-        if (!_shuttingDown && !isConnected && !_connecting &&
+        if (!_shuttingDown && (!_authRejected) &&
+            (!requireAuthenticatedSession || HasCredentials) &&
+            !isConnected && !_connecting && !_awaitingAuthentication &&
             Time.unscaledTime >= _nextReconnectAttempt)
         {
             _ = Connect();
@@ -109,13 +119,35 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
+    // Credenciais em MEMÓRIA, nunca Inspector/PlayerPrefs/log.
+    public bool HasCredentials => !string.IsNullOrWhiteSpace(_sessionToken) &&
+        !string.IsNullOrWhiteSpace(_sessionCharacterId);
+
+    public void ConfigureAuthenticatedSession(string token, string characterId)
+    {
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(characterId))
+            throw new ArgumentException("Token e characterId obrigatórios.");
+        _sessionToken = token;
+        _sessionCharacterId = characterId;
+        _everAuthenticated = false;
+        _authRejected = false;
+        _nextReconnectAttempt = 0f;
+        // Uma sessão antiga não pode se transformar em outra identidade.
+        if (_websocket != null && _websocket.State == WebSocketState.Open)
+        {
+            _changingSession = true;
+            _ = _websocket.Close();
+        }
+    }
+
     // =========================
     // CONEXÃO
     // =========================
 
     private async Task Connect()
     {
-        if (_connecting || _shuttingDown || isConnected) return;
+        if (_connecting || _shuttingDown || isConnected || _awaitingAuthentication || _authRejected ||
+            (requireAuthenticatedSession && !HasCredentials)) return;
         _connecting = true;
         Debug.Log($"[NetworkManager] 🔗 Conectando em {serverUrl}...");
 
@@ -124,11 +156,13 @@ public class NetworkManager : MonoBehaviour
         var socket = new WebSocket(serverUrl);
         _websocket = socket;
 
-        socket.OnOpen += () =>
+        socket.OnOpen += async () =>
         {
             if (_shuttingDown || !ReferenceEquals(_websocket, socket)) return;
             Debug.Log("[NetworkManager] ✅ Servidor conectado/reconectado.");
-            isConnected = true;
+            // Conexão TCP aberta NÃO significa sessão autorizada.
+            isConnected = !requireAuthenticatedSession;
+            _awaitingAuthentication = requireAuthenticatedSession;
             _nextReconnectAttempt = 0f;
             _lastPlayerId = null;
             _lastInitPosition = null;
@@ -144,6 +178,23 @@ public class NetworkManager : MonoBehaviour
             Shop = new ShopSender(socket);
             Bank = new BankSender(socket);
             Debug.Log("[NetworkManager] ✅ Senders e estado de rede renovados.");
+            if (requireAuthenticatedSession)
+            {
+                try
+                {
+                    var credentials = new JObject {
+                        ["type"] = "authenticate",
+                        ["token"] = _sessionToken,
+                        ["characterId"] = _sessionCharacterId
+                    };
+                    await socket.SendText(credentials.ToString(Newtonsoft.Json.Formatting.None));
+                }
+                catch (Exception error)
+                {
+                    Debug.LogWarning($"[NetworkManager] Falha ao iniciar autenticação: {error.Message}");
+                    if (ReferenceEquals(_websocket, socket)) await socket.Close();
+                }
+            }
         };
 
         socket.OnError += (error) =>
@@ -156,6 +207,10 @@ public class NetworkManager : MonoBehaviour
             if (!ReferenceEquals(_websocket, socket) || _shuttingDown) return;
             Debug.LogWarning($"[NetworkManager] Desconectado: {reason}. Nova tentativa em {ReconnectDelaySeconds}s.");
             isConnected = false;
+            _awaitingAuthentication = false;
+            if (requireAuthenticatedSession && !_everAuthenticated && !_changingSession)
+                _authRejected = true;
+            _changingSession = false; // não repetir credenciais recusadas a cada 2s
             // A sessão antiga acabou: remover entidades ANTES de receber
             // qualquer snapshot do novo socket (nunca no OnOpen).
             EntityManager.Instance?.ClearNetworkEntities();
@@ -180,6 +235,7 @@ public class NetworkManager : MonoBehaviour
             if (!_shuttingDown && ReferenceEquals(_websocket, socket))
             {
                 isConnected = false;
+                _awaitingAuthentication = false;
                 _nextReconnectAttempt = Time.unscaledTime + ReconnectDelaySeconds;
                 Debug.LogWarning($"[NetworkManager] Conexão falhou: {error.Message}. Retentando.");
             }
@@ -203,6 +259,17 @@ public class NetworkManager : MonoBehaviour
 
         string type = json["type"]?.ToString();
         if (string.IsNullOrEmpty(type)) return;
+        if (type == "authenticated" && requireAuthenticatedSession)
+        {
+            if (json["characterId"]?.ToString() != _sessionCharacterId) return;
+            _everAuthenticated = true;
+            _awaitingAuthentication = false;
+            _authRejected = false;
+            isConnected = true;
+            Debug.Log("[NetworkManager] Sessão de personagem autenticada.");
+            return;
+        }
+        if (requireAuthenticatedSession && !isConnected) return;
 
         var handler = PacketHandlerRegistry.GetHandler(type);
         if (handler != null)
