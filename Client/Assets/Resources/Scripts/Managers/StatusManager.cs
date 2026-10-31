@@ -30,6 +30,7 @@ public class StatusManager : MonoBehaviour
 
     private bool isOpen;
     private InputAction toggleStatusAction;
+    private TextMeshProUGUI satietyText;
     public bool IsOpen => isOpen;
 
     private static readonly Color Gold = new Color32(235, 191, 109, 255);
@@ -123,6 +124,9 @@ public class StatusManager : MonoBehaviour
         if (attackText != null) attackText.text = $"Ataque   {stats.attack:N0}";
         if (defenseText != null) defenseText.text = $"Defesa   {stats.defense:N0}";
         if (armorText != null) armorText.text = $"Armadura   {stats.armor:N0}";
+        if (satietyText != null) satietyText.text = stats.satiety > 0
+            ? $"Saciedade  {stats.satiety:N0}/{stats.satietyMax:N0}  |  {stats.foodSecondsRemaining}s"
+            : $"Saciedade  0/{Mathf.Max(120,stats.satietyMax)}";
 
         UpdateSlider(hpSlider, stats.hp, stats.maxHp);
         UpdateSlider(manaSlider, stats.mana, stats.maxMana);
@@ -186,7 +190,10 @@ public class StatusManager : MonoBehaviour
         StyleLabel(attackText, 316, 25, 15, Light);
         StyleLabel(defenseText, 348, 25, 15, Light);
         StyleLabel(armorText, 380, 25, 15, Light);
-        StyleSlider(experienceSlider, 422, Gold);
+        StyleSlider(experienceSlider, 407, Gold);
+        satietyText = WorldWindowLayout.EnsureLabel(statusPanel.transform, "C6SatietyText",
+            "Saciedade  0/120", 14, Light);
+        StyleLabel(satietyText, 426, 25, 14, Gold);
 
         if (closeButton != null)
         {
