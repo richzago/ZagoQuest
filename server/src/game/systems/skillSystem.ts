@@ -22,24 +22,32 @@ export class SkillSystem {
     const current = player.skills.get(skill);
     if (!current) return;
 
-    let { level, progress } = current;
-    progress += amount;
+    // Fishing ganha frações (ex.: 0.5), então não exigir inteiro para amount.
+    // Mas números negativos, NaN e Infinity corromperiam skill/progresso.
+    if (!Number.isFinite(amount) || amount <= 0 ||
+        !Number.isSafeInteger(current.level) || current.level < 1 ||
+        !Number.isFinite(current.progress) ||
+        current.progress < 0 || current.progress >= 100) return;
 
-    let leveledUp = false;
-    while (progress >= 100) {
-      progress -= 100;
-      level++;
-      leveledUp = true;
-    }
+    const oldLevel = current.level;
+    const totalProgress = current.progress + amount;
+    if (!Number.isFinite(totalProgress)) return;
+
+    // Um ganho grande não pode causar milhões de iterações num while.
+    const levelsGained = Math.floor(totalProgress / 100);
+    const level = oldLevel + levelsGained;
+    const progress = totalProgress - levelsGained * 100;
+    if (!Number.isSafeInteger(level) || !Number.isFinite(progress) ||
+        progress < 0 || progress >= 100) return;
 
     player.skills.set(skill, { level, progress });
 
-    if (leveledUp) {
+    if (levelsGained > 0) {
       EventSystem.getInstance().emit<SkillLevelUpEventData>("skill:levelUp", {
         playerId: player.id,
         playerName: player.name,
         skill,
-        oldLevel: level - 1,
+        oldLevel,
         newLevel: level,
         newProgress: progress,
       });

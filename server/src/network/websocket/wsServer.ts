@@ -18,6 +18,7 @@ import { handlers, HandlerFn } from "../handlers/index";
 import { MAX_PACKET_BYTES, parseClientMessage } from "../validation/messageValidation";
 import { MessageRateLimiter, OrderedMessageQueue } from "../validation/messageGuards";
 import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
+import { FishingSystem } from "../../game/systems/fishingSystem";
 import { BroadcastService } from "./wsBroadcast";
 import { CombatEventBridge } from "./combatEventBridge";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
@@ -101,6 +102,9 @@ export class WebSocketServer {
       });
 
       ws.on("close", () => {
+        // Timers pertencem à sessão: desconexão não pode conceder loot
+        // ou skill de pesca enquanto não existe cliente autorizado.
+        FishingSystem.cancelFishing(player);
         // Nunca reutilizar uma sessão econômica após desconectar/reconectar.
         NpcInteractionSystem.close(player);
         Logger.system(`Cliente ${player.name} desconectado.`);

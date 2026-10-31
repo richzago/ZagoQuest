@@ -111,7 +111,8 @@ export class FishingSystem {
 
     let baitId: string | null = null;
     for (const [itemId] of player.inventory) {
-      if (itemId.startsWith("fishing/bait/")) {
+      // IDs canônicos do ItemRegistry: fishing/baits/worm, .../cricket.
+      if (itemId.startsWith("fishing/baits/")) {
         baitId = itemId;
         break;
       }
@@ -140,11 +141,15 @@ export class FishingSystem {
     const rodBonus = (rodItem as any).fishingBonus || 0;
 
     player.isFishing = true;
-    player.fishingTimer = setTimeout(() => {
-      this.completeFishing(player, rodBonus + baitBonus);
+    const timer = setTimeout(() => {
+      // O callback pode ter sido enfileirado antes do cancelamento: uma
+      // pescaria encerrada não pode gerar loot ou skill em outra sessão.
+      if (!player.isFishing || player.fishingTimer !== timer || player.hp <= 0) return;
       player.isFishing = false;
       player.fishingTimer = undefined;
+      this.completeFishing(player, rodBonus + baitBonus);
     }, fishingTime);
+    player.fishingTimer = timer;
 
     Logger.skill(`${player.name} começou a pescar. Aguarde ${fishingTime / 1000} segundos...`);
     return true;
@@ -283,11 +288,10 @@ export class FishingSystem {
    * ```
    */
   static cancelFishing(player: Player): void {
-    if (player.isFishing && player.fishingTimer) {
-      clearTimeout(player.fishingTimer);
-      player.isFishing = false;
-      player.fishingTimer = undefined;
-      Logger.skill(`${player.name} cancelou a pesca.`);
-    }
+    const hadFishing = player.isFishing || player.fishingTimer !== undefined;
+    if (player.fishingTimer) clearTimeout(player.fishingTimer);
+    player.fishingTimer = undefined;
+    player.isFishing = false;
+    if (hadFishing) Logger.skill(`${player.name} cancelou a pesca.`);
   }
 }

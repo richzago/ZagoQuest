@@ -17,6 +17,7 @@ import { Player } from "../entities/player";
 import { Monster } from "../entities/monster";
 import { World } from "../world/World";
 import { ExperienceSystem } from "./experienceSystem";
+import { FishingSystem } from "./fishingSystem";
 import { PlayerStatsSender } from "../../network/senders/playerStatsSender";
 import { LootSystem } from "./lootSystem";
 import { Corpse } from "../entities/corpse";
@@ -76,6 +77,8 @@ export class DeathSystem {
       victim.deathProcessed = true;
     }
 
+    // Pending fishing actions cannot reward after death or respawn.
+    if (victim instanceof Player) FishingSystem.cancelFishing(victim);
     if (victim instanceof Player || victim instanceof Monster) victim.conditionManager.clear();
     Logger.combat(`💀 ${victim.name} morreu.`);
 
