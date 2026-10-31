@@ -225,7 +225,7 @@ test("C6 inventário, loja e loot: somente solicitações e confirmação do Nod
  const loot=unity("UI/LootUI.cs");
  const shop=unity("UI/ShopUI.cs");
  assert.match(inv,/HandleInventory\(int gold, Dictionary<string, int> newItems\)/);
- assert.match(inv,/network\.Inventory\.SendEquipItem\(itemId\)/);
+ assert.match(inv,/network\.Inventory\.UseItem\(itemId\)/);
  assert.match(eq,/OnEquipmentUpdate\(Dictionary<EquipmentSlot, string> equipment\)/);
  assert.match(loot,/private bool awaitingServer/);
  assert.match(loot,/if \(!ReadyToTake\(\)/);
