@@ -25,7 +25,11 @@ namespace ZagoQuest.Networking.Handlers
             }
 
             Debug.Log($"[SpawnHandler] Recebido: {spawnMsg.name} (id={spawnMsg.id}) em ({spawnMsg.x},{spawnMsg.y})");
-            if (spawnMsg.isItem)
+            if (spawnMsg.entityType == "player")
+            {
+                manager.SpawnRemotePlayer(spawnMsg.id, spawnMsg.name, spawnMsg.x, spawnMsg.y);
+            }
+            else if (spawnMsg.isItem)
             {
                 manager.SpawnItemOnGround(
                     spawnMsg.id, spawnMsg.itemId, spawnMsg.name,

@@ -6,12 +6,14 @@
 export interface ServerInitMessage {
   type: "init";
   playerId: string;
+  playerName: string;
   x: number;
   y: number;
 }
 
 export interface ServerSpawnMessage {
   type: "spawn";
+  entityType?: "player";
   id: string;
   name: string;
   x: number;

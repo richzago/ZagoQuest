@@ -29,6 +29,52 @@ public class EntityManager : MonoBehaviour
         prefabMap["banker"] = (bankerPrefab, false);
     }
 
+    /// <summary>
+    /// Outros jogadores são avatares de rede: não têm PlayerController, câmera
+    /// nem InputActions. Apenas recebem spawns/moves/despawns do servidor.
+    /// </summary>
+    public void SpawnRemotePlayer(string id, string name, float x, float y)
+    {
+        if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name)) return;
+        if (id == NetworkManager.Instance?.LocalPlayerId) return;
+        if (entities.ContainsKey(id)) return;
+
+        // Reutiliza somente o visual do jogador local, SEM clonar seu
+        // GameObject (o clone receberia InputActions e controlaria outro avatar).
+        var local = PlayerController.Instance?.GetComponent<SpriteRenderer>();
+        Sprite sprite = local != null ? local.sprite : null;
+        if (sprite == null)
+        {
+            var sprites = Resources.LoadAll<Sprite>("Tilesets/player_human_01");
+            if (sprites.Length > 0) sprite = sprites[0];
+        }
+        if (sprite == null)
+        {
+            Debug.LogError("[MULTIPLAYER] Sprite de jogador ausente para avatar remoto.");
+            return;
+        }
+
+        var go = new GameObject("RemotePlayer_" + name);
+        go.transform.position = new Vector3(x, y, 0);
+        go.transform.localScale = PlayerController.Instance != null
+            ? PlayerController.Instance.transform.localScale : Vector3.one;
+        var renderer = go.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.sortingOrder = local != null ? local.sortingOrder - 1 : 99;
+        if (local != null)
+        {
+            renderer.sortingLayerID = local.sortingLayerID;
+            renderer.sharedMaterial = local.sharedMaterial;
+        }
+        var identity = go.AddComponent<EntityIdentity>();
+        identity.entityId = id;
+        entities[id] = go;
+        var nameplates = NameplateManager.Instance;
+        if (nameplates != null)
+            nameplates.CreateNameplate(id, go.transform, name, nameplates.playerColor);
+        Debug.Log($"[MULTIPLAYER] Jogador remoto criado: {name} ({id}).");
+    }
+
     public void SpawnEntity(string id, string name, float x, float y, int hp = -1, string npcType = "")
     {
         if (string.IsNullOrEmpty(id))

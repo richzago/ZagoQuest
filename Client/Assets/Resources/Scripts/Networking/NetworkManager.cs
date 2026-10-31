@@ -21,6 +21,7 @@ public class NetworkManager : MonoBehaviour
     private bool _awaitingAuthentication;
     private bool _everAuthenticated;
     public bool isConnected { get; private set; } = false;
+    public string LocalPlayerId => _lastPlayerId;
 
     // =========================
     // SENDERS
@@ -284,6 +285,17 @@ public class NetworkManager : MonoBehaviour
             return;
         }
         if (requireAuthenticatedSession && !isConnected) return;
+        if (type == "init" && requireAuthenticatedSession &&
+            json["playerId"]?.ToString() != _sessionCharacterId)
+        {
+            // Uma falha na associação de identidade não pode liberar o controle.
+            Debug.LogError("[MULTIPLAYER][IDENTITY] Init incompatível com o personagem autenticado. Encerrando sessão.");
+            _authRejected = true;
+            isConnected = false;
+            if (_websocket != null && _websocket.State == WebSocketState.Open)
+                _ = _websocket.Close();
+            return;
+        }
 
         var handler = PacketHandlerRegistry.GetHandler(type);
         if (handler != null)

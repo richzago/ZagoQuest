@@ -69,3 +69,27 @@ test("C0: build Player não deixa else vazio após remover UNITY_EDITOR", () => 
   assert.match(playerMode, /if\s*\(handler != null\)\s*\{\s*handler\.Handle\(json, _context\);\s*\}\s*else\s*\{\s*\}/,
     "No executável Windows, o else deve continuar sendo um bloco válido sem UNITY_EDITOR");
 });
+
+test("C0: remoto renderiza outro jogador sem criar outro PlayerController", () => {
+  const handler = source("Handlers/SpawnHandler.cs");
+  const manager = readFileSync(join(unityRoot, "..", "Managers", "EntityManager.cs"), "utf8");
+  const incoming = source("Messages/Incoming/IncomingMessages.cs");
+  const init = source("Handlers/InitHandler.cs");
+  const hud = readFileSync(join(unityRoot, "..", "UI", "PlayerHUD.cs"), "utf8");
+  const network = source("NetworkManager.cs");
+
+  assert.match(incoming, /public string entityType;/);
+  assert.match(incoming, /public string playerName;/);
+  assert.match(handler, /spawnMsg\.entityType == "player"/);
+  assert.match(handler, /manager\.SpawnRemotePlayer\(spawnMsg\.id, spawnMsg\.name/);
+  assert.match(manager, /SpawnRemotePlayer\(string id, string name/);
+  assert.match(manager, /id == NetworkManager\.Instance\?\.LocalPlayerId/);
+  assert.match(manager, /new GameObject\("RemotePlayer_" \+ name\)/);
+  const remote = manager.slice(manager.indexOf("public void SpawnRemotePlayer"), manager.indexOf("public void SpawnEntity"));
+  assert.doesNotMatch(remote, /AddComponent<PlayerController>|Instantiate\(PlayerController/);
+  assert.match(remote, /AddComponent<SpriteRenderer>/);
+  assert.match(remote, /CreateNameplate\(id, go\.transform, name/);
+  assert.match(init, /SetPlayerName\(initMsg\.playerName\)/);
+  assert.match(hud, /playerNameText\.text = playerName/);
+  assert.match(network, /json\["playerId"\]\?\.ToString\(\) != _sessionCharacterId/);
+});

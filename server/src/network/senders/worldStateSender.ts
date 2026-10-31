@@ -25,7 +25,7 @@ export class WorldStateSender extends BaseSender {
     for (const other of onlinePlayers) {
       if (other.id === viewer?.id || peers.has(other.id)) continue;
       peers.add(other.id);
-      this.send({ type: "spawn", id: other.id, name: other.name,
+      this.send({ type: "spawn", entityType: "player", id: other.id, name: other.name,
         x: other.position.x, y: other.position.y, hp: other.hp, maxHp: other.maxHp });
       count++;
     }
