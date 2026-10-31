@@ -51,7 +51,9 @@ public sealed class C6WindowDragHandle : MonoBehaviour,
     /// <summary>Evita que posições salvas em 1920x1080 desapareçam a 1280x720.</summary>
     private void KeepOnScreen()
     {
-        if (panel == null || panel.parent is not RectTransform parent) return;
+        if (panel == null) return;
+        var parent = panel.parent as RectTransform;
+        if (parent == null) return;
         Vector2 size = parent.rect.size;
         Vector2 dimensions = panel.rect.size;
         Vector2 anchor = (panel.anchorMin + panel.anchorMax) * 0.5f;
