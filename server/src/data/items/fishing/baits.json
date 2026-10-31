@@ -2,21 +2,25 @@
   {
     "id": "fishing/baits/worm",
     "name": "Worm",
-    "description": "A squirming worm.",
-    "type": "consumable",
+    "description": "A squirming worm. Equip in Useful before fishing; one bait is spent per cast.",
+    "type": "equipment",
     "stackable": true,
     "maxStack": 20,
     "fishingBonus": 0.1,
-    "value": 1
+    "value": 1,
+    "slot": "USEFUL",
+    "bonuses": {}
   },
   {
     "id": "fishing/baits/cricket",
     "name": "Cricket",
-    "description": "A hopping cricket.",
-    "type": "consumable",
+    "description": "A hopping cricket. Equip in Useful before fishing; one bait is spent per cast.",
+    "type": "equipment",
     "stackable": true,
     "maxStack": 20,
     "fishingBonus": 0.15,
-    "value": 3
+    "value": 3,
+    "slot": "USEFUL",
+    "bonuses": {}
   }
 ]
