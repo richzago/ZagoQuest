@@ -124,6 +124,12 @@ public class TargetSelector : MonoBehaviour
 
     private void OnMouseClick()
     {
+        if (Mouse.current == null) return;
+#if UNITY_EDITOR
+        // Se o input chegar mas for bloqueado, o log seguinte identifica
+        // a etapa. Não registrar informações de conta/sessão.
+        Debug.Log("[TargetSelector][CLICK] Mouse recebido.");
+#endif
         if (ChatUI.IsChatActive) return;
         if (IsPointerOverUi()) return; // bloquear SOMENTE UI realmente interativa/visível
         // Cliques em alvos, cadáveres e itens não podem enviar pacotes
@@ -209,6 +215,9 @@ public class TargetSelector : MonoBehaviour
         }
         else
         {
+#if UNITY_EDITOR
+            Debug.Log("[TargetSelector][CLICK] Nenhum collider interagível sob o mouse.");
+#endif
             ClearTarget();
         }
     }
