@@ -43,5 +43,5 @@ export const createCharacterSchema = z.object({
   /** Gênero do personagem, deve ser "M" (masculino) ou "F" (feminino) */
   gender: z.enum(["M", "F"]),
   /** Mundo onde o personagem será criado (padrão "main") */
-  world: z.string().default("main"),
+  world: z.string().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/, "Mundo inválido").default("main"),
 });
