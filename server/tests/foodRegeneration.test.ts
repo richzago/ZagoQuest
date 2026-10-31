@@ -20,7 +20,7 @@ import { InventorySender } from "../src/network/senders/inventorySender";
 function player() { return new Player("food-test", "Comedor", 2, 2); }
 const ws = {} as WebSocket;
 
-test("food: recupera vida e mana apenas a cada 2 segundos, sem exceder max",()=>{
+test("food: recupera vida e mana somente a cada 3 segundos, sem exceder max",()=>{
  const p=player();
  p.hp=p.maxHp-3;
  p.mana=p.maxMana-2;
@@ -34,9 +34,9 @@ test("food: recupera vida e mana apenas a cada 2 segundos, sem exceder max",()=>
  assert.equal(p.mana,p.maxMana-2+FOOD_MANA_PER_TICK);
  assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS+100),false);
  assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS*2),true);
- assert.equal(p.hp,p.maxHp);
+ assert.equal(p.hp,p.maxHp-1);
  assert.equal(p.mana,p.maxMana);
- assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS*3),false);
+ assert.equal(FoodRegenerationSystem.tick(p,now+FOOD_TICK_MS*3),true);
  assert.equal(PlayerStatsSender.toPayload(p).mana,p.maxMana);
 });
 
@@ -67,8 +67,8 @@ test("food: não ressuscita jogador nem regenera depois de expirar",()=>{
  const p=player(); p.hp=1; p.mana=1;
  FoodRegenerationSystem.feed(p,4,10_000);
  assert.equal(FoodRegenerationSystem.tick(p,30_000),true);
- assert.equal(p.hp,1+2*FOOD_HP_PER_TICK);
- assert.equal(p.mana,1+2*FOOD_MANA_PER_TICK);
+ assert.equal(p.hp,1+FOOD_HP_PER_TICK);
+ assert.equal(p.mana,1+FOOD_MANA_PER_TICK);
  assert.equal(FoodRegenerationSystem.remainingSeconds(p,30_000),0);
  assert.equal(FoodRegenerationSystem.tick(p,32_000),false);
 });
@@ -80,7 +80,7 @@ test("food: rejeita parâmetros inválidos e não altera mana com maxMana zero",
  }
  p.mana=0; p.maxMana=0; p.hp=5;
  FoodRegenerationSystem.feed(p,5,50_000);
- assert.equal(FoodRegenerationSystem.tick(p,52_000),true);
+ assert.equal(FoodRegenerationSystem.tick(p,53_000),true);
  assert.equal(p.mana,0);
  assert.equal(p.hp,5+FOOD_HP_PER_TICK);
 });
@@ -207,20 +207,23 @@ test("C6 inventory snapshot informa tipo consumable/equipment e ignora item lega
 
 test("C6 saciedade: seis queijos ou três carnes enchem e bloqueiam até acabar",()=>{
  ItemRegistry.loadAll(join(process.cwd(),"src/data/items"));
- const cheese=ItemRegistry.get("consumable/cheese").foodSeconds!;
- const meat=ItemRegistry.get("consumable/meat").foodSeconds!;
- assert.equal(cheese,20); assert.equal(meat,40);
+ const cheese=ItemRegistry.get("consumable/cheese");
+ const meat=ItemRegistry.get("consumable/meat");
+ assert.equal(cheese.satietyPoints,20); assert.equal(meat.satietyPoints,40);
  const start=50000;
- for(const [duration,count] of [[cheese,6],[meat,3]]){
+ for(const [item,count] of [[cheese,6],[meat,3]] as const){
   const p=player();
+  const duration=item.foodSeconds!;
+  const points=item.satietyPoints!;
   for(let n=0;n<count;n++){
-   assert.equal(FoodRegenerationSystem.canEat(p,duration,start),true);
-   FoodRegenerationSystem.feed(p,duration,start);
+   assert.equal(FoodRegenerationSystem.canEat(p,duration,start,points),true);
+   FoodRegenerationSystem.feed(p,duration,start,points);
   }
-  assert.equal(FoodRegenerationSystem.remainingSeconds(p,start),120);
-  assert.equal(FoodRegenerationSystem.canEat(p,cheese,start),false);
-  assert.equal(FoodRegenerationSystem.canEat(p,cheese,start+60000),false);
-  assert.equal(FoodRegenerationSystem.canEat(p,cheese,start+120001),true);
+  assert.equal(FoodRegenerationSystem.currentSatiety(p,start),120);
+  assert.equal(FoodRegenerationSystem.remainingSeconds(p,start),duration*count);
+  assert.equal(FoodRegenerationSystem.canEat(p,cheese.foodSeconds!,start,cheese.satietyPoints),false);
+  assert.equal(FoodRegenerationSystem.canEat(p,cheese.foodSeconds!,start+duration*count*500,cheese.satietyPoints),false);
+  assert.equal(FoodRegenerationSystem.canEat(p,cheese.foodSeconds!,start+duration*count*1000+1,cheese.satietyPoints),true);
  }
 });
 
@@ -254,6 +257,44 @@ test("C6 saciedade: alimentos possuem durações variadas e nunca ultrapassam te
  const ids=["consumable/cheese","consumable/meat","fishing/fish/trout",
  "fishing/fish/salmon","fishing/fish/perch","fishing/fish/golden"];
  const values=ids.map(id=>ItemRegistry.get(id).foodSeconds);
- assert.deepEqual(values,[20,40,30,40,20,40]);
+ assert.deepEqual(values,[6,9,9,9,6,12]);
+ assert.deepEqual(ids.map(id=>ItemRegistry.get(id).satietyPoints),[20,40,30,40,20,40]);
+ assert.deepEqual(ids.map(id=>ItemRegistry.get(id).regenTickSeconds),[3,3,3,3,3,3]);
  assert.ok(values.every(x=>x && x>0 && x<=MAX_FOOD_SECONDS));
+});
+
+
+test("C6: queijo seguido de carne preserva as taxas e dura pouco",()=>{
+ const p=player();p.hp=1;p.mana=1;const start=200000;
+ const cheese=ItemRegistry.get("consumable/cheese");
+ const meat=ItemRegistry.get("consumable/meat");
+ FoodRegenerationSystem.feed(p,cheese.foodSeconds!,start,cheese.satietyPoints!,
+   cheese.regenHpPerTick!,cheese.regenManaPerTick!,cheese.regenTickSeconds!);
+ FoodRegenerationSystem.feed(p,meat.foodSeconds!,start,meat.satietyPoints!,
+   meat.regenHpPerTick!,meat.regenManaPerTick!,meat.regenTickSeconds!);
+ assert.equal(FoodRegenerationSystem.remainingSeconds(p,start),15);
+ assert.equal(FoodRegenerationSystem.tick(p,start+6000),true);
+ assert.equal(p.hp,3); assert.equal(p.mana,3);
+ assert.equal(FoodRegenerationSystem.tick(p,start+15000),true);
+ assert.equal(p.hp,9); assert.equal(p.mana,6);
+ assert.equal(FoodRegenerationSystem.tick(p,start+50000),false);
+ assert.equal(FoodRegenerationSystem.currentSatiety(p,start+50000),0);
+});
+
+test("C6: JSON com parâmetros inválidos nunca consome food",async()=>{
+ const p=player();
+ p.addItem("consumable/cheese",1);
+ const item=ItemRegistry.get("consumable/cheese");
+ const previous=item.regenTickSeconds;
+ item.regenTickSeconds=0;
+ const events:boolean[]=[];
+ const ctx={packetSender:{inventory:{
+   sendItemUsed:(_id:string,success:boolean)=>events.push(success),
+   sendInventory:()=>{throw Error("Não deveria enviar snapshot");}
+ }}} as unknown as HandlerContext;
+ try {
+   await handleUseItem(ws,p,{type:"useItem",itemId:"consumable/cheese"},ctx);
+   assert.deepEqual(events,[false]);
+   assert.equal(p.inventory.get("consumable/cheese"),1);
+ } finally {item.regenTickSeconds=previous;}
 });
