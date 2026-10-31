@@ -43,6 +43,8 @@ public class EquipmentUI : MonoBehaviour
             }
         }
         Debug.Log($"[EquipmentUI] Total de slots mapeados: {slotMap.Count}");
+        C6InventoryEquipmentLayout.Equipment(equipmentPanel, slotsContainer,
+            () => { if (equipmentPanel != null) equipmentPanel.SetActive(false); });
 
         // 🔥 CORRIGIDO: usar NetworkManager.Instance
         if (NetworkManager.Instance != null)
