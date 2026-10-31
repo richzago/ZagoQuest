@@ -286,17 +286,20 @@ test("auto attack só escolhe alvo válido e não consome cooldown na seleção"
   assert.equal(a.player.cooldownManager.isReady("attack"), true);
 });
 
-test("auto attack distante ou com alvo morto é recusado", () => {
+test("selecionar auto attack distante é permitido, mas ataque continua exigindo alcance", () => {
   const a = create();
-  const { context, failures } = ctx(a.world);
+  const { context, failures, stats } = ctx(a.world);
   a.monster.position = { x: 9, y: 9 };
   handleStartAutoAttack({} as WebSocket, a.player,
     { type: "startAutoAttack", targetId: a.monster.id }, context);
-  assert.equal(a.player.currentTargetId, undefined);
-  assert.deepEqual(failures, ["Alvo muito longe"]);
-  a.monster.position = { x: 3, y: 2 };
+  assert.equal(a.player.currentTargetId, a.monster.id);
+  assert.deepEqual(stats[0], ["autoAttackStarted", a.monster.id]);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(PlayerAttackSystem.tryAttack(a.player, a.monster, a.world),
+    { ok: false, reason: "Alvo muito longe" });
+  assert.equal(a.monster.hp, a.monster.maxHp);
   a.monster.hp = 0;
   handleStartAutoAttack({} as WebSocket, a.player,
     { type: "startAutoAttack", targetId: a.monster.id }, context);
-  assert.deepEqual(failures, ["Alvo muito longe", "Alvo já está morto"]);
+  assert.deepEqual(failures, ["Alvo já está morto"]);
 });
