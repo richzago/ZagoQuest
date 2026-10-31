@@ -148,6 +148,7 @@ public class SessionLoginDebugUI : MonoBehaviour
         feedbackRect.anchoredPosition = new Vector2(-18, 66);
         feedbackRect.sizeDelta = new Vector2(500, 56);
         authFeedbackLabel.gameObject.SetActive(false);
+        FindAnyObjectByType<C7UiAccessibility>()?.ApplyCurrent();
         Debug.Log("[LOGIN] Botão SAIR criado automaticamente em C6LogoutOverlay.");
     }
 
