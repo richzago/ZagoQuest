@@ -3,7 +3,7 @@
  * Never trust accountId supplied by clients as proof of ownership.
  */
 import type { Request, Response } from "express";
-import { CharacterService } from "../services/characterService";
+import { CharacterService, InvalidCharacterDataError, CharacterConflictError, CharacterAccountUnavailableError } from "../services/characterService";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware";
 
 export class CharacterController {
@@ -24,7 +24,15 @@ export class CharacterController {
       const character = await CharacterService.createCharacter(accountId, name, gender, world);
       res.status(201).json(character);
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Dados inválidos" });
+      if (error instanceof InvalidCharacterDataError) {
+        res.status(400).json({ error: error.message });
+      } else if (error instanceof CharacterConflictError) {
+        res.status(409).json({ error: "Personagem já existe." });
+      } else if (error instanceof CharacterAccountUnavailableError) {
+        res.status(401).json({ error: "Sessão inválida." });
+      } else {
+        res.status(500).json({ error: "Falha interna ao criar personagem." });
+      }
     }
   }
 
@@ -48,7 +56,7 @@ export class CharacterController {
     try {
       res.json(await CharacterService.listCharacters(accountId));
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao listar personagens" });
+      res.status(500).json({ error: "Falha interna ao listar personagens." });
     }
   }
 }

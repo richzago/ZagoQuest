@@ -463,3 +463,47 @@ test("Fase 7 REST + PostgreSQL: Guild isolada por conta, cobrança, rollback SQL
     else process.env.JWT_SECRET = previousSecret;
   }
 });
+
+
+test("Fase 7 HTTP+PG: duas contas não criam personagem alheio; nome duplicado concorre com 409", async () => {
+  const { startApi } = await import("../src/api/server");
+  const originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = "phase7-character-rest-test-secret";
+  const accounts = AppDataSource.getRepository(Account);
+  const a = await accounts.save(accounts.create({
+    email: "phase7-character-a@example.test", cellphone: "00000000901",
+    fullName: "Phase Character A", cpf: "00000000901",
+    birthDate: "1990-01-01", passwordHash: "ci-only", address: "Disposable CI",
+  }));
+  const b = await accounts.save(accounts.create({
+    email: "phase7-character-b@example.test", cellphone: "00000000902",
+    fullName: "Phase Character B", cpf: "00000000902",
+    birthDate: "1990-01-01", passwordHash: "ci-only", address: "Disposable CI",
+  }));
+  const tokenA = jwt.sign({ id: a.id }, process.env.JWT_SECRET!, { algorithm: "HS256", expiresIn: "1h" });
+  const tokenB = jwt.sign({ id: b.id }, process.env.JWT_SECRET!, { algorithm: "HS256", expiresIn: "1h" });
+  const http = await startApi();
+  try {
+    await listenHttp(http, 0);
+    const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+    const post = (token: string, body: unknown) => fetch(base + "/api/characters", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const forged = await post(tokenB, { accountId: a.id, name: "Invasor", gender: "M" });
+    assert.equal(forged.status, 403);
+    const invalid = await post(tokenA, { name: "Tester", gender: "M", world: "../escape" });
+    assert.equal(invalid.status, 400);
+    const contenders = await Promise.all([
+      post(tokenA, { name: "Twins", gender: "M" }),
+      post(tokenB, { name: "Twins", gender: "F" }),
+    ]);
+    assert.deepEqual(contenders.map(res => res.status).sort((x, y) => x - y), [201, 409]);
+    assert.equal(await AppDataSource.getRepository(Character).count({ where: { name: "Twins" } }), 1);
+  } finally {
+    await closeHttp(http);
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  }
+});
