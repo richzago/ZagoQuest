@@ -201,8 +201,8 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
         worldPos.z = 0;
         Debug.Log($"[InventorySlot] 🌍 Drop no chão em ({worldPos.x:F0}, {worldPos.y:F0})");
-        DragDropManager.Instance?.DropOnGround(worldPos);
-        DragDropManager.Instance?.EndDrag();
+        DragDropManager.Instance.DropOnGround(worldPos);
+        // DropOnGround valida alcance, solicita ao Node e encerra o drag.
     }
 
     // =========================
