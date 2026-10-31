@@ -116,3 +116,14 @@ Fases 5.2 e 6.2 continuam pendentes de QA manual; entrar na Fase 7 não constitu
 - **Limites de campos:** email até 254, nome completo até 120, endereço até 500 e data obrigatoriamente `YYYY-MM-DD`, com idade mínima de 16 anos. Não normalizamos email de contas legadas sem avaliar colisões/case-insensitive e migração.
 - **HTTP:** `express.json({limit:'16kb'})`; JSON malformado retorna 400 e payload acima do limite 413, ambos com erros genéricos. Erros não tratados do Express retornam 500 sanitizado, inclusive o caso de uma futura rota falhar.
 - **Teste:** validação UTF-8 na fronteira de 72 bytes (acentos), data/tamanhos e requisições HTTP reais para 400/413, sem PostgreSQL. Validação no Unity/login e migração de contas históricas permanecem pendentes.
+
+
+## Encerramento da implementação da Fase 7.1 e transição para Fase 8 (31/10/2026)
+
+- **PR #72:** Character REST erros tipados 400/401/409/500, mundo validado e race de nome no PG; merge `4b499c9f`.
+- **PR #73:** URLs HTTPS de imagens de Guild, até 2048 caracteres, e DTO público explícito; merge `6457f044`.
+- **PR #74:** cadastro com mínimo de 8 caracteres e até 72 bytes UTF-8 (bcrypt), campos limitados, JSON HTTP até 16 KB com erro 400/413 e fallback 500; merge `2c31063e`.
+- **CI integrada no head da dev:** [Actions #41196511535](https://github.com/richzago/ZagoQuest/actions/runs/41196511535) — `398/398` Node no Windows, `398/398` Linux, `10/10` PostgreSQL16 descartável, smoke `DIST_SMOKE_OK`; commit `2c31063e5b9e87af8045320284c75293dff4ca73`. Assim, escopo automatizado da **Fase 7.1 foi implementado e aprovado**.
+- **Não declarar Fase 7 completa:** a seção 7.2 requer testes do PostgreSQL local + Unity Play Mode em duas contas e reinício; nenhum resultado foi fornecido. Não existem migrations TypeORM versionadas, logo qualquer atualização de DB legado requer plano separado e backup.
+- **Operação pública ≠ protótipo local:** throttling compartilhado, configurações de ingress/proxy/TLS, emails legados com diferenças de caixa, retenção de logs, banco migrado e monitoração real ainda não foram homologados. Senhas legadas longas continuam aceitas no login para evitar bloqueio sem plano de migração.
+- Iniciada [Fase 8 — matriz final](https://github.com/richzago/ZagoQuest/blob/dev/docs/PHASE8_FINAL_VALIDATION.md). Este documento é o roteiro, não certificação de que a execução local aconteceu.
