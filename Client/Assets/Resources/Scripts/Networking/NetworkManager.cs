@@ -287,11 +287,15 @@ public class NetworkManager : MonoBehaviour
 
         var handler = PacketHandlerRegistry.GetHandler(type);
         if (handler != null)
+        {
             handler.Handle(json, _context);
+        }
         else
+        {
 #if UNITY_EDITOR
             Debug.LogWarning($"[NetworkManager] Tipo de mensagem não tratado: {type}");
 #endif
+        }
     }
 
     // =========================
