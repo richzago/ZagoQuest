@@ -74,9 +74,9 @@ public class ShopUI : MonoBehaviour
     public void ShowShopWindow(string npcId, ShopItem[] items)
     {
         Debug.Log($"ShopUI.ShowShopWindow: npcId={npcId}, itens={items?.Length}");
-        if (items == null || items.Length == 0)
+        if (items == null)
         {
-            Debug.LogWarning("ShopUI: Nenhum item recebido, loja não será aberta.");
+            Debug.LogWarning("[ShopUI] Catálogo nulo recebido; ignorando payload inválido.");
             return;
         }
 
@@ -91,6 +91,23 @@ public class ShopUI : MonoBehaviour
         foreach (var slot in itemSlots)
             Destroy(slot);
         itemSlots.Clear();
+
+        // Catálogo válido porém vazio não deve deixar a loja antiga visível.
+        // Estado vazio é apresentação; preços e disponibilidade vêm do Node.
+        if (items.Length == 0)
+        {
+            var row = new GameObject("C6ShopEmptyState", typeof(RectTransform),
+                typeof(Image), typeof(LayoutElement));
+            row.transform.SetParent(itemsContainer, false);
+            WorldWindowLayout.PrepareRow(row, 60f, false);
+            var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(row.transform, false);
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            label.text = "Nenhum item disponível nesta loja.";
+            WorldWindowLayout.Place(label, 0.04f, 0.05f, 0.96f, 0.95f,
+                17, WorldWindowLayout.Muted);
+            itemSlots.Add(row);
+        }
 
         for (int i = 0; i < items.Length; i++)
         {
