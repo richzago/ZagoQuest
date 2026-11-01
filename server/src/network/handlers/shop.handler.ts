@@ -38,9 +38,18 @@ export async function handleOpenShop(
 
   if (!npc || npc.npcType !== "merchant" || !npc.shopItems?.length ||
       !NpcInteractionSystem.open(player, ctx.world, npc, "merchant")) {
-    // A tentativa inválida não pode conservar outra sessão econômica antiga.
+    // Não confiar no cliente para autorização, mesmo quando há item
+    // sobre o sprite do NPC. Informar motivo específico para depuração.
+    const reason = !npc || npc.npcType !== "merchant"
+      ? "Comerciante não encontrado ou inválido."
+      : !npc.shopItems?.length
+      ? "Este comerciante não possui itens à venda."
+      : !NpcInteractionSystem.canInteract(player, ctx.world, npc, "merchant")
+      ? "Aproxime-se do comerciante (até 2 tiles)."
+      : "Comerciante ocupado em outra conversa.";
     NpcInteractionSystem.close(player);
-    ctx.packetSender.shop.sendShopError("Comerciante inválido, sem itens ou muito distante.");
+    Logger.warn(`[SERVER LOG][NPC] ${player.name}: ${reason}`);
+    ctx.packetSender.shop.sendShopError(reason);
     return;
   }
 
