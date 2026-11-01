@@ -66,6 +66,7 @@ namespace ZagoQuest.Networking.Senders
                 itemId = itemId,
                 amount = amount,
                 fromEquipment = fromEquipment,
+                instanceId = instanceId,
                 x = x,
                 y = y
             };
