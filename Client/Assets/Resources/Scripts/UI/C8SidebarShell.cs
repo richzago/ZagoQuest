@@ -214,6 +214,19 @@ public sealed class C8SidebarShell : MonoBehaviour
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
     }
 
+    public void ApplyClientDensity()
+    {
+        if (sidebarSurface == null) return;
+        var prefs = C10ClientLayoutSettings.Instance;
+        bool compactMode = prefs == null || prefs.Compact;
+        float desired = compactMode
+            ? C10ClientLayoutSettings.MainCompactWidth
+            : C10ClientLayoutSettings.MainComfortWidth;
+        sidebarSurface.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, desired);
+        lastSidebarHeight = -1f;
+        RefreshResponsiveLayout();
+    }
+
     private void RefreshResponsiveLayout()
     {
         if (sidebarSurface == null || miniMapSection == null ||
@@ -225,14 +238,15 @@ public sealed class C8SidebarShell : MonoBehaviour
 
         // Em resolucoes menores ou escala F10 alta, reserva mais espaco
         // para o host dinamico, sem ampliar cards sobre o mundo.
-        bool compact = height < 760f;
-        PlaceTop(miniMapSection, compact ? 58f : 62f,
-            compact ? 131f : 164f, 13f, 13f);
-        PlaceTop(equipmentSectionRect, compact ? 197f : 234f,
-            compact ? 260f : 265f, 13f, 13f);
-        PlaceTop(settingsSectionRect, compact ? 465f : 507f,
-            compact ? 54f : 58f, 13f, 13f);
-        float diameter = compact ? 79f : 112f;
+        bool compact = (C10ClientLayoutSettings.Instance == null ||
+            C10ClientLayoutSettings.Instance.Compact) || height < 760f;
+        PlaceTop(miniMapSection, compact ? 43f : 62f,
+            compact ? 91f : 164f, 8f, 8f);
+        PlaceTop(equipmentSectionRect, compact ? 142f : 234f,
+            compact ? 216f : 265f, 8f, 8f);
+        PlaceTop(settingsSectionRect, compact ? 363f : 507f,
+            compact ? 48f : 58f, 8f, 8f);
+        float diameter = compact ? 58f : 112f;
         if (miniMapCircleRect != null)
         {
             miniMapCircleRect.sizeDelta = new Vector2(diameter, diameter);
@@ -241,7 +255,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dynamicSection.offsetMin = new Vector2(12f, 0f);
         // Nunca inverter a area dinamica: rolagem/resize funcional fica
         // para outra etapa, mas a base sempre cabe na sidebar.
-        float dynamicTop = compact ? 527f : 574f;
+        float dynamicTop = compact ? 419f : 574f;
         dynamicSection.offsetMax = new Vector2(-12f,
             -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
         lastDynamicHeight = -1f;
