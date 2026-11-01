@@ -383,6 +383,7 @@ test("C6 regressão: segundo equipamento não é ativado ao redesenhar slots",()
  assert.match(inv,/slot\.SetActive\(false\);\s*Destroy\(slot\)/);
  assert.match(inv,/items\.TryGetValue\(itemId, out int quantity\)/);
  assert.match(inv,/lastEquipmentUseAt = now;/);
+ assert.match(inv,/network\.Inventory\.OpenBag\(itemId\)/);
  assert.match(inv,/network\\.Inventory\\.OpenBag\\(itemId\\)/);
  assert.match(inv,/network\\.Inventory\\.UseItem\\(itemId\\)/);
  assert.match(inv,/network\.Inventory\.UseItem\(itemId\)/);
