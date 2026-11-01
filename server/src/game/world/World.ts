@@ -85,6 +85,8 @@ export class World {
   playerRespawn?: { x: number; y: number };
 
   public itemsOnGround: ItemOnGround[] = [];
+  /** Disparado somente após mutação do chão, sem alterar fluxo do game loop. */
+  onGroundItemsChanged?: () => void;
 
   // =========================
   // ADIÇÃO DE ENTIDADES
@@ -408,6 +410,7 @@ export class World {
    */
   addItemOnGround(item: ItemOnGround): void {
     this.itemsOnGround.push(item);
+    this.onGroundItemsChanged?.();
     Logger.world(
       `Item ${item.itemId} x${item.amount} dropado em (${item.position.x}, ${item.position.y})`,
     );
@@ -420,6 +423,7 @@ export class World {
     const index = this.itemsOnGround.indexOf(item);
     if (index !== -1) {
       this.itemsOnGround.splice(index, 1);
+      this.onGroundItemsChanged?.();
       Logger.world(`Item ${item.itemId} removido do chão.`);
     }
   }
