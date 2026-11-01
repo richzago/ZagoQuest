@@ -10,7 +10,8 @@
     "satietyPoints": 30,
     "regenHpPerTick": 1,
     "regenManaPerTick": 1,
-    "regenTickSeconds": 3
+    "regenTickSeconds": 3,
+    "weight": 3
   },
   {
     "id": "fishing/fish/salmon",
@@ -23,7 +24,8 @@
     "satietyPoints": 40,
     "regenHpPerTick": 2,
     "regenManaPerTick": 1,
-    "regenTickSeconds": 3
+    "regenTickSeconds": 3,
+    "weight": 4
   },
   {
     "id": "fishing/fish/perch",
@@ -36,7 +38,8 @@
     "satietyPoints": 20,
     "regenHpPerTick": 1,
     "regenManaPerTick": 1,
-    "regenTickSeconds": 3
+    "regenTickSeconds": 3,
+    "weight": 2
   },
   {
     "id": "fishing/fish/golden",
@@ -49,6 +52,7 @@
     "satietyPoints": 40,
     "regenHpPerTick": 2,
     "regenManaPerTick": 1,
-    "regenTickSeconds": 3
+    "regenTickSeconds": 3,
+    "weight": 3
   }
 ]
