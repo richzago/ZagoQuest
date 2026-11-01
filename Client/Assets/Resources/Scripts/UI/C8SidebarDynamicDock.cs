@@ -371,6 +371,14 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             visual.offsetMax = Vector2.zero;
             visual.localScale = Vector3.one;
         }
+        // Linhas de loot compactas: menos buracos entre itens e mais
+        // espaço para navegar sem perder a linha selecionada.
+        var layout = loot.itemsContainer.GetComponent<VerticalLayoutGroup>();
+        if (layout != null)
+        {
+            layout.spacing = 3f;
+            layout.padding = new RectOffset(4, 4, 4, 4);
+        }
         var scroll = loot.itemsContainer.GetComponentInParent<ScrollRect>();
         if (scroll != null)
         {
@@ -501,9 +509,9 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private float LootContentHeight()
     {
         int rows = loot != null ? Mathf.Max(1, loot.VisibleLootItemCount) : 1;
-        // VerticalLayoutGroup: 36px por linha, spacing 8px, padding 16px.
-        return Mathf.Max(MinLootHeight, 69f + rows * 36f +
-            Mathf.Max(0, rows - 1) * 8f);
+        // VerticalLayoutGroup: 36px por linha, spacing 3px, padding 8px.
+        return Mathf.Max(MinLootHeight, 59f + rows * 36f +
+            Mathf.Max(0, rows - 1) * 3f);
     }
 
     private static void SetChildActive(Transform root, string name, bool active)
