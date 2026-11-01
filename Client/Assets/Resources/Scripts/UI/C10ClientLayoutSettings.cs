@@ -106,6 +106,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
         obj.GetComponent<Image>().color=Cell;
         C11VisualTheme.Frame(obj);
         var button=obj.GetComponent<Button>();
+        C11VisualTheme.StyleButton(button);
         button.onClick.AddListener(()=>onClick());
         Label(rect,"Text",caption,13f,TextAlignmentOptions.Center);
         return button;
