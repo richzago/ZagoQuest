@@ -28,6 +28,8 @@ public sealed class C8SidebarShell : MonoBehaviour
     private RectTransform miniMapSection;
     private RectTransform equipmentSectionRect;
     private RectTransform settingsSectionRect;
+    private RectTransform quickAccessHost;
+    public RectTransform QuickAccessHost => quickAccessHost;
     private RectTransform miniMapCircleRect;
     private Sprite miniMapSprite;
     private Texture2D miniMapTexture;
@@ -180,6 +182,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
             Vector2.zero, Vector2.one, new Vector2(8f, 5f), new Vector2(-8f, -24f));
+        quickAccessHost = icons;
         AddIcon(icons, "SettingsIcon", 0, 6);
         AddIcon(icons, "SoundIcon", 1, 6);
         AddIcon(icons, "ChatIcon", 2, 6);
@@ -595,6 +598,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         miniMapSection = null;
         equipmentSectionRect = null;
         settingsSectionRect = null;
+        quickAccessHost = null;
         miniMapCircleRect = null;
         if (miniMapSprite != null) Destroy(miniMapSprite);
         if (miniMapTexture != null) Destroy(miniMapTexture);
