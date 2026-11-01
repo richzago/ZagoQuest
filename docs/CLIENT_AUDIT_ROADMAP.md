@@ -1,3 +1,20 @@
+## C15 — implementação para homologação (01/11/2026)
+
+- [x] C14 homologada (8/8) e [PR #120](https://github.com/richzago/ZagoQuest/pull/120) integrada na `dev` (`4af9cd1`).
+- [x] Criada branch `feature/c15-ground-persistence-bag-transfer-area-loot` e [PR #121](https://github.com/richzago/ZagoQuest/pull/121) Draft.
+- [x] Persistência e restauração PostgreSQL do chão com UUID/árvore de Bags; migration segura para base de teste e criação não destrutiva na base existente.
+- [x] Transferência server-authoritative entre Bags com ciclo/ownership/slots/UUID e drag do Unity para Bag filha.
+- [x] Wheel e scrollbar puxável em Backpack/Loot, sem interceptar slots.
+- [x] Shift+L autoloot na box 3×3 sem abrir corpse, elegível pelo maior hit único efetivo registrado.
+- [ ] Homologação Unity de persistência, scroll, transferências e autoloot; C# não compila na CI Node.
+- [ ] Checar CI final do PR #121.
+- [ ] Não realizar merge C15 sem aprovação.
+- [ ] Mitigar risco de crash abrupto entre save de jogador e snapshot de chão em etapa de transação SQL conjunta.
+
+[Documentação C15](C15_GROUND_BAG_TRANSFER_AUTOLOOT.md)
+
+---
+
 ## C14 — desenvolvimento em branch isolada (01/11/2026)
 
 - [x] C13: [PR #119](https://github.com/richzago/ZagoQuest/pull/119) **MERGED na dev** (commit `8dba71dc`) após 8/8 testes Unity.
