@@ -14,6 +14,7 @@ export interface BagInstanceSave {
   itemId: string;
   items: Record<string, number>;
   children: string[];
+  slots?: PhysicalSlot[];
 }
 export interface BagStateSave {
   equippedId: string | null;
@@ -36,6 +37,7 @@ import { Vocation } from "../../shared/enums/vocation.enum";
 import { VocationSystem } from "../systems/vocationSystem";
 import { ExperienceSystem } from "../systems/experienceSystem";
 import { canCreditGold, isValidGoldBalance, isValidItemId, isValidQuantity } from "../systems/economyRules";
+import { PhysicalSlot, stackLimit, countPhysicalSlots, reconcilePhysicalSlots } from "../systems/physicalSlots";
 
 export class Player extends Creature {
   // =========================
@@ -48,6 +50,7 @@ export class Player extends Creature {
   /** Identidades individuais das Bags; Map ativo = inventário visível. */
   bagInstances: Map<string, {
     id: string; itemId: string; items: Map<string, number>; children: string[];
+    slots?: PhysicalSlot[];
   }> = new Map();
   equippedBagInstanceId: string | null = null;
   /** Janela atual: o equipamento permanece a Bag raiz; navegar não equipa. */
@@ -117,19 +120,14 @@ export class Player extends Creature {
       }
       movingId = instanceId;
     } else if (instanceId) return false;
-    let used = 0;
-    for (const [id, qty] of dest.items) {
-      if (!Number.isSafeInteger(qty) || qty <= 0) return false;
-      try { used += ItemRegistry.get(id).stackable ? 1 : qty; }
-      catch { used += qty; }
-    }
-    const extra = definition.stackable && dest.items.has(itemId) ? 0 : 
-      definition.stackable ? 1 : amount;
-    const limit = ItemRegistry.get(dest.itemId).containerSlots ?? 0;
-    if (!Number.isSafeInteger(limit) || used + extra > limit) return false;
-    // Conferir validade da contagem antes de qualquer mudança.
+    // C18: avaliar a quantidade final de pilhas físicas antes de mutar.
     const destPrevious = dest.items.get(itemId) ?? 0;
     if (!Number.isSafeInteger(destPrevious + amount)) return false;
+    const projected = new Map(dest.items);
+    projected.set(itemId,destPrevious+amount);
+    const limit = ItemRegistry.get(dest.itemId).containerSlots ?? 0;
+    if (!Number.isSafeInteger(limit) || countPhysicalSlots(projected)>limit)
+      return false;
 
     const newAmount = have - amount;
     if (newAmount === 0) source.items.delete(itemId);
@@ -180,7 +178,7 @@ export class Player extends Creature {
 
   private createBag(itemId: string, items: Map<string, number> = new Map()) {
     const id = generateId();
-    const bag = { id, itemId, items, children: [] as string[] };
+    const bag = { id, itemId, items, children: [] as string[], slots: [] as PhysicalSlot[] };
     this.bagInstances.set(id, bag);
     return bag;
   }
@@ -205,6 +203,7 @@ export class Player extends Creature {
         this.bagInstances.set(row.id, {
           id: row.id, itemId: row.itemId, items,
           children: row.children.filter(id => typeof id === "string"),
+          slots: reconcilePhysicalSlots(items,Array.isArray(row.slots) ? row.slots : []),
         });
       }
       const selected = raw.equippedId && this.bagInstances.get(raw.equippedId);
@@ -240,6 +239,7 @@ export class Player extends Creature {
       bags: [...this.bagInstances.values()].map(b => ({
         id:b.id, itemId:b.itemId, items:Object.fromEntries(b.items),
         children:[...b.children],
+        slots:this.syncPhysicalSlots(b),
       })),
       loose: Object.fromEntries(this.looseItems),
     };
@@ -310,7 +310,8 @@ export class Player extends Creature {
       const bag = this.bagInstances.get(id);
       if (!bag) return;
       bags.push({id, itemId:bag.itemId,
-        items:Object.fromEntries(bag.items),children:[...bag.children]});
+        items:Object.fromEntries(bag.items),children:[...bag.children],
+        slots:this.syncPhysicalSlots(bag)});
       for (const child of bag.children) walk(child);
       this.bagInstances.delete(id);
     };
@@ -366,8 +367,10 @@ export class Player extends Creature {
     // Creditar ao pai antes de ligar a árvore: evita double-count em canAddItem.
     if (!autoequip && !this.addItem(itemId, 1)) return false;
     for (const row of incoming)
+      const items=new Map(Object.entries(row.items));
       this.bagInstances.set(row.id, {id:row.id,itemId:row.itemId,
-        items:new Map(Object.entries(row.items)),children:[...row.children]});
+        items,children:[...row.children],
+        slots:reconcilePhysicalSlots(items,Array.isArray(row.slots) ? row.slots : [])});
     const root = this.bagInstances.get(rootId)!;
     if (autoequip) {
       this.equipment.set(EquipmentSlot.BACKPACK, itemId);
@@ -765,18 +768,32 @@ export class Player extends Creature {
         this.equipment.get(EquipmentSlot.BACKPACK) ?? null : null;
   }
 
+  /**
+   * Fonte de slots reais da Bag ativa. Uma mesma potion pode ter dois
+   * IDs de pilha independentes e o cliente receberá duas linhas.
+   */
+  private syncPhysicalSlots(bag: {items:Map<string,number>; slots?:PhysicalSlot[]}): PhysicalSlot[] {
+    bag.slots=reconcilePhysicalSlots(bag.items,bag.slots);
+    return bag.slots;
+  }
+
+  getVisiblePhysicalSlots(): Array<PhysicalSlot & {instanceId?:string}> {
+    const bag=this.viewedBag();
+    if (!bag) return [];
+    const children=this.getVisibleBagChildren();
+    const cursor=new Map<string,number>();
+    return this.syncPhysicalSlots(bag).map(slot=>{
+      if (!this.isContainerItem(slot.itemId)) return {...slot};
+      const matching=children.filter(row=>row.itemId===slot.itemId);
+      const index=cursor.get(slot.itemId) ?? 0;
+      cursor.set(slot.itemId,index+1);
+      return {...slot,instanceId:matching[index]?.instanceId};
+    });
+  }
+
   /** Cada item stackable ocupa 1 slot; item não-stackable ocupa 1 por unidade. */
   getContainerSlotsUsed(): number {
-    let total = 0;
-    for (const [id, amount] of this.inventory) {
-      if (!Number.isSafeInteger(amount) || amount <= 0) continue;
-      try {
-        total += ItemRegistry.get(id).stackable ? 1 : amount;
-      } catch {
-        total += amount; // saves legados: conservador, sem excluir itens
-      }
-    }
-    return total;
+    return countPhysicalSlots(this.inventory);
   }
 
   /** C14: peso de cada unidade, configurável no JSON; padrão 1 oz para saves antigos. */
@@ -866,42 +883,31 @@ export class Player extends Creature {
     }
     const placements: Array<{bagId:string;amount:number}> = [];
     let remaining = amount;
-    // Empilhar sem ultrapassar maxStack. O saldo pode ser distribuído
-    // entre Bags diferentes; o Map local representa no máximo uma pilha
-    // de cada itemId por Bag, até uma futura modelagem por slots físicos.
-    if (stackable) {
-      for (const bag of ordered) {
-        const current = bag.items.get(itemId) ?? 0;
-        if (!Number.isSafeInteger(current) || current < 0) return null;
-        if (current === 0 || current >= maxStack) continue;
-        const take = Math.min(remaining, maxStack - current);
-        if (take <= 0) continue;
+    // Pilhas atuais são preenchidas antes de criar novas pilhas.
+    for (const bag of ordered) {
+      const current = bag.items.get(itemId) ?? 0;
+      if (!stackable || current<=0 || current % maxStack===0) continue;
+      const take=Math.min(remaining,maxStack-current%maxStack);
+      if (take>0) {
         placements.push({bagId:bag.id,amount:take});
-        remaining -= take;
-        if (remaining === 0) return placements;
+        remaining-=take;
       }
+      if (remaining===0) return placements;
     }
     for (const bag of ordered) {
-      let used = 0;
-      for (const [id, qty] of bag.items) {
-        if (!isValidQuantity(qty)) return null;
-        try { used += ItemRegistry.get(id).stackable ? 1 : qty; }
-        catch { used += qty; }
-      }
-      const capacity = ItemRegistry.get(bag.itemId).containerSlots ?? 0;
-      if (!Number.isSafeInteger(capacity) || capacity <= 0 || used > capacity)
+      const projected=new Map(bag.items);
+      const used=countPhysicalSlots(projected);
+      const capacity=ItemRegistry.get(bag.itemId).containerSlots ?? 0;
+      if (!Number.isSafeInteger(capacity) || capacity<=0 || used>capacity)
         return null;
-      const free = capacity - used;
-      if (free === 0) continue;
-      // Não se cria uma segunda pilha com o mesmo itemId num único Map.
-      if (stackable && bag.items.has(itemId)) continue;
-      const take = stackable ? Math.min(remaining, maxStack) :
-        Math.min(remaining, free);
-      const current = bag.items.get(itemId) ?? 0;
-      if (take <= 0 || !Number.isSafeInteger(current + take)) return null;
+      const free=capacity-used;
+      if (free<=0) continue;
+      const take=Math.min(remaining,free*maxStack);
+      const current=projected.get(itemId) ?? 0;
+      if (!Number.isSafeInteger(current+take)) return null;
       placements.push({bagId:bag.id,amount:take});
-      remaining -= take;
-      if (remaining === 0) break;
+      remaining-=take;
+      if (remaining===0) break;
     }
     return remaining === 0 ? placements : null;
   }
@@ -936,27 +942,16 @@ export class Player extends Creature {
 
   /** Exclusivo das transferências chão/cadáver para a Bag ativa. */
   canCollectItems(items: ReadonlyArray<{itemId: string; amount: number}>): boolean {
-    const capacity = this.getContainerCapacity();
-    if (capacity <= 0 || !this.canAddItems(items)) return false;
-    let used = this.getContainerSlotsUsed();
-    const pending = new Map<string, number>();
-    for (const {itemId, amount} of items) {
-      // Moedas também requerem Bag, embora sejam convertidas em gold.
-      if (isCoin(itemId)) continue;
-      const old = pending.get(itemId) ?? 0;
-      pending.set(itemId, old + amount);
-      if (!Number.isSafeInteger(old + amount)) return false;
+    const capacity=this.getContainerCapacity();
+    if(capacity<=0 || !this.canAddItems(items)) return false;
+    const simulated=new Map(this.inventory);
+    for(const {itemId,amount} of items){
+      if(isCoin(itemId)) continue;
+      const next=(simulated.get(itemId)??0)+amount;
+      if(!Number.isSafeInteger(next)) return false;
+      simulated.set(itemId,next);
     }
-    for (const [id, qty] of pending) {
-      try {
-        const item = ItemRegistry.get(id);
-        if (item.stackable) {
-          if (!this.inventory.has(id)) used += 1;
-        } else used += qty;
-      } catch { used += qty; }
-      if (!Number.isSafeInteger(used) || used > capacity) return false;
-    }
-    return used <= capacity;
+    return countPhysicalSlots(simulated)<=capacity;
   }
 
   // =========================
@@ -1033,6 +1028,9 @@ export class Player extends Creature {
       return true;
     }
 
+    // Não ultrapassar a capacidade física (múltiplos stacks ocupam slots).
+    if (this.getContainerCapacity()>0 &&
+        !this.canCollectItems([{itemId,amount}])) return false;
     this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + amount);
     EventSystem.getInstance().emit<ItemPickupEventData>(GameEvent.ITEM_PICKUP, {
       playerId: this.id, playerName: this.name, itemId, amount,
