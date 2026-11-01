@@ -67,8 +67,8 @@ test("C9: cadáver->chão é comando próprio, com scope, distância, bounds, í
  const ui=unity("UI/LootItemSlot.cs");
  const sender=unity("Networking/Senders/InventorySender.cs");
  assert.match(l,/handleDropCorpseLoot\(/);
- assert.match(l,/!ctx\.world\.isWithinBounds\(x, y\)/);
- assert.match(l,/corpseDistance > 2 \|\| dropDistance > 2/);
+ assert.match(l,/canDropOnWorldTile\(ctx\.world, player, x, y\)/);
+ assert.match(l,/corpseDistance > 2/);
  assert.match(l,/corpse\.loot\.splice\(msg\.itemIndex, 1\)/);
  assert.match(l,/ctx\.broadcast\.broadcastSpawnItemOnGround\(ground\)/);
  assert.match(l,/ctx\.packetSender\.loot\.sendLootTaken\(corpse\.id, msg\.itemIndex\)/);

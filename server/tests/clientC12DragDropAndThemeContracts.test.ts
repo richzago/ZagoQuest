@@ -19,7 +19,7 @@ test("C12 UI: arraste ignora overlays transparentes e valida viewport", () => {
     assert.doesNotMatch(value, /target\.GetComponentInParent<Canvas>\(\)/);
   }
   assert.match(manager, /TryGetConfirmedGridPosition\(out Vector2Int playerTile\)/);
-  assert.match(manager, /distance > 2/);
+  assert.match(manager, /dx > 8 \|\| dy > 6/);
   assert.match(manager, /SendDropItem\(draggedItemId, 1, tileX, tileY,/);
 });
 test("C12 UI: botão Sair não usa glifo U+23FB ausente na fonte", () => {

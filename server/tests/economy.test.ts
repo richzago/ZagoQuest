@@ -386,13 +386,13 @@ test("C5: loot individual pelo indice intermediário preserva os outros itens e 
 });
 
 
-test("drop distante e diagonal acima de Manhattan 2 recusa sem consumir item", async()=>{
+test("C14: drop fora da visão, dos bounds ou sobre parede recusa sem consumir item", async()=>{
  const world=new World();
- world.generateMap(10,10);
+ world.generateMap(30,30);
  const player=createPlayer(); // tile (2,2)
  player.addItem(potion,5);
  const {ctx,errors}=createContext(world);
- for(const [x,y] of [[5,2],[2,5],[4,3],[3,4],[9,9],[-1,2]]){
+ for(const [x,y] of [[11,2],[2,9],[11,9],[30,2],[9,9],[-1,2],[5,5]]){
   const before=errors.length;
   await handleDropItem(ws,player,{type:"dropItem",itemId:potion,amount:1,x,y},ctx);
   assert.equal(errors.length,before+1,"drop ("+x+","+y+") deve ser negado");

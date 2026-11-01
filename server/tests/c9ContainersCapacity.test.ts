@@ -69,8 +69,8 @@ test("C9: 10 slots preenchidos recusa item 11; pilhas empilham e moedas viram go
   const item="consumable/health_potion";
   const other="consumable/mana_potion";
   // Potions stackable -> uma pilha já existente continua 1 slot.
-  assert.equal(p.canCollectItems([{itemId:item,amount:200}]),true);
-  p.inventory.set(item,200);
+  assert.equal(p.canCollectItems([{itemId:item,amount:40}]),true);
+  p.inventory.set(item,40);
   assert.equal(p.getContainerSlotsUsed(),1);
   assert.equal(p.canCollectItems([{itemId:item,amount:10}]),true);
   assert.equal(p.canCollectItems([{itemId:other,amount:1}]),true);
