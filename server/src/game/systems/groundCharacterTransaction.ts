@@ -19,7 +19,13 @@ export class GroundCharacterTransaction {
     return withCharacterWriteLock(player.id, async () => {
       // Impede que writes do chão feitos ANTES do drop/pickup sobrescrevam
       // o snapshot do commit desta operação.
-      await GroundItemPersistence.waitForPending(world);
+      try {
+        await GroundItemPersistence.waitForPending(world);
+      } catch (error) {
+        // Snapshot anterior falhou: não mutar personagem/chão até reparar DB.
+        Logger.error("[C18][ATOMIC] Write anterior pendente falhou: " + String(error));
+        return false;
+      }
       const previousItems = [...world.itemsOnGround];
       const oldBags = player.exportBagState();
       const oldItems = new Map(player.inventory);

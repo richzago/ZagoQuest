@@ -49,7 +49,7 @@ test("C18: receber e consumir potions mantém ID da primeira pilha",()=>{
  assert.equal(p.addItem(potion,9),true);
  const first=p.getVisiblePhysicalSlots()[0].id;
  assert.equal(p.addItem(potion,9),true);
- assert.deepEqual(p.getVisiblePhysicalSlots().map(s=>s.amount),[9,9]);
+ assert.deepEqual(p.getVisiblePhysicalSlots().map(s=>s.amount),[10,8]);
  assert.equal(p.getVisiblePhysicalSlots()[0].id,first);
  assert.equal(p.removeItem(potion,17),true);
  assert.equal(p.getVisiblePhysicalSlots().length,1);

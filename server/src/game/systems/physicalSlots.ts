@@ -43,7 +43,8 @@ export function reconcilePhysicalSlots(
        !Number.isSafeInteger(old.amount) || old.amount<=0) continue;
     const remain=remaining.get(old.itemId) ?? 0;
     if(remain<=0) continue;
-    const amount=Math.min(remain,old.amount,stackLimit(old.itemId));
+    // Completar a pilha antiga primeiro, sem trocar seu UUID.
+    const amount=Math.min(remain,stackLimit(old.itemId));
     if(amount<=0) continue;
     slots.push({id:old.id,itemId:old.itemId,amount});
     ids.add(old.id);
