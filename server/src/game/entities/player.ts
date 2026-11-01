@@ -303,6 +303,66 @@ export class Player extends Creature {
   }
 
   // =========================
+  // BAG/BACKPACK — autoridade exclusiva do servidor
+  // =========================
+
+  /** Capacidade da mochila EQUIPADA. Itens legados permanecem no save se ela sair. */
+  getContainerCapacity(): number {
+    const bagId = this.equipment.get(EquipmentSlot.BACKPACK);
+    if (!bagId) return 0;
+    try {
+      const bag = ItemRegistry.get(bagId);
+      return bag.type === "equipment" && bag.slot === EquipmentSlot.BACKPACK &&
+        Number.isSafeInteger(bag.containerSlots) && (bag.containerSlots ?? 0) > 0
+          ? bag.containerSlots! : 0;
+    } catch { return 0; }
+  }
+
+  getContainerItemId(): string | null {
+    return this.getContainerCapacity() > 0
+      ? this.equipment.get(EquipmentSlot.BACKPACK) ?? null : null;
+  }
+
+  /** Cada item stackable ocupa 1 slot; item não-stackable ocupa 1 por unidade. */
+  getContainerSlotsUsed(): number {
+    let total = 0;
+    for (const [id, amount] of this.inventory) {
+      if (!Number.isSafeInteger(amount) || amount <= 0) continue;
+      try {
+        total += ItemRegistry.get(id).stackable ? 1 : amount;
+      } catch {
+        total += amount; // saves legados: conservador, sem excluir itens
+      }
+    }
+    return total;
+  }
+
+  /** Exclusivo das transferências chão/cadáver para a Bag ativa. */
+  canCollectItems(items: ReadonlyArray<{itemId: string; amount: number}>): boolean {
+    const capacity = this.getContainerCapacity();
+    if (capacity <= 0 || !this.canAddItems(items)) return false;
+    let used = this.getContainerSlotsUsed();
+    const pending = new Map<string, number>();
+    for (const {itemId, amount} of items) {
+      // Moedas também requerem Bag, embora sejam convertidas em gold.
+      if (isCoin(itemId)) continue;
+      const old = pending.get(itemId) ?? 0;
+      pending.set(itemId, old + amount);
+      if (!Number.isSafeInteger(old + amount)) return false;
+    }
+    for (const [id, qty] of pending) {
+      try {
+        const item = ItemRegistry.get(id);
+        if (item.stackable) {
+          if (!this.inventory.has(id)) used += 1;
+        } else used += qty;
+      } catch { used += qty; }
+      if (!Number.isSafeInteger(used) || used > capacity) return false;
+    }
+    return used <= capacity;
+  }
+
+  // =========================
   // INVENTÁRIO
   // =========================
 
