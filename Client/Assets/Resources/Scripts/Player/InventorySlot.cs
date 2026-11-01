@@ -59,6 +59,9 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         if (background == null) background = gameObject.AddComponent<Image>();
         background.color = C11VisualTheme.Row;
         background.raycastTarget = true;
+        // C11: cada slot possui rebordo fino próprio, inspirado nos
+        // clientes clássicos sem copiar assets de outro MMO.
+        C11VisualTheme.Frame(gameObject);
         if (itemIcon != null)
         {
             var sprite = Resources.Load<Sprite>($"Icons/{itemId}") ??
