@@ -12,7 +12,7 @@ import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
 import { join } from "node:path";
 import { handleDropItem, handlePickupItem } from "../src/network/handlers/inventory.handler";
-import { handleTakeLoot } from "../src/network/handlers/loot.handler";
+import { handleTakeLoot, handleDropCorpseLoot } from "../src/network/handlers/loot.handler";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 import type { WebSocket } from "ws";
 
@@ -412,4 +412,128 @@ test("drop na fronteira Manhattan 2 aceita cardinal e diagonal",async()=>{
   assert.equal(world.itemsOnGround[0].position.x,x);
   assert.equal(world.itemsOnGround[0].position.y,y);
  }
+});
+
+
+// C9 CRITICAL REGRESSIONS — objetos reais no mundo, equipamentos e inventário.
+test("C9: drop do slot equipado remove EXATAMENTE uma Bag mesmo com cópias no inventário", async () => {
+  const world = new World(); world.generateMap(10, 10);
+  const player = createPlayer(); withBag(player);
+  const bag = "equipment/backpack/basic_backpack";
+  player.inventory.set(bag, 2);
+  const {ctx,errors} = createContext(world);
+  await handleDropItem(ws, player, {
+    type:"dropItem",itemId:bag,amount:1,x:2,y:2,fromEquipment:true,
+  },ctx);
+  assert.equal(errors.length,0);
+  assert.equal(player.equipment.has(EquipmentSlot.BACKPACK),false);
+  assert.equal(player.inventory.get(bag),2,"não consumir cópias guardadas");
+  assert.equal(world.itemsOnGround.length,1);
+  await handleDropItem(ws, player, {
+    type:"dropItem",itemId:bag,amount:1,x:2,y:2,fromEquipment:true,
+  },ctx);
+  assert.equal(world.itemsOnGround.length,1,"segundo pedido não duplica o item");
+  assert.equal(player.inventory.get(bag),2);
+  assert.equal(errors.length,1);
+  await handleDropItem(ws, player, {
+    type:"dropItem",itemId:bag,amount:1,x:2,y:2,fromEquipment:false,
+  },ctx);
+  assert.equal(player.inventory.get(bag),1,"drop explícito da bag retira outra cópia");
+  assert.equal(world.itemsOnGround.length,2);
+});
+
+test("C9: primeira Bag caída pode ser coletada sem outra Bag e autoequipada", async () => {
+  for (const bag of ["equipment/backpack/simple_bag","equipment/backpack/basic_backpack"]) {
+    const world = new World(); world.generateMap(10, 10);
+    const player=createPlayer(); withBag(player);
+    player.equipment.clear();
+    const {ctx,errors}=createContext(world);
+    const item=new ItemOnGround("ground-"+bag.split("/").pop(),bag,1,2,2,"Bag");
+    world.addItemOnGround(item);
+    let equipmentSnapshots=0;
+    (ctx.packetSender.inventory as any).sendEquipment=()=>{equipmentSnapshots++};
+    await handlePickupItem(ws,player,{type:"pickupItem",itemId:item.id},ctx);
+    assert.deepEqual(errors,[]);
+    assert.equal(world.itemsOnGround.length,0);
+    assert.equal(player.equipment.get(EquipmentSlot.BACKPACK),bag);
+    assert.equal(player.inventory.has(bag),false);
+    assert.equal(player.getContainerCapacity(),bag.includes("simple")?10:20);
+    assert.equal(equipmentSnapshots,1);
+    await handlePickupItem(ws,player,{type:"pickupItem",itemId:item.id},ctx);
+    assert.equal(player.inventory.has(bag),false,"replay não inventa segunda bag");
+    assert.equal(equipmentSnapshots,1);
+  }
+});
+
+test("C9: sem Bag, itens comuns e gold continuam no chão, sem alterar inventário", async()=>{
+  const world=new World();world.generateMap(10,10);
+  const player=createPlayer();withBag(player);player.equipment.clear();
+  const {ctx,errors}=createContext(world);
+  const ground=new ItemOnGround("ordinary",potion,2,2,2,"Potion");
+  world.addItemOnGround(ground);
+  const before=player.gold;
+  await handlePickupItem(ws,player,{type:"pickupItem",itemId:ground.id},ctx);
+  assert.equal(player.gold,before);
+  assert.equal(player.inventory.size,0);
+  assert.equal(world.itemsOnGround.length,1);
+  assert.match(errors[0],/Bag|Backpack/);
+});
+
+test("C9: corpse->chão transfere uma linha exata sem inventário e não duplica",async()=>{
+  const world=new World();world.generateMap(10,10);
+  const player=createPlayer();withBag(player);player.equipment.clear();
+  const corpse=new Corpse("corpse-drag-c9",2,2,[
+    {itemId:potion,amount:2},
+    {itemId:"currency/gold_coin",amount:3},
+    {itemId:potion,amount:4},
+  ]);
+  world.addCorpse(corpse);
+  const {ctx,errors}=createContext(world);
+  let spawned=0;
+  (ctx.broadcast as any).broadcastSpawnItemOnGround=()=>{spawned++};
+  await handleDropCorpseLoot(ws,player,{
+    type:"dropCorpseLoot",corpseId:corpse.id,itemIndex:1,x:3,y:2,
+  },ctx);
+  assert.equal(errors.length,0);
+  assert.deepEqual(corpse.loot.map(x=>x.amount),[2,4]);
+  assert.equal(world.itemsOnGround.length,1);
+  assert.equal(world.itemsOnGround[0].amount,3);
+  assert.equal(world.itemsOnGround[0].itemId,"currency/gold_coin");
+  assert.equal(spawned,1);
+  assert.equal(player.inventory.size,0);
+  assert.equal(player.gold,0);
+  await handleDropCorpseLoot(ws,player,{
+    type:"dropCorpseLoot",corpseId:corpse.id,itemIndex:99,x:3,y:2,
+  },ctx);
+  assert.equal(world.itemsOnGround.length,1);
+  assert.equal(spawned,1);
+  assert.ok(errors.length>0);
+  const before=errors.length;
+  await handleDropCorpseLoot(ws,player,{
+    type:"dropCorpseLoot",corpseId:corpse.id,itemIndex:0,x:8,y:8,
+  },ctx);
+  assert.equal(errors.length,before+1);
+  assert.equal(corpse.loot.length,2);
+});
+
+test("C9: cadáver arrastado até esvaziar dá despawn exatamente uma vez",async()=>{
+  const world=new World();world.generateMap(10,10);
+  const player=createPlayer();withBag(player);player.equipment.clear();
+  const corpse=new Corpse("corpse-last",2,2,[{itemId:potion,amount:1}]);
+  world.addCorpse(corpse);
+  const {ctx,errors}=createContext(world);
+  let despawn=0;
+  (ctx.broadcast as any).broadcastDespawn=()=>{despawn++};
+  await handleDropCorpseLoot(ws,player,{
+    type:"dropCorpseLoot",corpseId:corpse.id,itemIndex:0,x:2,y:3,
+  },ctx);
+  assert.equal(world.corpses.length,0);
+  assert.equal(world.itemsOnGround.length,1);
+  assert.equal(despawn,1);
+  await handleDropCorpseLoot(ws,player,{
+    type:"dropCorpseLoot",corpseId:corpse.id,itemIndex:0,x:2,y:3,
+  },ctx);
+  assert.equal(despawn,1);
+  assert.equal(world.itemsOnGround.length,1);
+  assert.ok(errors.length>0);
 });
