@@ -24,6 +24,9 @@ public class LootUI : MonoBehaviour
     private readonly List<LootItem> visibleItems = new List<LootItem>();
     private readonly List<GameObject> itemSlots = new List<GameObject>();
     private bool awaitingServer;
+    private const int MaxTrackedCorpses = 4;
+    // LRU: o mais recente fica no final; remover o mais antigo da lista
+    // NÃO remove cadáver, loot ou itens do servidor.
     private readonly List<string> openedCorpses = new List<string>();
     public int OpenedLootCount => openedCorpses.Count;
     public string CurrentCorpseId => currentCorpseId;
@@ -112,7 +115,10 @@ public class LootUI : MonoBehaviour
     public void ShowLootWindow(string corpseId, LootItem[] items)
     {
         if (string.IsNullOrEmpty(corpseId)) return;
-        if (!openedCorpses.Contains(corpseId)) openedCorpses.Add(corpseId);
+        // Nova janela/cadáver ganha o lugar mais recente na sidebar.
+        openedCorpses.Remove(corpseId);
+        openedCorpses.Add(corpseId);
+        if (openedCorpses.Count > MaxTrackedCorpses) openedCorpses.RemoveAt(0);
         currentCorpseId = corpseId;
         awaitingServer = false;
         visibleItems.Clear();
@@ -150,7 +156,7 @@ public class LootUI : MonoBehaviour
             var empty = new GameObject("C6LootEmptyState", typeof(RectTransform),
                 typeof(Image), typeof(LayoutElement));
             empty.transform.SetParent(itemsContainer, false);
-            WorldWindowLayout.PrepareRow(empty, 58f, false);
+            WorldWindowLayout.PrepareRow(empty, 38f, false);
             var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
             labelObject.transform.SetParent(empty.transform, false);
             var label = labelObject.GetComponent<TextMeshProUGUI>();
@@ -163,7 +169,7 @@ public class LootUI : MonoBehaviour
         for (int i = 0; i < visibleItems.Count; i++)
         {
             GameObject slot = Instantiate(lootItemPrefab, itemsContainer, false);
-            WorldWindowLayout.PrepareRow(slot, 56f, i % 2 == 1);
+            WorldWindowLayout.PrepareRow(slot, 36f, i % 2 == 1);
             var row = slot.GetComponent<LootItemSlot>();
             if (row != null)
             {
@@ -176,7 +182,12 @@ public class LootUI : MonoBehaviour
         }
 
         var scroll = itemsContainer.GetComponentInParent<ScrollRect>();
-        if (scroll != null) scroll.verticalNormalizedPosition = 1f;
+        if (scroll != null)
+        {
+            scroll.scrollSensitivity = 10f;
+            scroll.inertia = false; // scroll preciso: um movimento nao pula linhas
+            scroll.verticalNormalizedPosition = 1f;
+        }
         if (takeAllButton != null) takeAllButton.interactable = visibleItems.Count > 0 && !awaitingServer;
         Canvas.ForceUpdateCanvases();
     }
@@ -230,6 +241,7 @@ public class LootUI : MonoBehaviour
         int pos = openedCorpses.IndexOf(currentCorpseId);
         int next = (pos + direction + openedCorpses.Count) % openedCorpses.Count;
         if (next == pos) return;
+        if (awaitingServer) return;
         awaitingServer = true;
         net.Inventory.SendLoot(openedCorpses[next]);
     }
