@@ -132,7 +132,7 @@ public class InventoryUI : MonoBehaviour
     {
         if (goldText != null)
             goldText.text = HasEquippedBag
-                ? $"Slots: {slotsUsed}/{bagSlots}   Ouro: {currentGold:N0}"
+                ? $"Slots: {slotsUsed}/{bagSlots}   Ouro: {currentGold:N0}  •  Backspace: voltar"
                 : $"Sem Bag/Backpack   Ouro: {currentGold:N0}";
     }
 
@@ -239,6 +239,20 @@ public class InventoryUI : MonoBehaviour
     // INTERAÇÃO COM ITENS
     // =========================
 
+    private void Update()
+    {
+        // Backspace não está vinculado ao movimento WASD e volta um nível
+        // na pilha de Bags. Chat e campos de texto têm prioridade.
+        var k = UnityEngine.InputSystem.Keyboard.current;
+        if (k == null || !isInventoryOpen || !k.backspaceKey.wasPressedThisFrame ||
+            ChatUI.IsChatActive) return;
+        var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
+        if (selected != null &&
+            selected.GetComponentInParent<TMP_InputField>() != null) return;
+        var net = NetworkManager.Instance;
+        if (net != null && net.isConnected) net.Inventory?.CloseBag();
+    }
+
     private void OnSlotDoubleClicked(string itemId)
     {
         var network = NetworkManager.Instance;
@@ -255,6 +269,13 @@ public class InventoryUI : MonoBehaviour
             now - lastEquipmentUseAt < EquipmentClickGuardSeconds)
             return;
         lastEquipmentUseAt = now;
+        // Uma Bag DENTRO de outra abre sua própria janela (sem equipar e
+        // sem mesclar conteúdos). O Node valida a relação pai→filho.
+        if (itemId.Contains("/backpack/"))
+        {
+            network.Inventory.OpenBag(itemId);
+            return;
+        }
         // Node é o único que decide se o ID é realmente equipável.
         network.Inventory.UseItem(itemId);
     }
