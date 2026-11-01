@@ -214,9 +214,11 @@ export class Player extends Creature {
   canSellBag(itemId: string, amount: number): boolean {
     if (!this.isContainerItem(itemId)) return true;
     const holder = this.equippedBag();
-    const matching = holder?.children
-      .map(id => this.bagInstances.get(id))
-      .filter(b => b?.itemId === itemId) ?? [];
+    const matching = holder
+      ? holder.children.map(id => this.bagInstances.get(id))
+          .filter(b => b?.itemId === itemId)
+      : [...this.bagInstances.values()]
+          .filter(b => b.id !== this.equippedBagInstanceId && b.itemId === itemId);
     return matching.length >= amount &&
       matching.slice(0,amount).every(b => b!.items.size === 0 && b!.children.length === 0);
   }
@@ -224,8 +226,17 @@ export class Player extends Creature {
   releaseSoldBags(itemId: string, amount: number): void {
     if (!this.isContainerItem(itemId)) return;
     const holder = this.equippedBag();
-    if (!holder) return;
     for (let i=0; i<amount; i++) {
+      if (!holder) {
+        // Sem Bag equipada, somente uma Bag vazia no inventário solto
+        // pode ser vendida; não apagar conteúdo de outras instâncias.
+        const entry = [...this.bagInstances.values()]
+          .find(b => b.id !== this.equippedBagInstanceId &&
+            b.itemId === itemId && b.items.size === 0 && b.children.length === 0);
+        if (!entry) return;
+        this.bagInstances.delete(entry.id);
+        continue;
+      }
       const idx = holder.children.findIndex(id=>this.bagInstances.get(id)?.itemId === itemId);
       if (idx<0) return;
       this.bagInstances.delete(holder.children[idx]);
