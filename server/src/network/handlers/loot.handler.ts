@@ -13,6 +13,7 @@ import { Logger } from "../../game/core/logger/logger";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
+import { canDropOnWorldTile } from "../../game/systems/worldDropRules";
 import type { ClientDropCorpseLootMessage } from "../messages";
 import type { ClientLootMessage, ClientTakeLootMessage } from "../messages";
 
@@ -142,12 +143,8 @@ export async function handleDropCorpseLoot(
   const corpseDistance = Math.abs(corpse.position.x - player.position.x) +
     Math.abs(corpse.position.y - player.position.y);
   const x = msg.x, y = msg.y;
-  const dropDistance = Math.abs(x - Math.floor(player.position.x)) +
-    Math.abs(y - Math.floor(player.position.y));
-  if (corpseDistance > 2 || dropDistance > 2 ||
-      !Number.isSafeInteger(x) || !Number.isSafeInteger(y) ||
-      !ctx.world.isWithinBounds(x, y)) {
-    ctx.packetSender.loot.sendLootError("Muito longe para arrastar o loot ao chão.");
+  if (corpseDistance > 2 || !canDropOnWorldTile(ctx.world, player, x, y)) {
+    ctx.packetSender.loot.sendLootError("Cadáver distante ou destino fora da visão/bloqueado.");
     return;
   }
   if (!Number.isSafeInteger(msg.itemIndex) || msg.itemIndex < 0 ||
