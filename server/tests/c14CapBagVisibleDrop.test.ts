@@ -150,3 +150,17 @@ test("C14: pacotes de CAP na HUD, clique em UUID e novo alcance nos dois cliente
  const loot=unity("UI/LootUI.cs");
  assert.match(loot,/dx > 8 \|\| dy > 6/);
 });
+
+test("C14: equipar/desequipar no CAP máximo não conta peça duas vezes",()=>{
+ const {p,merchant}=setup();
+ assert.equal(ShopSystem.buyItem(p,merchant,simple,1),true);
+ p.equipment.set(EquipmentSlot.ARMOR,"bone_armor");
+ assert.equal(p.addItem(potion,111),true); // 12 + 55 + 333 = 400
+ assert.equal(p.getRemainingCap(),0);
+ assert.equal(p.unequipItem(EquipmentSlot.ARMOR),true);
+ assert.equal(p.getCarriedWeight(),400);
+ assert.equal(p.inventory.get("bone_armor"),1);
+ assert.equal(p.equipItem("bone_armor"),true);
+ assert.equal(p.equipment.get(EquipmentSlot.ARMOR),"bone_armor");
+ assert.equal(p.getRemainingCap(),0);
+});

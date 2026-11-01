@@ -31,6 +31,6 @@ Ao soltar uma Bag equipada no chão, o servidor transfere seu objeto de estado i
 ## Decisões futuras
 
 - CAP por vocação/atributos conforme design.
-- Pesos de itens de pesca cadastrados em arrays JSON e política para IDs legados (o padrão de 1 oz está explícito).
+- Pesos de itens de pesca também foram cadastrados nos arrays JSON de iscas, peixes e vara (7 definições). Dois arquivos JSON vazios pré-existentes continuam ignorados pelo ItemRegistry; IDs legados sem peso permanecem com o fallback de 1 oz.
 - Persistir itens/contêineres no chão no DB com TTL e política de reset.
 - Drag entre Bag A → Bag B com UUID de origem/destino, proteção de ciclos e transação.

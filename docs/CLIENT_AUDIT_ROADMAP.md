@@ -1,3 +1,19 @@
+## C14 — desenvolvimento em branch isolada (01/11/2026)
+
+- [x] C13: [PR #119](https://github.com/richzago/ZagoQuest/pull/119) **MERGED na dev** (commit `8dba71dc`) após 8/8 testes Unity.
+- [x] Nova branch `feature/c14-nested-bag-cap-visible-drop` criada a partir do merge; [PR #120](https://github.com/richzago/ZagoQuest/pull/120) **DRAFT**, sem merge.
+- [x] Bag recolhida do chão mantém UUID/filhos, valida estado/peso e abre por clique direito ou duplo clique.
+- [x] CAP por peso configurável em JSON, com equipamentos e árvores de Bags; envia snapshot para HUD abaixo de equipamentos, inclusive em 720p/F10.
+- [x] Drop em janela autoritativa 8×6 tiles, dentro da câmera do Unity, destino walkable, livre e com linha de visão; NPC/cadáver continuam acessíveis a 2 tiles.
+- [x] Testes automatizados C14 para ciclo Bag antiga→chão→nova Bag, CAP, loot/bag pesada, LOS, HUD.
+- [ ] **Homologação local Unity C14**: compile/Play Mode e oito cenários do documento.
+- [ ] Autorizar merge de PR #120 somente após homologação.
+- [ ] Próximas fases: persistir Bags no chão após restart; arraste direto Bag↔Bag, CAP por vocação e regras de áreas especiais Tiled.
+
+[Documento C14](C14_NESTED_BAG_CAP_VISIBLE_DROP.md)
+
+---
+
 ## C13 — regressão de payload opcional e geometria de loot (01/11/2026)
 
 - [x] Inspeção comparativa da branch com `dev`: C11 acrescentou `instanceId` opcional e cliente usa `JsonUtility.ToJson`.
@@ -7,8 +23,8 @@
 - [x] Seis warnings obsoletos de TMP/FindObjectsByType tratados nos arquivos informados.
 - [x] CI C13 [#41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): 581/581 Ubuntu e Windows, build, PostgreSQL e smoke/dist aprovados. Não compila C# Unity.
 - [x] C13 homologada no Unity pelo usuário em 01/11/2026 (8/8): ausência dos seis CS0618; Bag equipada e item da Bag → chão/recolher; Bag aninhada com UUID; loot individual 1/2/3, loot→Bag/chão e Shift+L; NPC/logout/movimento; 1280×720/1920×1080, F10 100/115/130. Resultado informado pelo usuário, distinto da CI Node.
-- [ ] Deliberar limite de drop visível e obstáculos antes de alterar autoridade do Node.
-- [ ] Autorizar explicitamente PR #119; permanece Draft, não fazer merge.
+- [x] C14 implementa limite de drop visível + terreno/LOS, ainda pendente de homologação Unity.
+- [x] PR #119 homologado e integrado à dev em 01/11/2026, com autorização explícita do usuário.
 
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
