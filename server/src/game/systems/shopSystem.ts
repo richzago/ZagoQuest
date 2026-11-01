@@ -18,8 +18,15 @@ export class ShopSystem {
     if (!isValidItemId(itemId) || !isValidQuantity(quantity)) return false;
     const item = npc.shopItems?.find((entry) => entry.itemId === itemId);
     if (!item || !Number.isSafeInteger(item.buyPrice) || item.buyPrice < 0 ||
-        !isValidGoldBalance(player.gold) || !isValidGoldBalance(player.bankGold) ||
-        !player.canAddItem(itemId, quantity)) return false;
+        !isValidGoldBalance(player.gold) || !isValidGoldBalance(player.bankGold)) return false;
+
+    const firstBag = player.getContainerCapacity() === 0 &&
+      !player.equipment.has(EquipmentSlot.BACKPACK) &&
+      player.isContainerItem(itemId) && quantity === 1;
+    // A primeira Bag destrava o inventário. Todas as demais compras devem
+    // caber na Bag EQUIPADA; sem Bag, comprar poções NÃO é permitido.
+    if (!(firstBag ? player.canAddItem(itemId, quantity) :
+          player.canCollectItems([{itemId,amount:quantity}]))) return false;
 
     // Coletar uma moeda já credita seu valor diretamente na carteira.
     // Se um NPC vendesse uma moeda abaixo desse valor, o jogador conseguiria
@@ -41,6 +48,9 @@ export class ShopSystem {
       player.bankGold += bankCost;
       return false;
     }
+
+    // Registrar uma identidade POR Bag antes de equipar a primeira unidade.
+    player.registerPurchasedBags(itemId, quantity);
 
     // Primeiro contêiner comprado pode ser equipado automaticamente.
     // Evita softlock: a tecla I foi removida, sem Bag a área de itens fecha.
@@ -65,11 +75,13 @@ export class ShopSystem {
     if (!item || !Number.isSafeInteger(item.sellPrice) || item.sellPrice < 0 ||
         !Number.isSafeInteger(item.buyPrice) || item.sellPrice >= item.buyPrice ||
         isCoin(itemId) ||
-        !player.hasItem(itemId, quantity)) return false;
+        !player.hasItem(itemId, quantity) ||
+        !player.canSellBag(itemId, quantity)) return false;
 
     const earned = item.sellPrice * quantity;
     if (!Number.isSafeInteger(earned) || !player.canReceiveGold(earned)) return false;
     if (!player.removeItem(itemId, quantity)) return false;
+    player.releaseSoldBags(itemId, quantity);
 
     // 0 gold é permitido em itens sem valor de revenda.
     if (earned > 0 && !player.addGold(earned)) {
