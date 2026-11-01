@@ -7,8 +7,8 @@
 - [x] Layout redimensionável no eixo vertical por alça inferior de Bag e Loot, limitado pela altura disponível na coluna, conteúdo e painel adjacente; preferência local via PlayerPrefs.
 - [x] Atualização parcial da lista de Loot não retorna o scroll ao topo.
 - [x] Testes estáticos/contratos C8/C9 atualizados e criados testes C16; **ainda não equivalem a Play Mode Unity**.
-- [ ] Testar UI no Unity em F10 100/115/130% e 1280×720/1920×1080, inclusive Bag e Loot em colunas iguais e separadas.
-- [ ] Reexecutar cenários de Bag cheia e segurança contra ciclos/UUID inválido usando os testes Node C15; operações maliciosas podem não ser alcançáveis pela UI normal.
+- [x] **Homologação Unity C16 — 7/7 cenários aprovados pelo usuário em 01/11/2026:** 2×2 slots e vazios, roda sem saltos, puxador de scrollbar até último item, alça de redimensionamento de Bag, redimensionamento/Loot/TODOS, mesma coluna e colunas separadas em 1280×720 e 1920×1080 com F10, recusa de Bag cheia e transferências inválidas sem perda/duplicação observada. Testes manuais relatados pelo usuário, separados da CI.
+- [x] **Integridade funcional Bag cheia e recusas de transferências:** homologadas manualmente pelo usuário sem perda ou duplicação observada; os testes automatizados C15 verificam posse/UUID/ciclos/slots. **Não confundir essa evidência com testes de invasão usando UUID forjado no Unity.**
 - [ ] Aguardar autorização explícita para integrar PR #122 na `dev`.
 
 [Relatório técnico e checklist C16](C16_RESIZABLE_INVENTORY_LOOT_SCROLL.md)

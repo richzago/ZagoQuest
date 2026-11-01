@@ -17,6 +17,26 @@ O layout C15 reduzia a mochila a **112 px**, mostrando somente uma linha de dois
 
 **Segurança:** alterações somente em UI/UX do cliente Unity; servidor continua autoritário para slot/capacidade, pesos, transferência Bag↔Bag e autorização de loot.
 
+## Encerramento funcional C16 — homologação Unity em 01/11/2026
+
+**Resultado: 7/7 verificações aprovadas pelo usuário.** Trata-se de validação manual relatada, e não execução do Unity pela CI ou registro de logs/vídeos.
+
+| Verificação relatada | Estado |
+| --- | --- |
+| Backpack inicialmente com quatro slots, incluindo vazios | OK |
+| Roda do mouse percorre todos os itens sem saltar linhas | OK |
+| Puxador vertical chega lentamente ao último item | OK |
+| Alça inferior expande/recolhe a Backpack dentro dos limites | OK |
+| Redimensionamento/rolagem do Loot sem perda ou bloqueio de TODOS | OK |
+| Bag e Loot na mesma coluna e em colunas distintas, 1280×720, 1920×1080 e F10 | OK |
+| Bag cheia e recusas de transferências sem perda/duplicação | OK |
+
+**Interpretação:** as falhas visuais relatadas (apenas dois slots, rolagem saltando itens, janela pequena não ajustável) não reapareceram nos cenários homologados. As duas lacunas práticas da C15 — navegação da Backpack/Loot e possibilidade de validar transferências recusadas — foram abordadas. Isso não substitui testes adversariais de cliente com UUID forjado, nem prova comportamento em todas as densidades e equipamentos. O teste de persistência da altura após reiniciar o cliente também não foi explicitamente relatado e continua como verificação complementar opcional.
+
+**Integração:** código [PR #122](https://github.com/richzago/ZagoQuest/pull/122) permanece **OPEN/DRAFT**, base `dev`, **sem merge**. Homologação 7/7 **não é autorização para merge**. Aguardar autorização expressa.
+
+**Evidência automatizada anterior:** [CI #41338064761](https://github.com/richzago/ZagoQuest/actions/runs/41338064761), **601/601 testes no Ubuntu e 601/601 no Windows**, PostgreSQL e build TypeScript aprovados. CI não compila C# nem testa Play Mode.
+
 ## Checklist Unity C16
 
 - [ ] **Quatro células visíveis** ao equipar Simple Bag em 1280×720 (100%) e 1920×1080; Bag cheia e Bag vazia exibem a grade sem cortar linhas.
