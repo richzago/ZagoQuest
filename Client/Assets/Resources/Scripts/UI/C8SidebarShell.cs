@@ -17,12 +17,12 @@ public sealed class C8SidebarShell : MonoBehaviour
     private const float EquipmentStepX = 62f;
     private const float EquipmentStepY = 53f;
 
-    private static readonly Color Background = new Color32(18, 27, 39, 249);
-    private static readonly Color Inner = new Color32(29, 41, 56, 244);
-    private static readonly Color Inset = new Color32(23, 34, 48, 247);
-    private static readonly Color Gold = new Color32(175, 139, 80, 230);
-    private static readonly Color Text = new Color32(235, 233, 226, 255);
-    private static readonly Color Muted = new Color32(170, 188, 202, 255);
+    private static readonly Color Background = C11VisualTheme.Surface;
+    private static readonly Color Inner = C11VisualTheme.Row;
+    private static readonly Color Inset = C11VisualTheme.Recess;
+    private static readonly Color Gold = C11VisualTheme.Bronze;
+    private static readonly Color Text = C11VisualTheme.Text;
+    private static readonly Color Muted = C11VisualTheme.Muted;
 
     private GameObject canvasRoot;
     private RectTransform sidebarSurface;
@@ -145,7 +145,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddOutline(surface, Gold);
 
         AddText(surface.transform, "Brand", "ZAGOQUEST", 14, 28, 18, Gold);
-        AddText(surface.transform, "Subtitle", "INTERFACE  •  AVENTUREIRO", 43, 24, 11, Muted);
+        AddText(surface.transform, "Subtitle", "OBSIDIAN  •  CLIENTE DE AVENTURAS", 43, 24, 11, Muted);
         AddLine(surface.transform, "TopDivider", 75, Gold);
 
         // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
@@ -205,7 +205,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
-        AddText(dynamicSection.transform, "DynamicTitle", "MOCHILAS  /  LOOT", 9, 30, 14, Text);
+        AddText(dynamicSection.transform, "DynamicTitle", "CONTEINÊRES  /  LOOT", 9, 30, 14, Text);
         AddText(dynamicSection.transform, "DynamicHint",
             "Espaco reservado para janelas dinamicas", 39, 45, 11, Muted);
         dynamicHint = dynamicSection.transform.Find("DynamicHint").gameObject;
