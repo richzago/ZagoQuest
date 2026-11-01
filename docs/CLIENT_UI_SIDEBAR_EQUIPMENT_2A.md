@@ -1,5 +1,46 @@
 # ZagoQuest — UI 2A · Equipamentos encaixados na sidebar (PR empilhado)
 
+## Revisão visual solicitada após teste Unity — 31/10/2026
+
+O usuário testou a primeira versão do PR #116 e pediu oito refinamentos. Esta revisão permanece **na mesma branch e PR #116**, sem merge.
+
+### Origem confirmada do título duplicado
+
+A leitura da cena `Client/Assets/scenebasic.unity` comprovou que `EquipmentPanel` possui filho direto chamado **`Equipaments`**, com `TextMeshProUGUI` e texto de título. O cabeçalho C6 e o título da nova sidebar são construídos em runtime. A revisão agora desativa `EquipmentPanel/Equipaments`, `C6Title`, `C6DragHeader` e `C6Help` **somente enquanto o painel original está encaixado**; o título `EQUIPAMENTOS` da sidebar é o único visível. Estados anteriores de `Equipaments`, `C6Help`, arraste/X são guardados e restaurados no teardown.
+
+### Alterações realizadas
+
+1. **Equipamentos menores e menos poluídos:** card de 369 para ~290 (285 na disposição compacta); slots existentes de 56 para **52 unidades**, passo horizontal 65, vertical 58; auto sizing de nome de itens entre 7.5 e 11, com quebra de linha, sem alterar itemId/dados ou callbacks. Ainda cabe o BOOTS na quarta linha, inclusive na versão compacta. Sem texto "Arraste os itens para equipar/retirar".
+2. **Minimapa realmente circular:** placeholder `MiniMapCircularPreview` com sprite circular de 128×128 gerado localmente por `CreateCircularMiniMapTexture`; pixels fora do círculo transparentes, contorno dourado discreto, texto "EM BREVE". **Não implementa mapa Tiled nem tracking ainda.** Sprite/Texture destruídos no ciclo de vida.
+3. **Sidebar presa às três bordas:** `SidebarSurface` tem `anchoredPosition=Vector2.zero`, `sizeDelta=(SidebarWidth,0)`, ancorada do topo ao fundo e flush à direita. Elimina as margens superior, inferior e direita.
+4. **Seis pictogramas geométricos:** engrenagem, áudio, chat, mochila, bússola e ajuda, criados de `Image` e texto `?`, sem siglas `CFG`, `SOM`, `AJUDA`; nenhum possui clique ou comportamento inventado. `raycastTarget=false` em TODOS os elementos decorativos.
+5. **Responsividade:** `RefreshResponsiveLayout` realinha Cards e círculo conforme altura efetiva do Canvas, incluindo F10; `SidebarDynamicHost` continua reservado, sem reparent de Loot/Backpack. **Redimensionamento manual fica para a etapa 3**.
+6. **Painel de pesca oculto por padrão:** `C7FishingUI` preserva sua tela apenas como objeto desativado, mantém tecla **R**, timer recebido do Node, mensagens do chat e cancelamento via handlers; `ShowFishingPanel=false` impede sobreposição e raycast da janela. **Nenhuma alteração na chance, tempo, água, vara, isca ou lógica do Node**.
+7. **Fishing no Status:** server `playerStats` recebe campo `fishingLevel: player.getSkillLevel(SkillType.FISHING)`; o contrato TS e `PlayerStatsData.cs` adicionam o campo e `StatusManager` desenha `Pesca   Nível X` (ou traço antes de snapshot). O servidor já atualiza `playerStats` após conclusão da pesca; **não há progresso calculado no Unity**.
+8. **Proteção permanente de input:** `TargetSelector.cs` e `IsPointerOverUi` não foram editados; Canvas raiz fullscreen continua sem Graphic, fundo da barra visível é a única cobertura, slots reais continuam com raycast, imagens decorativas não. Clique1 START, clique2 STOP e corpse loot são testes obrigatórios.
+
+### Testes da revisão
+
+- `server/tests/clientC8SidebarContracts.test.ts`: inclui asserts contra o YAML da cena que prova o objeto `Equipaments`, posição flush, UI redonda, pictogramas, nova geometria e regressões dos cliques.
+- `server/tests/clientC8SidebarPolish.test.ts`: exercita `PlayerStatsSender.toPayload` com Fishing 42, verifica a chegada ao Status e o HUD de pesca oculto sem desabilitar a tecla R.
+- A CI Node/Windows/Linux/PostgreSQL **não compila C# nem executa a cena**. Requer Play Mode e inspeção visual do usuário.
+
+### Checklist de QA adicional (não substitui a checklist anterior)
+
+- [ ] Somente um título de EQUIPAMENTOS; `Equipaments` antigo oculto.
+- [ ] 10 slots legíveis; um item com nome comprido permanece dentro dos limites; drag/drop e USEFUL/BOOTS ok.
+- [ ] Card mais baixo e resto da barra não sobrepõe; layout 1920×1080 e 1280×720 com F10 100/115/130%.
+- [ ] Minimapa aparece **redondo** e continua estático (placeholder).
+- [ ] Sidebar sem espaços no topo, base e direita, sem expandir raycast além da própria barra.
+- [ ] 6 ícones gráficos ao invés das siglas; não agem como botões falsos.
+- [ ] Painel de pesca NÃO aparece; R continua enviando início de pesca e respostas ainda aparecem no chat.
+- [ ] Abrir Status (P) mostra `Pesca Nível X` retornado pelo Node (testar após pesca que aumente skill).
+- [ ] Primeiro clique ataca; segundo clique no mesmo monstro interrompe; corpse abre loot; UI real impede clique somente sobre sua superfície.
+- [ ] Pesca/gameplay/câmera/loot/backpack em si continuam sem alterações. **PR Draft, sem merge até autorização explícita.**
+
+---
+
+
 **Objetivo visual:** obter uma interface de MMORPG 2D inspirada em Tibia, mas limpa e moderna, com sidebar sempre disponível e equipamento **funcional dentro da coluna**, sem sobrepor a nova barra.
 
 **Base e dependências:** branch `feature/client-ui-sidebar-equipment-2a` criada a partir de `feature/client-ui-sidebar-step1` / [PR #115](https://github.com/richzago/ZagoQuest/pull/115), que ainda NÃO foi integrado à `dev`. O hotfix de combate/loot aprovado no Unity está na `dev` desde [PR #114](https://github.com/richzago/ZagoQuest/pull/114), merge `911cc8e`. **Nenhum PR de UI pode ser integrado antes do teste visual e sinal verde explícito do usuário.**
