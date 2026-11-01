@@ -1,5 +1,42 @@
 # ZagoQuest — UI 2A · Equipamentos encaixados na sidebar (PR empilhado)
 
+
+## Correção crítica C8/2A — o mundo não pode ficar escondido atrás da sidebar
+
+**Relato após a homologação anterior:** toda a água à direita ficava coberta pela barra lateral; isso é um bloqueador de gameplay visual. O usuário pediu adaptação estilo Tibia e uma seção de equipamento ainda mais compacta. **Mantivemos a branch `feature/client-ui-sidebar-equipment-2a` / PR #116, sem integração à `dev`**.
+
+### Causa confirmada e intervenção isolada
+
+- Até então `C8SidebarShell` era um Canvas `ScreenSpaceOverlay` opaco sobre a câmera, enquanto `Main Camera` ocupava o Game View inteiro (`m_NormalizedViewPortRect.width=1` em `scenebasic.unity`). A interface escondia fisicamente o mapa à direita. **Não é erro do Tiled, colisão ou spawn de água.**
+- Novo `C8PlayfieldViewport.cs` instalado **no mesmo `NetworkManager`** (sem criar ou duplicar câmeras), lendo `C8SidebarShell.SidebarSurface.GetWorldCorners()` e `RectTransformUtility.WorldToScreenPoint(null,...)`. A margem esquerda REAL do Canvas, já escalada por F10 e pelo Game View, define a largura do espaço jogável.
+- `Camera.main.rect = new Rect(0,0,availableWidth/Screen.width,1)`; `Camera.main.aspect = availableWidth/Screen.height`. Assim o mundo 2D ocupa somente o retângulo à esquerda e sua projeção ortográfica não fica esticada. O jogador é seguido por `CameraFollow` **sem modificar sua implementação, offsets, zoom, snap, controles ou clamping de mapa**, que já usa `cameraComponent.aspect`.
+- A nova classe **nunca instancia outra Camera, RenderTexture, TiledMapRenderer ou Canvas** e **não altera `TargetSelector`/`IsPointerOverUi`**. Fora da coluna não há blocker de UI novo. `ScreenPointToRay` existente passa a usar a câmera recortada, com pixelRect coerente.
+- Ao desconectar/logout, desabilitar ou destruir o componente, restaura o `Camera.rect` original e executa `Camera.ResetAspect()`. Com Game View extremamente estreito, restaura em vez de deixar viewport degenerado. `C8PlayfieldViewport` espera `C8SidebarShell` existir e o Node conectar.
+- **Cautela com a história #111:** #111 alterou **múltiplos sistemas e aplicou `C7DockLayout` em toda a HUD, incluindo Image transparente com `raycastTarget=true`**, causando o "mapa fantasma" e clicks de ataque/loot quebrados. Aqui, SOMENTE a câmera principal da cena recebe `rect`; todas as outras HUDs, Tiled e scripts de câmera ficam intocados.
+
+### Equipamento mais organizado e menor, sem sacrificar nomes
+
+- Em relação à revisão anterior, o card passou de **290→265** unidades (modo compacto **285→260**).
+- Os dez slots reais passam de **52→50** unidades; passo horizontal **65→62** e vertical **58→53**. Grade 3×3+1 centralizada, nomes preservados via `TextMeshProUGUI.enableAutoSizing`, `enableWordWrapping` e fonte mínima **7.5**, máxima **10.5**.
+- `C6Help` e `Equipaments` da cena permanecem ocultos apenas quando dockados. Área de ícones e `SidebarDynamicHost` começam ~25 unidades mais acima, ganhando espaço para loot/backpack futuros, **sem já mover essas janelas**.
+
+### Testes necessários no Unity (CRÍTICOS)
+
+- [ ] Ver mapa e borda de água à direita **dentro do espaço jogável**, sem ficar atrás da sidebar; testar caminhando até a borda leste do Tiled.
+- [ ] Main Camera continua **única** na Hierarchy e não há mundo duplicado/fantasma; zoom +/- e rastreamento do personagem funcionam.
+- [ ] Em 1920×1080 e 1280×720, F10 100/115/130: map ocupa somente área livre; avatar não se perde atrás da sidebar; sem distorção do tileset.
+- [ ] Logout/relogin: câmera volta ao viewport total sem sidebar e depois se adapta outra vez; no Play Mode Console não há exceções.
+- [ ] Primeiro clique no monstro inicia ataque; segundo clique no mesmo para; cadáver abre loot, NPC responde e itens no chão selecionam normalmente.
+- [ ] Arrastar itens do inventário para equipamento e de volta. Slot USEFUL e BOOTS funcionam; textos grandes não extrapolam.
+- [ ] Card EQUIPAMENTOS mais baixo, grade centrada e com 10 slots. A seção dinâmica ocupa o espaço liberado; minimapa redondo e seis ícones continuam visíveis.
+- [ ] Status P mostra Fishing real; pesca continua com R e sem painel intrusivo; **sem alterações de gameplay ou Node**.
+- [ ] **Não aprovar merge se qualquer problema visual/câmera persistir.** CI Node/TS verifica contratos e aritmética de F10, mas **NÃO compila C# e NÃO renderiza Unity**.
+
+**Códigos focalizados nesta revisão:** `C8SidebarShell.cs`, novo `C8PlayfieldViewport.cs` + `.meta`, `NetworkManager.cs` (bootstrap do componente), testes `clientC8SidebarContracts.test.ts`, documentação. **Sem tocar em** `scenebasic.unity`, `CameraFollow.cs`, `TiledMapRenderer.cs`, `TargetSelector.cs` ou código de pesca.
+
+---
+
+
 ## Revisão visual solicitada após teste Unity — 31/10/2026
 
 O usuário testou a primeira versão do PR #116 e pediu oito refinamentos. Esta revisão permanece **na mesma branch e PR #116**, sem merge.
