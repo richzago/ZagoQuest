@@ -9,7 +9,8 @@ namespace ZagoQuest.Networking.Handlers
         public void Handle(JObject json, NetworkContext context)
         {
             var shopErrMsg = json.ToObject<ShopErrorMessage>();
-            Debug.LogError($"Erro na loja: {shopErrMsg.message}");
+            // Recusa de interação é feedback de gameplay, não exceção do cliente.
+            Debug.LogWarning($"[SHOP] Interação recusada pelo Node: {shopErrMsg.message}");
             context.ChatUI?.AddMessage($"Loja: {shopErrMsg.message}");
         }
     }
