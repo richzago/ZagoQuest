@@ -164,7 +164,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 7, 28, 15, Text);
         // Sem texto "arraste para equipar/retirar": menos poluicao visual.
         equipmentHost = Holder(equipmentSection.transform, "EquipmentHost",
-            Vector2.zero, Vector2.one, new Vector2(8f, 6f), new Vector2(-8f, -40f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 6f), new Vector2(-8f, -36f));
 
         // 3. ACESSOS FUTUROS — pictogramas, nunca siglas ou botões falsos.
         var settings = Card(surface.transform, "SettingsIconsSection", 507, 58);
