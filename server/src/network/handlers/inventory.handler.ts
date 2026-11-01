@@ -243,10 +243,19 @@ export async function handleDropItem(
   try { itemName = ItemRegistry.get(itemId).name; } catch { /* save legado */ }
   const onGround = new ItemOnGround(generateId(), itemId, amount, tileX, tileY, itemName);
 
-  if (fromEquipment) {
-    // Remover DIRETAMENTE do slot equipado. O caminho antigo chamava
-    // unequipItem -> addItem -> removeItem e podia consumir outra cópia
-    // do inventário enquanto deixava a mochila equipada.
+  if (player.isContainerItem(itemId)) {
+    if (amount !== 1) {
+      ctx.packetSender.inventory.sendDropError("Cada Bag é uma instância: solte apenas uma.");
+      return;
+    }
+    const payload = player.detachBagForGround(itemId, fromEquipment);
+    if (!payload) {
+      ctx.packetSender.inventory.sendDropError("Falha ao soltar esta Bag.");
+      return;
+    }
+    // Guardar conteúdo no OBJETO do chão, nunca no inventário global.
+    onGround.bagState = payload;
+  } else if (fromEquipment) {
     player.equipment.delete(equippedSlot!);
     player.recalculateStats();
   } else if (!player.removeItem(itemId, amount)) {
@@ -294,11 +303,17 @@ export async function handlePickupItem(
   const bootstrap = player.getContainerCapacity() === 0 &&
     !player.equipment.has(EquipmentSlot.BACKPACK) &&
     isGroundContainer && onGround.amount === 1;
+  let accepted = false;
   if (bootstrap) {
-    player.equipment.set(EquipmentSlot.BACKPACK, onGround.itemId);
-    player.recalculateStats();
-  } else if (!player.canCollectItems([{itemId: onGround.itemId, amount: onGround.amount}]) ||
-             !player.addItem(onGround.itemId, onGround.amount)) {
+    accepted = player.attachGroundBag(onGround.itemId, onGround.bagState, true);
+  } else if (isGroundContainer && onGround.amount === 1) {
+    accepted = player.canCollectItems([{itemId:onGround.itemId,amount:1}]) &&
+      player.attachGroundBag(onGround.itemId, onGround.bagState, false);
+  } else {
+    accepted = player.canCollectItems([{itemId:onGround.itemId,amount:onGround.amount}]) &&
+      player.addItem(onGround.itemId, onGround.amount);
+  }
+  if (!accepted) {
     const why = player.getContainerCapacity() <= 0
       ? "Equipe uma Bag/Backpack para pegar itens do chão."
       : "Sua Bag/Backpack está cheia ou o item é inválido.";
