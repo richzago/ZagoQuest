@@ -50,7 +50,7 @@ const validMessages = [
   { type: "closeBank", npcId: "banker-1" },
 ] as const;
 
-test("todos os 24 tipos de mensagem do cliente são aceitos com campos válidos", () => {
+test("todos os 26 tipos de mensagem do cliente são aceitos com campos válidos", () => {
   for (const message of validMessages) {
     const parsed = parseClientMessage(JSON.stringify(message));
     assert.equal(parsed.ok, true, `Comando rejeitado: ${JSON.stringify(message)}`);
