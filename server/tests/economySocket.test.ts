@@ -14,6 +14,9 @@ import { test } from "node:test";
 import { WebSocket, type WebSocketServer as WsNodeServer } from "ws";
 import { WebSocketServer as GameWebSocketServer } from "../src/network/websocket/wsServer";
 import { Player } from "../src/game/entities/player";
+import { ItemRegistry } from "../src/data/items/itemRegistry";
+import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
+import { join } from "node:path";
 import { Npc } from "../src/game/entities/npc";
 import { World } from "../src/game/world/World";
 
@@ -33,6 +36,9 @@ async function fixture(): Promise<Fixture> {
   const world = new World();
   world.generateMap(20, 20);
   const player = new Player("test-player", "SocketEconomy", 2, 2);
+  ItemRegistry.loadAll(join(process.cwd(),"src","data","items"));
+  player.equipment.set(EquipmentSlot.BACKPACK,"equipment/backpack/basic_backpack");
+  player.restoreBagState(undefined);
   player.gold = 100;
   world.addPlayer(player);
 
