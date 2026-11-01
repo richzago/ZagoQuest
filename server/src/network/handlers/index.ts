@@ -62,6 +62,8 @@ export const handlers: Record<string, HandlerFn> = {
 
   // Inventário e equipamento
   useItem: handleUseItem,
+  openBag: handleOpenBag,
+  closeBag: handleCloseBag,
   equipItem: handleEquipItem,
   unequipItem: handleUnequipItem,
   dropItem: handleDropItem,
