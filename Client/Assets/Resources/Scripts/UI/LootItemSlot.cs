@@ -7,7 +7,8 @@ using ZagoQuest.Networking.Messages;
 /// Toda a linha de loot é clicável com UM clique. Rótulos TMP não bloqueiam
 /// o raycast no Image do root. LootUI impede comandos repetidos até lootTaken.
 /// </summary>
-public class LootItemSlot : MonoBehaviour, IPointerClickHandler
+public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
+    IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [Header("UI References")]
     public TextMeshProUGUI itemNameText;
@@ -51,6 +52,17 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler
             amountText.alignment = TextAlignmentOptions.MidlineRight;
         }
     }
+
+    public int ItemIndex => index;
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        // O EventSystem entrega pointerDrag ao destino, sem tocar no
+        // DragDropManager do inventário/equipamento.
+    }
+
+    public void OnDrag(PointerEventData eventData) { }
+    public void OnEndDrag(PointerEventData eventData) { }
 
     public void OnPointerClick(PointerEventData eventData)
     {
