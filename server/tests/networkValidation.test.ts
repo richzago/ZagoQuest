@@ -54,7 +54,7 @@ test("todos os 24 tipos de mensagem do cliente são aceitos com campos válidos"
     assert.equal(parsed.ok, true, `Comando rejeitado: ${JSON.stringify(message)}`);
     if (parsed.ok) assert.equal(parsed.message.type, message.type);
   }
-  assert.equal(new Set(validMessages.map((v) => v.type)).size, 23);
+  assert.equal(new Set(validMessages.map((v) => v.type)).size, 24);
 });
 
 test("esquemas cobrem exatamente os tipos registrados nos handlers", () => {
