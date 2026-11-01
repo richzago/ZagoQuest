@@ -10,6 +10,8 @@ export interface ClientOpenBagMessage {
   type: "openBag";
   /** ItemId da Bag diretamente dentro da janela atualmente aberta. */
   itemId: string;
+  /** UUID do filho; evita abrir sempre a primeira dentre várias iguais. */
+  instanceId?: string;
 }
 export interface ClientCloseBagMessage { type: "closeBag"; }
 
