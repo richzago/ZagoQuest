@@ -58,7 +58,8 @@ export class Player extends Creature {
     const parent = this.viewedBag();
     if (!parent || !this.isContainerItem(itemId) ||
         (parent.items.get(itemId) ?? 0) < 1) return false;
-    const childId = parent.children.find(id => this.bagInstances.get(id)?.itemId === itemId);
+    const childId = parent.children.find(id => this.bagInstances.get(id)?.itemId === itemId &&
+      (!instanceId || id === instanceId));
     if (!childId) return false;
     const child = this.bagInstances.get(childId);
     if (!child) return false;
