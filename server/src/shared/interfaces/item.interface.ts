@@ -30,6 +30,8 @@ export interface ItemType {
   description: string;
   type: "currency" | "consumable" | "equipment" | "quest" | "loot";
   stackable: boolean;
+  /** Peso em onças (oz) por unidade. Ausente = 1 oz (save/JSON legado). */
+  weight?: number;
   maxStack?: number;
   /** Slots da Bag/Backpack equipada; 0 ou ausente = não é contêiner. */
   containerSlots?: number;
