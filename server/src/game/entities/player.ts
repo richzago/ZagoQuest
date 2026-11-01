@@ -50,6 +50,44 @@ export class Player extends Creature {
     id: string; itemId: string; items: Map<string, number>; children: string[];
   }> = new Map();
   equippedBagInstanceId: string | null = null;
+  /** Janela atual: o equipamento permanece a Bag raiz; navegar não equipa. */
+  private viewedBagInstanceId: string | null = null;
+
+  /** Permite quantas Bags distintas couberem, em qualquer profundidade. */
+  openNestedBag(itemId: string): boolean {
+    const parent = this.viewedBag();
+    if (!parent || !this.isContainerItem(itemId) ||
+        (parent.items.get(itemId) ?? 0) < 1) return false;
+    const childId = parent.children.find(id => this.bagInstances.get(id)?.itemId === itemId);
+    if (!childId) return false;
+    const child = this.bagInstances.get(childId);
+    if (!child) return false;
+    this.viewedBagInstanceId = childId;
+    this.inventory = child.items;
+    return true;
+  }
+
+  closeNestedBag(): boolean {
+    const activeId = this.viewedBagInstanceId;
+    if (!activeId || activeId === this.equippedBagInstanceId) return false;
+    const parent = [...this.bagInstances.values()].find(b => b.children.includes(activeId));
+    const parentId = parent?.id ?? this.equippedBagInstanceId;
+    const selected = parentId ? this.bagInstances.get(parentId) : undefined;
+    if (!selected) return false;
+    this.viewedBagInstanceId = selected.id;
+    this.inventory = selected.items;
+    return true;
+  }
+
+  get isViewingNestedBag(): boolean {
+    return !!this.viewedBagInstanceId &&
+      this.viewedBagInstanceId !== this.equippedBagInstanceId;
+  }
+
+  private viewedBag() {
+    return this.viewedBagInstanceId
+      ? this.bagInstances.get(this.viewedBagInstanceId) : this.equippedBag();
+  }
   /** Itens de saves antigos sem Bag, nunca misturados com Bag largada. */
   private looseItems: Map<string, number> = new Map();
 
@@ -69,6 +107,7 @@ export class Player extends Creature {
   restoreBagState(raw: BagStateSave | null | undefined): void {
     this.bagInstances.clear();
     this.equippedBagInstanceId = null;
+    this.viewedBagInstanceId = null;
     if (raw && Array.isArray(raw.bags) && raw.bags.length > 0) {
       for (const row of raw.bags) {
         if (!row || typeof row.id !== "string" ||
@@ -84,6 +123,7 @@ export class Player extends Creature {
       const selected = raw.equippedId && this.bagInstances.get(raw.equippedId);
       if (selected && this.equipment.get(EquipmentSlot.BACKPACK) === selected.itemId) {
         this.equippedBagInstanceId = selected.id;
+        this.viewedBagInstanceId = selected.id;
         this.inventory = selected.items;
       } else {
         this.equipment.delete(EquipmentSlot.BACKPACK);
@@ -97,6 +137,7 @@ export class Player extends Creature {
       const original = this.inventory;
       const bag = this.createBag(equippedId, original);
       this.equippedBagInstanceId = bag.id;
+      this.viewedBagInstanceId = bag.id;
       // Legacy itemId counts inside an active Bag receive stable child instances.
       for (const [id, qty] of original)
         if (this.isContainerItem(id))
@@ -128,7 +169,7 @@ export class Player extends Creature {
   /** Registra cada Bag comprada, mesmo com itemId igual. */
   registerPurchasedBags(itemId: string, amount: number): void {
     if (!this.isContainerItem(itemId)) return;
-    const holder = this.equippedBag();
+    const holder = this.viewedBag();
     for (let i=0; i<amount; i++) {
       const bag = this.createBag(itemId);
       if (holder) holder.children.push(bag.id);
@@ -137,7 +178,7 @@ export class Player extends Creature {
 
   /** IDs de cada Bag seguem o item, não o personagem nem seu itemId. */
   private takeContainedBag(itemId: string) {
-    const holder = this.equippedBag();
+    const holder = this.viewedBag();
     const ids = holder ? holder.children : [...this.bagInstances.keys()]
       .filter(id => id !== this.equippedBagInstanceId);
     const index = ids.findIndex(id => this.bagInstances.get(id)?.itemId === itemId);
@@ -153,11 +194,13 @@ export class Player extends Creature {
    */
   detachBagForGround(itemId: string, equipped: boolean): BagStateSave | null {
     if (!this.isContainerItem(itemId)) return null;
+    if (equipped && this.isViewingNestedBag) return null;
     let root;
     if (equipped) {
       root = this.equippedBag();
       if (!root || root.itemId !== itemId) return null;
       this.equippedBagInstanceId = null;
+      this.viewedBagInstanceId = null;
       this.equipment.delete(EquipmentSlot.BACKPACK);
       this.inventory = new Map();
       this.looseItems = this.inventory;
@@ -187,6 +230,12 @@ export class Player extends Creature {
     }];
     const rootId = state?.equippedId ?? incoming[0].id;
     if (incoming.some(row => this.bagInstances.has(row.id))) return false;
+    const parent = this.viewedBag();
+    // Validar ANTES de mutar qualquer instância. Uma Bag ocupa somente 1
+    // slot no pai, independentemente do que carregue em seus próprios slots.
+    if (!autoequip && (!parent ||
+        !this.canCollectItems([{itemId, amount:1}]))) return false;
+    if (autoequip && this.equippedBagInstanceId !== null) return false;
     for (const row of incoming) {
       this.bagInstances.set(row.id, {id:row.id,itemId:row.itemId,
         items:new Map(Object.entries(row.items)),children:[...row.children]});
@@ -196,14 +245,18 @@ export class Player extends Creature {
     if (autoequip) {
       this.equipment.set(EquipmentSlot.BACKPACK, itemId);
       this.equippedBagInstanceId = rootId;
+      this.viewedBagInstanceId = rootId;
       this.inventory = root.items;
       this.recalculateStats();
     } else {
-      const holder = this.equippedBag();
+      const holder = this.viewedBag();
       if (!holder) return false;
       holder.children.push(rootId);
+      // canCollectItems foi verificado antes de inserir as instâncias.
+      // AddItem apenas incrementa a pilha não-stackable do pai.
       if (!this.addItem(itemId,1)) {
         holder.children.pop();
+        for (const row of incoming) this.bagInstances.delete(row.id);
         return false;
       }
     }
@@ -473,7 +526,8 @@ export class Player extends Creature {
     }
 
     if (slot === EquipmentSlot.BACKPACK && this.isContainerItem(itemId)) {
-      if (!this.hasItem(itemId, 1)) return false;
+      // Não criar ciclo ao equipar uma Bag enquanto se navega dentro dela.
+      if (this.isViewingNestedBag || !this.hasItem(itemId, 1)) return false;
       const oldBag = this.equippedBag();
       // Sem Bag equipada, conteúdo legado no mapa não pode sumir na migração.
       const target = this.takeContainedBag(itemId);
@@ -502,6 +556,7 @@ export class Player extends Creature {
         this.looseItems = new Map();
       }
       this.equippedBagInstanceId = target.id;
+      this.viewedBagInstanceId = target.id;
       this.inventory = target.items;
       this.equipment.set(slot,itemId);
       this.recalculateStats();
@@ -541,6 +596,7 @@ export class Player extends Creature {
       const old = this.equippedBag();
       if (!old) return false;
       this.equippedBagInstanceId = null;
+      this.viewedBagInstanceId = null;
       this.equipment.delete(slot);
       this.looseItems = new Map([[itemId,1]]);
       this.inventory = this.looseItems;
@@ -564,7 +620,8 @@ export class Player extends Creature {
 
   /** Capacidade da mochila EQUIPADA. Itens legados permanecem no save se ela sair. */
   getContainerCapacity(): number {
-    const bagId = this.equipment.get(EquipmentSlot.BACKPACK);
+    const bagId = this.viewedBag()?.itemId ??
+      this.equipment.get(EquipmentSlot.BACKPACK);
     if (!bagId) return 0;
     try {
       const bag = ItemRegistry.get(bagId);
@@ -576,7 +633,8 @@ export class Player extends Creature {
 
   getContainerItemId(): string | null {
     return this.getContainerCapacity() > 0
-      ? this.equipment.get(EquipmentSlot.BACKPACK) ?? null : null;
+      ? this.viewedBag()?.itemId ??
+        this.equipment.get(EquipmentSlot.BACKPACK) ?? null : null;
   }
 
   /** Cada item stackable ocupa 1 slot; item não-stackable ocupa 1 por unidade. */
