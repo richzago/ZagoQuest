@@ -272,8 +272,13 @@ export async function handlePickupItem(
     return;
   }
 
-  if (!player.addItem(onGround.itemId, onGround.amount)) {
-    ctx.packetSender.inventory.sendPickupError("Não foi possível adicionar este item.");
+  if (!player.canCollectItems([{itemId: onGround.itemId, amount: onGround.amount}]) ||
+      !player.addItem(onGround.itemId, onGround.amount)) {
+    const why = player.getContainerCapacity() <= 0
+      ? "Equipe uma Bag/Backpack para pegar itens do chão."
+      : "Sua Bag/Backpack está cheia ou o item é inválido.";
+    Logger.warn(`[SERVER LOG][PICKUP] ${player.name}: ${why}`);
+    ctx.packetSender.inventory.sendPickupError(why);
     return;
   }
 
