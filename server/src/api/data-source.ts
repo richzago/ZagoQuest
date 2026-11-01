@@ -8,6 +8,7 @@ import { Guild } from "./entities/Guild";
 import { GuildMember } from "./entities/GuildMember";
 import { resolveDatabaseRuntime } from "./databaseRuntime";
 import { InitialSchema1793400000000 } from "./migrations/1793400000000-InitialSchema";
+import { ContainerInstances1793500000000 } from "./migrations/1793500000000-ContainerInstances";
 
 dotenv.config();
 
@@ -22,6 +23,6 @@ export const AppDataSource = new DataSource({
   synchronize: runtime.synchronize,
   logging: runtime.logging,
   entities: [Account, Character, Guild, GuildMember],
-  migrations: [InitialSchema1793400000000],
+  migrations: [InitialSchema1793400000000, ContainerInstances1793500000000],
   migrationsRun: false,
 });
