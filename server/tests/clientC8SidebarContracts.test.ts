@@ -32,7 +32,7 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   assert.match(ui, /new GameObject\("MiniMapCircularPreview"/);
   assert.match(ui, /CreateCircularMiniMapTexture\(\)/);
   assert.match(ui, /ACESSO RÁPIDO/);
-  assert.match(ui, /MOCHILAS  \/  LOOT/);
+  assert.match(ui, /CONTEINÊRES  \/  LOOT/);
 });
 
 test("UI 2A: EquipmentPanel ORIGINAL é reparentado sem clone e sem perder slots/WS", () => {
