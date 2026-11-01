@@ -31,6 +31,8 @@ export interface ItemType {
   type: "currency" | "consumable" | "equipment" | "quest" | "loot";
   stackable: boolean;
   maxStack?: number;
+  /** Slots da Bag/Backpack equipada; 0 ou ausente = não é contêiner. */
+  containerSlots?: number;
   /** Duração da regeneração periódica (em segundos), definida no JSON. */
   foodSeconds?: number;
   /** Pontos de saciedade por unidade (capacidade global: 120). */
