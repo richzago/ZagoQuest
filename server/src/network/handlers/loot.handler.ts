@@ -83,6 +83,9 @@ export async function handleTakeLoot(
         ctx.packetSender.loot.sendLootError("Falha ao adicionar item do loot.");
         return;
       }
+      // Cada Bag gerada como loot precisa de identidade própria.
+      if (player.isContainerItem(item.itemId))
+        player.registerPurchasedBags(item.itemId, item.amount);
     }
 
     ctx.world.removeCorpse(corpse);
@@ -109,6 +112,8 @@ export async function handleTakeLoot(
     return;
   }
 
+  if (player.isContainerItem(item.itemId))
+    player.registerPurchasedBags(item.itemId, item.amount);
   corpse.loot.splice(msg.itemIndex!, 1);
   if (corpse.loot.length === 0) {
     ctx.world.removeCorpse(corpse);
