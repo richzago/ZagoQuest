@@ -102,6 +102,7 @@ export type ClientMessage =
   | ClientDropItemMessage
   | ClientPickupItemMessage
   | ClientLootMessage
+  | ClientDropCorpseLootMessage
   | ClientTakeLootMessage
   | ClientChatMessage
   | ClientOpenShopMessage
