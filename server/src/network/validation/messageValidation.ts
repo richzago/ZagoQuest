@@ -46,6 +46,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     message: "itemIndex é obrigatório para loot individual.",
   }),
   z.strictObject({ type: z.literal("useItem"), itemId: identifier }),
+  z.strictObject({ type: z.literal("openBag"), itemId: identifier }),
+  z.strictObject({ type: z.literal("closeBag") }),
   z.strictObject({ type: z.literal("equipItem"), itemId: identifier }),
   z.strictObject({ type: z.literal("unequipItem"), slot: z.string().trim().min(1).max(32) }),
   z.strictObject({
