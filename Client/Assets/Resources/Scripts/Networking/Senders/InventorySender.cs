@@ -51,6 +51,7 @@ namespace ZagoQuest.Networking.Senders
                 type = "dropItem",
                 itemId = itemId,
                 amount = amount,
+                fromEquipment = fromEquipment,
                 x = x,
                 y = y
             };
