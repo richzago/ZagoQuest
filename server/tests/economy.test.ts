@@ -22,6 +22,7 @@ const withBag = (player: Player): void => {
   // C9: simular Bag já equipada e carregar capacidade do JSON REAL.
   ItemRegistry.loadAll(join(process.cwd(), "src", "data", "items"));
   player.equipment.set(EquipmentSlot.BACKPACK, "equipment/backpack/basic_backpack");
+  player.restoreBagState(undefined);
 };
 const createMerchant = () => {
   const npc = new Npc("merchant-1", "Mercador", 3, 2, "Olá", "merchant");
@@ -139,6 +140,7 @@ test("banco rejeita inválidos, saldo insuficiente e overflow sem mudar contas",
 test("loja compra em carteira + banco sem consumir estoque legado", () => {
   const player = createPlayer();
   const npc = createMerchant();
+  withBag(player);
   player.gold = 15;
   player.bankGold = 50;
   assert.equal(ShopSystem.buyItem(player, npc, potion, 3), true);
@@ -151,6 +153,7 @@ test("loja compra em carteira + banco sem consumir estoque legado", () => {
 test("loja bloqueia valores inválidos, preço negativo e permite quantidades além do estoque legado", () => {
   const player = createPlayer();
   const npc = createMerchant();
+  withBag(player);
   player.gold = 100;
   for (const amount of invalid) {
     assert.equal(ShopSystem.buyItem(player, npc, potion, amount as number), false);
@@ -427,19 +430,22 @@ test("C9: drop do slot equipado remove EXATAMENTE uma Bag mesmo com cópias no i
   },ctx);
   assert.equal(errors.length,0);
   assert.equal(player.equipment.has(EquipmentSlot.BACKPACK),false);
-  assert.equal(player.inventory.get(bag),2,"não consumir cópias guardadas");
+  assert.equal(world.itemsOnGround[0].bagState?.bags[0].items[bag],2,
+    "cópias continuam DENTRO da Bag que foi largada, não na Bag nova");
   assert.equal(world.itemsOnGround.length,1);
   await handleDropItem(ws, player, {
     type:"dropItem",itemId:bag,amount:1,x:2,y:2,fromEquipment:true,
   },ctx);
   assert.equal(world.itemsOnGround.length,1,"segundo pedido não duplica o item");
-  assert.equal(player.inventory.get(bag),2);
+  assert.equal(player.inventory.has(bag),false);
   assert.equal(errors.length,1);
+  await handlePickupItem(ws,player,{type:"pickupItem",itemId:world.itemsOnGround[0].id},ctx);
+  assert.equal(player.inventory.get(bag),2);
   await handleDropItem(ws, player, {
     type:"dropItem",itemId:bag,amount:1,x:2,y:2,fromEquipment:false,
   },ctx);
   assert.equal(player.inventory.get(bag),1,"drop explícito da bag retira outra cópia");
-  assert.equal(world.itemsOnGround.length,2);
+  assert.equal(world.itemsOnGround.length,1);
 });
 
 test("C9: primeira Bag caída pode ser coletada sem outra Bag e autoequipada", async () => {
