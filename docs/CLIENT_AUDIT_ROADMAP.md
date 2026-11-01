@@ -7,7 +7,7 @@
 - [x] Wheel e scrollbar puxável em Backpack/Loot, sem interceptar slots.
 - [x] Shift+L autoloot na box 3×3 sem abrir corpse, elegível pelo maior hit único efetivo registrado.
 - [ ] Homologação Unity de persistência, scroll, transferências e autoloot; C# não compila na CI Node.
-- [ ] Checar CI final do PR #121.
+- [x] [CI #41335350708](https://github.com/richzago/ZagoQuest/actions/runs/41335350708): 595/595 testes no Ubuntu e Windows, build TypeScript e integração PostgreSQL aprovados; Unity C# e Play Mode ainda pendentes.
 - [ ] Não realizar merge C15 sem aprovação.
 - [ ] Mitigar risco de crash abrupto entre save de jogador e snapshot de chão em etapa de transação SQL conjunta.
 
