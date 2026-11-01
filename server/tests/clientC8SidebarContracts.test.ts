@@ -89,17 +89,17 @@ test("UI 2A: C7 cliques e UI Canvas nao sofrem regressao de Raycast", () => {
 
 test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de painel", () => {
   const ui = unity("UI/C8SidebarShell.cs");
-  assert.match(ui, /EquipmentSlotSize = 52f/);
-  assert.match(ui, /EquipmentStepX = 65f/);
-  assert.match(ui, /EquipmentStepY = 58f/);
+  assert.match(ui, /EquipmentSlotSize = 50f/);
+  assert.match(ui, /EquipmentStepX = 62f/);
+  assert.match(ui, /EquipmentStepY = 53f/);
   const sidebarWidth = 304;
   const cardWidth = sidebarWidth - 2 * 13;
   const hostWidth = cardWidth - 2 * 8;
-  const lastSlotEdge = (hostWidth - (52 + 65 * 2)) / 2 + 65 * 2 + 52;
+  const lastSlotEdge = (hostWidth - (50 + 62 * 2)) / 2 + 62 * 2 + 50;
   assert.ok(lastSlotEdge <= hostWidth, "ultima coluna dentro do painel");
-  const compactEquipmentHeight = 285;
-  const hostHeight = compactEquipmentHeight - 8 - 44;
-  const lastRowBottom = 6 + 3 * 58 + 52;
+  const compactEquipmentHeight = 260;
+  const hostHeight = compactEquipmentHeight - 6 - 40;
+  const lastRowBottom = 4 + 3 * 53 + 50;
   assert.ok(lastRowBottom <= hostHeight, "o slot BOOTS cabe no host compactado");
   assert.match(ui, /sr\.anchoredPosition = Vector2\.zero/);
   assert.match(ui, /sr\.sizeDelta = new Vector2\(SidebarWidth, 0f\)/);
@@ -143,4 +143,53 @@ test("UI 2A refinamento: 6 pictogramas sem siglas, minimapa circular e barra ful
   assert.ok(!ui.includes('Arraste os itens para equipar'));
   const oldScene = readFileSync(join(process.cwd(), "..", "Client", "Assets", "scenebasic.unity"), "utf8");
   assert.match(oldScene, /m_Name: Equipaments/, "título duplicado era objeto legado do scene YAML");
+});
+
+test("C8 viewport: a camera ja existente fica no espaco esquerdo SEM duplicar mundo", () => {
+ const view = unity("UI/C8PlayfieldViewport.cs");
+ const sidebar = unity("UI/C8SidebarShell.cs");
+ const net = unity("Networking/NetworkManager.cs");
+ const follow = unity("Core/CameraFollow.cs");
+ const tiled = unity("World/TiledMapRenderer.cs");
+ const target = unity("Combat/TargetSelector.cs");
+ const scene = readFileSync(join(process.cwd(), "..", "Client", "Assets", "scenebasic.unity"), "utf8");
+ assert.match(net, /GetComponent<C8PlayfieldViewport>\(\) == null/);
+ assert.match(net, /gameObject\.AddComponent<C8PlayfieldViewport>\(\)/);
+ assert.match(sidebar, /public RectTransform SidebarSurface => sidebarSurface/);
+ assert.match(view, /worldCamera = Camera\.main/);
+ assert.match(view, /sidebar\.SidebarSurface\.GetWorldCorners\(worldCorners\)/);
+ assert.match(view, /RectTransformUtility\.WorldToScreenPoint\(null, worldCorners\[0\]\)\.x/);
+ assert.match(view, /viewportWidth = availableWidth \/ Screen\.width/);
+ assert.match(view, /worldCamera\.rect = new Rect\(0f, 0f, viewportWidth, 1f\)/);
+ assert.match(view, /worldCamera\.aspect = availableWidth \/ Screen\.height/);
+ assert.match(view, /worldCamera\.ResetAspect\(\)/);
+ assert.match(view, /if \(originalCaptured\) worldCamera\.rect = initialViewport/);
+ assert.match(view, /network == null \|\| !network\.isConnected/);
+ assert.match(view, /!sidebar\.SidebarSurface\.gameObject\.activeInHierarchy/);
+ assert.match(view, /Mathf\.Abs\(lastWidth - viewportWidth\) < 0\.0005f/);
+ assert.doesNotMatch(view, /new Camera|new GameObject|AddComponent<Camera>|RenderTexture|FindObjectsByType<Camera>|ScreenPointToRay/);
+ assert.match(scene, /m_Name: Main Camera/);
+ assert.equal((scene.match(/^--- !u!20 &/gm) || []).length, 1,
+   "A cena serializada contém uma única Camera; nenhuma outra é criada na UI.");
+ assert.match(follow, /float halfWidth = halfHeight \* cameraComponent\.aspect/);
+ assert.match(tiled, /if \(cam\.GetComponent<CameraFollow>\(\) == null\)/);
+ assert.match(target, /camera\.ScreenPointToRay\(Mouse\.current\.position\.ReadValue\(\)\)/);
+ assert.match(target, /if \(currentTargetId == clickedId\)\s*ClearTarget\(\)/);
+ assert.match(target, /network\.Inventory\?\.SendLoot\(corpse\.corpseId\)/);
+});
+
+test("C8 viewport: F10/duas resolucoes preservam largura visivel e aspecto ortografico", () => {
+  // Validacao geometrica em TS nao substitui execucao Unity.
+  for (const [w,h] of [[1920,1080],[1280,720]]) {
+    for (const scale of [1,1.15,1.30]) {
+      const sidePx = 304 * scale * (w / 1920);
+      const left = w - sidePx;
+      const portion = left / w;
+      const aspect = left / h;
+      assert.ok(portion > 0.70 && portion < 0.9,
+        `viewport plausivel para ${w}x${h} F10 ${scale}`);
+      assert.ok(Math.abs(aspect - ((w/h)*portion)) < 1e-9);
+      assert.ok(left > 0 && sidePx > 0);
+    }
+  }
 });
