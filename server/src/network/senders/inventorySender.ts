@@ -31,6 +31,9 @@ export class InventorySender extends BaseSender {
       type: "inventory",
       gold: player.gold,
       items: itemsArray,
+      bagItemId: player.getContainerItemId(),
+      bagSlots: player.getContainerCapacity(),
+      slotsUsed: player.getContainerSlotsUsed(),
     });
   }
 
