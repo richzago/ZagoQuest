@@ -556,6 +556,8 @@ public sealed class C8SidebarShell : MonoBehaviour
 
     private void OnDestroy()
     {
+        // Devolver loot/inventario antes que o Canvas seja destruido.
+        GetComponent<C8SidebarDynamicDock>()?.Undock();
         // Se a sidebar for destruida isoladamente, o EquipmentPanel da
         // cena NAO pode ser destruido junto: devolver ao Canvas anterior.
         if (dockedEquipment != null && dockedEquipment.equipmentPanel != null &&
