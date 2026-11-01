@@ -33,13 +33,13 @@ test("C9: sem atalho I; apenas Bag equipada desbloqueia abertura do painel",()=>
  assert.match(handler,/invMsg\.bagItemId, invMsg\.bagSlots, invMsg\.slotsUsed/);
 });
 
-test("C9: take-all por Ctrl+Shift+L e drag enviado como takeLoot individual",()=>{
+test("C10: take-all por Shift+E e drag enviado como takeLoot individual",()=>{
  const loot=sourceFile("UI/LootUI.cs");
  const row=sourceFile("UI/LootItemSlot.cs");
  const drop=sourceFile("UI/C9LootBagDropTarget.cs");
  const inventorySlot=sourceFile("Player/InventorySlot.cs");
- assert.match(loot,/k\.lKey\.wasPressedThisFrame/);
- assert.match(loot,/k\.leftCtrlKey\.isPressed \|\| k\.rightCtrlKey\.isPressed/);
+ assert.match(loot,/k\.eKey\.wasPressedThisFrame/);
+ assert.match(loot,/public void TakeAllLoot\(\)/);
  assert.match(loot,/k\.leftShiftKey\.isPressed \|\| k\.rightShiftKey\.isPressed/);
  assert.match(loot,/takeAllButton\.gameObject\.SetActive\(false\)/);
  assert.match(loot,/SendTakeLoot\(currentCorpseId, true\)/);
@@ -55,7 +55,7 @@ test("C9: Bag e loot compartilham área responsiva, logout na zona de acesso rá
  const shell=sourceFile("UI/C8SidebarShell.cs");
  const login=sourceFile("Networking/SessionLoginDebugUI.cs");
  assert.match(dock,/inventory\.HasEquippedBag/);
- assert.match(dock,/showBag \? Mathf\.Min\(168f,/);
+ assert.match(dock,/showBag \? Mathf\.Min\(112f,/);
  assert.match(dock,/lootBackup\.rect/);
  assert.match(dock,/loot\.OpenedLootCount > 1/);
  assert.match(shell,/public RectTransform QuickAccessHost => quickAccessHost/);
