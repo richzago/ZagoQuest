@@ -38,10 +38,10 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private RectTransform tabBar;
     private GameObject tabBarObject;
     private float lastWidth = -1f;
-    private readonly Color32 idle = new Color32(28, 42, 55, 255);
-    private readonly Color32 active = new Color32(83, 66, 43, 255);
-    private readonly Color32 letters = new Color32(235, 233, 226, 255);
-    private readonly Color32 disabled = new Color32(116, 129, 140, 240);
+    private readonly Color32 idle = C11VisualTheme.Recess;
+    private readonly Color32 active = C11VisualTheme.BronzeDark;
+    private readonly Color32 letters = C11VisualTheme.Text;
+    private readonly Color32 disabled = C11VisualTheme.Muted;
 
     private void Awake()
     {
