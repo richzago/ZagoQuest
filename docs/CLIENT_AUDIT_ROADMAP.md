@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **UI incremental pós-hotfix (31/10/2026):** o usuário homologou em Unity o [PR #114](https://github.com/richzago/ZagoQuest/pull/114), que foi integrado na `dev` com merge `911cc8e`. Iniciada SOMENTE a etapa **1/4 — sidebar independente** em `feature/client-ui-sidebar-step1` (ainda não integrada). O plano obrigatório é **1 sidebar → 2 encaixe dos painéis → 3 redimensionamento vertical → 4 câmera**, um PR isolado por etapa, com teste visual Unity e sinal verde do usuário ANTES de qualquer próximo passo/merge. O `IsPointerOverUi` de #114 é protegido; sem Image transparente fullscreen com raycast, sem changes de pesca/gameplay. Ver `docs/CLIENT_UI_SIDEBAR_INCREMENTAL.md`.
+
+
 > **Revisão da C7-CLICK (31/10/2026):** primeira tentativa do PR #114 não corrigiu os cliques. Comparação dos PRs #109/#110 revelou que o #110 introduziu `EventSystem.RaycastAll` com bloqueio indiscriminado de todos Graphics ScreenSpace, incluindo Images totalmente transparentes que já existiam em `scenebasic.unity` (`ButtomLeft` 1300×210, `InventoryManager`, `LootPanel`). Revisão no mesmo PR #114 agora ignora UI decorativa invisível, mas preserva o bloqueio de janelas visíveis, e restaura o toggle Tibia-style: **2º clique no monstro interrompe**. Verificar detalhes/QA C7-CLICK-01–14 em `docs/CLIENT_C7_UX_VISUAL_AUDIT.md`. **PR #114 ainda DRAFT, sem merge**; testes Unity e aprovação do usuário obrigatórios.
 
 

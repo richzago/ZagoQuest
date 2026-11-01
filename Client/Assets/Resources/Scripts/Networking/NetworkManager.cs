@@ -98,6 +98,10 @@ public class NetworkManager : MonoBehaviour
         if (GetComponent<C7FishingUI>() == null) gameObject.AddComponent<C7FishingUI>();
         if (GetComponent<C7UiAccessibility>() == null) gameObject.AddComponent<C7UiAccessibility>();
 
+        // UI passo 1/4: sidebar visual independente. Nao move nenhum painel.
+        // Adicionar apos C7UiAccessibility para respeitar a escala F10.
+        if (GetComponent<C8SidebarShell>() == null) gameObject.AddComponent<C8SidebarShell>();
+
         if (requireAuthenticatedSession && !HasCredentials)
         {
             Debug.Log("[NETWORK][AUTH] Aguardando login via SessionLoginDebugUI; não abrir WebSocket antes do token/characterId.");
