@@ -5,7 +5,7 @@
 - [x] Raiz de Loot passa a usar âncoras verticais coerentes com lootHeight (sem ampliar window).
 - [x] LootItemSlot.OnEndDrag reusa filtro de UI visível.
 - [x] Seis warnings obsoletos de TMP/FindObjectsByType tratados nos arquivos informados.
-- [ ] Validar CI e testes estáticos efetivos desta revisão.
+- [x] CI C13 [#41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): 581/581 Ubuntu e Windows, build, PostgreSQL e smoke/dist aprovados. Não compila C# Unity.
 - [ ] Compilar Unity e homologar bags/drop/loot/raycast/F10 em Play Mode.
 - [ ] Deliberar limite de drop visível e obstáculos antes de alterar autoridade do Node.
 - [ ] Autorizar explicitamente PR #119; permanece Draft, não fazer merge.

@@ -24,7 +24,7 @@ A janela de loot em `C8SidebarDynamicDock.ApplyVisibility` tinha `anchorMin=(0,1
 ### Testes
 
 - Criado `server/tests/clientC13NetworkAndLootContracts.test.ts`, incluído no `npm test`. Confere ausência física de campo opcional nos DTOs sem UUID, aceita pacotes efetivos no Zod, rejeita `null`/vazio/tipo errado, preserva origem equipada, verifica anchors do loot e APIs atualizadas.
-- Testes TS confirmam **contratos estáticos**, não serializam DTO C# com o runtime Unity. Conferir Actions desta revisão para resultado real; não presumir CI aprovada.
+- **CI C13 aprovada:** [GitHub Actions #41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): **581 testes aprovados/0 falhas** em Ubuntu e Windows, build TS, integração PostgreSQL e smoke/dist concluídos. Testes TS confirmam **contratos estáticos**, não serializam DTO C# nem exercitam Play Mode. Unity continua pendente.
 - **QA Unity obrigatório:** arraste Bag equipada→chão; drop item da Bag→chão; Bag com UUID válido dentro de outra Bag; NPC sob item; loot linha 1/2/3 e Shift+L/TODOS; drag loot→Bag e loot→chão; F10 e resoluções, login/logout; console sem seis warnings.
 
 ### Alcance desejado para drops distantes
