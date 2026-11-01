@@ -57,7 +57,7 @@ test("C9: Bag e loot compartilham área responsiva, logout na zona de acesso rá
  assert.match(dock,/inventory\.HasEquippedBag/);
  assert.match(dock,/float bagHeight = showBag \? Mathf\.Min\(bagMax,/);
  assert.match(dock,/lootBackup\.rect/);
- assert.match(dock,/loot\.OpenedLootCount > 1/);
+ assert.match(dock,/StatusManager\.Instance\?\.DockToSidebar/);
  assert.match(shell,/public RectTransform QuickAccessHost => quickAccessHost/);
  assert.match(login,/TryDockLogout\(network != null && network\.isConnected\)/);
  assert.match(login,/logoutButtonRect\.SetParent\(host, false\)/);

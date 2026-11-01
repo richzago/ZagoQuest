@@ -228,7 +228,7 @@ test("C11 UI: ao sair a 3 tiles loot fecha e Shift+L não conflita com E",()=>{
  assert.match(loot,/CloseAllLootWindows\(\)/);
  assert.match(loot,/k\.lKey\.wasPressedThisFrame/);
  assert.doesNotMatch(loot,/k\.eKey\.wasPressedThisFrame/);
- assert.match(dock,/NavigationButton\(takeAllObj,"TODOS"/);
+ assert.doesNotMatch(dock,/NavigationButton\(takeAllObj,"TODOS"/);
  assert.match(unity("UI/InventoryUI.cs"),/network\.Inventory\.OpenBag\(itemId\)/);
  assert.match(unity("UI/InventoryUI.cs"),/k\.backspaceKey\.wasPressedThisFrame/);
  assert.match(unity("Networking/Senders/InventorySender.cs"),/public void CloseBag\(\)/);

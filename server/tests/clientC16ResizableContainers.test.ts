@@ -58,7 +58,7 @@ test("C16: alça inferior é interativa e ajusta altura conforme host/slots e co
  assert.match(dock,/Mathf\.CeilToInt\(slots \/ 2f\)/);
  assert.match(dock,/Mathf\.Min\(BagContentHeight\(\)/);
  assert.match(dock,/Mathf\.Min\(LootContentHeight\(\)/);
- assert.match(dock,/MinBagHeight \+ MinLootHeight \+ PanelGap/);
+ assert.match(dock,/if \(sameHost && showBag && showLoot\)/);
  assert.match(dock,/lootTop = sameHost && showBag && showLoot/);
 });
 test("C16: atualizar um loot não manda o scroll de volta ao topo",()=>{

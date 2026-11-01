@@ -406,8 +406,8 @@ test("C6: Status não sobrepõe o login após autenticação e logout limpa sess
  assert.match(network,/_sessionCharacterId = null/);
  assert.match(network,/await socket\.Close\(\)/);
  assert.match(status,/new Vector2\(0f, 0\.5f\)/);
- assert.match(status,/new Vector2\(380, 510\)/);
- assert.match(status,/toggleStatusAction\.performed -= OnToggleStatus/);
+ assert.match(status,/new Vector2\(244, 350\)/);
+ assert.match(status,/public void DockToSidebar\(RectTransform host\)/);
  assert.match(status,/public void ClosePanel\(\)/);
  assert.match(status,/!network\.isConnected/);
 });
@@ -473,8 +473,9 @@ test("C6 caixas: merchant, banco, inventário, equipamentos, status e loot arras
  const layout=unity("UI/WorldWindowLayout.cs");
  const drag=unity("UI/C6WindowDragHandle.cs");
  const inv=unity("UI/C6InventoryEquipmentLayout.cs");
- for(const file of ["UI/ShopUI.cs","UI/BankUI.cs","UI/LootUI.cs","Managers/StatusManager.cs","UI/ChatUI.cs"])
+ for(const file of ["UI/ShopUI.cs","UI/BankUI.cs","UI/LootUI.cs","UI/ChatUI.cs"])
   assert.match(unity(file),/WorldWindowLayout\.MakeDraggable\(/,file);
+ assert.match(unity("Managers/StatusManager.cs"),/DockToSidebar\(RectTransform host\)/);
  assert.match(inv,/WorldWindowLayout\.MakeDraggable\(panel, title, panel\.name\)/);
  assert.match(layout,/EnsureLabel\(Transform parent/);
  assert.match(layout,/C6DragHeader/);
