@@ -42,8 +42,11 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
         if (itemNameText != null)
         {
             WorldWindowLayout.Place(itemNameText, 0.035f, 0.07f,
-                0.73f, 0.93f, 13, WorldWindowLayout.Label);
-            itemNameText.enableWordWrapping = true;
+                0.73f, 0.93f, 12, WorldWindowLayout.Label);
+            itemNameText.enableAutoSizing = true;
+            itemNameText.fontSizeMin = 9f;
+            itemNameText.fontSizeMax = 12f;
+            itemNameText.enableWordWrapping = false;
         }
         if (amountText != null)
         {
