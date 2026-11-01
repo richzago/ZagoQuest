@@ -33,6 +33,10 @@ Arquivo: `StatusManager.cs`. Removido `InputAction("<Keyboard>/p")`; `P` deixa d
 
 O painel de Stats real é **reparentado** para `SidebarDynamicHost`, responsivo, sem duplicação; recebe viewport com máscara e rolagem fina `C16FineScrollWheel`, compactação de textos e barras, nível/XP/vida/mana/ataque/defesa/armadura/pesca/saciedade provenientes dos snapshots do Node. Quando aberto, o dock oculta visualmente Backpack/Loot na mesma área, sem fechar seus dados no servidor. Ao fechar Stats, volta para a janela ativa. O logout continua fechando Stats.
 
+## Resultado da CI (01/11/2026)
+
+[GitHub Actions #41342565817](https://github.com/richzago/ZagoQuest/actions/runs/41342565817): **611/611 testes no Ubuntu e 611/611 no Windows aprovados**, incluindo regressões econômicas da C17 e contratos estáticos da UI; integração PostgreSQL e build TypeScript aprovados. **Não compila cliente C# Unity.** A única falha intermediária foi um contrato visual legado que esperava o subtítulo "CLIENTE C12" removido intencionalmente; foi atualizado para exigir cabeçalho compacto, e a CI final passou.
+
 ## 4. Testes e observações
 
 - `server/tests/c17NestedShopSidebar.test.ts`: 10 cenários para raiz cheia + Bag filha vazia, pilha parcial até `maxStack`, divisão entre duas Bags, Bag comprada com UUID, rejeição completa de árvore lotada, UUID órfão, CAP, reconstituição de árvore e contratos C# de UI.

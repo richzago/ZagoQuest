@@ -10,7 +10,7 @@
 - [x] Stats passa a ser aberto pelo ícone **S** na barra e não mais pela tecla `P`; painel de atributos usa scroll no host dinâmico sem cobrir gameplay, alternando com Bag/Loot.
 - [x] Acrescentadas regressões C17 no Node e atualizados contratos estáticos legados de UI; atenção: CI Node não compila scripts C#.
 - [ ] Validar C17 no Unity 1280×720 e 1920×1080, F10 100/115/130%, NPCs, pagamentos, Bag filha, CAP/Stats e sidebar sem sobreposição.
-- [ ] Confirmar CI final do PR #123 e registrar resultados.
+- [x] [GitHub Actions #41342565817](https://github.com/richzago/ZagoQuest/actions/runs/41342565817): **611/611 testes Node no Ubuntu, 611/611 no Windows, integração PostgreSQL e compilação TS aprovados.** Unity C# ainda requer Play Mode manual.
 - [ ] **Não fazer merge da C17 antes de homologação e autorização expressa do usuário.**
 - [ ] Dívida técnica: inventário físico por slot/pilha para suportar várias pilhas do mesmo itemId dentro de uma mesma Bag; hoje Map por itemId limita uma pilha por Bag.
 - [ ] Dívida de segurança transacional: persistência de personagem e itens do chão ainda são commits separados sob crash abrupto.
