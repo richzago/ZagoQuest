@@ -470,7 +470,11 @@ public class TargetSelector : MonoBehaviour
         }
         // NPC que está sobre um item recebe o clique mesmo se o item
         // estiver em sorting layer/ordem acima; o Node valida alcance.
-        return bestNpc != null ? bestNpc : best;
+        // Prioridade especial SOMENTE quando o concorrente é item no chão:
+        // nunca roubar o clique de monstro/corpse que já estava por cima.
+        return bestNpc != null &&
+            (best == null || ClickKind(best) == WorldClickKind.GroundItem)
+            ? bestNpc : best;
     }
 
     /// <summary>
