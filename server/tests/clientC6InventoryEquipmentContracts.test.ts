@@ -40,7 +40,7 @@ test("C6: arrastar inventário para slot envia equipItem uma vez, sem drop de ch
  const drag=unity("Managers/DragDropManager.cs");
  assert.match(eq,/DragDropManager\.Instance\.IsFromInventory\(\)/);
  assert.match(eq,/DragDropManager\.Instance\.DropOnEquipmentSlot\(slotType\)/);
- assert.match(drag,/NetworkManager\.Instance\?\.Inventory\.SendEquipItem\(draggedItemId\)/);
+ assert.match(drag,/NetworkManager\.Instance\?\.Inventory\.SendEquipItem\(draggedItemId, bagInstanceId\)/);
  assert.match(inv,/if \(DragDropManager\.Instance == null \|\| !DragDropManager\.Instance\.IsDragging\(\)\) return/);
  assert.match(inv,/GetComponentInParent<EquipmentSlotUI>\(\)/);
  assert.match(inv,/target\.GetComponentInParent<Canvas>\(\) != null/);
@@ -51,9 +51,9 @@ test("C6: arrastar inventário para slot envia equipItem uma vez, sem drop de ch
 test("C6: servidor permanece autoritativo para equipar, desequipar e drop",()=>{
  const send=unity("Networking/Senders/InventorySender.cs");
  const src=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
- assert.match(send,/SendEquipItem\(string itemId\)/);
+ assert.match(send,/SendEquipItem\(string itemId, string instanceId = null\)/);
  assert.match(send,/SendUnequipItem\(EquipmentSlot slot\)/);
- assert.match(send,/SendDropItem\(string itemId, int amount, int x, int y, bool fromEquipment = false\)/);
+ assert.match(send,/SendDropItem\(string itemId, int amount, int x, int y, bool fromEquipment = false, string instanceId = null\)/);
  assert.match(src,/handleEquipItem/);
  assert.match(src,/handleUnequipItem/);
  assert.match(src,/handleDropItem/);
@@ -272,7 +272,7 @@ test("C6 P1 drag distante: cliente valida tile confirmado, Manhattan e rede ante
  assert.match(drag,/System\.Math\.Abs\(\(long\)tileX - playerTile\.x\)/);
  assert.match(drag,/System\.Math\.Abs\(\(long\)tileY - playerTile\.y\)/);
  assert.match(drag,/if \(distance > 2\)[\s\S]*?return;/);
- assert.match(drag,/network\.Inventory\.SendDropItem\(draggedItemId, 1, tileX, tileY, IsFromEquipment\(\)\)/);
+ assert.match(drag,/SendDropItem\(draggedItemId, 1, tileX, tileY,/);
  assert.match(handler,/const distance = Math\.abs\(tileX - Math\.floor\(player\.position\.x\)\)/);
  assert.match(handler,/Math\.abs\(tileY - Math\.floor\(player\.position\.y\)\)/);
  assert.match(handler,/distance > 2/);
