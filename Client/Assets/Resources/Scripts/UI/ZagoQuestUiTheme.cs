@@ -71,6 +71,9 @@ public sealed class ZagoQuestUiTheme : MonoBehaviour
 
         foreach (var label in GetComponentsInChildren<TextMeshProUGUI>(true))
         {
+            // U02-B: texto do Prefab TopCenter deve ser editável no Inspector.
+            // Nunca permitir que o tema legado sobrescreva suas cores no Start.
+            if (IsPrefabDrivenVitals(label.transform)) continue;
             string name = label.gameObject.name;
             label.color = name == "PlayerName" || name == "GoldText" ||
                           name == "BankGoldText" ? Gold : Text;
@@ -86,6 +89,7 @@ public sealed class ZagoQuestUiTheme : MonoBehaviour
 
         foreach (var slider in GetComponentsInChildren<Slider>(true))
         {
+            if (IsPrefabDrivenVitals(slider.transform)) continue;
             if (slider.fillRect == null) continue;
 
             var fill = slider.fillRect.GetComponent<Image>();
@@ -104,6 +108,14 @@ public sealed class ZagoQuestUiTheme : MonoBehaviour
                     break;
             }
         }
+    }
+
+    private static bool IsPrefabDrivenVitals(Transform element)
+    {
+        var hud = PlayerHUD.Instance;
+        return hud != null && hud.UsesInspectorVitalsLayout &&
+            hud.VitalsVisualRoot != null &&
+            element.IsChildOf(hud.VitalsVisualRoot);
     }
 
     private static void AddBorder(Image image)
