@@ -6,6 +6,7 @@ import type { Player } from "../entities/player";
 import type { Npc } from "../entities/npc";
 import { ItemRegistry } from "../../data/items/itemRegistry";
 import { Logger } from "../core/logger/logger";
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import { getCoinValue, isCoin } from "./currencySystem";
 import {
   canCreditGold, isValidGoldBalance, isValidItemId, isValidQuantity,
@@ -41,6 +42,18 @@ export class ShopSystem {
       return false;
     }
 
+    // Primeiro contêiner comprado pode ser equipado automaticamente.
+    // Evita softlock: a tecla I foi removida, sem Bag a área de itens fecha.
+    // Mesmo com save legado cheio o item não se perde: permanece no Map.
+    if (!player.equipment.has(EquipmentSlot.BACKPACK)) {
+      try {
+        const definition = ItemRegistry.get(itemId);
+        if (definition.slot === EquipmentSlot.BACKPACK &&
+            Number.isSafeInteger(definition.containerSlots) &&
+            (definition.containerSlots ?? 0) > 0)
+          player.equipItem(itemId);
+      } catch { /* itens não registrados não são autocolocados */ }
+    }
     Logger.economy(`${player.name} comprou ${quantity}x ${itemId} por ${cost} gold.`);
     return true;
   }
