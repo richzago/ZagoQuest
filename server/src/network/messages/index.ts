@@ -98,6 +98,8 @@ export type ClientMessage =
   | ClientAttackMessage
   | ClientStartAutoAttackMessage
   | ClientStopAutoAttackMessage
+  | ClientOpenBagMessage
+  | ClientCloseBagMessage
   | ClientUseItemMessage
   | ClientEquipItemMessage
   | ClientUnequipItemMessage
