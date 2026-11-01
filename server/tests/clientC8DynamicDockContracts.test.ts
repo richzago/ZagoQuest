@@ -74,7 +74,7 @@ test("UI2B: mochila é inventário já existente, 2 colunas e scroll; nenhuma mo
  const inventory=unity("UI/InventoryUI.cs");
  const oldLayout=unity("UI/C6InventoryEquipmentLayout.cs");
  assert.match(dock,/grid\.constraintCount = 2/);
- assert.match(dock,/grid\.cellSize = new Vector2\(width, 62f\)/);
+ assert.match(dock,/grid\.cellSize = new Vector2\(width, 50f\)/);
  assert.match(dock,/grid\.padding = new RectOffset\(4, 4, 4, 4\)/);
  assert.match(dock,/inventory\.OpenInventory\(\)/);
  assert.match(inventory,/public void OpenInventory\(\)/);
