@@ -58,7 +58,7 @@ namespace ZagoQuest.Networking.Senders
             Send(msg);
         }
 
-        public void SendDropItem(string itemId, int amount, int x, int y, bool fromEquipment = false)
+        public void SendDropItem(string itemId, int amount, int x, int y, bool fromEquipment = false, string instanceId = null)
         {
             var msg = new DropItemMessage
             {
