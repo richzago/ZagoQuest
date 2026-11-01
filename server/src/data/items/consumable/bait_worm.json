@@ -6,5 +6,6 @@
   "stackable": true,
   "maxStack": 20,
   "fishingBonus": 0.1,
-  "value": 1
+  "value": 1,
+  "weight": 0.1
 }

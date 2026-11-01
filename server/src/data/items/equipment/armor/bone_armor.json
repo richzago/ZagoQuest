@@ -10,5 +10,6 @@
     "defense": 3,
     "armor": 5
   },
-  "value": 100
+  "value": 100,
+  "weight": 55
 }
