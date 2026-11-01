@@ -69,19 +69,19 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             itemIcon.raycastTarget = false;
             var rect = itemIcon.rectTransform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0, 12);
-            rect.sizeDelta = new Vector2(50, 50);
+            rect.anchoredPosition = new Vector2(0, 5);
+            rect.sizeDelta = new Vector2(34, 34);
         }
         if (nameText != null)
         {
             nameText.text = shortName;
             nameText.gameObject.SetActive(true);
-            nameText.fontSize = 13;
+            nameText.fontSize = 11;
             if (nameText is TextMeshProUGUI label)
             {
                 label.enableAutoSizing = true;
-                label.fontSizeMin = 10;
-                label.fontSizeMax = 13;
+                label.fontSizeMin = 8;
+                label.fontSizeMax = 11;
                 label.alignment = TextAlignmentOptions.Center;
                 label.raycastTarget = false;
                 label.rectTransform.anchorMin = Vector2.zero;
@@ -95,7 +95,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         {
             amountText.text = amount > 1 ? $"x{amount:N0}" : string.Empty;
             amountText.gameObject.SetActive(amount > 1);
-            amountText.fontSize = 14;
+            amountText.fontSize = 11;
             if (amountText is TextMeshProUGUI quantity)
             {
                 quantity.alignment = TextAlignmentOptions.TopRight;
