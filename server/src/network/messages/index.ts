@@ -28,6 +28,7 @@ import type {
   ClientDropItemMessage,
   ClientPickupItemMessage,
   ClientLootMessage,
+  ClientDropCorpseLootMessage,
   ClientTakeLootMessage,
   ClientChatMessage,
   ClientOpenShopMessage,
