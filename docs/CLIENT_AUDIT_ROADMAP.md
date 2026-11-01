@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **Atualização C11 (01/11/2026):** a especificação vigente da interação NPC, loot por distância, **Shift+L**, múltiplas Bags com UUID individuais na UI e tema original **Obsidian & Bronze** está em [C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md](C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md). Atalhos e detalhes de layout abaixo podem representar a etapa C10 anterior. **CAP por peso ainda não está implementado**, apenas limites por slots. PR #119 permanece Draft, sem merge.
+
+
 > **C10 atualizado (01/11/2026):** a arquitetura C9 de inventário único foi substituída por **Bags com instâncias/UUID e conteúdo persistente próprio**, Merchant requer Bag para poções e Take All usa **Shift+E**. A sidebar agora é configurável via engrenagem (colunas 0–3 esquerda e 1–3 direita) e tem dimensões menores. As descrições e atalhos C9 abaixo são históricos: **a especificação vigente é [C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md](C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md)**. PR #119 continua em Draft, sem merge.
 
 
