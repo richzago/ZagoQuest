@@ -366,11 +366,12 @@ export class Player extends Creature {
 
     // Creditar ao pai antes de ligar a árvore: evita double-count em canAddItem.
     if (!autoequip && !this.addItem(itemId, 1)) return false;
-    for (const row of incoming)
+    for (const row of incoming) {
       const items=new Map(Object.entries(row.items));
       this.bagInstances.set(row.id, {id:row.id,itemId:row.itemId,
         items,children:[...row.children],
         slots:reconcilePhysicalSlots(items,Array.isArray(row.slots) ? row.slots : [])});
+    }
     const root = this.bagInstances.get(rootId)!;
     if (autoequip) {
       this.equipment.set(EquipmentSlot.BACKPACK, itemId);
