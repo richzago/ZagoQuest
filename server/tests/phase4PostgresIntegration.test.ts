@@ -22,6 +22,11 @@ import { GuildService } from "../src/api/services/guildService";
 import { DatabasePersistence } from "../src/game/systems/databasePersistence";
 import { OnlinePlayerDirectory } from "../src/game/systems/onlinePlayerDirectory";
 import { Player } from "../src/game/entities/player";
+import { ItemRegistry } from "../src/data/items/itemRegistry";
+import { ShopSystem } from "../src/game/systems/shopSystem";
+import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
+import { Npc } from "../src/game/entities/npc";
+import { join } from "node:path";
 
 if (process.env.RUN_PG_TESTS !== "true" ||
     process.env.DB_NAME !== "zagoquest_ci" ||
@@ -521,4 +526,43 @@ test("Fase 7 HTTP+PG: duas contas não criam personagem alheio; nome duplicado c
     if (originalSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = originalSecret;
   }
+});
+
+
+test("C10 PostgreSQL real: Bag UUID+conteúdo persistem e nova Bag não herda itens", async()=>{
+  ItemRegistry.loadAll(join(process.cwd(),"src","data","items"));
+  const row=await fixture(1000);
+  const merchant=new Npc("ci-c10-merchant","Merchant",2,3,"Oi","merchant");
+  merchant.shopItems=[
+    {itemId:"equipment/backpack/simple_bag",buyPrice:20,sellPrice:8},
+    {itemId:"equipment/backpack/basic_backpack",buyPrice:35,sellPrice:15},
+  ];
+  const potion="consumable/health_potion",simple="equipment/backpack/simple_bag";
+  const first=await DatabasePersistence.loadCharacter(row.name);
+  assert.ok(first);
+  assert.equal(ShopSystem.buyItem(first,merchant,simple,1),true);
+  assert.equal(first.addItem(potion,8),true);
+  const uuid=first.equippedBagInstanceId;
+  assert.ok(uuid);
+  await DatabasePersistence.saveCharacter(first);
+  const stored=await AppDataSource.getRepository(Character).findOneByOrFail({id:row.id});
+  assert.equal((stored.containerState as any).equippedId,uuid);
+  assert.equal((stored.containerState as any).bags[0].items[potion],8);
+
+  const after=await DatabasePersistence.loadCharacter(row.name);
+  assert.ok(after);
+  assert.equal(after.equippedBagInstanceId,uuid);
+  assert.equal(after.inventory.get(potion),8);
+  assert.equal(ShopSystem.buyItem(after,merchant,simple,1),true);
+  assert.equal(after.equipItem(simple),true);
+  assert.notEqual(after.equippedBagInstanceId,uuid,"nova Bag deve ter identidade distinta");
+  assert.equal(after.inventory.get(potion),undefined,"conteúdo da Bag anterior não aparece na nova");
+  assert.equal(after.inventory.get(simple),1,"Bag anterior permanece como item contêiner");
+  await DatabasePersistence.saveCharacter(after);
+  const again=await DatabasePersistence.loadCharacter(row.name);
+  assert.ok(again);
+  assert.equal(again.inventory.has(potion),false);
+  assert.equal(again.equipItem(simple),true,"retornar à bolsa original");
+  assert.equal(again.inventory.get(potion),8);
+  assert.equal(again.equippedBagInstanceId,uuid);
 });
