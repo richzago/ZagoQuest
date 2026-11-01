@@ -37,6 +37,12 @@ public class InventoryUI : MonoBehaviour
     public string EquippedBagId => bagItemId;
     public int BagSlots => bagSlots;
     public int SlotsUsed => slotsUsed;
+    public string CurrentBagInstanceId { get; private set; }
+
+    public void SetCurrentBagInstance(string id)
+    {
+        CurrentBagInstanceId = id;
+    }
     private string bagItemId;
     private int bagSlots;
     private int slotsUsed;

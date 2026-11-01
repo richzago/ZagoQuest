@@ -566,3 +566,30 @@ test("C10 PostgreSQL real: Bag UUID+conteúdo persistem e nova Bag não herda it
   assert.equal(again.inventory.get(potion),8);
   assert.equal(again.equippedBagInstanceId,uuid);
 });
+
+
+test("C15 PostgreSQL real: estado/UUID da Bag no chão sobrevivem a novo World", async () => {
+  const { GroundItemPersistence } = await import("../src/game/systems/groundItemPersistence");
+  const { ItemOnGround } = await import("../src/game/entities/itemOnGround");
+  const first = new World(); first.generateMap(20, 20);
+  await GroundItemPersistence.restore(first);
+  const bag = new ItemOnGround("c15-pg-bag", "equipment/backpack/simple_bag", 1, 2, 3, "Bag");
+  bag.bagState = {equippedId:"c15-pg-uuid",bags:[
+    {id:"c15-pg-uuid",itemId:bag.itemId,items:{"consumable/health_potion":4},children:[]},
+  ]};
+  first.addItemOnGround(bag);
+  GroundItemPersistence.bind(first);
+  GroundItemPersistence.schedule(first);
+  await GroundItemPersistence.flush(first);
+
+  const second = new World(); second.generateMap(20, 20);
+  await GroundItemPersistence.restore(second);
+  assert.equal(second.getItemOnGround("c15-pg-bag")?.bagState?.equippedId,"c15-pg-uuid");
+  assert.equal(second.getItemOnGround("c15-pg-bag")?.bagState?.bags[0].items["consumable/health_potion"],4);
+  GroundItemPersistence.bind(second);
+  second.removeItemOnGround(second.getItemOnGround("c15-pg-bag")!);
+  await GroundItemPersistence.flush(second);
+  const third = new World(); third.generateMap(20, 20);
+  await GroundItemPersistence.restore(third);
+  assert.equal(third.getItemOnGround("c15-pg-bag"),undefined);
+});

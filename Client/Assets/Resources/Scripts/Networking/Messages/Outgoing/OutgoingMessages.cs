@@ -9,6 +9,7 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class ChatMessage { public string type; public string message; }
     [Serializable] public class AttackMessage { public string type; public string targetId; }
     [Serializable] public class LootMessage { public string type; public string corpseId; }
+    [Serializable] public class AutoLootNearbyMessage { public string type; }
     [Serializable] public class DropCorpseLootMessage {
         public string type; public string corpseId; public int itemIndex;
         public int x; public int y;
@@ -22,6 +23,14 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class OpenBagWithoutInstanceMessage { public string type; public string itemId; }
     [Serializable] public class OpenBagMessage { public string type; public string itemId; public string instanceId; }
     [Serializable] public class CloseBagMessage { public string type; }
+    [Serializable] public class TransferBagItemWithoutInstanceMessage {
+        public string type; public string sourceBagId; public string destinationBagId;
+        public string itemId; public int amount;
+    }
+    [Serializable] public class TransferBagItemMessage {
+        public string type; public string sourceBagId; public string destinationBagId;
+        public string itemId; public int amount; public string instanceId;
+    }
     [Serializable] public class StartAutoAttackMessage { public string type; public string targetId; }
     [Serializable] public class StopAutoAttackMessage { public string type; }
     [Serializable] public class OpenShopMessage { public string type; public string npcId; }

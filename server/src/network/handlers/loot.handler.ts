@@ -17,6 +17,39 @@ import { canDropOnWorldTile } from "../../game/systems/worldDropRules";
 import type { ClientDropCorpseLootMessage } from "../messages";
 import type { ClientLootMessage, ClientTakeLootMessage } from "../messages";
 
+/**
+ * C15: Shift+L recolhe cada cadáver próprio na box 3x3 do jogador.
+ * Apenas o maior hit EFETIVO registrado no momento da morte confere acesso.
+ * O comando não recebe IDs de cadáveres do cliente: escopo apenas Node.
+ */
+export function handleAutoLootNearby(
+  _ws: WebSocket, player: Player, _msg: {type:"autoLootNearby"}, ctx: HandlerContext,
+): void {
+  const x=Math.floor(player.position.x), y=Math.floor(player.position.y);
+  const eligible=[...ctx.world.corpses].filter(c =>
+    Math.abs(Math.floor(c.position.x)-x)<=1 &&
+    Math.abs(Math.floor(c.position.y)-y)<=1 &&
+    c.lootOwnerId === player.id);
+  let collected=0, blocked=0;
+  for (const corpse of eligible) {
+    if (!player.canCollectItems(corpse.loot)) { blocked++; continue; }
+    // Nenhum await entre validar o lote e transferir: atomicidade por corpo.
+    for (const entry of corpse.loot) {
+      player.addItem(entry.itemId,entry.amount);
+      if (player.isContainerItem(entry.itemId))
+        player.registerPurchasedBags(entry.itemId,entry.amount);
+    }
+    ctx.world.removeCorpse(corpse);
+    ctx.broadcast.broadcastDespawn(corpse.id);
+    ctx.packetSender.loot.sendLootTaken(corpse.id);
+    collected++;
+  }
+  if (collected>0) ctx.packetSender.inventory.sendInventory(player);
+  else ctx.packetSender.loot.sendLootError(blocked>0
+    ? "CAP ou slots insuficientes para o loot automático."
+    : "Nenhum cadáver elegível pelo maior hit na box 3x3.");
+}
+
 export async function handleLoot(
   ws: WebSocket,
   player: Player,

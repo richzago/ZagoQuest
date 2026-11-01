@@ -24,12 +24,14 @@ import type {
   ClientStopAutoAttackMessage,
   ClientOpenBagMessage,
   ClientCloseBagMessage,
+  ClientTransferBagItemMessage,
   ClientUseItemMessage,
   ClientEquipItemMessage,
   ClientUnequipItemMessage,
   ClientDropItemMessage,
   ClientPickupItemMessage,
   ClientLootMessage,
+  ClientAutoLootNearbyMessage,
   ClientDropCorpseLootMessage,
   ClientTakeLootMessage,
   ClientChatMessage,
@@ -100,12 +102,14 @@ export type ClientMessage =
   | ClientStopAutoAttackMessage
   | ClientOpenBagMessage
   | ClientCloseBagMessage
+  | ClientTransferBagItemMessage
   | ClientUseItemMessage
   | ClientEquipItemMessage
   | ClientUnequipItemMessage
   | ClientDropItemMessage
   | ClientPickupItemMessage
   | ClientLootMessage
+  | ClientAutoLootNearbyMessage
   | ClientDropCorpseLootMessage
   | ClientTakeLootMessage
   | ClientChatMessage

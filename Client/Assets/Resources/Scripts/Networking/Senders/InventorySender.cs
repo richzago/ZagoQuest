@@ -25,6 +25,25 @@ namespace ZagoQuest.Networking.Senders
             Send(new CloseBagMessage { type = "closeBag" });
         }
 
+        public void TransferBagItem(string sourceBagId, string destinationBagId,
+                                    string itemId, int amount, string instanceId = null)
+        {
+            if (string.IsNullOrWhiteSpace(sourceBagId) ||
+                string.IsNullOrWhiteSpace(destinationBagId) ||
+                string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
+            if (string.IsNullOrWhiteSpace(instanceId))
+                Send(new TransferBagItemWithoutInstanceMessage {
+                    type="transferBagItem", sourceBagId=sourceBagId,
+                    destinationBagId=destinationBagId, itemId=itemId, amount=amount
+                });
+            else
+                Send(new TransferBagItemMessage {
+                    type="transferBagItem", sourceBagId=sourceBagId,
+                    destinationBagId=destinationBagId, itemId=itemId,
+                    amount=amount, instanceId=instanceId
+                });
+        }
+
         public void UseItem(string itemId)
         {
             var msg = new UseItemMessage
@@ -109,6 +128,11 @@ namespace ZagoQuest.Networking.Senders
                 type = "dropCorpseLoot", corpseId = corpseId,
                 itemIndex = itemIndex, x = x, y = y
             });
+        }
+
+        public void SendAutoLootNearby()
+        {
+            Send(new AutoLootNearbyMessage { type = "autoLootNearby" });
         }
 
         public void SendLoot(string corpseId)

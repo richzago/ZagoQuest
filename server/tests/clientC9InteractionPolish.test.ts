@@ -94,7 +94,7 @@ test("C9: Bag e loot têm limites de altura, scroll lento, linhas pequenas e LRU
  const loot=unity("UI/LootUI.cs");
  assert.match(dock,/grid\.cellSize = new Vector2\(width, 62f\)/);
  assert.match(dock,/grid\.spacing = new Vector2\(4f, 3f\)/);
- assert.match(dock,/bagScroll\.scrollSensitivity = 9f/);
+ assert.match(dock,/bagScroll\.scrollSensitivity = 5f/);
  assert.match(dock,/bagScroll\.inertia = false/);
  assert.match(dock,/Mathf\.Min\(112f,/);
  assert.match(dock,/Mathf\.Min\(128f,/);

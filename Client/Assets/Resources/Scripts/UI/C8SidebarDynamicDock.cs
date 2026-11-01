@@ -243,10 +243,63 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         var bagScroll = inventory.slotsGrid.GetComponentInParent<ScrollRect>();
         if (bagScroll != null)
         {
-            bagScroll.scrollSensitivity = 9f;
+            bagScroll.scrollSensitivity = 5f;
             bagScroll.inertia = false;
+            EnsureVerticalScrollbar(bagScroll, "C15BagScrollbar");
             bagScroll.movementType = ScrollRect.MovementType.Clamped;
         }
+    }
+
+    /** Mouse wheel + handle clicável/arrastável; não cobre os slots. */
+    private static void EnsureVerticalScrollbar(ScrollRect scroll, string id)
+    {
+        if (scroll == null || scroll.viewport == null) return;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 5f;
+        scroll.inertia = false;
+        if (scroll.content != null)
+        {
+            var fitter = scroll.content.GetComponent<ContentSizeFitter>();
+            if (fitter == null)
+                fitter = scroll.content.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        }
+        var root = scroll.transform.Find(id);
+        if (root == null)
+        {
+            var obj = new GameObject(id, typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            obj.transform.SetParent(scroll.transform, false);
+            root = obj.transform;
+            var track = obj.GetComponent<Image>();
+            track.color = C11VisualTheme.Recess;
+            var thumb = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            thumb.transform.SetParent(root, false);
+            var hr = (RectTransform)thumb.transform;
+            hr.anchorMin = Vector2.zero; hr.anchorMax = Vector2.one;
+            hr.offsetMin = new Vector2(1, 1); hr.offsetMax = new Vector2(-1, -1);
+            var image = thumb.GetComponent<Image>();
+            image.color = C11VisualTheme.Bronze;
+            image.raycastTarget = true;
+            var bar = obj.GetComponent<Scrollbar>();
+            bar.handleRect = hr;
+            bar.targetGraphic = image;
+            bar.direction = Scrollbar.Direction.BottomToTop;
+        }
+        var rect = root as RectTransform;
+        rect.anchorMin = new Vector2(1f, 0f);
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(1f, 0.5f);
+        rect.offsetMin = new Vector2(-12f, 4f);
+        rect.offsetMax = new Vector2(-1f, -4f);
+        root.SetAsLastSibling();
+        scroll.verticalScrollbar = root.GetComponent<Scrollbar>();
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        // A barra precisa de espaço separado, jamais sobre a célula clicável.
+        var view = scroll.viewport;
+        view.anchorMax = new Vector2(0.92f, 1f);
     }
 
     private void ConfigureLootPanel()
@@ -282,8 +335,9 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             }
             scroll.horizontal = false;
             scroll.vertical = true;
-            scroll.scrollSensitivity = 9f;
+            scroll.scrollSensitivity = 5f;
             scroll.inertia = false;
+            EnsureVerticalScrollbar(scroll, "C15LootScrollbar");
         }
         if (loot.takeAllButton != null)
         {

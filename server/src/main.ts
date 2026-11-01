@@ -27,6 +27,7 @@ import { Logger } from "./game/core/logger/logger";
 import type { World } from "./game/world/World";
 import { WebSocketServer } from "./network/websocket/wsServer";
 import { OnlinePlayerDirectory } from "./game/systems/onlinePlayerDirectory";
+import { GroundItemPersistence } from "./game/systems/groundItemPersistence";
 import { validateServerRuntime } from "./game/core/runtimeConfig";
 
 async function bootstrap(): Promise<void> {
@@ -48,6 +49,7 @@ async function bootstrap(): Promise<void> {
     flushAutosave: async () => { if (gameLoops) await gameLoops.flushAutosave(); },
     closeDatabase: async () => {
       try {
+        if (world) await GroundItemPersistence.flush(world);
         if (AppDataSource.isInitialized) await AppDataSource.destroy();
       } finally {
         disposeDirectory?.();
@@ -77,6 +79,9 @@ async function bootstrap(): Promise<void> {
       skipBootstrapPlayer: authenticatedSessions,
     });
     world = initialized.world;
+    // Restaurar itens no mundo ANTES de aceitar sessões/snapshots WS.
+    await GroundItemPersistence.restore(world);
+    GroundItemPersistence.bind(world);
     // REST e WebSocket devem referenciar o MESMO Player vivo.
     disposeDirectory = OnlinePlayerDirectory.bind(
       () => world!.players,

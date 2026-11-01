@@ -28,6 +28,7 @@ namespace ZagoQuest.Networking.Handlers
             }
             context.InventoryUI?.HandleInventory(invMsg.gold, itemsDict, itemTypes,
                 invMsg.bagItemId, invMsg.bagSlots, invMsg.slotsUsed, rows);
+            context.InventoryUI?.SetCurrentBagInstance(invMsg.viewedBagInstanceId);
             // CAP calculado no Node inclui Bags aninhadas não visíveis.
             C8SidebarShell.SetCapacity(invMsg.capRemaining, invMsg.capMax);
         }

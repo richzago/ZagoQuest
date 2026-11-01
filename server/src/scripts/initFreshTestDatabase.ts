@@ -33,9 +33,10 @@ export async function initializeFreshTestDatabase(): Promise<void> {
       );
     }
     const applied = await AppDataSource.runMigrations({ transaction: "all" });
-    if (applied.length !== 2 ||
+    if (applied.length !== 3 ||
         applied[0].name !== "InitialSchema1793400000000" ||
-        applied[1].name !== "ContainerInstances1793500000000")
+        applied[1].name !== "ContainerInstances1793500000000" ||
+        applied[2].name !== "GroundItems1793600000000")
       throw new Error("As migrations baseline/C10 esperadas não foram aplicadas.");
     console.log("[TEST_DB] Schema inicial aplicado na database descartável. DB_SYNCHRONIZE segue false.");
   } finally {

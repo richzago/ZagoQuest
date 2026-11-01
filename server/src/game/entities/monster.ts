@@ -27,10 +27,14 @@ export class Monster extends Creature {
    * Uma vida nova nasce com o ledger vazio; nunca copiar no respawn.
    */
   readonly damageByPlayer: Map<string, number> = new Map();
+  /** Maior golpe único EFETIVO sofrido por jogador, não o golpe final. */
+  readonly maxHitByPlayer: Map<string, number> = new Map();
 
   recordPlayerDamage(playerId: string, damage: number): void {
     if (!playerId || !Number.isSafeInteger(damage) || damage <= 0 ||
         this.deathProcessed) return;
+    this.maxHitByPlayer.set(playerId,
+      Math.max(damage, this.maxHitByPlayer.get(playerId) ?? 0));
     const previous = this.damageByPlayer.get(playerId) ?? 0;
     if (Number.isSafeInteger(previous + damage))
       this.damageByPlayer.set(playerId, previous + damage);

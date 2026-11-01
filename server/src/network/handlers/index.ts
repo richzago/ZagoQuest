@@ -14,11 +14,12 @@ import { Player } from "../../game/entities/player";
 import { handleMove, handleMoveDir } from "./move.handler";
 import { handleChat } from "./chat.handler";
 import { handleAttack, handleStartAutoAttack, handleStopAutoAttack } from "./attack.handler";
-import { handleLoot, handleTakeLoot, handleDropCorpseLoot } from "./loot.handler";
+import { handleLoot, handleTakeLoot, handleDropCorpseLoot, handleAutoLootNearby } from "./loot.handler";
 import {
   handleUseItem,
   handleOpenBag,
   handleCloseBag,
+  handleTransferBagItem,
   handleEquipItem,
   handleUnequipItem,
   handleDropItem,
@@ -57,6 +58,7 @@ export const handlers: Record<string, HandlerFn> = {
 
   // Loot
   loot: handleLoot,
+  autoLootNearby: handleAutoLootNearby,
   takeLoot: handleTakeLoot,
   dropCorpseLoot: handleDropCorpseLoot,
 
@@ -64,6 +66,7 @@ export const handlers: Record<string, HandlerFn> = {
   useItem: handleUseItem,
   openBag: handleOpenBag,
   closeBag: handleCloseBag,
+  transferBagItem: handleTransferBagItem,
   equipItem: handleEquipItem,
   unequipItem: handleUnequipItem,
   dropItem: handleDropItem,
