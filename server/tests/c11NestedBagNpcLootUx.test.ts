@@ -14,6 +14,7 @@ import { handlePickupItem } from "../src/network/handlers/inventory.handler";
 import { handleOpenBag, handleCloseBag } from "../src/network/handlers/inventory.handler";
 import { handleOpenShop } from "../src/network/handlers/shop.handler";
 import { parseClientMessage } from "../src/network/validation/messageValidation";
+import { InventorySender } from "../src/network/senders/inventorySender";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 
 const simple="equipment/backpack/simple_bag";
@@ -136,6 +137,41 @@ test("C11: openBag/closeBag são validados (sem UUID de terceiros nem navegaçã
  assert.equal(p.isViewingNestedBag,true);
  handleCloseBag(ws,p,{type:"closeBag"},s.ctx);
  assert.equal(p.isViewingNestedBag,false);
+});
+test("C11: snapshot apresenta cada Simple Bag como slot UUID distinto e não abre UUID alheio",()=>{
+ const p=player(),n=merchant();p.gold=1000;
+ assert.equal(ShopSystem.buyItem(p,n,simple,1),true);
+ assert.equal(ShopSystem.buyItem(p,n,simple,1),true);
+ assert.equal(ShopSystem.buyItem(p,n,simple,1),true);
+ const packets:any[]=[];
+ const sender=new InventorySender(ws);
+ (sender as any).send=(payload:unknown)=>packets.push(payload);
+ sender.sendInventory(p);
+ const rows=packets[0].items.filter((i:any)=>i.itemId===simple);
+ assert.equal(rows.length,2);
+ assert.ok(rows.every((row:any)=>row.amount===1 && typeof row.instanceId==="string"));
+ assert.equal(new Set(rows.map((row:any)=>row.instanceId)).size,2);
+ assert.equal(parseClientMessage(JSON.stringify({
+   type:"openBag",itemId:simple,instanceId:rows[0].instanceId
+ })).ok,true);
+ assert.equal(p.openNestedBag(simple,"outro-jogador-id"),false);
+ assert.equal(p.isViewingNestedBag,false);
+ assert.equal(p.openNestedBag(simple,rows[1].instanceId),true);
+ assert.equal(p.isViewingNestedBag,true);
+ assert.equal(p.closeNestedBag(),true);
+ assert.equal(p.openNestedBag(simple,rows[0].instanceId),true);
+ assert.equal(p.closeNestedBag(),true);
+});
+test("C11 Unity: snapshot preserva UUID no slot e dupla seleção abre Bag exata",()=>{
+ const dto=unity("Networking/Messages/Incoming/IncomingMessages.cs");
+ const handler=unity("Networking/Handlers/InventoryHandler.cs");
+ const slot=unity("Player/InventorySlot.cs");
+ const inventory=unity("UI/InventoryUI.cs");
+ assert.match(dto,/public string instanceId/);
+ assert.match(handler,/rows\.Add\(new InventoryUI\.InventoryEntry/);
+ assert.match(inventory,/slot\.Setup\(row\.itemId,row\.amount/);
+ assert.match(inventory,/net\.Inventory\?\.OpenBag\(itemId,instanceId\)/);
+ assert.match(slot,/OnBagOpen\?\.Invoke\(itemId, bagInstanceId\)/);
 });
 test("C11 UI: NPC não dispara shop fora de alcance; shopError não é exceção",()=>{
  const click=unity("NPC/ClickInteract.cs");
