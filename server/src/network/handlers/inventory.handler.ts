@@ -181,7 +181,7 @@ export async function handleEquipItem(
   ctx: HandlerContext,
 ): Promise<void> {
   Logger.system(`[EQUIP] Recebido equipItem de ${player.name}: itemId=${msg.itemId}`);
-  const success = player.equipItem(msg.itemId);
+  const success = player.equipItem(msg.itemId, msg.instanceId);
   if (success) {
     ctx.packetSender.inventory.sendInventory(player);
     ctx.packetSender.inventory.sendPlayerStats(player);
