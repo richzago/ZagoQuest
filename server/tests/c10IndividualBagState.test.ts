@@ -165,7 +165,7 @@ test("C10: loot clique e take-all respeitam slots atuais e ACK do Node",async()=
  assert.deepEqual(errors,[]);
 });
 
-test("C10 UI: gear configurável com 3 colunas, hotkey Shift+E, host real e camera única",()=>{
+test("C10 UI: gear configurável com 3 colunas, hotkey Shift+L, host real e camera única",()=>{
  const read=(p:string)=>readFileSync(join(process.cwd(),"..","Client","Assets","Resources","Scripts",p),"utf8");
  const prefs=read("UI/C10ClientLayoutSettings.cs");
  const dock=read("UI/C8SidebarDynamicDock.cs");
