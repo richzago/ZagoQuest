@@ -38,7 +38,7 @@ test("C10: take-all por Shift+L e drag enviado como takeLoot individual",()=>{
  const row=sourceFile("UI/LootItemSlot.cs");
  const drop=sourceFile("UI/C9LootBagDropTarget.cs");
  const inventorySlot=sourceFile("Player/InventorySlot.cs");
- assert.match(loot,/k\.eKey\.wasPressedThisFrame/);
+ assert.match(loot,/k\.lKey\.wasPressedThisFrame/);
  assert.match(loot,/public void TakeAllLoot\(\)/);
  assert.match(loot,/k\.leftShiftKey\.isPressed \|\| k\.rightShiftKey\.isPressed/);
  assert.match(loot,/takeAllButton\.gameObject\.SetActive\(false\)/);
