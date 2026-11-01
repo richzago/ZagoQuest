@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **UI 2A — viewport jogável ao lado da sidebar, EM QA:** o usuário homologou os testes anteriores, mas apontou bug crítico: a sidebar encobre a água a leste porque a `Main Camera` ainda renderiza na tela inteira. Nova correção **apenas no PR #116/Draft**: `C8PlayfieldViewport` (adicionado pelo `NetworkManager`) recorta a câmera existente pela borda em pixels da sidebar, recalcula aspecto, respeita F10 e restaura viewport no logout; sem criar outra câmera, sem tocar no Tiled, no `CameraFollow`, em `TargetSelector/IsPointerOverUi` ou lógica Node. Card Equipamentos 290→265 (compacto 285→260) e 10 slots 52→50, com autosizing. **Sem merge até o usuário testar água da direita, mapa único, zoom, clicks e todas resoluções.** [Checklist detalhado](CLIENT_UI_SIDEBAR_EQUIPMENT_2A.md).
+
+
 > **UI 2A refinamento (31/10/2026) — mesmo PR #116/Draft:** feedback do usuário após Play Mode: remover título duplo (raiz confirmada `EquipmentPanel/Equipaments` de `scenebasic.unity`), diminuir card e slots com cuidado para nomes, minimapa circular, sidebar full bleed sem espaços topo/base/direita, retirar textos de arrastar, seis pictogramas em acesso rápido (sem siglas), ocultar painel de pesca mas preservar tecla R, adicionar nível real Fishing ao Status via campo aditivo `playerStats.fishingLevel`. PR #116 permanece sobre branch #115; `TargetSelector.cs`/`IsPointerOverUi` não alterados. Documentação e QA em `docs/CLIENT_UI_SIDEBAR_EQUIPMENT_2A.md`. **Sem merge ou avanço para 2B sem homologação e autorização do usuário.**
 
 
