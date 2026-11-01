@@ -220,27 +220,35 @@ export async function handleDropItem(
     return;
   }
 
-  const alreadyInBag = player.hasItem(itemId, amount);
   const equippedSlot = [...player.equipment.entries()]
     .find(([, equippedId]) => equippedId === itemId)?.[0];
+  const fromEquipment = msg.fromEquipment === true ||
+    // Compatibilidade com cliente antigo: só vem do equipamento se não
+    // houver nenhuma unidade no inventário.
+    (!player.hasItem(itemId, amount) && amount === 1 && equippedSlot !== undefined);
 
-  // Nunca desequipar para depois descobrir que a quantidade era insuficiente.
-  if (!alreadyInBag && !(amount === 1 && equippedSlot !== undefined)) {
+  // Validar posse e ORIGEM antes de qualquer mutação.
+  if (fromEquipment) {
+    if (amount !== 1 || equippedSlot === undefined) {
+      ctx.packetSender.inventory.sendDropError("Item não está no equipamento informado.");
+      return;
+    }
+  } else if (!player.hasItem(itemId, amount)) {
     ctx.packetSender.inventory.sendDropError("Você não possui essa quantidade.");
     return;
   }
 
-  // Todos os dados do item ficam prontos antes da remoção.
   let itemName = itemId;
-  try { itemName = ItemRegistry.get(itemId).name; } catch { /* item antigo sem definição */ }
+  try { itemName = ItemRegistry.get(itemId).name; } catch { /* save legado */ }
   const onGround = new ItemOnGround(generateId(), itemId, amount, tileX, tileY, itemName);
 
-  if (!alreadyInBag && equippedSlot !== undefined && !player.unequipItem(equippedSlot)) {
-    ctx.packetSender.inventory.sendDropError("Falha ao desequipar o item.");
-    return;
-  }
-
-  if (!player.removeItem(itemId, amount)) {
+  if (fromEquipment) {
+    // Remover DIRETAMENTE do slot equipado. O caminho antigo chamava
+    // unequipItem -> addItem -> removeItem e podia consumir outra cópia
+    // do inventário enquanto deixava a mochila equipada.
+    player.equipment.delete(equippedSlot!);
+    player.recalculateStats();
+  } else if (!player.removeItem(itemId, amount)) {
     ctx.packetSender.inventory.sendDropError("Falha ao remover o item.");
     return;
   }
@@ -272,8 +280,24 @@ export async function handlePickupItem(
     return;
   }
 
-  if (!player.canCollectItems([{itemId: onGround.itemId, amount: onGround.amount}]) ||
-      !player.addItem(onGround.itemId, onGround.amount)) {
+  // Bootstrap: uma Bag ou Backpack no chão DEVE poder ser recuperada
+  // mesmo sem outra equipada. Coleta e equipa diretamente (1 unidade),
+  // sem exigir espaço em contêiner inexistente, mas sem ignorar alcance.
+  let isGroundContainer = false;
+  try {
+    const item = ItemRegistry.get(onGround.itemId);
+    isGroundContainer = item.type === "equipment" &&
+      item.slot === EquipmentSlot.BACKPACK &&
+      Number.isSafeInteger(item.containerSlots) && (item.containerSlots ?? 0) > 0;
+  } catch { /* ID antigo não é bootstrap */ }
+  const bootstrap = player.getContainerCapacity() === 0 &&
+    !player.equipment.has(EquipmentSlot.BACKPACK) &&
+    isGroundContainer && onGround.amount === 1;
+  if (bootstrap) {
+    player.equipment.set(EquipmentSlot.BACKPACK, onGround.itemId);
+    player.recalculateStats();
+  } else if (!player.canCollectItems([{itemId: onGround.itemId, amount: onGround.amount}]) ||
+             !player.addItem(onGround.itemId, onGround.amount)) {
     const why = player.getContainerCapacity() <= 0
       ? "Equipe uma Bag/Backpack para pegar itens do chão."
       : "Sua Bag/Backpack está cheia ou o item é inválido.";
@@ -285,5 +309,6 @@ export async function handlePickupItem(
   ctx.world.removeItemOnGround(onGround);
   ctx.broadcast.broadcastDespawn(onGround.id);
   ctx.packetSender.inventory.sendInventory(player);
+  if (bootstrap) ctx.packetSender.inventory.sendEquipment(player);
   Logger.loot(`${player.name} coletou ${onGround.amount}x ${onGround.itemId}.`);
 }
