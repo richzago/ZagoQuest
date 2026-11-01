@@ -6,6 +6,13 @@
 /**
  * Usar um item do inventário.
  */
+export interface ClientOpenBagMessage {
+  type: "openBag";
+  /** ItemId da Bag diretamente dentro da janela atualmente aberta. */
+  itemId: string;
+}
+export interface ClientCloseBagMessage { type: "closeBag"; }
+
 export interface ClientUseItemMessage {
   type: "useItem";
   itemId: string;
