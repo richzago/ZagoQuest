@@ -91,8 +91,8 @@ test("UI2B: proporções da área dinâmica aceitam 1280x720 e F10 sem modificar
  const dock=unity("UI/C8SidebarDynamicDock.cs"),view=unity("UI/C8PlayfieldViewport.cs");
  assert.match(dock,/tabBar\.offsetMin = new Vector2\(8f, -84f\)/);
  assert.match(dock,/tabBar\.offsetMax = new Vector2\(-8f, -45f\)/);
- assert.match(dock,/scrollRect\.anchorMin = new Vector2\(0\.02f, 0\.04f\)/);
- assert.match(dock,/scrollRect\.anchorMax = new Vector2\(0\.98f, 0\.98f\)/);
+ assert.match(dock,/scrollRect\.anchorMin = Vector2\.zero/);
+ assert.match(dock,/scrollRect\.anchorMax = Vector2\.one/);
  assert.match(dock,/closeLootButton\.gameObject\.SetActive/);
  assert.match(dock,/if \(lootButton != null\) lootButton\.interactable/);
  assert.match(view,/worldCamera\.rect = new Rect\(viewportStart, 0f, viewportWidth, 1f\)/);

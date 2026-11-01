@@ -42,7 +42,7 @@ test("C13: versões sem UUID nunca serializam campo instanceId e preservam orige
 test("C13: o loot utiliza retângulo fixado ao topo em vez de ocupar altura errada",()=>{
   const dock=unity("UI/C8SidebarDynamicDock.cs");
   const loot=unity("UI/LootUI.cs");
-  assert.match(dock,/float lootHeight = showLoot \? Mathf\.Min\(128f,/);
+  assert.match(dock,/float lootHeight = showLoot \? Mathf\.Min\(lootMax,/);
   assert.match(dock,/r\.anchorMin = new Vector2\(0f, 1f\);\s*r\.anchorMax = new Vector2\(1f, 1f\)/);
   assert.match(dock,/r\.offsetMin = new Vector2\(0f, -lootTop - lootHeight\)/);
   assert.match(dock,/lootGroup\.blocksRaycasts = showLoot/);
