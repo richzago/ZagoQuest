@@ -53,7 +53,7 @@ test("C6: servidor permanece autoritativo para equipar, desequipar e drop",()=>{
  const src=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
  assert.match(send,/SendEquipItem\(string itemId\)/);
  assert.match(send,/SendUnequipItem\(EquipmentSlot slot\)/);
- assert.match(send,/SendDropItem\(string itemId, int amount, int x, int y\)/);
+ assert.match(send,/SendDropItem\(string itemId, int amount, int x, int y, bool fromEquipment = false\)/);
  assert.match(src,/handleEquipItem/);
  assert.match(src,/handleUnequipItem/);
  assert.match(src,/handleDropItem/);
