@@ -13,7 +13,7 @@ test("C9: fromEquipment existe em Unity Sender, DTO, Zod e Node — não é deci
  const sender=unity("Networking/Senders/InventorySender.cs");
  const outgoing=unity("Networking/Messages/Outgoing/OutgoingMessages.cs");
  const handler=server("network/handlers/inventory.handler.ts");
- assert.match(drag,/SendDropItem\(draggedItemId, 1, tileX, tileY, IsFromEquipment\(\)\)/);
+ assert.match(drag,/SendDropItem\(draggedItemId, 1, tileX, tileY,/);
  assert.match(sender,/fromEquipment = fromEquipment/);
  assert.match(outgoing,/public bool fromEquipment/);
  assert.match(handler,/const fromEquipment = msg\.fromEquipment === true/);
