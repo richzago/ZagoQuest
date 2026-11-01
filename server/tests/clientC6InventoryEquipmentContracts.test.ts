@@ -396,7 +396,7 @@ test("C6: Status não sobrepõe o login após autenticação e logout limpa sess
  assert.match(network,/_sessionCharacterId = null/);
  assert.match(network,/await socket\.Close\(\)/);
  assert.match(status,/new Vector2\(0f, 0\.5f\)/);
- assert.match(status,/new Vector2\(380, 460\)/);
+ assert.match(status,/new Vector2\(380, 510\)/);
  assert.match(status,/toggleStatusAction\.performed -= OnToggleStatus/);
  assert.match(status,/public void ClosePanel\(\)/);
  assert.match(status,/!network\.isConnected/);

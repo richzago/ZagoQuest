@@ -6,6 +6,7 @@ import { BaseSender } from "./base/baseSender";
 import { totalXpForLevel, EXPERIENCE_CONFIG } from "../../data/experience/experienceConfig";
 import { getPlayerMoveIntervalMs } from "../../game/systems/movementSystem";
 import { FoodRegenerationSystem, MAX_SATIETY_POINTS } from "../../game/systems/foodRegenerationSystem";
+import { SkillType } from "../../shared/enums/skillType.enum";
 
 export class PlayerStatsSender extends BaseSender {
   /** Formato consistente para conexão, ganho de XP e morte. */
@@ -32,6 +33,7 @@ export class PlayerStatsSender extends BaseSender {
       satiety: FoodRegenerationSystem.currentSatiety(player),
       satietyMax: MAX_SATIETY_POINTS,
       foodSecondsRemaining: FoodRegenerationSystem.remainingSeconds(player),
+      fishingLevel: player.getSkillLevel(SkillType.FISHING),
       // Aliases temporários até a migração de todos os clientes.
       experience: player.experience,
       experienceToNext: player.experienceToNext,

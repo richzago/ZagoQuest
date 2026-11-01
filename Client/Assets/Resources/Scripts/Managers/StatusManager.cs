@@ -31,6 +31,7 @@ public class StatusManager : MonoBehaviour
     private bool isOpen;
     private InputAction toggleStatusAction;
     private TextMeshProUGUI satietyText;
+    private TextMeshProUGUI fishingLevelText;
     public bool IsOpen => isOpen;
 
     private static readonly Color Gold = new Color32(235, 191, 109, 255);
@@ -124,6 +125,9 @@ public class StatusManager : MonoBehaviour
         if (attackText != null) attackText.text = $"Ataque   {stats.attack:N0}";
         if (defenseText != null) defenseText.text = $"Defesa   {stats.defense:N0}";
         if (armorText != null) armorText.text = $"Armadura   {stats.armor:N0}";
+        if (fishingLevelText != null)
+            fishingLevelText.text = stats.fishingLevel > 0
+                ? $"Pesca   Nível {stats.fishingLevel:N0}" : "Pesca   —";
         if (satietyText != null) satietyText.text = stats.satiety > 0
             ? $"Saciedade  {stats.satiety:N0}/{stats.satietyMax:N0}  |  {stats.foodSecondsRemaining}s"
             : $"Saciedade  0/{Mathf.Max(120,stats.satietyMax)}";
@@ -160,7 +164,7 @@ public class StatusManager : MonoBehaviour
         rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
         rect.pivot = new Vector2(0f, 0.5f);
         rect.anchoredPosition = new Vector2(18, 0);
-        rect.sizeDelta = new Vector2(380, 460);
+        rect.sizeDelta = new Vector2(380, 510);
         rect.localScale = Vector3.one;
 
         var bg = statusPanel.GetComponent<Image>();
@@ -190,10 +194,13 @@ public class StatusManager : MonoBehaviour
         StyleLabel(attackText, 316, 25, 15, Light);
         StyleLabel(defenseText, 348, 25, 15, Light);
         StyleLabel(armorText, 380, 25, 15, Light);
-        StyleSlider(experienceSlider, 407, Gold);
+        fishingLevelText = WorldWindowLayout.EnsureLabel(statusPanel.transform,
+            "C8FishingLevelText", "Pesca   —", 14, Light);
+        StyleLabel(fishingLevelText, 409, 25, 14, Gold);
         satietyText = WorldWindowLayout.EnsureLabel(statusPanel.transform, "C6SatietyText",
             "Saciedade  0/120", 14, Light);
-        StyleLabel(satietyText, 426, 25, 14, Gold);
+        StyleLabel(satietyText, 439, 25, 14, Gold);
+        StyleSlider(experienceSlider, 475, Gold);
         WorldWindowLayout.MakeDraggable(statusPanel, "PERSONAGEM  /  STATUS", "status");
         title.SetActive(false);
 

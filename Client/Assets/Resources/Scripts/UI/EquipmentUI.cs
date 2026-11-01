@@ -17,6 +17,12 @@ public class EquipmentUI : MonoBehaviour
     private Dictionary<EquipmentSlot, string> latestSnapshot;
     private bool receivedSnapshot;
 
+    // A C8 transforma ESTE painel existente em componente fixo da sidebar.
+    // Nenhum segundo EquipmentUI e criado. Ao voltar ao modo flutuante,
+    // TogglePanel retoma o comportamento historico.
+    public bool IsDockedInSidebar { get; private set; }
+    public void SetSidebarDocked(bool docked) => IsDockedInSidebar = docked;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -96,6 +102,9 @@ public class EquipmentUI : MonoBehaviour
     public void TogglePanel()
     {
         if (equipmentPanel == null) return;
+        // A sidebar fixa exibe slots continuamente; o toggle legado
+        // nao pode ocultar/desacoplar o GameObject com este componente.
+        if (IsDockedInSidebar) return;
         equipmentPanel.SetActive(!equipmentPanel.activeSelf);
         if (equipmentPanel.activeSelf)
         {

@@ -21,4 +21,5 @@ public class PlayerStatsData
     public int satietyMax;
     public int foodSecondsRemaining;
     public int lifetimeXp;      // Tudo o que o personagem já ganhou
+    public int fishingLevel;      // Snapshot da skill de pesca vindo do Node
 }
