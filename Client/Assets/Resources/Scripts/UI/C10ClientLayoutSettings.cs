@@ -261,6 +261,12 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
     private RectTransform CreateRail(Transform canvas,string name,bool left,
         int index,float width)
     {
+        // U03: quando habilitado no Inspector, reutiliza o prefab visual
+        // autorado. Os mesmos hosts/enderecos de Backpack e Loot sao usados.
+        // Sem configuracao U03, o codigo C10 legado permanece intocado.
+        var authored = TryCreateAuthoredRail(canvas, name, left, index, width);
+        if (authored != null) return authored;
+
         var go=new GameObject("C10"+name,typeof(RectTransform),typeof(Image));
         go.transform.SetParent(canvas,false);
         var r=(RectTransform)go.transform;
@@ -283,6 +289,57 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
         var host=(RectTransform)hostGo.transform;
         host.anchorMin=Vector2.zero;host.anchorMax=Vector2.one;
         host.offsetMin=new Vector2(4,4);host.offsetMax=new Vector2(-4,-36);
+        rails.Add(go);
+        return host;
+    }
+
+    private RectTransform TryCreateAuthoredRail(Transform canvas,
+        string name, bool left, int index, float width)
+    {
+        var config = U03DockColumnConfig.Current;
+        if (config == null || !config.UseAuthoredColumns) return null;
+        var prefab = config.DockColumnPrefab;
+        // Bloquear prefabs de UI estrutural/Canvas/Camera em lugar de rail.
+        if (prefab.GetComponent<RectTransform>() == null ||
+            prefab.GetComponent<Canvas>() != null ||
+            prefab.GetComponent<Camera>() != null ||
+            prefab.transform.Find("ContentHost") == null ||
+            prefab.GetComponentInChildren<U03DockColumnConfig>(true) != null)
+        {
+            Debug.LogWarning("[U03] Prefab de coluna invalido; " +
+                "mantendo rails C10 legados.");
+            return null;
+        }
+
+        GameObject go = Instantiate(prefab, canvas, false);
+        var rail = go.GetComponent<RectTransform>();
+        var host = go.transform.Find("ContentHost") as RectTransform;
+        if (rail == null || host == null)
+        {
+            Destroy(go);
+            Debug.LogWarning("[U03] ContentHost ausente na instancia; " +
+                "mantendo rail C10 legado.");
+            return null;
+        }
+
+        go.name = "C10" + name;
+        go.SetActive(true);
+        rail.anchorMin = left ? new Vector2(0f, 0f) :
+            new Vector2(1f, 0f);
+        rail.anchorMax = left ? new Vector2(0f, 1f) :
+            new Vector2(1f, 1f);
+        rail.pivot = new Vector2(left ? 0f : 1f, 0.5f);
+        rail.anchoredPosition = new Vector2(left ? index * width :
+            -(Compact ? MainCompactWidth : MainComfortWidth) - index * width, 0f);
+        rail.sizeDelta = new Vector2(width, 0f);
+        rail.localScale = Vector3.one;
+
+        // As margens de Camera.main continuam medidas pelo mesmo host real.
+        var caption = go.transform.Find("LaneTitle");
+        if (caption != null &&
+            caption.TryGetComponent<TextMeshProUGUI>(out var title))
+            title.text = left ? "BARRA ESQ." : "BARRA DIR.";
+
         rails.Add(go);
         return host;
     }
