@@ -74,7 +74,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         // Reconciliar sem reparentar a cada frame para evitar flicker.
         if (StatusManager.Instance != null &&
             !StatusManager.Instance.IsDockedToSidebar)
-            StatusManager.Instance.DockToSidebar(shell.DynamicHost);
+            StatusManager.Instance.DockToSidebar(shell.StatsHost);
         ResolveHosts();
         float width = bagHost != null ? bagHost.rect.width : shell.DynamicHost.rect.width;
         if (Mathf.Abs(width - lastWidth) > 1f)
@@ -123,7 +123,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         ConfigureInventoryPanel();
         ConfigureLootPanel();
         WireBackpackIcon();
-        StatusManager.Instance?.DockToSidebar(shell.DynamicHost);
+        StatusManager.Instance?.DockToSidebar(shell.StatsHost);
         bagResizeHandle = CreateResizeHandle(inventoryBackup.rect, true);
         lootResizeHandle = CreateResizeHandle(lootBackup.rect, false);
 
@@ -367,7 +367,20 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     {
         var root = loot.transform;
         SetChildActive(root, "C6DragHeader", false);
-        if (loot.closeButton != null) loot.closeButton.gameObject.SetActive(false);
+        // C18: botão X real disponível para fechar Loot sem usar hotkey.
+        if (loot.closeButton != null)
+        {
+            loot.closeButton.gameObject.SetActive(true);
+            var x = loot.closeButton.transform as RectTransform;
+            if (x != null)
+            {
+                x.anchorMin = x.anchorMax = new Vector2(1f, 1f);
+                x.pivot = Vector2.one;
+                x.anchoredPosition = new Vector2(-4f, -3f);
+                x.sizeDelta = new Vector2(24f, 24f);
+            }
+            loot.closeButton.transform.SetAsLastSibling();
+        }
         var visual = loot.lootPanel.transform as RectTransform;
         if (visual != null)
         {
@@ -546,10 +559,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     public void OnStatusVisibilityChanged(bool opened)
     {
         if (!docked) return;
-        if (opened) selected = Tab.Stats;
-        else if (selected == Tab.Stats)
-            selected = loot != null && loot.IsLootOpen ? Tab.Loot :
-                inventory != null && inventory.IsInventoryOpen ? Tab.Backpack : Tab.None;
+        // O StatsHost é irmão do DynamicHost: manter Bag/Loot visíveis.
         ApplyVisibility();
     }
 
@@ -558,7 +568,6 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) return;
         if (opened)
         {
-            StatusManager.Instance?.ClosePanel();
             selected = Tab.Backpack;
         }
         else if (selected == Tab.Backpack)
@@ -569,7 +578,6 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     public void OnLootOpened()
     {
         if (!docked) return;
-        StatusManager.Instance?.ClosePanel();
         selected = Tab.Loot;
         ApplyVisibility();
     }
@@ -586,11 +594,11 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private void OpenBackpackTab()
     {
         if (inventory == null) return;
-        StatusManager.Instance?.ClosePanel();
         // A Bag pode já estar aberta em outra coluna ou oculta por Loot:
         // o ícone deve TRAZÊ-LA, não fechá-la no primeiro clique.
         if (!inventory.IsInventoryOpen) inventory.OpenInventory();
-        selected = Tab.Backpack;
+        else if (selected == Tab.Backpack) inventory.CloseInventory();
+        selected = inventory.IsInventoryOpen ? Tab.Backpack : Tab.None;
         ApplyVisibility();
     }
 
@@ -615,13 +623,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         bool showBag = connected && inventory != null &&
             inventory.IsInventoryOpen && inventory.HasEquippedBag;
         bool showLoot = connected && loot != null && loot.IsLootOpen;
-        bool statsActive = StatusManager.Instance != null &&
-            StatusManager.Instance.IsOpen;
-        if (statsActive)
-        {
-            showBag = false;
-            showLoot = false;
-        }
+        // Stats usa StatsHost independente, não interfere nestes estados.
         float freeHeight = bagHost != null ? bagHost.rect.height : 0f;
         bool sameHost = bagHost != null && bagHost == corpseHost;
         // Em colunas pequenas, exibir uma ABA completa (4 slots na Bag)

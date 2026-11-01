@@ -165,7 +165,7 @@ test("C17: botão Stats fica ao lado da engrenagem e logout não o encobre",()=>
  assert.match(login,/logoutButtonRect\.anchorMin = new Vector2\(6f \/ 7f \+ 0\.008f, 0f\)/);
  assert.doesNotMatch(login,/logoutButtonRect\.anchorMin = new Vector2\(5f \/ 6f/);
  assert.match(status,/public bool IsDockedToSidebar/);
- assert.match(status,/statusPanel\.transform\.parent == C8SidebarShell\.Instance\.DynamicHost/);
+ assert.match(status,/statusPanel\.transform\.parent == C8SidebarShell\.Instance\.StatsHost/);
  assert.match(status,/if \(statusPanel\.transform\.parent != host\)/);
  assert.match(status,/statsIconButton\.onClick\.AddListener\(TogglePanel\)/);
  assert.match(dock,/!StatusManager\.Instance\.IsDockedToSidebar/);
