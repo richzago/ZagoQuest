@@ -426,6 +426,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         var image = obj.GetComponent<Image>();
         image.color = color ?? Inner;
         image.raycastTarget = false; // pai SidebarSurface ja bloqueia UI
+        C11VisualTheme.Frame(obj);
         return obj;
     }
 
