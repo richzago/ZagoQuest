@@ -188,7 +188,7 @@ export class Player extends Creature {
   }
 
   /** IDs de cada Bag seguem o item, não o personagem nem seu itemId. */
-  private takeContainedBag(itemId: string) {
+  private takeContainedBag(itemId: string, instanceId?: string) {
     const holder = this.viewedBag();
     const ids = holder ? holder.children : [...this.bagInstances.keys()]
       .filter(id => id !== this.equippedBagInstanceId);
