@@ -35,7 +35,7 @@ namespace ZagoQuest.Networking.Senders
             Send(msg);
         }
 
-        public void SendEquipItem(string itemId)
+        public void SendEquipItem(string itemId, string instanceId = null)
         {
             var msg = new EquipItemMessage
             {
