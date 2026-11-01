@@ -6,7 +6,7 @@
 - [x] LootItemSlot.OnEndDrag reusa filtro de UI visível.
 - [x] Seis warnings obsoletos de TMP/FindObjectsByType tratados nos arquivos informados.
 - [x] CI C13 [#41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): 581/581 Ubuntu e Windows, build, PostgreSQL e smoke/dist aprovados. Não compila C# Unity.
-- [ ] Compilar Unity e homologar bags/drop/loot/raycast/F10 em Play Mode.
+- [x] C13 homologada no Unity pelo usuário em 01/11/2026 (8/8): ausência dos seis CS0618; Bag equipada e item da Bag → chão/recolher; Bag aninhada com UUID; loot individual 1/2/3, loot→Bag/chão e Shift+L; NPC/logout/movimento; 1280×720/1920×1080, F10 100/115/130. Resultado informado pelo usuário, distinto da CI Node.
 - [ ] Deliberar limite de drop visível e obstáculos antes de alterar autoridade do Node.
 - [ ] Autorizar explicitamente PR #119; permanece Draft, não fazer merge.
 
