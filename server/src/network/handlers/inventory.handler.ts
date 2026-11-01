@@ -18,11 +18,35 @@ import { isValidItemId, isValidQuantity } from "../../game/systems/economyRules"
 import { FoodRegenerationSystem } from "../../game/systems/foodRegenerationSystem";
 import type {
   ClientUseItemMessage,
+  ClientOpenBagMessage,
+  ClientCloseBagMessage,
   ClientEquipItemMessage,
   ClientUnequipItemMessage,
   ClientDropItemMessage,
   ClientPickupItemMessage,
 } from "../messages";
+
+/**
+ * Janela de Bag aninhada: o servidor só permite abrir filho direto que
+ * está no container atualmente visível. O cliente nunca escolhe UUID
+ * arbitrário, nem pode abrir a Bag de outro personagem.
+ */
+export function handleOpenBag(
+  _ws: WebSocket, player: Player, msg: ClientOpenBagMessage, ctx: HandlerContext,
+): void {
+  if (!player.openNestedBag(msg.itemId)) {
+    ctx.packetSender.inventory.sendError("Não foi possível abrir esta Bag.");
+    return;
+  }
+  ctx.packetSender.inventory.sendInventory(player);
+}
+
+export function handleCloseBag(
+  _ws: WebSocket, player: Player, _msg: ClientCloseBagMessage, ctx: HandlerContext,
+): void {
+  if (!player.closeNestedBag()) return;
+  ctx.packetSender.inventory.sendInventory(player);
+}
 
 export async function handleUseItem(
   ws: WebSocket,
