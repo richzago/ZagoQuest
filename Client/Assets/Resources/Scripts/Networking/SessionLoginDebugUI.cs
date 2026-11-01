@@ -24,6 +24,9 @@ public class SessionLoginDebugUI : MonoBehaviour
     private bool busy;
     private GameObject logoutOverlay;
     private TextMeshProUGUI authFeedbackLabel;
+    private RectTransform logoutButtonRect;
+    private TextMeshProUGUI logoutButtonLabel;
+    private bool logoutDocked;
 
     // Ícone compacto no rodapé direito. Não conflita com Status (esquerda)
     // nem com o espaço reservado para o minimapa (canto superior direito).
@@ -85,6 +88,7 @@ public class SessionLoginDebugUI : MonoBehaviour
         if (visible && logoutOverlay == null) BuildLogoutButton();
         if (logoutOverlay != null && logoutOverlay.activeSelf != visible)
             logoutOverlay.SetActive(visible);
+        TryDockLogout(network != null && network.isConnected);
         if (authFeedbackLabel != null && network != null)
         {
             bool hasMessage = visible && !network.isConnected &&
@@ -114,6 +118,7 @@ public class SessionLoginDebugUI : MonoBehaviour
             typeof(Image), typeof(Button));
         go.transform.SetParent(logoutOverlay.transform, false);
         var rt = go.GetComponent<RectTransform>();
+        logoutButtonRect = rt;
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1, 0);
         rt.anchoredPosition = new Vector2(-18, 18);
         rt.sizeDelta = new Vector2(112, 40);
@@ -123,6 +128,7 @@ public class SessionLoginDebugUI : MonoBehaviour
         var label = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         label.transform.SetParent(go.transform, false);
         var text = label.GetComponent<TextMeshProUGUI>();
+        logoutButtonLabel = text;
         text.text = "⏻  SAIR";
         text.alignment = TextAlignmentOptions.Center;
         text.fontSize = 17;
@@ -152,8 +158,52 @@ public class SessionLoginDebugUI : MonoBehaviour
         Debug.Log("[LOGIN] Botão SAIR criado automaticamente em C6LogoutOverlay.");
     }
 
+    private void TryDockLogout(bool connected)
+    {
+        if (logoutButtonRect == null || logoutOverlay == null) return;
+        var sidebar = FindAnyObjectByType<C8SidebarShell>();
+        var host = sidebar != null ? sidebar.QuickAccessHost : null;
+        if (connected && host != null && host.gameObject.activeInHierarchy)
+        {
+            if (logoutDocked) return;
+            var help = host.Find("HelpIcon");
+            if (help != null) help.gameObject.SetActive(false);
+            logoutButtonRect.SetParent(host, false);
+            // Sexto pictograma. Mantem o Button REAL (mesmo listener Logout).
+            logoutButtonRect.anchorMin = new Vector2(5f / 6f + 0.008f, 0f);
+            logoutButtonRect.anchorMax = new Vector2(1f - 0.008f, 1f);
+            logoutButtonRect.offsetMin = logoutButtonRect.offsetMax = Vector2.zero;
+            if (logoutButtonLabel != null)
+            {
+                logoutButtonLabel.text = "⏻";
+                logoutButtonLabel.fontSize = 21f;
+            }
+            logoutDocked = true;
+        }
+        else if (logoutDocked)
+        {
+            logoutButtonRect.SetParent(logoutOverlay.transform, false);
+            logoutButtonRect.anchorMin = logoutButtonRect.anchorMax =
+                logoutButtonRect.pivot = new Vector2(1f, 0f);
+            logoutButtonRect.anchoredPosition = new Vector2(-18, 18);
+            logoutButtonRect.sizeDelta = new Vector2(112, 40);
+            if (logoutButtonLabel != null)
+            {
+                logoutButtonLabel.text = "⏻  SAIR";
+                logoutButtonLabel.fontSize = 17f;
+            }
+            if (host != null)
+            {
+                var help = host.Find("HelpIcon");
+                if (help != null) help.gameObject.SetActive(true);
+            }
+            logoutDocked = false;
+        }
+    }
+
     private void OnDestroy()
     {
+        if (logoutDocked) TryDockLogout(false);
         if (logoutOverlay != null) Destroy(logoutOverlay);
     }
 
