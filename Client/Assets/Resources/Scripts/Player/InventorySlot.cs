@@ -57,7 +57,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         // Nome no rodapé e quantidade no canto: não repetir o nome duas vezes.
         var background = GetComponent<Image>();
         if (background == null) background = gameObject.AddComponent<Image>();
-        background.color = new Color32(33, 46, 61, 245);
+        background.color = C11VisualTheme.Row;
         background.raycastTarget = true;
         if (itemIcon != null)
         {
@@ -88,7 +88,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
                 label.rectTransform.anchorMax = new Vector2(1, 0.33f);
                 label.rectTransform.offsetMin = new Vector2(4, 2);
                 label.rectTransform.offsetMax = new Vector2(-4, 0);
-                label.color = new Color32(236, 236, 230, 255);
+                label.color = C11VisualTheme.Text;
             }
         }
         if (amountText != null)
@@ -104,7 +104,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
                 quantity.rectTransform.anchorMax = Vector2.one;
                 quantity.rectTransform.offsetMin = Vector2.zero;
                 quantity.rectTransform.offsetMax = new Vector2(-3, -2);
-                quantity.color = new Color32(237, 193, 110, 255);
+                quantity.color = C11VisualTheme.Bronze;
             }
         }
         // ClickArea é decorativo na cena (Button sem listener).
