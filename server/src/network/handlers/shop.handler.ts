@@ -10,6 +10,7 @@ import { Logger } from "../../game/core/logger/logger";
 import { ShopSystem } from "../../game/systems/shopSystem";
 import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import type { ClientOpenShopMessage, ClientBuyItemMessage, ClientSellItemMessage, ClientCloseShopMessage } from "../messages";
 
 /** Um item antigo/experimental não deve derrubar a janela inteira. */
@@ -37,9 +38,18 @@ export async function handleOpenShop(
 
   if (!npc || npc.npcType !== "merchant" || !npc.shopItems?.length ||
       !NpcInteractionSystem.open(player, ctx.world, npc, "merchant")) {
-    // A tentativa inválida não pode conservar outra sessão econômica antiga.
+    // Não confiar no cliente para autorização, mesmo quando há item
+    // sobre o sprite do NPC. Informar motivo específico para depuração.
+    const reason = !npc || npc.npcType !== "merchant"
+      ? "Comerciante não encontrado ou inválido."
+      : !npc.shopItems?.length
+      ? "Este comerciante não possui itens à venda."
+      : !NpcInteractionSystem.canInteract(player, ctx.world, npc, "merchant")
+      ? "Aproxime-se do comerciante (até 2 tiles)."
+      : "Comerciante ocupado em outra conversa.";
     NpcInteractionSystem.close(player);
-    ctx.packetSender.shop.sendShopError("Comerciante inválido, sem itens ou muito distante.");
+    Logger.warn(`[SERVER LOG][NPC] ${player.name}: ${reason}`);
+    ctx.packetSender.shop.sendShopError(reason);
     return;
   }
 
@@ -71,11 +81,16 @@ export async function handleBuyItem(
     return;
   }
 
+  const equippedBefore = player.equipment.get(EquipmentSlot.BACKPACK);
   const success = ShopSystem.buyItem(player, npc, msg.itemId, msg.amount);
   if (!success) {
-    ctx.packetSender.shop.sendBuyResult(
-      false, "Não foi possível comprar. Verifique gold, quantidade ou capacidade.",
-    );
+    const noBag = player.getContainerCapacity() <= 0 &&
+      !player.isContainerItem(msg.itemId);
+    const message = noBag
+      ? "Equipe ou compre primeiro uma Bag/Backpack antes de comprar itens."
+      : "Não foi possível comprar. Verifique gold, quantidade ou espaço na Bag.";
+    Logger.warn(`[SERVER LOG][SHOP] ${player.name}: ${message}`);
+    ctx.packetSender.shop.sendBuyResult(false, message);
     return;
   }
 
@@ -83,6 +98,8 @@ export async function handleBuyItem(
     true, `Comprou ${msg.amount}x ${itemDisplayName(msg.itemId)}.`,
   );
   ctx.packetSender.inventory.sendInventory(player);
+  if (player.equipment.get(EquipmentSlot.BACKPACK) !== equippedBefore)
+    ctx.packetSender.inventory.sendEquipment(player); // Somente quando autoequip mudou
   ctx.packetSender.inventory.sendPlayerStats(player);
   ctx.packetSender.inventory.sendGold(player);
 }

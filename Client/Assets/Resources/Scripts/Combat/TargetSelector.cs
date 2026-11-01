@@ -51,6 +51,10 @@ public class TargetSelector : MonoBehaviour
     private InputAction toggleFollowAction;
     // Reuso da lista: não alocar por clique quando o player está em combate.
     private readonly List<RaycastResult> uiHits = new List<RaycastResult>(16);
+    // Coleta do chão finaliza no mouse UP: aceita clique ou drag até
+    // o slot BACKPACK, sem exigir Physics2DRaycaster no EventSystem.
+    private string pendingGroundId;
+    private Vector2 pendingGroundStart;
 
     // =========================
     // CICLO DE VIDA
@@ -90,6 +94,7 @@ public class TargetSelector : MonoBehaviour
 
     void Update()
     {
+        CompleteGroundPickupOnRelease();
         if (!autoFollowEnabled || currentTarget == null) return;
         if (PlayerController.Instance == null || NetworkManager.Instance == null ||
             !NetworkManager.Instance.isConnected) return;
@@ -116,6 +121,7 @@ public class TargetSelector : MonoBehaviour
         mouseClickAction?.Dispose();
         attackAction?.Dispose();
         toggleFollowAction?.Dispose();
+        pendingGroundId = null;
     }
 
     // =========================
@@ -198,7 +204,8 @@ public class TargetSelector : MonoBehaviour
                 if (!string.IsNullOrEmpty(groundItem.groundItemId))
                 {
                     Debug.Log($"[TargetSelector] Clicou no item {groundItem.itemName} (ID: {groundItem.groundItemId})");
-                    network.Inventory?.SendPickupItem(groundItem.groundItemId);
+                    pendingGroundId = groundItem.groundItemId;
+                    pendingGroundStart = Mouse.current.position.ReadValue();
                 }
                 else
                 {
@@ -220,6 +227,43 @@ public class TargetSelector : MonoBehaviour
 #endif
             ClearTarget();
         }
+    }
+
+    private void CompleteGroundPickupOnRelease()
+    {
+        if (string.IsNullOrEmpty(pendingGroundId) ||
+            Mouse.current == null || !Mouse.current.leftButton.wasReleasedThisFrame)
+            return;
+        string id = pendingGroundId;
+        pendingGroundId = null;
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected ||
+            network.Inventory == null || ChatUI.IsChatActive) return;
+
+        Vector2 release = Mouse.current.position.ReadValue();
+        // Clique normal: tolerância pequena para tremor de mão.
+        bool isClick = Vector2.Distance(release, pendingGroundStart) <= 12f;
+        bool overBackpack = false;
+        var ui = EventSystem.current;
+        if (ui != null)
+        {
+            uiHits.Clear();
+            ui.RaycastAll(new PointerEventData(ui) { position = release }, uiHits);
+            foreach (var hit in uiHits)
+            {
+                var slot = hit.gameObject != null
+                    ? hit.gameObject.GetComponentInParent<EquipmentSlotUI>() : null;
+                if (slot != null && slot.slotType == EquipmentSlot.BACKPACK)
+                {
+                    overBackpack = true;
+                    break;
+                }
+            }
+        }
+        // Arrastar para qualquer outro painel ou para longe do sprite
+        // cancela; somente clique comum ou drop no BACKPACK solicita pickup.
+        if (!overBackpack && (!isClick || IsPointerOverUi())) return;
+        network.Inventory.SendPickupItem(id);
     }
 
     private void OnAttackKey()
@@ -381,6 +425,10 @@ public class TargetSelector : MonoBehaviour
         RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
         Collider2D best = null;
         int bestLayer = int.MinValue;
+        // Para NPC: clique na criatura deve prevalecer sobre qualquer item
+        // solto no mesmo tile (mesmo com SpriteRenderer de ordem superior).
+        Collider2D bestNpc = null;
+        int npcLayer = int.MinValue, npcOrder = int.MinValue;
         int bestOrder = int.MinValue;
         int bestPriority = int.MinValue;
         float bestDistance = float.MaxValue;
@@ -396,6 +444,14 @@ public class TargetSelector : MonoBehaviour
             int layer = sprite != null
                 ? SortingLayer.GetLayerValueFromID(sprite.sortingLayerID) : 0;
             int order = sprite != null ? sprite.sortingOrder : 0;
+            if (kind == WorldClickKind.Npc &&
+                (bestNpc == null || layer > npcLayer ||
+                 (layer == npcLayer && order > npcOrder)))
+            {
+                bestNpc = candidate;
+                npcLayer = layer;
+                npcOrder = order;
+            }
             int priority = kind == WorldClickKind.Corpse ? 4 :
                 kind == WorldClickKind.Monster ? 3 :
                 kind == WorldClickKind.GroundItem ? 2 : 1;
@@ -412,7 +468,13 @@ public class TargetSelector : MonoBehaviour
             bestPriority = priority;
             bestDistance = hit.distance;
         }
-        return best;
+        // NPC que está sobre um item recebe o clique mesmo se o item
+        // estiver em sorting layer/ordem acima; o Node valida alcance.
+        // Prioridade especial SOMENTE quando o concorrente é item no chão:
+        // nunca roubar o clique de monstro/corpse que já estava por cima.
+        return bestNpc != null &&
+            (best == null || ClickKind(best) == WorldClickKind.GroundItem)
+            ? bestNpc : best;
     }
 
     /// <summary>

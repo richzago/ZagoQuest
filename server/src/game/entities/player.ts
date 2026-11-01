@@ -8,6 +8,19 @@
  */
 
 import { Creature } from "./creature";
+import { generateId } from "../../shared/utils/idUtils";
+export interface BagInstanceSave {
+  id: string;
+  itemId: string;
+  items: Record<string, number>;
+  children: string[];
+}
+export interface BagStateSave {
+  equippedId: string | null;
+  bags: BagInstanceSave[];
+  loose?: Record<string, number>;
+}
+
 import { Logger } from "../core/logger/logger";
 import { EventSystem } from "../core/events/eventSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
@@ -31,6 +44,278 @@ export class Player extends Creature {
 
   /** Mapa de itens no inventário: itemId → quantidade */
   inventory: Map<string, number> = new Map();
+
+  /** Identidades individuais das Bags; Map ativo = inventário visível. */
+  bagInstances: Map<string, {
+    id: string; itemId: string; items: Map<string, number>; children: string[];
+  }> = new Map();
+  equippedBagInstanceId: string | null = null;
+  /** Janela atual: o equipamento permanece a Bag raiz; navegar não equipa. */
+  private viewedBagInstanceId: string | null = null;
+
+  /** Permite quantas Bags distintas couberem, em qualquer profundidade. */
+  openNestedBag(itemId: string, instanceId?: string): boolean {
+    const parent = this.viewedBag();
+    if (!parent || !this.isContainerItem(itemId) ||
+        (parent.items.get(itemId) ?? 0) < 1) return false;
+    const childId = parent.children.find(id => this.bagInstances.get(id)?.itemId === itemId &&
+      (!instanceId || id === instanceId));
+    if (!childId) return false;
+    const child = this.bagInstances.get(childId);
+    if (!child) return false;
+    this.viewedBagInstanceId = childId;
+    this.inventory = child.items;
+    return true;
+  }
+
+  closeNestedBag(): boolean {
+    const activeId = this.viewedBagInstanceId;
+    if (!activeId || activeId === this.equippedBagInstanceId) return false;
+    const parent = [...this.bagInstances.values()].find(b => b.children.includes(activeId));
+    const parentId = parent?.id ?? this.equippedBagInstanceId;
+    const selected = parentId ? this.bagInstances.get(parentId) : undefined;
+    if (!selected) return false;
+    this.viewedBagInstanceId = selected.id;
+    this.inventory = selected.items;
+    return true;
+  }
+
+  get isViewingNestedBag(): boolean {
+    return !!this.viewedBagInstanceId &&
+      this.viewedBagInstanceId !== this.equippedBagInstanceId;
+  }
+
+  getVisibleBagChildren(): Array<{instanceId: string; itemId: string}> {
+    const bag = this.viewedBag();
+    if (!bag || this.getContainerCapacity() <= 0) return [];
+    return bag.children.flatMap(id => {
+      const child = this.bagInstances.get(id);
+      return child && (bag.items.get(child.itemId) ?? 0) > 0
+        ? [{ instanceId:id, itemId:child.itemId }] : [];
+    });
+  }
+
+  private viewedBag() {
+    return this.viewedBagInstanceId
+      ? this.bagInstances.get(this.viewedBagInstanceId) : this.equippedBag();
+  }
+  /** Itens de saves antigos sem Bag, nunca misturados com Bag largada. */
+  private looseItems: Map<string, number> = new Map();
+
+  private createBag(itemId: string, items: Map<string, number> = new Map()) {
+    const id = generateId();
+    const bag = { id, itemId, items, children: [] as string[] };
+    this.bagInstances.set(id, bag);
+    return bag;
+  }
+
+  private equippedBag() {
+    return this.equippedBagInstanceId
+      ? this.bagInstances.get(this.equippedBagInstanceId) : undefined;
+  }
+
+  /** Inicializa estado C10; saves C9 antigos são migrados uma vez, sem apagar itens. */
+  restoreBagState(raw: BagStateSave | null | undefined): void {
+    this.bagInstances.clear();
+    this.equippedBagInstanceId = null;
+    this.viewedBagInstanceId = null;
+    if (raw && Array.isArray(raw.bags) && raw.bags.length > 0) {
+      for (const row of raw.bags) {
+        if (!row || typeof row.id !== "string" ||
+            typeof row.itemId !== "string" || !Array.isArray(row.children)) continue;
+        const items = new Map<string, number>();
+        for (const [id, qty] of Object.entries(row.items ?? {}))
+          if (isValidItemId(id) && isValidQuantity(qty)) items.set(id, qty);
+        this.bagInstances.set(row.id, {
+          id: row.id, itemId: row.itemId, items,
+          children: row.children.filter(id => typeof id === "string"),
+        });
+      }
+      const selected = raw.equippedId && this.bagInstances.get(raw.equippedId);
+      if (selected && this.equipment.get(EquipmentSlot.BACKPACK) === selected.itemId) {
+        this.equippedBagInstanceId = selected.id;
+        this.viewedBagInstanceId = selected.id;
+        this.inventory = selected.items;
+      } else {
+        this.equipment.delete(EquipmentSlot.BACKPACK);
+        this.looseItems = new Map(Object.entries(raw.loose ?? {}));
+        this.inventory = this.looseItems;
+      }
+      return;
+    }
+    const equippedId = this.equipment.get(EquipmentSlot.BACKPACK);
+    if (equippedId) {
+      const original = this.inventory;
+      const bag = this.createBag(equippedId, original);
+      this.equippedBagInstanceId = bag.id;
+      this.viewedBagInstanceId = bag.id;
+      // Legacy itemId counts inside an active Bag receive stable child instances.
+      for (const [id, qty] of original)
+        if (this.isContainerItem(id))
+          for (let n=0; n<qty; n++) bag.children.push(this.createBag(id).id);
+    } else {
+      this.looseItems = this.inventory;
+    }
+  }
+
+  exportBagState(): BagStateSave {
+    return {
+      equippedId: this.equippedBagInstanceId,
+      bags: [...this.bagInstances.values()].map(b => ({
+        id:b.id, itemId:b.itemId, items:Object.fromEntries(b.items),
+        children:[...b.children],
+      })),
+      loose: Object.fromEntries(this.looseItems),
+    };
+  }
+
+  isContainerItem(itemId: string): boolean {
+    try {
+      const item = ItemRegistry.get(itemId);
+      return item.type === "equipment" && item.slot === EquipmentSlot.BACKPACK &&
+        Number.isSafeInteger(item.containerSlots) && (item.containerSlots ?? 0) > 0;
+    } catch { return false; }
+  }
+
+  /** Registra cada Bag comprada, mesmo com itemId igual. */
+  registerPurchasedBags(itemId: string, amount: number): void {
+    if (!this.isContainerItem(itemId)) return;
+    const holder = this.viewedBag();
+    for (let i=0; i<amount; i++) {
+      const bag = this.createBag(itemId);
+      if (holder) holder.children.push(bag.id);
+    }
+  }
+
+  /** IDs de cada Bag seguem o item, não o personagem nem seu itemId. */
+  private takeContainedBag(itemId: string, instanceId?: string) {
+    const holder = this.viewedBag();
+    const ids = holder ? holder.children : [...this.bagInstances.keys()]
+      .filter(id => id !== this.equippedBagInstanceId);
+    const index = ids.findIndex(id => this.bagInstances.get(id)?.itemId === itemId &&
+      (!instanceId || id === instanceId));
+    if (index < 0) return instanceId ? undefined : this.createBag(itemId);
+    const id = ids[index];
+    if (holder) holder.children.splice(index, 1);
+    return this.bagInstances.get(id)!;
+  }
+
+  /**
+   * Drop de Bag: move toda árvore para o objeto do chão.
+   * Não deixa o inventário da Bag antiga visível na Bag nova.
+   */
+  detachBagForGround(itemId: string, equipped: boolean, instanceId?: string): BagStateSave | null {
+    if (!this.isContainerItem(itemId)) return null;
+    if (equipped && this.isViewingNestedBag) return null;
+    let root;
+    if (equipped) {
+      root = this.equippedBag();
+      if (!root || root.itemId !== itemId) return null;
+      this.equippedBagInstanceId = null;
+      this.viewedBagInstanceId = null;
+      this.equipment.delete(EquipmentSlot.BACKPACK);
+      this.inventory = new Map();
+      this.looseItems = this.inventory;
+      this.recalculateStats();
+    } else {
+      if (!this.hasItem(itemId, 1)) return null;
+      root = this.takeContainedBag(itemId, instanceId);
+      if (!root) return null; // UUID estranho NÃO pode consumir outra Bag.
+      if (!this.removeItem(itemId, 1)) {
+        const parent = this.viewedBag();
+        if (parent && !parent.children.includes(root.id))
+          parent.children.push(root.id);
+        return null;
+      }
+    }
+    if (!root) return null;
+    const bags: BagInstanceSave[] = [];
+    const walk = (id: string) => {
+      const bag = this.bagInstances.get(id);
+      if (!bag) return;
+      bags.push({id, itemId:bag.itemId,
+        items:Object.fromEntries(bag.items),children:[...bag.children]});
+      for (const child of bag.children) walk(child);
+      this.bagInstances.delete(id);
+    };
+    walk(root.id);
+    return { equippedId:root.id, bags };
+  }
+
+  /** Pickup restaura a identidade e o conteúdo real da Bag caída. */
+  attachGroundBag(itemId: string, state: BagStateSave | undefined, autoequip: boolean): boolean {
+    if (!this.isContainerItem(itemId)) return false;
+    const incoming = state?.bags?.length ? state.bags : [{
+      id:generateId(), itemId, items:{}, children:[],
+    }];
+    const rootId = state?.equippedId ?? incoming[0].id;
+    if (incoming.some(row => this.bagInstances.has(row.id))) return false;
+    const parent = this.viewedBag();
+    // Validar ANTES de mutar qualquer instância. Uma Bag ocupa somente 1
+    // slot no pai, independentemente do que carregue em seus próprios slots.
+    if (!autoequip && (!parent ||
+        !this.canCollectItems([{itemId, amount:1}]))) return false;
+    if (autoequip && this.equipment.has(EquipmentSlot.BACKPACK)) return false;
+    for (const row of incoming) {
+      this.bagInstances.set(row.id, {id:row.id,itemId:row.itemId,
+        items:new Map(Object.entries(row.items)),children:[...row.children]});
+    }
+    const root = this.bagInstances.get(rootId);
+    if (!root || root.itemId !== itemId) return false;
+    if (autoequip) {
+      this.equipment.set(EquipmentSlot.BACKPACK, itemId);
+      this.equippedBagInstanceId = rootId;
+      this.viewedBagInstanceId = rootId;
+      this.inventory = root.items;
+      this.recalculateStats();
+    } else {
+      const holder = this.viewedBag();
+      if (!holder) return false;
+      holder.children.push(rootId);
+      // canCollectItems foi verificado antes de inserir as instâncias.
+      // AddItem apenas incrementa a pilha não-stackable do pai.
+      if (!this.addItem(itemId,1)) {
+        holder.children.pop();
+        for (const row of incoming) this.bagInstances.delete(row.id);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Venda de Bag cheia é proibida: nunca apagar seus itens por venda. */
+  canSellBag(itemId: string, amount: number): boolean {
+    if (!this.isContainerItem(itemId)) return true;
+    const holder = this.equippedBag();
+    const matching = holder
+      ? holder.children.map(id => this.bagInstances.get(id))
+          .filter(b => b?.itemId === itemId)
+      : [...this.bagInstances.values()]
+          .filter(b => b.id !== this.equippedBagInstanceId && b.itemId === itemId);
+    return matching.length >= amount &&
+      matching.slice(0,amount).every(b => b!.items.size === 0 && b!.children.length === 0);
+  }
+
+  releaseSoldBags(itemId: string, amount: number): void {
+    if (!this.isContainerItem(itemId)) return;
+    const holder = this.equippedBag();
+    for (let i=0; i<amount; i++) {
+      if (!holder) {
+        // Sem Bag equipada, somente uma Bag vazia no inventário solto
+        // pode ser vendida; não apagar conteúdo de outras instâncias.
+        const entry = [...this.bagInstances.values()]
+          .find(b => b.id !== this.equippedBagInstanceId &&
+            b.itemId === itemId && b.items.size === 0 && b.children.length === 0);
+        if (!entry) return;
+        this.bagInstances.delete(entry.id);
+        continue;
+      }
+      const idx = holder.children.findIndex(id=>this.bagInstances.get(id)?.itemId === itemId);
+      if (idx<0) return;
+      this.bagInstances.delete(holder.children[idx]);
+      holder.children.splice(idx,1);
+    }
+  }
 
   /** Mapa de equipamentos: slot → itemId */
   equipment: Map<EquipmentSlot, string> = new Map();
@@ -243,7 +528,7 @@ export class Player extends Creature {
    * player.equipItem("equipment/weapon/swords/boneSword");
    * ```
    */
-  equipItem(itemId: string): boolean {
+  equipItem(itemId: string, instanceId?: string): boolean {
     const item = ItemRegistry.get(itemId);
     if (!item || item.type !== "equipment") {
       Logger.warn(`Não é possível equipar ${itemId}: não é um equipamento.`);
@@ -260,6 +545,44 @@ export class Player extends Creature {
       return false;
     }
 
+    if (slot === EquipmentSlot.BACKPACK && this.isContainerItem(itemId)) {
+      // Não criar ciclo ao equipar uma Bag enquanto se navega dentro dela.
+      if (this.isViewingNestedBag || !this.hasItem(itemId, 1)) return false;
+      const oldBag = this.equippedBag();
+      // Sem Bag equipada, conteúdo legado no mapa não pode sumir na migração.
+      const target = this.takeContainedBag(itemId, instanceId);
+      if (!target) return false; // UUID não é filho da Bag atual.
+      const targetCapacity = item.containerSlots ?? 0;
+      const used = [...target.items].reduce((sum,[id,qty]) => {
+        try { return sum + (ItemRegistry.get(id).stackable ? 1 : qty); }
+        catch { return sum+qty; }
+      },0);
+      if (oldBag && used + 1 > targetCapacity) {
+        if (this.bagInstances.has(target.id) && oldBag)
+          oldBag.children.push(target.id);
+        return false;
+      }
+      this.removeItem(itemId,1);
+      if (oldBag) {
+        target.items.set(oldBag.itemId,(target.items.get(oldBag.itemId)??0)+1);
+        target.children.push(oldBag.id);
+      } else {
+        // Recolher uma Bag do chão cria conteúdo vazio; só saves legados
+        // ainda sem estrutura têm itens soltos para migrar.
+        for(const [id,qty] of this.inventory)
+          target.items.set(id,(target.items.get(id)??0)+qty);
+        target.children.push(...[...this.bagInstances.values()]
+          .filter(b=>b.id!==target.id).map(b=>b.id)
+          .filter(id=>!target.children.includes(id)));
+        this.looseItems = new Map();
+      }
+      this.equippedBagInstanceId = target.id;
+      this.viewedBagInstanceId = target.id;
+      this.inventory = target.items;
+      this.equipment.set(slot,itemId);
+      this.recalculateStats();
+      return true;
+    }
     if (!this.removeItem(itemId, 1)) {
       Logger.warn(`Você não possui ${item.name} para equipar.`);
       return false;
@@ -267,7 +590,6 @@ export class Player extends Creature {
 
     const currentItemId = this.equipment.get(slot);
     if (currentItemId && !this.addItem(currentItemId, 1)) {
-      // A troca falhou: devolve ao inventário o equipamento recém-removido.
       this.addItem(itemId, 1);
       return false;
     }
@@ -291,6 +613,17 @@ export class Player extends Creature {
       return false;
     }
 
+    if (slot === EquipmentSlot.BACKPACK) {
+      const old = this.equippedBag();
+      if (!old) return false;
+      this.equippedBagInstanceId = null;
+      this.viewedBagInstanceId = null;
+      this.equipment.delete(slot);
+      this.looseItems = new Map([[itemId,1]]);
+      this.inventory = this.looseItems;
+      this.recalculateStats();
+      return true;
+    }
     // Primeiro garante espaço; não deixa o equipamento desaparecer.
     if (!this.canAddItem(itemId, 1)) return false;
     if (!this.addItem(itemId, 1)) return false;
@@ -300,6 +633,70 @@ export class Player extends Creature {
     this.recalculateStats();
 
     return true;
+  }
+
+  // =========================
+  // BAG/BACKPACK — autoridade exclusiva do servidor
+  // =========================
+
+  /** Capacidade da mochila EQUIPADA. Itens legados permanecem no save se ela sair. */
+  getContainerCapacity(): number {
+    // Um view stale nunca pode conceder capacidade se nenhum slot estiver
+    // equipado (logout, reload de save antigo, ou estado legado).
+    const equipped = this.equipment.get(EquipmentSlot.BACKPACK);
+    if (!equipped) return 0;
+    const bagId = this.viewedBag()?.itemId ?? equipped;
+    try {
+      const bag = ItemRegistry.get(bagId);
+      return bag.type === "equipment" && bag.slot === EquipmentSlot.BACKPACK &&
+        Number.isSafeInteger(bag.containerSlots) && (bag.containerSlots ?? 0) > 0
+          ? bag.containerSlots! : 0;
+    } catch { return 0; }
+  }
+
+  getContainerItemId(): string | null {
+    return this.getContainerCapacity() > 0
+      ? this.viewedBag()?.itemId ??
+        this.equipment.get(EquipmentSlot.BACKPACK) ?? null : null;
+  }
+
+  /** Cada item stackable ocupa 1 slot; item não-stackable ocupa 1 por unidade. */
+  getContainerSlotsUsed(): number {
+    let total = 0;
+    for (const [id, amount] of this.inventory) {
+      if (!Number.isSafeInteger(amount) || amount <= 0) continue;
+      try {
+        total += ItemRegistry.get(id).stackable ? 1 : amount;
+      } catch {
+        total += amount; // saves legados: conservador, sem excluir itens
+      }
+    }
+    return total;
+  }
+
+  /** Exclusivo das transferências chão/cadáver para a Bag ativa. */
+  canCollectItems(items: ReadonlyArray<{itemId: string; amount: number}>): boolean {
+    const capacity = this.getContainerCapacity();
+    if (capacity <= 0 || !this.canAddItems(items)) return false;
+    let used = this.getContainerSlotsUsed();
+    const pending = new Map<string, number>();
+    for (const {itemId, amount} of items) {
+      // Moedas também requerem Bag, embora sejam convertidas em gold.
+      if (isCoin(itemId)) continue;
+      const old = pending.get(itemId) ?? 0;
+      pending.set(itemId, old + amount);
+      if (!Number.isSafeInteger(old + amount)) return false;
+    }
+    for (const [id, qty] of pending) {
+      try {
+        const item = ItemRegistry.get(id);
+        if (item.stackable) {
+          if (!this.inventory.has(id)) used += 1;
+        } else used += qty;
+      } catch { used += qty; }
+      if (!Number.isSafeInteger(used) || used > capacity) return false;
+    }
+    return used <= capacity;
   }
 
   // =========================

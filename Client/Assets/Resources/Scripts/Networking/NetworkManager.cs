@@ -109,6 +109,8 @@ public class NetworkManager : MonoBehaviour
         // Aguarda Start dos controllers para nao quebrar List/Grid/ScrollRect.
         if (GetComponent<C8SidebarDynamicDock>() == null)
             gameObject.AddComponent<C8SidebarDynamicDock>();
+        if (GetComponent<C10ClientLayoutSettings>() == null)
+            gameObject.AddComponent<C10ClientLayoutSettings>();
 
         if (requireAuthenticatedSession && !HasCredentials)
         {

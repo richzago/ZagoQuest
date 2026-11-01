@@ -6,6 +6,15 @@
 /**
  * Usar um item do inventário.
  */
+export interface ClientOpenBagMessage {
+  type: "openBag";
+  /** ItemId da Bag diretamente dentro da janela atualmente aberta. */
+  itemId: string;
+  /** UUID do filho; evita abrir sempre a primeira dentre várias iguais. */
+  instanceId?: string;
+}
+export interface ClientCloseBagMessage { type: "closeBag"; }
+
 export interface ClientUseItemMessage {
   type: "useItem";
   itemId: string;
@@ -17,6 +26,7 @@ export interface ClientUseItemMessage {
 export interface ClientEquipItemMessage {
   type: "equipItem";
   itemId: string;
+  instanceId?: string;
 }
 
 /**
@@ -36,6 +46,10 @@ export interface ClientDropItemMessage {
   amount?: number;
   x: number;
   y: number;
+  /** true apenas ao arrastar do slot de equipamento; evita tirar cópia errada. */
+  fromEquipment?: boolean;
+  /** Qual Bag não-stackable está sendo arrastada (UUID). */
+  instanceId?: string;
 }
 
 /**
@@ -49,6 +63,15 @@ export interface ClientPickupItemMessage {
 /**
  * Abrir loot de um cadáver.
  */
+export interface ClientDropCorpseLootMessage {
+  type: "dropCorpseLoot";
+  corpseId: string;
+  itemIndex: number;
+  x: number;
+  y: number;
+}
+
+/** Arrastar diretamente do cadáver para o chão (sem passar pela mochila). */
 export interface ClientLootMessage {
   type: "loot";
   corpseId: string;

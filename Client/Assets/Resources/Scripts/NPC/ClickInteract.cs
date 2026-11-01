@@ -22,6 +22,24 @@ public class ClickInteract : MonoBehaviour
             return;
         }
 
+        // O clique atravessa um item no chão até alcançar o NPC.
+        // Mas selecionar um NPC visível, porém distante, não deve abrir
+        // a loja e produzir um erro como se o cliente tivesse travado.
+        var controller = PlayerController.Instance;
+        if (controller != null &&
+            controller.TryGetConfirmedGridPosition(out Vector2Int position))
+        {
+            int nx = Mathf.FloorToInt(npc.transform.position.x);
+            int ny = Mathf.FloorToInt(npc.transform.position.y);
+            int distance = Mathf.Abs(position.x - nx) + Mathf.Abs(position.y - ny);
+            if (distance > 2)
+            {
+                Debug.LogWarning($"[ClickInteract] NPC fora do alcance: {distance} tiles (máx. 2)");
+                ChatUI.Instance?.AddMessage("Aproxime-se do NPC para conversar.");
+                return;
+            }
+        }
+
         Debug.Log($"[ClickInteract] Interação com {npc.npcId} (ID: {npc.id})");
         switch (npc.npcId)
         {

@@ -1,4 +1,7 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using System.Collections.Generic;
 
 
 public class DragDropManager : MonoBehaviour
@@ -147,6 +150,52 @@ public class DragDropManager : MonoBehaviour
         return slot;
     }
 
+
+    /// <summary>
+    /// A cena tem HUDs com imagens transparentes que ocupam o viewport.
+    /// Canvas no parent, por si só, não é motivo para cancelar um drop.
+    /// A validação final de distância/posse permanece no Node.
+    /// </summary>
+    public static bool PointerBlocksWorldDrop(PointerEventData pointer)
+    {
+        if (pointer == null || EventSystem.current == null) return true;
+        var hits = new List<RaycastResult>(16);
+        var query = new PointerEventData(EventSystem.current) { position = pointer.position };
+        EventSystem.current.RaycastAll(query, hits);
+        foreach (var hit in hits)
+        {
+            var go = hit.gameObject;
+            if (go == null) continue;
+            var canvas = go.GetComponentInParent<Canvas>();
+            if (canvas == null || canvas.renderMode == RenderMode.WorldSpace) continue;
+            bool hidden = false;
+            foreach (var group in go.GetComponentsInParent<CanvasGroup>())
+            {
+                if (group != null && group.alpha <= 0.001f)
+                {
+                    hidden = true;
+                    break;
+                }
+            }
+            if (hidden) continue;
+
+            // Botões transparentes ainda podem receber input real.
+            if (go.GetComponentInParent<Selectable>() != null ||
+                go.GetComponentInParent<C6WindowDragHandle>() != null ||
+                go.GetComponentInParent<InventorySlot>() != null ||
+                go.GetComponentInParent<EquipmentSlotUI>() != null ||
+                go.GetComponentInParent<LootItemSlot>() != null)
+                return true;
+
+            var graphic = go.GetComponent<Graphic>();
+            if (graphic != null && graphic.raycastTarget &&
+                graphic.color.a > 0.001f &&
+                graphic.canvasRenderer.GetAlpha() > 0.001f)
+                return true;
+        }
+        return false;
+    }
+
     // =========================
     // MÉTODOS AUXILIARES DE DROP
     // =========================
@@ -162,7 +211,8 @@ public class DragDropManager : MonoBehaviour
         }
 
         Debug.Log($"[DragDropManager] 📤 Enviando equipItem: {draggedItemId} para {slotType}");
-        NetworkManager.Instance?.Inventory.SendEquipItem(draggedItemId);
+        var bagInstanceId = GetSourceInventorySlot()?.BagInstanceId;
+        NetworkManager.Instance?.Inventory.SendEquipItem(draggedItemId, bagInstanceId);
         EndDrag();
     }
 
@@ -239,7 +289,8 @@ public class DragDropManager : MonoBehaviour
 
             // Não retirar item nem alterar a UI aqui. Node responde com
             // snapshot do inventário/equipamento após aceitar o drop.
-            network.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY);
+            network.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY,
+                IsFromEquipment(), GetSourceInventorySlot()?.BagInstanceId);
         }
         finally
         {

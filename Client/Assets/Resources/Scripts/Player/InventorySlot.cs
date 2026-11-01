@@ -16,6 +16,10 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     private string itemId;          // ID completo do item
     private int amount;             // Quantidade
     private string itemType;
+    private string bagInstanceId;
+    public string BagInstanceId => bagInstanceId;
+    /** Duplo clique na instância concreta, nunca no itemId agregado. */
+    public System.Action<string,string> OnBagOpen;
     private NetworkManager networkManager;
 
     // Evento disparado no duplo clique
@@ -42,13 +46,15 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     /// </summary>
     /// 
     /// 
-    public void Setup(string itemId, int amount, NetworkManager networkManager, string itemType = null)
+    public void Setup(string itemId, int amount, NetworkManager networkManager, string itemType = null,
+        string instanceId = null)
     {
         // Debug.Log($"[InventorySlot] 🛠️ Setup: itemId={itemId}, amount={amount}");
         this.itemId = itemId;
         this.amount = amount;
         this.networkManager = networkManager;
         this.itemType = itemType;
+        this.bagInstanceId = instanceId;
         // Um slot reciclado ou reconstruído não deve herdar a janela de clique.
         hasFirstClick = false;
 
@@ -57,8 +63,11 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         // Nome no rodapé e quantidade no canto: não repetir o nome duas vezes.
         var background = GetComponent<Image>();
         if (background == null) background = gameObject.AddComponent<Image>();
-        background.color = new Color32(33, 46, 61, 245);
+        background.color = C11VisualTheme.Row;
         background.raycastTarget = true;
+        // C11: cada slot possui rebordo fino próprio, inspirado nos
+        // clientes clássicos sem copiar assets de outro MMO.
+        C11VisualTheme.Frame(gameObject);
         if (itemIcon != null)
         {
             var sprite = Resources.Load<Sprite>($"Icons/{itemId}") ??
@@ -69,33 +78,33 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             itemIcon.raycastTarget = false;
             var rect = itemIcon.rectTransform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0, 12);
-            rect.sizeDelta = new Vector2(50, 50);
+            rect.anchoredPosition = new Vector2(0, 5);
+            rect.sizeDelta = new Vector2(34, 34);
         }
         if (nameText != null)
         {
             nameText.text = shortName;
             nameText.gameObject.SetActive(true);
-            nameText.fontSize = 13;
+            nameText.fontSize = 11;
             if (nameText is TextMeshProUGUI label)
             {
                 label.enableAutoSizing = true;
-                label.fontSizeMin = 10;
-                label.fontSizeMax = 13;
+                label.fontSizeMin = 8;
+                label.fontSizeMax = 11;
                 label.alignment = TextAlignmentOptions.Center;
                 label.raycastTarget = false;
                 label.rectTransform.anchorMin = Vector2.zero;
                 label.rectTransform.anchorMax = new Vector2(1, 0.33f);
                 label.rectTransform.offsetMin = new Vector2(4, 2);
                 label.rectTransform.offsetMax = new Vector2(-4, 0);
-                label.color = new Color32(236, 236, 230, 255);
+                label.color = C11VisualTheme.Text;
             }
         }
         if (amountText != null)
         {
             amountText.text = amount > 1 ? $"x{amount:N0}" : string.Empty;
             amountText.gameObject.SetActive(amount > 1);
-            amountText.fontSize = 14;
+            amountText.fontSize = 11;
             if (amountText is TextMeshProUGUI quantity)
             {
                 quantity.alignment = TextAlignmentOptions.TopRight;
@@ -104,7 +113,7 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
                 quantity.rectTransform.anchorMax = Vector2.one;
                 quantity.rectTransform.offsetMin = Vector2.zero;
                 quantity.rectTransform.offsetMax = new Vector2(-3, -2);
-                quantity.color = new Color32(237, 193, 110, 255);
+                quantity.color = C11VisualTheme.Bronze;
             }
         }
         // ClickArea é decorativo na cena (Button sem listener).
@@ -166,7 +175,9 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             {
                 hasFirstClick = false; // um evento, não duas ações seguidas
                 Debug.Log($"[InventorySlot] Duplo clique em {itemId} → usar");
-                OnDoubleClick?.Invoke(itemId);
+                if (!string.IsNullOrEmpty(bagInstanceId))
+                    OnBagOpen?.Invoke(itemId, bagInstanceId);
+                else OnDoubleClick?.Invoke(itemId);
                 return;
             }
             hasFirstClick = true;
@@ -204,26 +215,14 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         if (string.IsNullOrEmpty(itemId))
             return;
 
-        // 🔥 CORRIGIDO: pointerCurrentRaycast é struct, usa .gameObject diretamente
-        GameObject target = eventData.pointerCurrentRaycast.gameObject;
-        if (target != null)
-        {
-            EquipmentSlotUI slotUI = target.GetComponentInParent<EquipmentSlotUI>();
-            if (slotUI != null)
-            {
-                Debug.Log($"[InventorySlot] ✅ Drop sobre EquipmentSlotUI ({slotUI.slotType})");
-                DragDropManager.Instance?.EndDrag();
-                return;
-            }
-        }
-
-        // Não mandar drop no mundo ao soltar sobre janela ou botão da UI.
-        if (target != null && target.GetComponentInParent<Canvas>() != null)
+        // O OnDrop do equipamento cuida do destino interativo.
+        // Ignorar overlays transparentes da HUD ao soltar no mundo.
+        if (DragDropManager.PointerBlocksWorldDrop(eventData))
         {
             DragDropManager.Instance.EndDrag();
             return;
         }
-        if (Camera.main == null)
+        if (Camera.main == null || !Camera.main.pixelRect.Contains(eventData.position))
         {
             DragDropManager.Instance.EndDrag();
             return;
@@ -242,6 +241,15 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
 
     public void OnDrop(PointerEventData eventData)
     {
+        // Drop da linha do cadáver para uma célula da Bag.
+        // Não usa DragDropManager: envia o índice real ao Node.
+        var lootRow = eventData.pointerDrag != null
+            ? eventData.pointerDrag.GetComponentInParent<LootItemSlot>() : null;
+        if (lootRow != null)
+        {
+            LootUI.Instance?.TakeByDrop(lootRow.ItemIndex);
+            return;
+        }
         Debug.Log($"[InventorySlot] 📥 OnDrop recebido de {eventData.pointerDrag?.name}");
 
         if (!DragDropManager.Instance.IsDragging()) return;

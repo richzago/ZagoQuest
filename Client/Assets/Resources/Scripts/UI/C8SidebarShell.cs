@@ -11,23 +11,26 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class C8SidebarShell : MonoBehaviour
 {
-    private const float SidebarWidth = 304f;
+    // Tela de configurações controla a largura; padrão ~25% menor que C8.
+    private const float SidebarWidth = C10ClientLayoutSettings.MainCompactWidth;
     private const float EquipmentSlotSize = 50f;
     private const float EquipmentStepX = 62f;
     private const float EquipmentStepY = 53f;
 
-    private static readonly Color Background = new Color32(18, 27, 39, 249);
-    private static readonly Color Inner = new Color32(29, 41, 56, 244);
-    private static readonly Color Inset = new Color32(23, 34, 48, 247);
-    private static readonly Color Gold = new Color32(175, 139, 80, 230);
-    private static readonly Color Text = new Color32(235, 233, 226, 255);
-    private static readonly Color Muted = new Color32(170, 188, 202, 255);
+    private static readonly Color Background = C11VisualTheme.Surface;
+    private static readonly Color Inner = C11VisualTheme.Row;
+    private static readonly Color Inset = C11VisualTheme.Recess;
+    private static readonly Color Gold = C11VisualTheme.Bronze;
+    private static readonly Color Text = C11VisualTheme.Text;
+    private static readonly Color Muted = C11VisualTheme.Muted;
 
     private GameObject canvasRoot;
     private RectTransform sidebarSurface;
     private RectTransform miniMapSection;
     private RectTransform equipmentSectionRect;
     private RectTransform settingsSectionRect;
+    private RectTransform quickAccessHost;
+    public RectTransform QuickAccessHost => quickAccessHost;
     private RectTransform miniMapCircleRect;
     private Sprite miniMapSprite;
     private Texture2D miniMapTexture;
@@ -141,8 +144,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         background.raycastTarget = true; // somente dentro da barra visivel
         AddOutline(surface, Gold);
 
-        AddText(surface.transform, "Brand", "ZAGOQUEST", 14, 28, 18, Gold);
-        AddText(surface.transform, "Subtitle", "INTERFACE  •  AVENTUREIRO", 43, 24, 11, Muted);
+        // Placa em relevo com hierarquia visual distinta da HUD anterior.
+        Card(surface.transform, "ObsidianTitlePlate", 5f, 70f,
+            7f, 7f, C11VisualTheme.Recess);
+        AddText(surface.transform, "Brand", "ZAGOQUEST", 12, 31, 21, Gold);
+        AddText(surface.transform, "Subtitle", "OBSIDIAN / BRONZE  -  CLIENTE C12", 45, 20, 10, Muted);
         AddLine(surface.transform, "TopDivider", 75, Gold);
 
         // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
@@ -153,10 +159,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         miniMapSprite = Sprite.Create(miniMapTexture,
             new Rect(0, 0, miniMapTexture.width, miniMapTexture.height),
             new Vector2(0.5f, 0.5f), 100f);
-        var circle = new GameObject("MiniMapCircularPreview",
+        var circle = new GameObject("MiniMapTilePreview",
             typeof(RectTransform), typeof(Image));
         circle.transform.SetParent(map.transform, false);
         miniMapCircleRect = (RectTransform)circle.transform;
+        C11VisualTheme.Frame(circle);
         miniMapCircleRect.anchorMin = miniMapCircleRect.anchorMax = new Vector2(0.5f, 1f);
         miniMapCircleRect.pivot = new Vector2(0.5f, 1f);
         var mapImage = circle.GetComponent<Image>();
@@ -164,7 +171,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         mapImage.color = Color.white;
         mapImage.preserveAspect = true;
         mapImage.raycastTarget = false;
-        AddCenterText(circle.transform, "MapWaiting", "EM BREVE", 11f, Muted);
+        AddCenterText(circle.transform, "MapWaiting", "MAPA\nEM BREVE", 11f, Text);
 
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
         var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 265);
@@ -180,6 +187,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
             Vector2.zero, Vector2.one, new Vector2(8f, 5f), new Vector2(-8f, -24f));
+        quickAccessHost = icons;
         AddIcon(icons, "SettingsIcon", 0, 6);
         AddIcon(icons, "SoundIcon", 1, 6);
         AddIcon(icons, "ChatIcon", 2, 6);
@@ -201,13 +209,26 @@ public sealed class C8SidebarShell : MonoBehaviour
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
-        AddText(dynamicSection.transform, "DynamicTitle", "MOCHILAS  /  LOOT", 9, 30, 14, Text);
+        AddText(dynamicSection.transform, "DynamicTitle", "CONTEINÊRES  /  LOOT", 9, 30, 14, Text);
         AddText(dynamicSection.transform, "DynamicHint",
             "Espaco reservado para janelas dinamicas", 39, 45, 11, Muted);
         dynamicHint = dynamicSection.transform.Find("DynamicHint").gameObject;
         dynamicHost = Holder(dynamicSection.transform, "SidebarDynamicHost",
             Vector2.zero, Vector2.one, new Vector2(10, 9), new Vector2(-10, -91));
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
+    }
+
+    public void ApplyClientDensity()
+    {
+        if (sidebarSurface == null) return;
+        var prefs = C10ClientLayoutSettings.Instance;
+        bool compactMode = prefs == null || prefs.Compact;
+        float desired = compactMode
+            ? C10ClientLayoutSettings.MainCompactWidth
+            : C10ClientLayoutSettings.MainComfortWidth;
+        sidebarSurface.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, desired);
+        lastSidebarHeight = -1f;
+        RefreshResponsiveLayout();
     }
 
     private void RefreshResponsiveLayout()
@@ -221,14 +242,15 @@ public sealed class C8SidebarShell : MonoBehaviour
 
         // Em resolucoes menores ou escala F10 alta, reserva mais espaco
         // para o host dinamico, sem ampliar cards sobre o mundo.
-        bool compact = height < 760f;
-        PlaceTop(miniMapSection, compact ? 58f : 62f,
-            compact ? 131f : 164f, 13f, 13f);
-        PlaceTop(equipmentSectionRect, compact ? 197f : 234f,
-            compact ? 260f : 265f, 13f, 13f);
-        PlaceTop(settingsSectionRect, compact ? 465f : 507f,
-            compact ? 54f : 58f, 13f, 13f);
-        float diameter = compact ? 79f : 112f;
+        bool compact = (C10ClientLayoutSettings.Instance == null ||
+            C10ClientLayoutSettings.Instance.Compact) || height < 760f;
+        PlaceTop(miniMapSection, compact ? 43f : 62f,
+            compact ? 91f : 164f, 8f, 8f);
+        PlaceTop(equipmentSectionRect, compact ? 142f : 234f,
+            compact ? 216f : 265f, 8f, 8f);
+        PlaceTop(settingsSectionRect, compact ? 363f : 507f,
+            compact ? 48f : 58f, 8f, 8f);
+        float diameter = compact ? 58f : 112f;
         if (miniMapCircleRect != null)
         {
             miniMapCircleRect.sizeDelta = new Vector2(diameter, diameter);
@@ -237,7 +259,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dynamicSection.offsetMin = new Vector2(12f, 0f);
         // Nunca inverter a area dinamica: rolagem/resize funcional fica
         // para outra etapa, mas a base sempre cabe na sidebar.
-        float dynamicTop = compact ? 527f : 574f;
+        float dynamicTop = compact ? 419f : 574f;
         dynamicSection.offsetMax = new Vector2(-12f,
             -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
         lastDynamicHeight = -1f;
@@ -245,8 +267,7 @@ public sealed class C8SidebarShell : MonoBehaviour
 
     private static Texture2D CreateCircularMiniMapTexture()
     {
-        // Placeholder circular real, gerado localmente sem prefab nem asset
-        // de minimapa. Todos os pixels fora do circulo sao transparentes.
+        // Placeholder quadrado em grade; NÃO representa um mapa funcional.
         const int size = 128;
         var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
         texture.name = "C8MiniMapCirclePlaceholder";
@@ -256,17 +277,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++)
         {
-            float dx = (x + 0.5f - size * 0.5f) / (size * 0.5f);
-            float dy = (y + 0.5f - size * 0.5f) / (size * 0.5f);
-            float radius = Mathf.Sqrt(dx * dx + dy * dy);
-            byte alpha = (byte)Mathf.RoundToInt(
-                255f * Mathf.Clamp01((1f - radius) * size * 0.35f));
-            Color32 color = radius > 0.925f
-                ? new Color32(175, 139, 80, alpha)
-                : radius > 0.86f
-                    ? new Color32(39, 55, 72, alpha)
-                    : new Color32(22, 37, 52, alpha);
-            pixels[y * size + x] = color;
+            bool edge = x < 3 || y < 3 || x >= size - 3 || y >= size - 3;
+            bool tileLine = x % 16 == 0 || y % 16 == 0;
+            pixels[y * size + x] = edge ? new Color32(151, 115, 65, 255)
+                : tileLine ? new Color32(51, 65, 63, 255)
+                : new Color32(25, 38, 39, 255);
         }
         texture.SetPixels32(pixels);
         texture.Apply(false, false);
@@ -391,7 +406,7 @@ public sealed class C8SidebarShell : MonoBehaviour
                 slot.slotText.enableAutoSizing = true;
                 slot.slotText.fontSizeMin = 7.5f;
                 slot.slotText.fontSizeMax = 10.5f;
-                slot.slotText.enableWordWrapping = true;
+                slot.slotText.textWrappingMode = TextWrappingModes.Normal;
                 slot.slotText.raycastTarget = false;
             }
             // O Image de cada slot conserva raycastTarget=true para o drop.
@@ -408,6 +423,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         var image = obj.GetComponent<Image>();
         image.color = color ?? Inner;
         image.raycastTarget = false; // pai SidebarSurface ja bloqueia UI
+        C11VisualTheme.Frame(obj);
         return obj;
     }
 
@@ -532,7 +548,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         label.fontSize = size;
         label.color = color;
         label.alignment = TextAlignmentOptions.TopLeft;
-        label.enableWordWrapping = true;
+        label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
     }
 
@@ -595,6 +611,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         miniMapSection = null;
         equipmentSectionRect = null;
         settingsSectionRect = null;
+        quickAccessHost = null;
         miniMapCircleRect = null;
         if (miniMapSprite != null) Destroy(miniMapSprite);
         if (miniMapTexture != null) Destroy(miniMapTexture);

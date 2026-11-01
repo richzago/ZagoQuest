@@ -18,19 +18,37 @@ export class InventorySender extends BaseSender {
    * Envia o inventário completo do jogador.
    */
   public sendInventory(player: Player): void {
-    const itemsArray = Array.from(player.inventory.entries()).map(([itemId, qty]) => {
-      // Metadata é apenas informativa para a UX; o Node revalida useItem.
-      // Saves legados podem conter IDs não cadastrados: não derrubar o snapshot.
+    const itemsArray: Array<{
+      itemId: string; amount: number; itemType?: string; instanceId?: string
+    }> = [];
+    // Separar Bags não-stackable por identidade. Duas Simple Bags do mesmo
+    // tipo nunca podem aparecer como "x2" com um clique ambíguo.
+    const visibleChildren = player.getVisibleBagChildren();
+    for (const [itemId, qty] of player.inventory.entries()) {
       let itemType: string | undefined;
       try { itemType = ItemRegistry.get(itemId).type; }
-      catch { /* Item legado sem definição: cliente mantém uso via botão direito. */ }
-      return { itemId, amount: qty, itemType };
-    });
+      catch { /* Save legado: mantém o ID literal. */ }
+
+      if (player.isContainerItem(itemId)) {
+        const instances = visibleChildren.filter(child => child.itemId === itemId);
+        for (const instance of instances)
+          itemsArray.push({itemId, amount:1, itemType, instanceId:instance.instanceId});
+        // Se um save legado tiver contagem sem uma instância correspondente,
+        // não apagar ou esconder suas unidades do cliente.
+        const untracked = qty - instances.length;
+        if (untracked > 0) itemsArray.push({itemId,amount:untracked,itemType});
+      } else {
+        itemsArray.push({itemId,amount:qty,itemType});
+      }
+    }
 
     this.send({
       type: "inventory",
       gold: player.gold,
       items: itemsArray,
+      bagItemId: player.getContainerItemId(),
+      bagSlots: player.getContainerCapacity(),
+      slotsUsed: player.getContainerSlotsUsed(),
     });
   }
 

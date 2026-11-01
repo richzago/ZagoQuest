@@ -7,6 +7,7 @@
  */
 
 import { Entity } from "./entity";
+import type { BagStateSave } from "./player";
 
 /**
  * Item solto no mundo.
@@ -18,6 +19,8 @@ export class ItemOnGround extends Entity {
   public amount: number;
   /** Item Name (para exibição visual, opcional) */
   public itemName: string;
+  /** Estado apenas do servidor: não enviar conteúdo privado em spawn broadcast. */
+  public bagState?: BagStateSave;
 
   /**
    * Cria um novo item no chão.

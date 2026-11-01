@@ -15,6 +15,7 @@ public sealed class C8PlayfieldViewport : MonoBehaviour
     private bool originalCaptured;
     private bool applied;
     private float lastWidth = -1f;
+    private float lastStart = -1f;
     private int lastScreenWidth = -1;
     private int lastScreenHeight = -1;
     private readonly Vector3[] worldCorners = new Vector3[4];
@@ -57,7 +58,14 @@ public sealed class C8PlayfieldViewport : MonoBehaviour
         float leftEdgePx = RectTransformUtility.WorldToScreenPoint(null, worldCorners[0]).x;
         if (float.IsNaN(leftEdgePx) || float.IsInfinity(leftEdgePx)) return;
 
-        float availableWidth = Mathf.Clamp(leftEdgePx, 1f, Screen.width);
+        // C10 pode reservar até três colunas de cada lado.
+        // A câmera principal é recortada dos DOIS lados, sem câmera extra.
+        float leftReserved = 0f, rightExtra = 0f;
+        if (C10ClientLayoutSettings.Instance != null)
+            C10ClientLayoutSettings.Instance.GetPixelMargins(out leftReserved,out rightExtra);
+        float rightReserved = Mathf.Max(Screen.width - leftEdgePx,rightExtra);
+        float availableWidth = Mathf.Max(1f,Screen.width-leftReserved-rightReserved);
+        float viewportStart = leftReserved / Screen.width;
         float viewportWidth = availableWidth / Screen.width;
         if (viewportWidth < 0.30f)
         {
@@ -69,17 +77,19 @@ public sealed class C8PlayfieldViewport : MonoBehaviour
 
         if (applied && lastScreenWidth == Screen.width &&
             lastScreenHeight == Screen.height &&
-            Mathf.Abs(lastWidth - viewportWidth) < 0.0005f)
+            Mathf.Abs(lastWidth - viewportWidth) < 0.0005f &&
+            Mathf.Abs(lastStart - viewportStart) < 0.0005f)
             return;
 
         // Somente Camera.main recebe o recorte. Nao editar CameraFollow
         // nem instanciar outra Camera: evita o "mapa fantasma" do C7.1.
-        worldCamera.rect = new Rect(0f, 0f, viewportWidth, 1f);
+        worldCamera.rect = new Rect(viewportStart, 0f, viewportWidth, 1f);
         // A projecao precisa corresponder ao NOVO retangulo real para
         // impedir esticamento do mapa e manter ClampToWorld correto.
         worldCamera.aspect = availableWidth / Screen.height;
         applied = true;
         lastWidth = viewportWidth;
+        lastStart = viewportStart;
         lastScreenWidth = Screen.width;
         lastScreenHeight = Screen.height;
 
@@ -98,6 +108,7 @@ public sealed class C8PlayfieldViewport : MonoBehaviour
         worldCamera.ResetAspect();
         applied = false;
         lastWidth = -1f;
+        lastStart = -1f;
         lastScreenWidth = -1;
         lastScreenHeight = -1;
     }

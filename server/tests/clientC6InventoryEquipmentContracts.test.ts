@@ -10,15 +10,16 @@ import { join } from "node:path";
 
 const unity=(file:string)=>readFileSync(join(process.cwd(),"..","Client","Assets","Resources","Scripts",file),"utf8");
 
-test("C6: atalho I usa callback removível, ignora chat e libera InputAction/singleton",()=>{
+test("C9: atalho I foi removido e o slot BACKPACK abre o painel real",()=>{
  const s=unity("UI/InventoryUI.cs");
- assert.match(s,/toggleInventoryAction\.performed \+= OnToggleInventory/);
- assert.match(s,/toggleInventoryAction\.performed -= OnToggleInventory/);
- assert.match(s,/toggleInventoryAction\.Dispose\(\)/);
+ const slot=unity("UI/EquipmentSlotUI.cs");
+ assert.doesNotMatch(s,/toggleInventoryAction|<Keyboard>\/i|OnToggleInventory/);
  assert.match(s,/if \(Instance == this\) Instance = null/);
- assert.match(s,/GetComponentInParent<TMP_InputField>\(\)/);
- assert.match(s,/if \(inventoryPanel == null\) return/);
- assert.doesNotMatch(s,/performed -= ctx => ToggleInventory/);
+ assert.match(s,/public bool HasEquippedBag => bagSlots > 0/);
+ assert.match(s,/if \(!HasEquippedBag\)/);
+ assert.match(s,/public void ToggleBackpack\(\)/);
+ assert.match(slot,/slotType == EquipmentSlot\.BACKPACK/);
+ assert.match(slot,/InventoryUI\.Instance\?\.ToggleBackpack\(\)/);
  assert.match(s,/network\.Inventory\.UseItem\(itemId\)/);
 });
 
@@ -39,20 +40,23 @@ test("C6: arrastar inventário para slot envia equipItem uma vez, sem drop de ch
  const drag=unity("Managers/DragDropManager.cs");
  assert.match(eq,/DragDropManager\.Instance\.IsFromInventory\(\)/);
  assert.match(eq,/DragDropManager\.Instance\.DropOnEquipmentSlot\(slotType\)/);
- assert.match(drag,/NetworkManager\.Instance\?\.Inventory\.SendEquipItem\(draggedItemId\)/);
+ assert.match(drag,/NetworkManager\.Instance\?\.Inventory\.SendEquipItem\(draggedItemId, bagInstanceId\)/);
  assert.match(inv,/if \(DragDropManager\.Instance == null \|\| !DragDropManager\.Instance\.IsDragging\(\)\) return/);
- assert.match(inv,/GetComponentInParent<EquipmentSlotUI>\(\)/);
- assert.match(inv,/target\.GetComponentInParent<Canvas>\(\) != null/);
- assert.match(eq,/target\.GetComponentInParent<Canvas>\(\) != null/);
+ assert.match(inv,/DragDropManager\.PointerBlocksWorldDrop\(eventData\)/);
+ assert.match(eq,/DragDropManager\.PointerBlocksWorldDrop\(eventData\)/);
+ assert.match(inv,/Camera\.main\.pixelRect\.Contains\(eventData\.position\)/);
+ assert.match(eq,/Camera\.main\.pixelRect\.Contains\(eventData\.position\)/);
+ assert.doesNotMatch(inv,/target\.GetComponentInParent<Canvas>\(\)/);
+ assert.doesNotMatch(eq,/target\.GetComponentInParent<Canvas>\(\)/);
  assert.match(eq,/NetworkManager\.Instance/);
 });
 
 test("C6: servidor permanece autoritativo para equipar, desequipar e drop",()=>{
  const send=unity("Networking/Senders/InventorySender.cs");
  const src=readFileSync(join(process.cwd(),"src/network/handlers/inventory.handler.ts"),"utf8");
- assert.match(send,/SendEquipItem\(string itemId\)/);
+ assert.match(send,/SendEquipItem\(string itemId, string instanceId = null\)/);
  assert.match(send,/SendUnequipItem\(EquipmentSlot slot\)/);
- assert.match(send,/SendDropItem\(string itemId, int amount, int x, int y\)/);
+ assert.match(send,/SendDropItem\(string itemId, int amount, int x, int y, bool fromEquipment = false, string instanceId = null\)/);
  assert.match(src,/handleEquipItem/);
  assert.match(src,/handleUnequipItem/);
  assert.match(src,/handleDropItem/);
@@ -97,17 +101,18 @@ test("C6 visual: a cena mantém as referências de inventário/equipamento que o
  assert.match(prefab,/nameText: \{fileID: [0-9]+\}/);
 });
 
-test("C6 visual: botão X sincroniza painel, flag e atalho I; gold vem somente do snapshot",()=>{
+test("C9 visual: botão X e slot Backpack abrem/fecham, gold/slots do snapshot",()=>{
  const inv=unity("UI/InventoryUI.cs");
  const visual=unity("UI/C6InventoryEquipmentLayout.cs");
  assert.match(visual,/Header\(panel, "INVENTÁRIO", close\)/);
  assert.match(visual,/onClick\.AddListener\(close\)/);
  assert.match(inv,/public void CloseInventory\(\)[\s\S]*?isInventoryOpen = false;[\s\S]*?inventoryPanel\.SetActive\(false\)/);
- assert.match(inv,/isInventoryOpen = !isInventoryOpen/);
- assert.match(inv,/GetComponentInParent<TMP_InputField>\(\)/);
+ assert.match(inv,/public void ToggleBackpack\(\)/);
+ assert.match(inv,/if \(!HasEquippedBag\)/);
  assert.match(inv,/public void HandleInventory\(int gold, Dictionary<string, int> newItems\)[\s\S]*?currentGold = gold/);
  assert.match(inv,/public void UpdateGold\(int gold\)[\s\S]*?currentGold = gold/);
- assert.match(inv,/Ouro em mãos: \{currentGold:N0\} gold/);
+ assert.match(inv,/Slots: \{slotsUsed\}\/\{bagSlots\}/);
+ assert.match(inv,/Ouro: \{currentGold:N0\}/);
 });
 
 test("C6 visual: soltar sobre viewport vazio envia unequip, não drop no mundo",()=>{
@@ -240,7 +245,7 @@ test("C6 estados vazios: inventory, loot e shop sem itens não exibem estado ant
  const inv=unity("UI/InventoryUI.cs");
  const loot=unity("UI/LootUI.cs");
  const shop=unity("UI/ShopUI.cs");
- assert.match(inv,/ShowEmptyState\(items\.Count == 0\)/);
+ assert.match(inv,/ShowEmptyState\(visibleRows != null \? visibleRows\.Count == 0 : items\.Count == 0\)/);
  assert.match(inv,/C6EmptyInventoryLabel/);
  assert.match(inv,/labelObject\.SetActive\(empty\)/);
  assert.match(shop,/if \(items == null\)/);
@@ -270,7 +275,7 @@ test("C6 P1 drag distante: cliente valida tile confirmado, Manhattan e rede ante
  assert.match(drag,/System\.Math\.Abs\(\(long\)tileX - playerTile\.x\)/);
  assert.match(drag,/System\.Math\.Abs\(\(long\)tileY - playerTile\.y\)/);
  assert.match(drag,/if \(distance > 2\)[\s\S]*?return;/);
- assert.match(drag,/network\.Inventory\.SendDropItem\(draggedItemId, 1, tileX, tileY\)/);
+ assert.match(drag,/SendDropItem\(draggedItemId, 1, tileX, tileY,/);
  assert.match(handler,/const distance = Math\.abs\(tileX - Math\.floor\(player\.position\.x\)\)/);
  assert.match(handler,/Math\.abs\(tileY - Math\.floor\(player\.position\.y\)\)/);
  assert.match(handler,/distance > 2/);
@@ -362,7 +367,8 @@ test("C6: clique simples consome por itemType do Node; equipamento usa useItem n
  assert.match(model,/itemType\?: string/);
  assert.match(dto,/public string itemType;/);
  assert.match(handler,/itemTypes\[item\.itemId\] = item\.itemType/);
- assert.match(handler,/HandleInventory\(invMsg\.gold, itemsDict, itemTypes\)/);
+ assert.match(handler,/HandleInventory\(invMsg\.gold, itemsDict, itemTypes,/);
+ assert.match(handler,/invMsg\.bagItemId, invMsg\.bagSlots, invMsg\.slotsUsed/);
  assert.match(inv,/itemTypes\.TryGetValue\(kvp\.Key, out string type\)/);
  assert.match(inv,/slotScript\.Setup\(kvp\.Key, kvp\.Value, NetworkManager\.Instance \?\? networkManager, type\)/);
  assert.match(slot,/string itemType = null/);
@@ -379,8 +385,9 @@ test("C6 regressão: segundo equipamento não é ativado ao redesenhar slots",()
  assert.match(inv,/EquipmentClickGuardSeconds = 0\.45f/);
  assert.match(inv,/slot\.SetActive\(false\);\s*Destroy\(slot\)/);
  assert.match(inv,/items\.TryGetValue\(itemId, out int quantity\)/);
- assert.match(inv,/lastEquipmentUseAt = now;\s*\/\/ Node é o único/);
- assert.match(inv,/network\.Inventory\.UseItem\(itemId\)/);
+ assert.match(inv,/lastEquipmentUseAt = now;/);
+ assert.match(inv,/OpenBag\(itemId\)/);
+ assert.match(inv,/UseItem\(itemId\)/);
 });
 
 test("C6: Status não sobrepõe o login após autenticação e logout limpa sessão",()=>{
@@ -437,7 +444,9 @@ test("C6 UI: logout é UGUI overlay visível sem configurar a Hierarchy",()=>{
  assert.match(login,/typeof\(GraphicRaycaster\)/);
  assert.match(login,/canvas\.sortingOrder = 500/);
  assert.match(login,/btn\.onClick\.AddListener\(Logout\)/);
- assert.match(login,/text\.text = "⏻  SAIR"/);
+  assert.match(login,/text\.text = "SAIR"/);
+  assert.match(login,/logoutButtonLabel\.text = "OFF"/);
+  assert.doesNotMatch(login,/\u23FB/);
  assert.match(login,/network\.LogoutAuthenticatedSession\(\)/);
 });
 

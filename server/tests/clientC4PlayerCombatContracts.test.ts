@@ -29,7 +29,10 @@ test("C4: seleção de alvo, loot e pickup não enviam comandos com socket desco
   assert.match(selector,/var camera = Camera\.main;/);
   assert.match(selector,/if \(camera == null\) return;/);
   assert.match(selector,/network\.Inventory\?\.SendLoot\(corpse\.corpseId\)/);
-  assert.match(selector,/network\.Inventory\?\.SendPickupItem\(groundItem\.groundItemId\)/);
+  // C9: coleta só no release, para aceitar clique OU drag da Bag do chão.
+  assert.match(selector,/pendingGroundId = groundItem\.groundItemId/);
+  assert.match(selector,/if \(network == null \|\| !network\.isConnected/);
+  assert.match(selector,/network\.Inventory\.SendPickupItem\(id\)/);
   assert.match(selector,/public void SelectTarget\(string targetId\)/);
   assert.match(selector,/!network\.isConnected \|\| network\.Combat == null/);
   assert.match(selector,/network\.Combat\.SendStartAutoAttack\(targetId\)/);

@@ -1,4 +1,25 @@
+## C13 — regressão de payload opcional e geometria de loot (01/11/2026)
+
+- [x] Inspeção comparativa da branch com `dev`: C11 acrescentou `instanceId` opcional e cliente usa `JsonUtility.ToJson`.
+- [x] DTOs separados com/sem UUID; Zod strict preservado, fromEquipment preservado.
+- [x] Raiz de Loot passa a usar âncoras verticais coerentes com lootHeight (sem ampliar window).
+- [x] LootItemSlot.OnEndDrag reusa filtro de UI visível.
+- [x] Seis warnings obsoletos de TMP/FindObjectsByType tratados nos arquivos informados.
+- [x] CI C13 [#41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): 581/581 Ubuntu e Windows, build, PostgreSQL e smoke/dist aprovados. Não compila C# Unity.
+- [x] C13 homologada no Unity pelo usuário em 01/11/2026 (8/8): ausência dos seis CS0618; Bag equipada e item da Bag → chão/recolher; Bag aninhada com UUID; loot individual 1/2/3, loot→Bag/chão e Shift+L; NPC/logout/movimento; 1280×720/1920×1080, F10 100/115/130. Resultado informado pelo usuário, distinto da CI Node.
+- [ ] Deliberar limite de drop visível e obstáculos antes de alterar autoridade do Node.
+- [ ] Autorizar explicitamente PR #119; permanece Draft, não fazer merge.
+
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
+
+> **Atualização C11 (01/11/2026):** a especificação vigente da interação NPC, loot por distância, **Shift+L**, múltiplas Bags com UUID individuais na UI e tema original **Obsidian & Bronze** está em [C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md](C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md). Atalhos e detalhes de layout abaixo podem representar a etapa C10 anterior. **CAP por peso ainda não está implementado**, apenas limites por slots. PR #119 permanece Draft, sem merge.
+
+
+> **C10 atualizado (01/11/2026):** a arquitetura C9 de inventário único foi substituída por **Bags com instâncias/UUID e conteúdo persistente próprio**, Merchant requer Bag para poções e Take All usa **Shift+E**. A sidebar agora é configurável via engrenagem (colunas 0–3 esquerda e 1–3 direita) e tem dimensões menores. As descrições e atalhos C9 abaixo são históricos: **a especificação vigente é [C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md](C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md)**. PR #119 continua em Draft, sem merge.
+
+
+> **C9 — revisão crítica dos testes do usuário (P0/P1):** sequência drop/ground pickup da Bag não podia terminar sem outra bolsa, e o mesmo itemId de equipado/inventário podia derrubar cópia errada. Corrigidos com bootstrap de Bag do chão, `fromEquipment` explícito e validação Zod; ItemName UI sem raycasts e NPC ganha precedência sobre item no mesmo tile. Adicionado drag `corpse → chão` autoritativo, mais compacto Bag(142px)/Loot(176px), linhas 62/36px, scroll 9–10 e histórico LRU de quatro cadáveres. [Diagnóstico + QA](C9_CRITICAL_HOMOLOGATION_FIXES.md). **PR #119 Draft, SEM MERGE; CI Node não executa Unity.**
+
 
 > **UI 2B — Mochila + Loot na área dinâmica (NOVO PR DRAFT):** branch `feature/client-ui-sidebar-dynamic-loot-backpack-2b` nasce de `dev` após merges homologados #115 `9e4ab23` e #116 `913bd49`. Reparenta instâncias REAIS `InventoryPanel` e `LootPanel` para `SidebarDynamicHost`, abas exclusivas `MOCHILA` e `LOOT`, scroll vertical, duas colunas de inventário, seleção de múltiplas linhas e Take All do servidor. **Nenhum sistema de backpacks múltiplas existe ainda no Node**; aqui MOCHILA = inventário atual. Sem mudança de gameplay, camera, `TargetSelector/IsPointerOverUi`, loot wire protocol ou Tiled. [Documentação, riscos e QA Unity](CLIENT_UI_SIDEBAR_DYNAMIC_2B.md). PR ainda requer homologação visual e autorização de merge.
 

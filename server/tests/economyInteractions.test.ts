@@ -7,6 +7,9 @@ import { test } from "node:test";
 import type { WebSocket } from "ws";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
 import { Player } from "../src/game/entities/player";
+import { ItemRegistry } from "../src/data/items/itemRegistry";
+import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
+import { join } from "node:path";
 import { Npc } from "../src/game/entities/npc";
 import { World } from "../src/game/world/World";
 import { NpcInteractionSystem, NPC_INTERACTION_RANGE } from "../src/game/systems/npcInteractionSystem";
@@ -27,6 +30,11 @@ function setup() {
   const world = new World();
   world.generateMap(20, 20);
   const player = new Player("test-player", "Testador", 2, 2);
+  // Testes de autorização econômica pressupõem Bag válida; sem ela,
+  // o bloqueio de poções fica coberto em suíte C10 específica.
+  ItemRegistry.loadAll(join(process.cwd(),"src","data","items"));
+  player.equipment.set(EquipmentSlot.BACKPACK,"equipment/backpack/basic_backpack");
+  player.restoreBagState(undefined);
   const banker = new Npc("bank-1", "Banco", 3, 2, "Olá", "banker");
   const merchant = new Npc("shop-1", "Loja", 2, 3, "Bem-vindo", "merchant");
   merchant.shopItems = [{ itemId: potion, buyPrice: 10, sellPrice: 5, stock: 5 }];

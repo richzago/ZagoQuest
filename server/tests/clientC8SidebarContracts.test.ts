@@ -16,7 +16,7 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   assert.match(ui, /new GameObject\("C8SidebarCanvas", typeof\(RectTransform\)/);
   assert.match(ui, /new GameObject\("SidebarSurface", typeof\(RectTransform\), typeof\(Image\)\)/);
   assert.match(ui, /canvas\.sortingOrder = 110/);
-  assert.match(ui, /SidebarWidth = 304f/);
+  assert.match(ui, /SidebarWidth = C10ClientLayoutSettings\.MainCompactWidth/);
   assert.match(ui, /scaler\.uiScaleMode = CanvasScaler\.ScaleMode\.ScaleWithScreenSize/);
   assert.match(ui, /GetComponent<C7UiAccessibility>\(\)\?\.ApplyCurrent\(\)/);
   const ordered = ["MiniMapSection", "EquipmentSection",
@@ -29,10 +29,10 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   }
   assert.match(ui, /public RectTransform DynamicHost => dynamicHost/);
   assert.match(ui, /SidebarDynamicHost/);
-  assert.match(ui, /new GameObject\("MiniMapCircularPreview"/);
+  assert.match(ui, /new GameObject\("MiniMapTilePreview"/);
   assert.match(ui, /CreateCircularMiniMapTexture\(\)/);
   assert.match(ui, /ACESSO RÁPIDO/);
-  assert.match(ui, /MOCHILAS  \/  LOOT/);
+  assert.match(ui, /CONTEINÊRES  \/  LOOT/);
 });
 
 test("UI 2A: EquipmentPanel ORIGINAL é reparentado sem clone e sem perder slots/WS", () => {
@@ -92,7 +92,7 @@ test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de 
   assert.match(ui, /EquipmentSlotSize = 50f/);
   assert.match(ui, /EquipmentStepX = 62f/);
   assert.match(ui, /EquipmentStepY = 53f/);
-  const sidebarWidth = 304;
+  const sidebarWidth = 228;
   const cardWidth = sidebarWidth - 2 * 13;
   const hostWidth = cardWidth - 2 * 8;
   const lastSlotEdge = (hostWidth - (50 + 62 * 2)) / 2 + 62 * 2 + 50;
@@ -127,7 +127,7 @@ test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico 
   assert.doesNotMatch(scene, /m_Name: C8SidebarCanvas/);
 });
 
-test("UI 2A refinamento: 6 pictogramas sem siglas, minimapa circular e barra full bleed", () => {
+test("C12 refinamento: 6 pictogramas sem siglas, minimapa quadrado e barra full bleed", () => {
   const ui = unity("UI/C8SidebarShell.cs");
   const icons = ["SettingsIcon","SoundIcon","ChatIcon","BackpackIcon","MapIcon","HelpIcon"];
   for (const icon of icons) assert.match(ui,new RegExp('"' + icon + '"'));
@@ -160,14 +160,14 @@ test("C8 viewport: a camera ja existente fica no espaco esquerdo SEM duplicar mu
  assert.match(view, /sidebar\.SidebarSurface\.GetWorldCorners\(worldCorners\)/);
  assert.match(view, /RectTransformUtility\.WorldToScreenPoint\(null, worldCorners\[0\]\)\.x/);
  assert.match(view, /viewportWidth = availableWidth \/ Screen\.width/);
- assert.match(view, /worldCamera\.rect = new Rect\(0f, 0f, viewportWidth, 1f\)/);
+ assert.match(view, /worldCamera\.rect = new Rect\(viewportStart, 0f, viewportWidth, 1f\)/);
  assert.match(view, /worldCamera\.aspect = availableWidth \/ Screen\.height/);
  assert.match(view, /worldCamera\.ResetAspect\(\)/);
  assert.match(view, /if \(originalCaptured\) worldCamera\.rect = initialViewport/);
  assert.match(view, /network == null \|\| !network\.isConnected/);
  assert.match(view, /!sidebar\.SidebarSurface\.gameObject\.activeInHierarchy/);
  assert.match(view, /Mathf\.Abs\(lastWidth - viewportWidth\) < 0\.0005f/);
- assert.doesNotMatch(view, /new Camera|new GameObject|AddComponent<Camera>|RenderTexture|FindObjectsByType<Camera>|ScreenPointToRay/);
+ assert.doesNotMatch(view, /new Camera\(|new GameObject\(|AddComponent<Camera>\(|new RenderTexture\(|FindObjectsByType<Camera>\(|ScreenPointToRay\(/);
  assert.match(scene, /m_Name: Main Camera/);
  assert.equal((scene.match(/^--- !u!20 &/gm) || []).length, 1,
    "A cena serializada contém uma única Camera; nenhuma outra é criada na UI.");
@@ -182,7 +182,7 @@ test("C8 viewport: F10/duas resolucoes preservam largura visivel e aspecto ortog
   // Validacao geometrica em TS nao substitui execucao Unity.
   for (const [w,h] of [[1920,1080],[1280,720]]) {
     for (const scale of [1,1.15,1.30]) {
-      const sidePx = 304 * scale * (w / 1920);
+      const sidePx = 228 * scale * (w / 1920);
       const left = w - sidePx;
       const portion = left / w;
       const aspect = left / h;

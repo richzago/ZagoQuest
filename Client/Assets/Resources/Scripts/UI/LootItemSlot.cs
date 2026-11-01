@@ -7,7 +7,8 @@ using ZagoQuest.Networking.Messages;
 /// Toda a linha de loot é clicável com UM clique. Rótulos TMP não bloqueiam
 /// o raycast no Image do root. LootUI impede comandos repetidos até lootTaken.
 /// </summary>
-public class LootItemSlot : MonoBehaviour, IPointerClickHandler
+public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
+    IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [Header("UI References")]
     public TextMeshProUGUI itemNameText;
@@ -41,8 +42,11 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler
         if (itemNameText != null)
         {
             WorldWindowLayout.Place(itemNameText, 0.035f, 0.07f,
-                0.73f, 0.93f, 13, WorldWindowLayout.Label);
-            itemNameText.enableWordWrapping = true;
+                0.73f, 0.93f, 12, WorldWindowLayout.Label);
+            itemNameText.enableAutoSizing = true;
+            itemNameText.fontSizeMin = 9f;
+            itemNameText.fontSizeMax = 12f;
+            itemNameText.textWrappingMode = TextWrappingModes.NoWrap;
         }
         if (amountText != null)
         {
@@ -52,9 +56,43 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler
         }
     }
 
+    public int ItemIndex => index;
+
+    private void Awake()
+    {
+        // Garantir que o próprio root receba o raycast. Prefabs antigos
+        // podem ter Image ausente/desativada, então só rótulos clicariam.
+        var image = GetComponent<UnityEngine.UI.Image>();
+        if (image == null) image = gameObject.AddComponent<UnityEngine.UI.Image>();
+        image.raycastTarget = true;
+        image.enabled = true;
+        if (itemNameText != null) itemNameText.raycastTarget = false;
+        if (amountText != null) amountText.raycastTarget = false;
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        // O EventSystem entrega pointerDrag ao destino, sem tocar no
+        // DragDropManager do inventário/equipamento.
+    }
+
+    public void OnDrag(PointerEventData eventData) { }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        // UI interativa recebe OnDrop; um Canvas transparente não é
+        // evidência de janela visível. Compartilhar o mesmo filtro da Bag.
+        if (eventData.button != PointerEventData.InputButton.Left ||
+            DragDropManager.PointerBlocksWorldDrop(eventData)) return;
+        LootUI.Instance?.DropItemToWorld(index, eventData.position);
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button == PointerEventData.InputButton.Left)
+        {
+            Debug.Log($"[LootItemSlot] Selecionado index={index}");
             onItemClick?.Invoke(index);
+        }
     }
 }

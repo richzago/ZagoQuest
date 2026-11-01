@@ -33,6 +33,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("chat"), message: z.string().trim().min(1).max(MAX_CHAT_LENGTH) }),
   z.strictObject({ type: z.literal("loot"), corpseId: identifier }),
   z.strictObject({
+    type: z.literal("dropCorpseLoot"), corpseId: identifier,
+    itemIndex: z.number().int().nonnegative().safe(),
+    x: tileCoordinate, y: tileCoordinate,
+  }),
+  z.strictObject({
     type: z.literal("takeLoot"),
     corpseId: identifier,
     takeAll: z.boolean(),
@@ -41,12 +46,22 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     message: "itemIndex é obrigatório para loot individual.",
   }),
   z.strictObject({ type: z.literal("useItem"), itemId: identifier }),
-  z.strictObject({ type: z.literal("equipItem"), itemId: identifier }),
+  z.strictObject({
+    type: z.literal("openBag"), itemId: identifier,
+    instanceId: identifier.optional(),
+  }),
+  z.strictObject({ type: z.literal("closeBag") }),
+  z.strictObject({
+    type: z.literal("equipItem"), itemId: identifier,
+    instanceId: identifier.optional(),
+  }),
   z.strictObject({ type: z.literal("unequipItem"), slot: z.string().trim().min(1).max(32) }),
   z.strictObject({
     type: z.literal("dropItem"),
     itemId: identifier,
     amount: positiveAmount.optional(), // Legado: handler adota 1 quando omitido.
+    fromEquipment: z.boolean().optional(),
+    instanceId: identifier.optional(),
     x: tileCoordinate,
     y: tileCoordinate,
   }),

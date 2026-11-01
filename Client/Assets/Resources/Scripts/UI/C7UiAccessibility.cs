@@ -41,8 +41,9 @@ public sealed class C7UiAccessibility : MonoBehaviour
     private void Apply()
     {
         // Só altera Canvas UI; o render do mundo e colisões permanecem iguais.
-        var scalers = FindObjectsByType<CanvasScaler>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+        // Overload atual do Unity; incluir canvases desativados conserva a
+        // escala restaurada após abrir/fechar painéis e elimina CS0618.
+        var scalers = FindObjectsByType<CanvasScaler>(FindObjectsInactive.Include);
         foreach (var scaler in scalers)
         {
             if (scaler == null || scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)

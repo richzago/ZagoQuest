@@ -1,0 +1,12 @@
+{
+  "id": "equipment/backpack/simple_bag",
+  "name": "Simple Bag",
+  "description": "Bolsa simples com 10 espaços. Equipe no slot Backpack para coletar itens.",
+  "type": "equipment",
+  "stackable": false,
+  "slot": "BACKPACK",
+  "levelRequired": 1,
+  "containerSlots": 10,
+  "bonuses": {},
+  "value": 10
+}

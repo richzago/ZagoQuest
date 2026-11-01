@@ -26,7 +26,7 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class ChatMessageReceived { public string type; public string message; }
     [Serializable] public class LootWindowMessage { public string type; public string corpseId; public LootItem[] items; }
     [Serializable] public class LootErrorMessage { public string type; public string message; }
-    [Serializable] public class InventoryMessage { public string type; public int gold; public InventoryItem[] items; public InventoryEquipment[] equipment; }
+    [Serializable] public class InventoryMessage { public string type; public int gold; public InventoryItem[] items; public InventoryEquipment[] equipment; public string bagItemId; public int bagSlots; public int slotsUsed; }
     [Serializable] public class ItemUsedMessage { public string type; public string itemId; public bool success; public string message; }
     [Serializable] public class ShopWindowMessage { public string type; public string npcId; public ShopItem[] items; }
     [Serializable] public class BuyResultMessage { public string type; public bool success; public string message; }
@@ -52,7 +52,7 @@ namespace ZagoQuest.Networking.Messages
 
     // Subclasses
     [Serializable] public class LootItem { public string itemId; public int amount; public string itemName; }
-    [Serializable] public class InventoryItem { public string itemId; public int amount; public string itemType; }
+    [Serializable] public class InventoryItem { public string itemId; public int amount; public string itemType; public string instanceId; }
     [Serializable] public class InventoryEquipment { public string slot; public string itemId; }
     [Serializable] public class ShopItem { public string itemId; public string name; public int price; public int sellPrice; }
     [Serializable] public class EquipmentItem { public string slot; public string itemId; }

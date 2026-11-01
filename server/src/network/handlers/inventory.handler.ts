@@ -18,11 +18,35 @@ import { isValidItemId, isValidQuantity } from "../../game/systems/economyRules"
 import { FoodRegenerationSystem } from "../../game/systems/foodRegenerationSystem";
 import type {
   ClientUseItemMessage,
+  ClientOpenBagMessage,
+  ClientCloseBagMessage,
   ClientEquipItemMessage,
   ClientUnequipItemMessage,
   ClientDropItemMessage,
   ClientPickupItemMessage,
 } from "../messages";
+
+/**
+ * Janela de Bag aninhada: o servidor só permite abrir filho direto que
+ * está no container atualmente visível. O cliente nunca escolhe UUID
+ * arbitrário, nem pode abrir a Bag de outro personagem.
+ */
+export function handleOpenBag(
+  _ws: WebSocket, player: Player, msg: ClientOpenBagMessage, ctx: HandlerContext,
+): void {
+  if (!player.openNestedBag(msg.itemId, msg.instanceId)) {
+    ctx.packetSender.inventory.sendError("Não foi possível abrir esta Bag.");
+    return;
+  }
+  ctx.packetSender.inventory.sendInventory(player);
+}
+
+export function handleCloseBag(
+  _ws: WebSocket, player: Player, _msg: ClientCloseBagMessage, ctx: HandlerContext,
+): void {
+  if (!player.closeNestedBag()) return;
+  ctx.packetSender.inventory.sendInventory(player);
+}
 
 export async function handleUseItem(
   ws: WebSocket,
@@ -157,7 +181,7 @@ export async function handleEquipItem(
   ctx: HandlerContext,
 ): Promise<void> {
   Logger.system(`[EQUIP] Recebido equipItem de ${player.name}: itemId=${msg.itemId}`);
-  const success = player.equipItem(msg.itemId);
+  const success = player.equipItem(msg.itemId, msg.instanceId);
   if (success) {
     ctx.packetSender.inventory.sendInventory(player);
     ctx.packetSender.inventory.sendPlayerStats(player);
@@ -220,27 +244,45 @@ export async function handleDropItem(
     return;
   }
 
-  const alreadyInBag = player.hasItem(itemId, amount);
   const equippedSlot = [...player.equipment.entries()]
     .find(([, equippedId]) => equippedId === itemId)?.[0];
+  const fromEquipment = msg.fromEquipment === true ||
+    // Compatibilidade com cliente antigo: só vem do equipamento se não
+    // houver nenhuma unidade no inventário.
+    (msg.fromEquipment === undefined &&
+     !player.hasItem(itemId, amount) && amount === 1 && equippedSlot !== undefined);
 
-  // Nunca desequipar para depois descobrir que a quantidade era insuficiente.
-  if (!alreadyInBag && !(amount === 1 && equippedSlot !== undefined)) {
+  // Validar posse e ORIGEM antes de qualquer mutação.
+  if (fromEquipment) {
+    if (amount !== 1 || equippedSlot === undefined) {
+      ctx.packetSender.inventory.sendDropError("Item não está no equipamento informado.");
+      return;
+    }
+  } else if (!player.hasItem(itemId, amount)) {
     ctx.packetSender.inventory.sendDropError("Você não possui essa quantidade.");
     return;
   }
 
-  // Todos os dados do item ficam prontos antes da remoção.
   let itemName = itemId;
-  try { itemName = ItemRegistry.get(itemId).name; } catch { /* item antigo sem definição */ }
+  try { itemName = ItemRegistry.get(itemId).name; } catch { /* save legado */ }
   const onGround = new ItemOnGround(generateId(), itemId, amount, tileX, tileY, itemName);
 
-  if (!alreadyInBag && equippedSlot !== undefined && !player.unequipItem(equippedSlot)) {
-    ctx.packetSender.inventory.sendDropError("Falha ao desequipar o item.");
-    return;
-  }
-
-  if (!player.removeItem(itemId, amount)) {
+  if (player.isContainerItem(itemId)) {
+    if (amount !== 1) {
+      ctx.packetSender.inventory.sendDropError("Cada Bag é uma instância: solte apenas uma.");
+      return;
+    }
+    const payload = player.detachBagForGround(itemId, fromEquipment, msg.instanceId);
+    if (!payload) {
+      ctx.packetSender.inventory.sendDropError("Falha ao soltar esta Bag.");
+      return;
+    }
+    // Guardar conteúdo no OBJETO do chão, nunca no inventário global.
+    onGround.bagState = payload;
+  } else if (fromEquipment) {
+    player.equipment.delete(equippedSlot!);
+    player.recalculateStats();
+  } else if (!player.removeItem(itemId, amount)) {
     ctx.packetSender.inventory.sendDropError("Falha ao remover o item.");
     return;
   }
@@ -272,13 +314,41 @@ export async function handlePickupItem(
     return;
   }
 
-  if (!player.addItem(onGround.itemId, onGround.amount)) {
-    ctx.packetSender.inventory.sendPickupError("Não foi possível adicionar este item.");
+  // Bootstrap: uma Bag ou Backpack no chão DEVE poder ser recuperada
+  // mesmo sem outra equipada. Coleta e equipa diretamente (1 unidade),
+  // sem exigir espaço em contêiner inexistente, mas sem ignorar alcance.
+  let isGroundContainer = false;
+  try {
+    const item = ItemRegistry.get(onGround.itemId);
+    isGroundContainer = item.type === "equipment" &&
+      item.slot === EquipmentSlot.BACKPACK &&
+      Number.isSafeInteger(item.containerSlots) && (item.containerSlots ?? 0) > 0;
+  } catch { /* ID antigo não é bootstrap */ }
+  const bootstrap = player.getContainerCapacity() === 0 &&
+    !player.equipment.has(EquipmentSlot.BACKPACK) &&
+    isGroundContainer && onGround.amount === 1;
+  let accepted = false;
+  if (bootstrap) {
+    accepted = player.attachGroundBag(onGround.itemId, onGround.bagState, true);
+  } else if (isGroundContainer && onGround.amount === 1) {
+    accepted = player.canCollectItems([{itemId:onGround.itemId,amount:1}]) &&
+      player.attachGroundBag(onGround.itemId, onGround.bagState, false);
+  } else {
+    accepted = player.canCollectItems([{itemId:onGround.itemId,amount:onGround.amount}]) &&
+      player.addItem(onGround.itemId, onGround.amount);
+  }
+  if (!accepted) {
+    const why = player.getContainerCapacity() <= 0
+      ? "Equipe uma Bag/Backpack para pegar itens do chão."
+      : "Sua Bag/Backpack está cheia ou o item é inválido.";
+    Logger.warn(`[SERVER LOG][PICKUP] ${player.name}: ${why}`);
+    ctx.packetSender.inventory.sendPickupError(why);
     return;
   }
 
   ctx.world.removeItemOnGround(onGround);
   ctx.broadcast.broadcastDespawn(onGround.id);
   ctx.packetSender.inventory.sendInventory(player);
+  if (bootstrap) ctx.packetSender.inventory.sendEquipment(player);
   Logger.loot(`${player.name} coletou ${onGround.amount}x ${onGround.itemId}.`);
 }

@@ -32,14 +32,16 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private CanvasGroup inventoryGroup;
     private CanvasGroup lootGroup;
     private Button backpackButton, lootButton, closeLootButton;
+    private Button previousLootButton, nextLootButton, takeAllMiniButton;
+    private RectTransform bagHost, corpseHost;
     private TextMeshProUGUI backpackLabel, lootLabel;
     private RectTransform tabBar;
     private GameObject tabBarObject;
     private float lastWidth = -1f;
-    private readonly Color32 idle = new Color32(28, 42, 55, 255);
-    private readonly Color32 active = new Color32(83, 66, 43, 255);
-    private readonly Color32 letters = new Color32(235, 233, 226, 255);
-    private readonly Color32 disabled = new Color32(116, 129, 140, 240);
+    private readonly Color32 idle = C11VisualTheme.Recess;
+    private readonly Color32 active = C11VisualTheme.BronzeDark;
+    private readonly Color32 letters = C11VisualTheme.Text;
+    private readonly Color32 disabled = C11VisualTheme.Muted;
 
     private void Awake()
     {
@@ -53,7 +55,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) TryDock();
         if (!docked) return;
         if (shell == null || shell.DynamicHost == null) return;
-        float width = shell.DynamicHost.rect.width;
+        ResolveHosts();
+        float width = bagHost != null ? bagHost.rect.width : shell.DynamicHost.rect.width;
         if (Mathf.Abs(width - lastWidth) > 1f)
         {
             AdaptInventoryGrid();
@@ -109,6 +112,34 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         else if (inventory.IsInventoryOpen) selected = Tab.Backpack;
         ApplyVisibility();
         Debug.Log("[C8DynamicDock] Mochila e Loot originais encaixados na sidebar.");
+    }
+
+    /// <summary>
+    /// Troca APENAS o RectTransform REAL entre colunas configuráveis.
+    /// Nunca cria clones de LootUI/InventoryUI e mantém callbacks originais.
+    /// </summary>
+    private void ResolveHosts()
+    {
+        var preferences=C10ClientLayoutSettings.Instance;
+        var desiredBag=preferences != null && preferences.BagHost != null
+            ? preferences.BagHost : shell.DynamicHost;
+        var desiredLoot=preferences != null && preferences.LootHost != null
+            ? preferences.LootHost : shell.DynamicHost;
+        if (desiredBag != null && inventoryBackup.rect != null &&
+            inventoryBackup.rect.parent != desiredBag)
+        {
+            inventoryBackup.rect.SetParent(desiredBag,false);
+            bagHost=desiredBag;
+            lastWidth=-1f;
+        }
+        if (desiredLoot != null && lootBackup.rect != null &&
+            lootBackup.rect.parent != desiredLoot)
+        {
+            lootBackup.rect.SetParent(desiredLoot,false);
+            corpseHost=desiredLoot;
+        }
+        if (bagHost == null) bagHost=desiredBag;
+        if (corpseHost == null) corpseHost=desiredLoot;
     }
 
     private static PanelBackup Capture(RectTransform rect)
@@ -167,6 +198,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         var viewport = panel.Find("C6InventoryViewport") as RectTransform;
         if (viewport != null)
         {
+            if (viewport.GetComponent<C9LootBagDropTarget>() == null)
+                viewport.gameObject.AddComponent<C9LootBagDropTarget>();
             viewport.anchorMin = Vector2.zero;
             viewport.anchorMax = Vector2.one;
             viewport.offsetMin = new Vector2(5f, 35f);
@@ -193,18 +226,27 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private void AdaptInventoryGrid()
     {
         if (inventory == null || inventory.slotsGrid == null || shell == null ||
-            shell.DynamicHost == null) return;
+            bagHost == null) return;
         var grid = inventory.slotsGrid.GetComponent<GridLayoutGroup>();
         if (grid == null) return;
         // 3 colunas de 92px estouravam a largura da barra (~240px).
         // 2 colunas preservam nome + ícone e scroll vertical do inventário.
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
-        float available = Mathf.Max(180f, shell.DynamicHost.rect.width - 24f);
-        float size = Mathf.Clamp((available - 15f) * 0.5f, 72f, 108f);
-        grid.cellSize = new Vector2(size, size);
-        grid.spacing = new Vector2(5f, 5f);
-        grid.padding = new RectOffset(5, 5, 5, 5);
+        float available = Mathf.Max(132f, bagHost.rect.width - 16f);
+        // Linhas baixas e margem curta: o scroll não "pula" os itens
+        // finais da Bag pequena. A altura deixa espaço ao Loot abaixo.
+        float width = Mathf.Clamp((available - 15f) * 0.5f, 56f, 100f);
+        grid.cellSize = new Vector2(width, 62f);
+        grid.spacing = new Vector2(4f, 3f);
+        grid.padding = new RectOffset(4, 4, 4, 4);
+        var bagScroll = inventory.slotsGrid.GetComponentInParent<ScrollRect>();
+        if (bagScroll != null)
+        {
+            bagScroll.scrollSensitivity = 9f;
+            bagScroll.inertia = false;
+            bagScroll.movementType = ScrollRect.MovementType.Clamped;
+        }
     }
 
     private void ConfigureLootPanel()
@@ -227,7 +269,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             var scrollRect = scroll.transform as RectTransform;
             if (scrollRect != null)
             {
-                scrollRect.anchorMin = new Vector2(0.02f, 0.21f);
+                scrollRect.anchorMin = new Vector2(0.02f, 0.04f);
                 scrollRect.anchorMax = new Vector2(0.98f, 0.98f);
                 scrollRect.offsetMin = scrollRect.offsetMax = Vector2.zero;
             }
@@ -240,6 +282,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             }
             scroll.horizontal = false;
             scroll.vertical = true;
+            scroll.scrollSensitivity = 9f;
+            scroll.inertia = false;
         }
         if (loot.takeAllButton != null)
         {
@@ -282,13 +326,27 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         tabBar.offsetMin = new Vector2(8f, -84f);
         tabBar.offsetMax = new Vector2(-8f, -45f);
 
-        backpackButton = ButtonAt("BackpackTab", "MOCHILA", 0f, 0.44f,
+        backpackButton = ButtonAt("BackpackTab", "BACKPACK", 0f, 0.44f,
             OpenBackpackTab, out backpackLabel);
         lootButton = ButtonAt("LootTab", "LOOT", 0.455f, 0.86f,
             OpenLootTab, out lootLabel);
         TextMeshProUGUI ignore;
         closeLootButton = ButtonAt("CloseLoot", "×", 0.89f, 1f,
             CloseLoot, out ignore);
+        // Pequeno seletor de cadáveres: mantém múltiplas janelas de loot
+        // acessíveis, sempre revalidando conteúdo pelo Node ao trocar.
+        var prevObj = new GameObject("PreviousCorpse", typeof(RectTransform),
+            typeof(Image), typeof(Button));
+        var nextObj = new GameObject("NextCorpse", typeof(RectTransform),
+            typeof(Image), typeof(Button));
+        previousLootButton = NavigationButton(prevObj, "<", 0.78f,
+            () => loot?.NavigateLoot(-1));
+        nextLootButton = NavigationButton(nextObj, ">", 0.89f,
+            () => loot?.NavigateLoot(1));
+        var takeAllObj=new GameObject("TakeAllShortcut",typeof(RectTransform),
+            typeof(Image),typeof(Button));
+        takeAllMiniButton=NavigationButton(takeAllObj,"TODOS",0.54f,
+            () => loot?.TakeAllLoot());
     }
 
     private Button ButtonAt(string name, string title, float left, float right,
@@ -304,12 +362,43 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         image.color = idle;
         image.raycastTarget = true; // botão visível APENAS na sidebar
         var button = obj.GetComponent<Button>();
+        C11VisualTheme.StyleButton(button);
         button.onClick.AddListener(action);
         var titleObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         titleObj.transform.SetParent(rect, false);
         label = titleObj.GetComponent<TextMeshProUGUI>();
         label.text = title;
         label.fontSize = title == "×" ? 20f : 12f;
+        label.color = letters;
+        label.alignment = TextAlignmentOptions.Center;
+        label.raycastTarget = false;
+        var lr = label.rectTransform;
+        lr.anchorMin = Vector2.zero;
+        lr.anchorMax = Vector2.one;
+        lr.offsetMin = lr.offsetMax = Vector2.zero;
+        return button;
+    }
+
+    private Button NavigationButton(GameObject obj, string glyph,
+        float left, UnityEngine.Events.UnityAction action)
+    {
+        obj.transform.SetParent(shell.DynamicSection, false);
+        var rect = (RectTransform)obj.transform;
+        rect.anchorMin = new Vector2(left, 1f);
+        rect.anchorMax = new Vector2(left + (glyph == "TODOS" ? 0.21f : 0.09f), 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.offsetMin = new Vector2(0f, -36f);
+        rect.offsetMax = new Vector2(0f, -8f);
+        var img = obj.GetComponent<Image>();
+        img.color = idle;
+        img.raycastTarget = true;
+        var button = obj.GetComponent<Button>();
+        button.onClick.AddListener(action);
+        var labelObj = new GameObject("Symbol", typeof(RectTransform), typeof(TextMeshProUGUI));
+        labelObj.transform.SetParent(obj.transform, false);
+        var label = labelObj.GetComponent<TextMeshProUGUI>();
+        label.text = glyph;
+        label.fontSize = glyph == "TODOS" ? 10f : 17f;
         label.color = letters;
         label.alignment = TextAlignmentOptions.Center;
         label.raycastTarget = false;
@@ -371,10 +460,53 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) return;
         bool connected = NetworkManager.Instance != null &&
             NetworkManager.Instance.isConnected;
-        bool showBag = connected && selected == Tab.Backpack &&
-            inventory != null && inventory.IsInventoryOpen;
-        bool showLoot = connected && selected == Tab.Loot &&
-            loot != null && loot.IsLootOpen;
+        bool showBag = connected && inventory != null &&
+            inventory.IsInventoryOpen && inventory.HasEquippedBag;
+        bool showLoot = connected && loot != null && loot.IsLootOpen;
+        float freeHeight = bagHost != null ? bagHost.rect.height : 0f;
+        bool sameHost = bagHost != null && bagHost == corpseHost;
+        // Game View baixa/F10 130%: só a aba mais nova recebe a área;
+        // não criar dois painéis inutilizáveis com altura de 20px.
+        if (sameHost && showBag && showLoot && freeHeight < 210f)
+        {
+            if (selected == Tab.Backpack) showLoot = false;
+            else showBag = false;
+        }
+        // Não são mais abas que se ocultam mutuamente: Bag compacta acima,
+        // Loot no restante do host. Dois (ou mais) cadáveres ficam navegáveis.
+        var host = bagHost;
+        if (host != null)
+        {
+            float h = host.rect.height;
+            float bagHeight = showBag ? Mathf.Min(112f, Mathf.Max(66f, h * 0.39f)) : 0f;
+            float lootAvailable = corpseHost != null ? corpseHost.rect.height : h;
+            float lootHeight = showLoot ? Mathf.Min(128f,
+                Mathf.Max(52f, lootAvailable - (sameHost ? bagHeight + 5f : 0f))) : 0f;
+            float lootTop = sameHost && showBag && showLoot ? bagHeight + 5f : 0f;
+            if (inventoryBackup.rect != null)
+            {
+                var r = inventoryBackup.rect;
+                r.anchorMin = new Vector2(0f, 1f);
+                r.anchorMax = new Vector2(1f, 1f);
+                r.pivot = new Vector2(0.5f, 1f);
+                r.offsetMin = new Vector2(0f, -bagHeight);
+                r.offsetMax = Vector2.zero;
+            }
+            if (lootBackup.rect != null)
+            {
+                var r = lootBackup.rect;
+                // O root do Loot tem ALTURA fixa. Antes anchorMin=(0,1)
+                // e anchorMax=(1,1), mas offsetMin partia da BASE do host,
+                // criando uma janela maior que a altura calculada.
+                // Corrigir as duas âncoras no topo garante que os slots e
+                // o RectMask2D usem exatamente a faixa reservada.
+                r.anchorMin = new Vector2(0f, 1f);
+                r.anchorMax = new Vector2(1f, 1f);
+                r.pivot = new Vector2(0.5f, 1f);
+                r.offsetMax = new Vector2(0f, -lootTop);
+                r.offsetMin = new Vector2(0f, -lootTop - lootHeight);
+            }
+        }
         if (inventoryGroup != null)
         {
             inventoryGroup.alpha = showBag ? 1f : 0f;
@@ -389,7 +521,23 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         }
         if (lootButton != null) lootButton.interactable =
             connected && loot != null && loot.IsLootOpen;
-        if (backpackButton != null) backpackButton.interactable = connected;
+        if (backpackButton != null)
+            backpackButton.interactable = connected && inventory != null &&
+                inventory.HasEquippedBag;
+        if (takeAllMiniButton != null)
+            takeAllMiniButton.interactable = connected && loot != null &&
+                loot.IsLootOpen && loot.VisibleLootItemCount > 0;
+        if (previousLootButton != null)
+            previousLootButton.interactable = connected && loot != null &&
+                loot.OpenedLootCount > 1;
+        if (nextLootButton != null)
+            nextLootButton.interactable = connected && loot != null &&
+                loot.OpenedLootCount > 1;
+        if (backpackLabel != null && inventory != null)
+            backpackLabel.text = inventory.HasEquippedBag
+                ? (inventory.EquippedBagId != null &&
+                    inventory.EquippedBagId.Contains("simple_bag") ? "BAG" : "BACKPACK")
+                : "SEM BAG";
         if (closeLootButton != null)
             closeLootButton.gameObject.SetActive(connected && loot != null && loot.IsLootOpen);
         if (backpackButton != null)
@@ -398,6 +546,23 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             lootButton.GetComponent<Image>().color = showLoot ? active : idle;
         if (lootLabel != null)
             lootLabel.color = lootButton != null && lootButton.interactable ? letters : disabled;
+    }
+
+    /// <summary>
+    /// Antes de destruir uma coluna configurável, salva os RectTransforms reais
+    /// no host principal. O recálculo seguinte pode encaixá-los em outra coluna.
+    /// </summary>
+    public void ReturnToPrimaryHost()
+    {
+        if (!docked || shell == null || shell.DynamicHost == null) return;
+        if (inventoryBackup.rect != null &&
+            inventoryBackup.rect.parent != shell.DynamicHost)
+            inventoryBackup.rect.SetParent(shell.DynamicHost,false);
+        if (lootBackup.rect != null &&
+            lootBackup.rect.parent != shell.DynamicHost)
+            lootBackup.rect.SetParent(shell.DynamicHost,false);
+        bagHost = corpseHost = shell.DynamicHost;
+        lastWidth=-1f;
     }
 
     /// <summary>
@@ -424,6 +589,9 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         Restore(inventoryBackup);
         Restore(lootBackup);
         if (tabBarObject != null) Destroy(tabBarObject);
+        if (previousLootButton != null) Destroy(previousLootButton.gameObject);
+        if (nextLootButton != null) Destroy(nextLootButton.gameObject);
+        if (takeAllMiniButton != null) Destroy(takeAllMiniButton.gameObject);
         tabBarObject = null;
         tabBar = null;
         shell?.SetDynamicDocked(false);

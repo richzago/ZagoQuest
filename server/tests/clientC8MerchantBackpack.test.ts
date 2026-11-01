@@ -36,9 +36,10 @@ test("UI2B: comprar, equipar, desequipar e revender Backpack sem lucro infinito"
  player.bankGold = 0;
  assert.equal(ShopSystem.buyItem(player,npc,backpackId,1),true);
  assert.equal(player.gold,65);
- assert.equal(player.inventory.get(backpackId),1);
- assert.equal(player.equipItem(backpackId),true);
+ // C9: primeira Bag/Backpack comprada equipa automaticamente para desbloquear acesso.
  assert.equal(player.equipment.get(EquipmentSlot.BACKPACK),backpackId);
+ assert.equal(player.getContainerCapacity(),20);
+ assert.equal(player.inventory.has(backpackId),false);
  assert.equal(player.inventory.has(backpackId),false);
  assert.equal(player.unequipItem(EquipmentSlot.BACKPACK),true);
  assert.equal(player.inventory.get(backpackId),1);

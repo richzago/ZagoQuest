@@ -33,7 +33,7 @@ test("UI2B: abas e contenção de raycast isoladas da área de jogo",()=>{
  const dock=unity("UI/C8SidebarDynamicDock.cs");
  const sidebar=unity("UI/C8SidebarShell.cs");
  const target=unity("Combat/TargetSelector.cs");
- assert.match(dock,/ButtonAt\("BackpackTab", "MOCHILA"/);
+ assert.match(dock,/ButtonAt\("BackpackTab", "BACKPACK"/);
  assert.match(dock,/ButtonAt\("LootTab", "LOOT"/);
  assert.match(dock,/ButtonAt\("CloseLoot", "×"/);
  assert.match(dock,/inventoryGroup\.blocksRaycasts = showBag/);
@@ -44,7 +44,7 @@ test("UI2B: abas e contenção de raycast isoladas da área de jogo",()=>{
  assert.match(dock,/if \(image != null\) image\.raycastTarget = false/);
  assert.match(sidebar,/GetComponent<C8SidebarDynamicDock>\(\)\?\.Undock\(\)/);
  assert.match(sidebar,/public RectTransform DynamicHost => dynamicHost/);
- assert.match(sidebar,/shell/);
+ assert.match(sidebar,/public sealed class C8SidebarShell : MonoBehaviour/);
  assert.match(target,/if \(currentTargetId == clickedId\)\s*ClearTarget\(\)/);
  assert.match(target,/network\.Inventory\?\.SendLoot\(corpse\.corpseId\)/);
  assert.doesNotMatch(dock,/IsPointerOverUi|ScreenPointToRay|Physics2D|Camera\.main|Canvas\.ForceUpdateCanvases/);
@@ -74,8 +74,8 @@ test("UI2B: mochila é inventário já existente, 2 colunas e scroll; nenhuma mo
  const inventory=unity("UI/InventoryUI.cs");
  const oldLayout=unity("UI/C6InventoryEquipmentLayout.cs");
  assert.match(dock,/grid\.constraintCount = 2/);
- assert.match(dock,/grid\.cellSize = new Vector2\(size, size\)/);
- assert.match(dock,/grid\.padding = new RectOffset\(5, 5, 5, 5\)/);
+ assert.match(dock,/grid\.cellSize = new Vector2\(width, 62f\)/);
+ assert.match(dock,/grid\.padding = new RectOffset\(4, 4, 4, 4\)/);
  assert.match(dock,/inventory\.OpenInventory\(\)/);
  assert.match(inventory,/public void OpenInventory\(\)/);
  assert.match(inventory,/public bool IsInventoryOpen => isInventoryOpen/);
@@ -91,10 +91,10 @@ test("UI2B: proporções da área dinâmica aceitam 1280x720 e F10 sem modificar
  const dock=unity("UI/C8SidebarDynamicDock.cs"),view=unity("UI/C8PlayfieldViewport.cs");
  assert.match(dock,/tabBar\.offsetMin = new Vector2\(8f, -84f\)/);
  assert.match(dock,/tabBar\.offsetMax = new Vector2\(-8f, -45f\)/);
- assert.match(dock,/scrollRect\.anchorMin = new Vector2\(0\.02f, 0\.21f\)/);
+ assert.match(dock,/scrollRect\.anchorMin = new Vector2\(0\.02f, 0\.04f\)/);
  assert.match(dock,/scrollRect\.anchorMax = new Vector2\(0\.98f, 0\.98f\)/);
  assert.match(dock,/closeLootButton\.gameObject\.SetActive/);
  assert.match(dock,/if \(lootButton != null\) lootButton\.interactable/);
- assert.match(view,/worldCamera\.rect = new Rect\(0f, 0f, viewportWidth, 1f\)/);
+ assert.match(view,/worldCamera\.rect = new Rect\(viewportStart, 0f, viewportWidth, 1f\)/);
  assert.doesNotMatch(dock,/worldCamera|Screen\.width|CameraFollow|GameManager\.Instance|Physics2D/);
 });

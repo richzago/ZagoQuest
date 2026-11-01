@@ -10,12 +10,12 @@ using UnityEngine.UI;
 /// </summary>
 public static class WorldWindowLayout
 {
-    public static readonly Color Background = new Color32(20, 29, 42, 246);
-    public static readonly Color Row = new Color32(34, 47, 61, 242);
-    public static readonly Color RowAlternate = new Color32(40, 55, 70, 242);
-    public static readonly Color Label = new Color32(235, 233, 226, 255);
-    public static readonly Color Muted = new Color32(181, 196, 207, 255);
-    public static readonly Color Gold = new Color32(235, 190, 107, 255);
+    public static readonly Color Background = C11VisualTheme.Surface;
+    public static readonly Color Row = C11VisualTheme.Row;
+    public static readonly Color RowAlternate = C11VisualTheme.RowAlternate;
+    public static readonly Color Label = C11VisualTheme.Text;
+    public static readonly Color Muted = C11VisualTheme.Muted;
+    public static readonly Color Gold = C11VisualTheme.Bronze;
 
     public static void PreparePanel(GameObject panel, float width, float height)
     {

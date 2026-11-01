@@ -6,7 +6,10 @@
 export interface ServerInventoryMessage {
   type: "inventory";
   gold: number;
-  items: Array<{ itemId: string; amount: number; itemType?: string }>;
+  items: Array<{ itemId: string; amount: number; itemType?: string; instanceId?: string }>;
+  bagItemId?: string | null;
+  bagSlots?: number;
+  slotsUsed?: number;
 }
 
 export interface ServerEquipmentMessage {

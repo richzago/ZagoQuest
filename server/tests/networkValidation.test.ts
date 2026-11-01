@@ -28,6 +28,9 @@ const validMessages = [
   { type: "stopAutoAttack" },
   { type: "chat", message: "oi, tudo bem?" },
   { type: "loot", corpseId: "corpse-1" },
+  { type: "openBag", itemId: "equipment/backpack/simple_bag" },
+  { type: "closeBag" },
+  { type: "dropCorpseLoot", corpseId: "corpse-1", itemIndex: 0, x: 2, y: 3 },
   { type: "takeLoot", corpseId: "corpse-1", takeAll: true },
   { type: "takeLoot", corpseId: "corpse-1", takeAll: false, itemIndex: 0 },
   { type: "useItem", itemId: "consumable/health_potion" },
@@ -47,13 +50,13 @@ const validMessages = [
   { type: "closeBank", npcId: "banker-1" },
 ] as const;
 
-test("todos os 23 tipos de mensagem do cliente são aceitos com campos válidos", () => {
+test("todos os 26 tipos de mensagem do cliente são aceitos com campos válidos", () => {
   for (const message of validMessages) {
     const parsed = parseClientMessage(JSON.stringify(message));
     assert.equal(parsed.ok, true, `Comando rejeitado: ${JSON.stringify(message)}`);
     if (parsed.ok) assert.equal(parsed.message.type, message.type);
   }
-  assert.equal(new Set(validMessages.map((v) => v.type)).size, 23);
+  assert.equal(new Set(validMessages.map((v) => v.type)).size, 26);
 });
 
 test("esquemas cobrem exatamente os tipos registrados nos handlers", () => {

@@ -95,6 +95,10 @@ export class Character {
   @Column({ type: "jsonb", default: {} })
   inventory: Record<string, number>;
 
+  /** Conteúdo e identidades individuais das Bags do personagem (JSONB). */
+  @Column({ type: "jsonb", default: {} })
+  containerState: Record<string, unknown>;
+
   /** Equipamentos atuais (slot → itemId). Armazenado como JSONB. */
   @Column({ type: "jsonb", default: {} })
   equipment: Record<string, string>;

@@ -22,12 +22,15 @@ import type {
   ClientAttackMessage,
   ClientStartAutoAttackMessage,
   ClientStopAutoAttackMessage,
+  ClientOpenBagMessage,
+  ClientCloseBagMessage,
   ClientUseItemMessage,
   ClientEquipItemMessage,
   ClientUnequipItemMessage,
   ClientDropItemMessage,
   ClientPickupItemMessage,
   ClientLootMessage,
+  ClientDropCorpseLootMessage,
   ClientTakeLootMessage,
   ClientChatMessage,
   ClientOpenShopMessage,
@@ -95,12 +98,15 @@ export type ClientMessage =
   | ClientAttackMessage
   | ClientStartAutoAttackMessage
   | ClientStopAutoAttackMessage
+  | ClientOpenBagMessage
+  | ClientCloseBagMessage
   | ClientUseItemMessage
   | ClientEquipItemMessage
   | ClientUnequipItemMessage
   | ClientDropItemMessage
   | ClientPickupItemMessage
   | ClientLootMessage
+  | ClientDropCorpseLootMessage
   | ClientTakeLootMessage
   | ClientChatMessage
   | ClientOpenShopMessage

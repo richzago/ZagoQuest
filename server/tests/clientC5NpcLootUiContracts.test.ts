@@ -16,7 +16,7 @@ const scene = () => readFileSync(join(
 test("C5: a janela de loot usa scroll e uma linha clicável por item, sem TMP capturar raycast", () => {
   const ui=unity("UI/LootUI.cs"), row=unity("UI/LootItemSlot.cs"), layout=unity("UI/WorldWindowLayout.cs");
   assert.match(ui,/WorldWindowLayout\.PrepareList\(itemsContainer\)/);
-  assert.match(ui,/WorldWindowLayout\.PrepareRow\(slot, 56f, i % 2 == 1\)/);
+  assert.match(ui,/WorldWindowLayout\.PrepareRow\(slot, 36f, i % 2 == 1\)/);
   assert.match(ui,/WorldWindowLayout\.PrepareRow\(slot/);
   assert.match(layout,/group\.childControlWidth = true/);
   assert.match(layout,/group\.childControlHeight = true/);

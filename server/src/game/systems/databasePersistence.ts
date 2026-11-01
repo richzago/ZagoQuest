@@ -70,6 +70,10 @@ export class DatabasePersistence {
       player.equipment.set(slot as EquipmentSlot, itemId);
     }
 
+    // C10: migracao automatica de saves antigos (sem apagar inventory).
+    // Cada instância de Bag tem identidade e conteúdo próprio persistido.
+    player.restoreBagState(character.containerState as any);
+
     // Restaura skills
     player.skills.clear();
     for (const [skillKey, skillState] of Object.entries(character.skills)) {
@@ -118,6 +122,7 @@ export class DatabasePersistence {
 
     // Serializa Map para objeto
     character.inventory = Object.fromEntries(player.inventory);
+    character.containerState = player.exportBagState() as unknown as Record<string, unknown>;
     character.equipment = Object.fromEntries(player.equipment);
     character.skills = Object.fromEntries(
       Array.from(player.skills.entries()).map(([k, v]) => [k, v]),

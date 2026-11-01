@@ -139,7 +139,13 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (string.IsNullOrEmpty(currentItemId)) return;
+        if (slotType == EquipmentSlot.BACKPACK &&
+            eventData.button == PointerEventData.InputButton.Left &&
+            !string.IsNullOrEmpty(currentItemId))
+        {
+            // C9: somente clicar na Backpack equipada abre a Bag real.
+            InventoryUI.Instance?.ToggleBackpack();
+        }
     }
 
     public void OnDrop(PointerEventData eventData)
@@ -214,23 +220,14 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
             return;
         }
 
-        // 🔥 CORRIGIDO: pointerCurrentRaycast é struct, acesse diretamente .gameObject
-        GameObject target = eventData.pointerCurrentRaycast.gameObject;
-        if (target != null && target.GetComponentInParent<InventorySlot>() != null)
-        {
-            // Já tratado pelo InventorySlot.OnDrop
-            Debug.Log("[EquipmentSlotUI] Drop sobre InventorySlot → desequipamento será tratado lá.");
-            DragDropManager.Instance.EndDrag();
-            return;
-        }
-
-        // Soltar sobre UI não significa drop no chão.
-        if (target != null && target.GetComponentInParent<Canvas>() != null)
+        // Inventário e demais controles recebem OnDrop; overlays
+        // transparentes da HUD não devem interceptar o mundo.
+        if (DragDropManager.PointerBlocksWorldDrop(eventData))
         {
             DragDropManager.Instance.EndDrag();
             return;
         }
-        if (Camera.main == null)
+        if (Camera.main == null || !Camera.main.pixelRect.Contains(eventData.position))
         {
             DragDropManager.Instance.EndDrag();
             return;
