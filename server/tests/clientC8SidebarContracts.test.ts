@@ -16,7 +16,7 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   assert.match(ui, /new GameObject\("C8SidebarCanvas", typeof\(RectTransform\)/);
   assert.match(ui, /new GameObject\("SidebarSurface", typeof\(RectTransform\), typeof\(Image\)\)/);
   assert.match(ui, /canvas\.sortingOrder = 110/);
-  assert.match(ui, /SidebarWidth = 304f/);
+  assert.match(ui, /SidebarWidth = C10ClientLayoutSettings\.MainCompactWidth/);
   assert.match(ui, /scaler\.uiScaleMode = CanvasScaler\.ScaleMode\.ScaleWithScreenSize/);
   assert.match(ui, /GetComponent<C7UiAccessibility>\(\)\?\.ApplyCurrent\(\)/);
   const ordered = ["MiniMapSection", "EquipmentSection",
@@ -92,7 +92,7 @@ test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de 
   assert.match(ui, /EquipmentSlotSize = 50f/);
   assert.match(ui, /EquipmentStepX = 62f/);
   assert.match(ui, /EquipmentStepY = 53f/);
-  const sidebarWidth = 304;
+  const sidebarWidth = 228;
   const cardWidth = sidebarWidth - 2 * 13;
   const hostWidth = cardWidth - 2 * 8;
   const lastSlotEdge = (hostWidth - (50 + 62 * 2)) / 2 + 62 * 2 + 50;
@@ -160,7 +160,7 @@ test("C8 viewport: a camera ja existente fica no espaco esquerdo SEM duplicar mu
  assert.match(view, /sidebar\.SidebarSurface\.GetWorldCorners\(worldCorners\)/);
  assert.match(view, /RectTransformUtility\.WorldToScreenPoint\(null, worldCorners\[0\]\)\.x/);
  assert.match(view, /viewportWidth = availableWidth \/ Screen\.width/);
- assert.match(view, /worldCamera\.rect = new Rect\(0f, 0f, viewportWidth, 1f\)/);
+ assert.match(view, /worldCamera\.rect = new Rect\(viewportStart, 0f, viewportWidth, 1f\)/);
  assert.match(view, /worldCamera\.aspect = availableWidth \/ Screen\.height/);
  assert.match(view, /worldCamera\.ResetAspect\(\)/);
  assert.match(view, /if \(originalCaptured\) worldCamera\.rect = initialViewport/);
@@ -182,7 +182,7 @@ test("C8 viewport: F10/duas resolucoes preservam largura visivel e aspecto ortog
   // Validacao geometrica em TS nao substitui execucao Unity.
   for (const [w,h] of [[1920,1080],[1280,720]]) {
     for (const scale of [1,1.15,1.30]) {
-      const sidePx = 304 * scale * (w / 1920);
+      const sidePx = 228 * scale * (w / 1920);
       const left = w - sidePx;
       const portion = left / w;
       const aspect = left / h;
