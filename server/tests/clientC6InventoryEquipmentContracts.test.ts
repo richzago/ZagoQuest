@@ -10,15 +10,16 @@ import { join } from "node:path";
 
 const unity=(file:string)=>readFileSync(join(process.cwd(),"..","Client","Assets","Resources","Scripts",file),"utf8");
 
-test("C6: atalho I usa callback removível, ignora chat e libera InputAction/singleton",()=>{
+test("C9: atalho I foi removido e o slot BACKPACK abre o painel real",()=>{
  const s=unity("UI/InventoryUI.cs");
- assert.match(s,/toggleInventoryAction\.performed \+= OnToggleInventory/);
- assert.match(s,/toggleInventoryAction\.performed -= OnToggleInventory/);
- assert.match(s,/toggleInventoryAction\.Dispose\(\)/);
+ const slot=unity("UI/EquipmentSlotUI.cs");
+ assert.doesNotMatch(s,/toggleInventoryAction|<Keyboard>\/i|OnToggleInventory/);
  assert.match(s,/if \(Instance == this\) Instance = null/);
- assert.match(s,/GetComponentInParent<TMP_InputField>\(\)/);
- assert.match(s,/if \(inventoryPanel == null\) return/);
- assert.doesNotMatch(s,/performed -= ctx => ToggleInventory/);
+ assert.match(s,/public bool HasEquippedBag => bagSlots > 0/);
+ assert.match(s,/if \(!HasEquippedBag\)/);
+ assert.match(s,/public void ToggleBackpack\(\)/);
+ assert.match(slot,/slotType == EquipmentSlot\.BACKPACK/);
+ assert.match(slot,/InventoryUI\.Instance\?\.ToggleBackpack\(\)/);
  assert.match(s,/network\.Inventory\.UseItem\(itemId\)/);
 });
 
@@ -97,17 +98,18 @@ test("C6 visual: a cena mantém as referências de inventário/equipamento que o
  assert.match(prefab,/nameText: \{fileID: [0-9]+\}/);
 });
 
-test("C6 visual: botão X sincroniza painel, flag e atalho I; gold vem somente do snapshot",()=>{
+test("C9 visual: botão X e slot Backpack abrem/fecham, gold/slots do snapshot",()=>{
  const inv=unity("UI/InventoryUI.cs");
  const visual=unity("UI/C6InventoryEquipmentLayout.cs");
  assert.match(visual,/Header\(panel, "INVENTÁRIO", close\)/);
  assert.match(visual,/onClick\.AddListener\(close\)/);
  assert.match(inv,/public void CloseInventory\(\)[\s\S]*?isInventoryOpen = false;[\s\S]*?inventoryPanel\.SetActive\(false\)/);
- assert.match(inv,/isInventoryOpen = !isInventoryOpen/);
- assert.match(inv,/GetComponentInParent<TMP_InputField>\(\)/);
+ assert.match(inv,/public void ToggleBackpack\(\)/);
+ assert.match(inv,/if \(!HasEquippedBag\)/);
  assert.match(inv,/public void HandleInventory\(int gold, Dictionary<string, int> newItems\)[\s\S]*?currentGold = gold/);
  assert.match(inv,/public void UpdateGold\(int gold\)[\s\S]*?currentGold = gold/);
- assert.match(inv,/Ouro em mãos: \{currentGold:N0\} gold/);
+ assert.match(inv,/Slots: \{slotsUsed\}\/\{bagSlots\}/);
+ assert.match(inv,/Ouro: \{currentGold:N0\}/);
 });
 
 test("C6 visual: soltar sobre viewport vazio envia unequip, não drop no mundo",()=>{
@@ -362,7 +364,8 @@ test("C6: clique simples consome por itemType do Node; equipamento usa useItem n
  assert.match(model,/itemType\?: string/);
  assert.match(dto,/public string itemType;/);
  assert.match(handler,/itemTypes\[item\.itemId\] = item\.itemType/);
- assert.match(handler,/HandleInventory\(invMsg\.gold, itemsDict, itemTypes\)/);
+ assert.match(handler,/HandleInventory\(invMsg\.gold, itemsDict, itemTypes,/);
+ assert.match(handler,/invMsg\.bagItemId, invMsg\.bagSlots, invMsg\.slotsUsed/);
  assert.match(inv,/itemTypes\.TryGetValue\(kvp\.Key, out string type\)/);
  assert.match(inv,/slotScript\.Setup\(kvp\.Key, kvp\.Value, NetworkManager\.Instance \?\? networkManager, type\)/);
  assert.match(slot,/string itemType = null/);
