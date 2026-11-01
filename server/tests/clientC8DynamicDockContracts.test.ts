@@ -44,7 +44,7 @@ test("UI2B: abas e contenção de raycast isoladas da área de jogo",()=>{
  assert.match(dock,/if \(image != null\) image\.raycastTarget = false/);
  assert.match(sidebar,/GetComponent<C8SidebarDynamicDock>\(\)\?\.Undock\(\)/);
  assert.match(sidebar,/public RectTransform DynamicHost => dynamicHost/);
- assert.match(sidebar,/shell/);
+ assert.match(sidebar,/public sealed class C8SidebarShell : MonoBehaviour/);
  assert.match(target,/if \(currentTargetId == clickedId\)\s*ClearTarget\(\)/);
  assert.match(target,/network\.Inventory\?\.SendLoot\(corpse\.corpseId\)/);
  assert.doesNotMatch(dock,/IsPointerOverUi|ScreenPointToRay|Physics2D|Camera\.main|Canvas\.ForceUpdateCanvases/);
