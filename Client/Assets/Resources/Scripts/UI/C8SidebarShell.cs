@@ -69,6 +69,7 @@ public sealed class C8SidebarShell : MonoBehaviour
     private bool previousDragVisible, previousCloseVisible;
     private bool previousHierarchyTitleVisible, previousHelpVisible;
     private float lastEquipmentWidth = -1f;
+    private float lastEquipmentHeight = -1f;
 
     // Contrato para futura etapa de loot/backpack: host existe mas NENHUM
     // panel e movido para ele nesta fase de homologacao do equipamento.
@@ -114,10 +115,13 @@ public sealed class C8SidebarShell : MonoBehaviour
                 canvasRoot.activeSelf)
                 panel.SetActive(true);
             float width = equipmentHost.rect.width;
-            if (Mathf.Abs(width - lastEquipmentWidth) > 0.5f)
+            float height = equipmentHost.rect.height;
+            if (Mathf.Abs(width - lastEquipmentWidth) > 0.5f ||
+                Mathf.Abs(height - lastEquipmentHeight) > 0.5f)
             {
                 LayoutExistingSlots(dockedEquipment);
                 lastEquipmentWidth = width;
+                lastEquipmentHeight = height;
             }
         }
     }
@@ -394,6 +398,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dockedEquipment = ui;
         LayoutExistingSlots(ui);
         lastEquipmentWidth = equipmentHost.rect.width;
+        lastEquipmentHeight = equipmentHost.rect.height;
         Debug.Log("[C8Sidebar] Equipamentos originais encaixados na sidebar.");
     }
 
@@ -410,7 +415,13 @@ public sealed class C8SidebarShell : MonoBehaviour
         slots.offsetMin = Vector2.zero;
         slots.offsetMax = Vector2.zero;
 
-        float total = EquipmentSlotSize + EquipmentStepX * 2f;
+        // Em 720p/F10 130%, 4 linhas de 50px estourariam a nova
+        // faixa CAP. Compactar somente os slots, não o painel de peso.
+        float cellSize = Mathf.Min(EquipmentSlotSize,
+            Mathf.Max(40f, (equipmentHost.rect.height - 12f) / 4f));
+        float rowStep = Mathf.Min(EquipmentStepY,
+            Mathf.Max(39f, (equipmentHost.rect.height - cellSize - 8f) / 3f));
+        float total = cellSize + EquipmentStepX * 2f;
         // 3 slots de 50, com passos de 62: 174, centralizados no painel.
         float x0 = Mathf.Max(8f, (panel.rect.width - total) * 0.5f);
         foreach (Transform child in ui.slotsContainer)
@@ -435,8 +446,8 @@ public sealed class C8SidebarShell : MonoBehaviour
             rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = new Vector2(x0 + col * EquipmentStepX,
-                -4f - row * EquipmentStepY);
-            rect.sizeDelta = new Vector2(EquipmentSlotSize, EquipmentSlotSize);
+                -4f - row * rowStep);
+            rect.sizeDelta = new Vector2(cellSize, cellSize);
             rect.localScale = Vector3.one;
             if (slot.slotText != null)
             {

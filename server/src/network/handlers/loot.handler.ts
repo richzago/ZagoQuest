@@ -72,7 +72,7 @@ export async function handleTakeLoot(
     if (!player.canCollectItems(corpse.loot)) {
       const why = player.getContainerCapacity() <= 0
         ? "Equipe uma Bag ou Backpack para coletar loot."
-        : "Não há slots suficientes na Bag/Backpack para pegar tudo.";
+        : "CAP insuficiente ou slots da Bag/Backpack ocupados.";
       Logger.warn(`[SERVER LOG][LOOT] ${player.name}: ${why}`);
       ctx.packetSender.loot.sendLootError(why);
       return;
@@ -107,7 +107,7 @@ export async function handleTakeLoot(
       !player.addItem(item.itemId, item.amount)) {
     const why = player.getContainerCapacity() <= 0
       ? "Equipe uma Bag ou Backpack antes de pegar itens."
-      : "Item indisponível ou sem espaço na Bag/Backpack.";
+      : "Item indisponível, CAP insuficiente ou sem slots na Bag/Backpack.";
     Logger.warn(`[SERVER LOG][LOOT] ${player.name}: ${why}`);
     ctx.packetSender.loot.sendLootError(why);
     return;

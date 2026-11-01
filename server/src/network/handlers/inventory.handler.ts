@@ -338,7 +338,7 @@ export async function handlePickupItem(
   if (!accepted) {
     const why = player.getContainerCapacity() <= 0
       ? "Equipe uma Bag/Backpack para pegar itens do chão."
-      : "Sua Bag/Backpack está cheia ou o item é inválido.";
+      : "CAP insuficiente, Bag/Backpack cheia ou item inválido.";
     Logger.warn(`[SERVER LOG][PICKUP] ${player.name}: ${why}`);
     ctx.packetSender.inventory.sendPickupError(why);
     return;

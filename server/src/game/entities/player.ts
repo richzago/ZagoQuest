@@ -611,8 +611,12 @@ export class Player extends Creature {
     }
 
     const currentItemId = this.equipment.get(slot);
+    // Transferência de peso, não pickup: remover do equipamento antes
+    // de adicionar ao inventário evita contar o item antigo duas vezes.
+    if (currentItemId) this.equipment.delete(slot);
     if (currentItemId && !this.addItem(currentItemId, 1)) {
-      this.addItem(itemId, 1);
+      this.equipment.set(slot, currentItemId);
+      this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + 1);
       return false;
     }
 
@@ -646,10 +650,13 @@ export class Player extends Creature {
       this.recalculateStats();
       return true;
     }
-    // Primeiro garante espaço; não deixa o equipamento desaparecer.
-    if (!this.canAddItem(itemId, 1)) return false;
-    if (!this.addItem(itemId, 1)) return false;
+    // É transferência do próprio equipamento, não peso extra: primeiro
+    // remove do slot, depois adiciona no inventário, revertendo se falhar.
     this.equipment.delete(slot);
+    if (!this.canAddItem(itemId, 1) || !this.addItem(itemId, 1)) {
+      this.equipment.set(slot, itemId);
+      return false;
+    }
 
     // Recalcula os atributos (attack, defense, armor)
     this.recalculateStats();
