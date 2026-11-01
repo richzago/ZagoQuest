@@ -240,7 +240,8 @@ public class DragDropManager : MonoBehaviour
 
             // Não retirar item nem alterar a UI aqui. Node responde com
             // snapshot do inventário/equipamento após aceitar o drop.
-            network.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY, IsFromEquipment());
+            network.Inventory.SendDropItem(draggedItemId, 1, tileX, tileY,
+                IsFromEquipment(), GetSourceInventorySlot()?.BagInstanceId);
         }
         finally
         {
