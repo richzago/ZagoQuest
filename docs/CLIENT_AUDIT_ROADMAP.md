@@ -1,3 +1,20 @@
+## C16 — 4 slots por padrão, rolagem fina e altura ajustável (01/11/2026)
+
+- [x] C15 [PR #121](https://github.com/richzago/ZagoQuest/pull/121) integrado à `dev` a pedido do usuário, mesmo com homologação anterior 6/8; commit de merge `6c80da4`. A UX de slots/scroll ficou para C16.
+- [x] Branch `feature/c16-resizable-inventory-loot-scroll` criada sobre o merge C15; [PR #122](https://github.com/richzago/ZagoQuest/pull/122) **Draft**, ainda não integrado.
+- [x] Backpack inicia com 2×2 slots visíveis e células vazias até a capacidade de slots informada pelo Node.
+- [x] Scroll de Backpack/Loot em passos de até 18 pixels por evento, sem saltos por deltas ±120; scrollbar funcional com viewport separado, roda também sobre o trilho.
+- [x] Layout redimensionável no eixo vertical por alça inferior de Bag e Loot, limitado pela altura disponível na coluna, conteúdo e painel adjacente; preferência local via PlayerPrefs.
+- [x] Atualização parcial da lista de Loot não retorna o scroll ao topo.
+- [x] Testes estáticos/contratos C8/C9 atualizados e criados testes C16; **ainda não equivalem a Play Mode Unity**.
+- [ ] Testar UI no Unity em F10 100/115/130% e 1280×720/1920×1080, inclusive Bag e Loot em colunas iguais e separadas.
+- [ ] Reexecutar cenários de Bag cheia e segurança contra ciclos/UUID inválido usando os testes Node C15; operações maliciosas podem não ser alcançáveis pela UI normal.
+- [ ] Aguardar autorização explícita para integrar PR #122 na `dev`.
+
+[Relatório técnico e checklist C16](C16_RESIZABLE_INVENTORY_LOOT_SCROLL.md)
+
+---
+
 ## C15 — implementação para homologação (01/11/2026)
 
 - [x] C14 homologada (8/8) e [PR #120](https://github.com/richzago/ZagoQuest/pull/120) integrada na `dev` (`4af9cd1`).
