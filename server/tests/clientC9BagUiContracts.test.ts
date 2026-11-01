@@ -33,7 +33,7 @@ test("C9: sem atalho I; apenas Bag equipada desbloqueia abertura do painel",()=>
  assert.match(handler,/invMsg\.bagItemId, invMsg\.bagSlots, invMsg\.slotsUsed/);
 });
 
-test("C10: take-all por Shift+E e drag enviado como takeLoot individual",()=>{
+test("C10: take-all por Shift+L e drag enviado como takeLoot individual",()=>{
  const loot=sourceFile("UI/LootUI.cs");
  const row=sourceFile("UI/LootItemSlot.cs");
  const drop=sourceFile("UI/C9LootBagDropTarget.cs");
