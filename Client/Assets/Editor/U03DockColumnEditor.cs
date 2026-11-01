@@ -186,5 +186,47 @@ public static class U03DockColumnEditor
             "Salve Ctrl+S e rode Play Mode. O modo pode ser desmarcado " +
             "no Inspector sem remover o componente.");
     }
+
+    [MenuItem("ZagoQuest/UI/U03 - 3. Verificar configuracao de colunas")]
+    public static void ValidateScene()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            Debug.LogError("[U03] Abra a scenebasic antes da auditoria.");
+            return;
+        }
+        Canvas hud = null;
+        int configs = 0;
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            foreach (var current in root.GetComponentsInChildren<U03DockColumnConfig>(true))
+                if (current != null) configs++;
+            foreach (var current in root.GetComponentsInChildren<Canvas>(true))
+                if (current.gameObject.name == "HUD") hud = current;
+        }
+
+        U03DockColumnConfig config =
+            hud != null ? hud.GetComponent<U03DockColumnConfig>() : null;
+        GameObject prefab = config != null ? config.DockColumnPrefab : null;
+        bool good = configs == 1 && config != null &&
+            config.UseAuthoredColumns &&
+            prefab != null && prefab.GetComponent<RectTransform>() != null &&
+            prefab.GetComponent<Canvas>() == null &&
+            prefab.GetComponent<Camera>() == null &&
+            prefab.transform.Find("ContentHost") != null;
+
+        string report = "HUD original: " + (hud != null) +
+            " | Configuracoes: " + configs +
+            " | Prefab vinculado: " + (prefab != null) +
+            " | Modo opt-in: " + (config != null &&
+                config.UseAuthoredColumns) +
+            " | ContentHost: " + (prefab != null &&
+                prefab.transform.Find("ContentHost") != null);
+        if (good)
+            Debug.Log("[U03] OK - " + report);
+        else
+            Debug.LogWarning("[U03] REVISAR - " + report);
+    }
 }
 #endif
