@@ -1,5 +1,10 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **UI 2B — Mochila + Loot na área dinâmica (NOVO PR DRAFT):** branch `feature/client-ui-sidebar-dynamic-loot-backpack-2b` nasce de `dev` após merges homologados #115 `9e4ab23` e #116 `913bd49`. Reparenta instâncias REAIS `InventoryPanel` e `LootPanel` para `SidebarDynamicHost`, abas exclusivas `MOCHILA` e `LOOT`, scroll vertical, duas colunas de inventário, seleção de múltiplas linhas e Take All do servidor. **Nenhum sistema de backpacks múltiplas existe ainda no Node**; aqui MOCHILA = inventário atual. Sem mudança de gameplay, camera, `TargetSelector/IsPointerOverUi`, loot wire protocol ou Tiled. [Documentação, riscos e QA Unity](CLIENT_UI_SIDEBAR_DYNAMIC_2B.md). PR ainda requer homologação visual e autorização de merge.
+
+> **Correção de destino solicitada pelo usuário:** usuário esclareceu que integração anterior deveria ser na `dev`, **não na `main`**. `main` foi restaurada exatamente à sua ponta anterior `cf0093b`; `dev` mantém **somente** os PRs #115 e #116 em `913bd49`; a nova UI 2B tem base `dev`. A sincronização PR #117 permanece no histórico de GitHub como já aprovada, mas a referência `main` foi explicitamente restaurada, sem código novo nela. Não repetir promoção para `main` sem nova autorização explícita.
+
+
 > **UI 2A — viewport jogável ao lado da sidebar, EM QA:** o usuário homologou os testes anteriores, mas apontou bug crítico: a sidebar encobre a água a leste porque a `Main Camera` ainda renderiza na tela inteira. Nova correção **apenas no PR #116/Draft**: `C8PlayfieldViewport` (adicionado pelo `NetworkManager`) recorta a câmera existente pela borda em pixels da sidebar, recalcula aspecto, respeita F10 e restaura viewport no logout; sem criar outra câmera, sem tocar no Tiled, no `CameraFollow`, em `TargetSelector/IsPointerOverUi` ou lógica Node. Card Equipamentos 290→265 (compacto 285→260) e 10 slots 52→50, com autosizing. **Sem merge até o usuário testar água da direita, mapa único, zoom, clicks e todas resoluções.** [Checklist detalhado](CLIENT_UI_SIDEBAR_EQUIPMENT_2A.md).
 
 

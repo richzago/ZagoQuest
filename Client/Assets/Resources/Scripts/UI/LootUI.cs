@@ -23,6 +23,10 @@ public class LootUI : MonoBehaviour
     private readonly List<LootItem> visibleItems = new List<LootItem>();
     private readonly List<GameObject> itemSlots = new List<GameObject>();
     private bool awaitingServer;
+    public bool IsSidebarDocked { get; private set; }
+    public bool IsLootOpen => !string.IsNullOrEmpty(currentCorpseId) &&
+        lootPanel != null && lootPanel.activeSelf;
+    public void SetSidebarDocked(bool docked) => IsSidebarDocked = docked;
 
     private void Awake()
     {
@@ -110,14 +114,21 @@ public class LootUI : MonoBehaviour
         RebuildRows();
         if (lootPanel != null) lootPanel.SetActive(true);
         var header = transform.Find("C6DragHeader");
-        if (header != null) header.gameObject.SetActive(true);
-        if (closeButton != null) closeButton.gameObject.SetActive(true);
+        if (header != null && !IsSidebarDocked) header.gameObject.SetActive(true);
+        if (closeButton != null && !IsSidebarDocked) closeButton.gameObject.SetActive(true);
+        C8SidebarDynamicDock.Instance?.OnLootOpened();
     }
 
     private void RebuildRows()
     {
         foreach (var slot in itemSlots)
-            if (slot != null) Destroy(slot);
+            if (slot != null)
+            {
+                // Destroy so executa no fim do frame: desativar AGORA para
+                // a linha antiga nao interceptar clique ou index de lootTaken.
+                slot.SetActive(false);
+                Destroy(slot);
+            }
         itemSlots.Clear();
 
         if (itemsContainer == null || lootItemPrefab == null)
@@ -149,7 +160,10 @@ public class LootUI : MonoBehaviour
             WorldWindowLayout.PrepareRow(slot, 56f, i % 2 == 1);
             var row = slot.GetComponent<LootItemSlot>();
             if (row != null)
+            {
                 row.Setup(visibleItems[i], i, OnItemClicked);
+                if (IsSidebarDocked) row.CompactForSidebar();
+            }
             else
                 Debug.LogError("[LootUI] Prefab sem LootItemSlot.");
             itemSlots.Add(slot);
@@ -230,6 +244,7 @@ public class LootUI : MonoBehaviour
         var header = transform.Find("C6DragHeader");
         if (header != null) header.gameObject.SetActive(false);
         if (closeButton != null) closeButton.gameObject.SetActive(false);
+        C8SidebarDynamicDock.Instance?.OnLootClosed();
     }
 
     private void OnDestroy()

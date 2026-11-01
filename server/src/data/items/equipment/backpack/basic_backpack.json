@@ -1,0 +1,11 @@
+{
+  "id": "equipment/backpack/basic_backpack",
+  "name": "Backpack",
+  "description": "Mochila simples para aventureiros. Pode ser equipada no slot Backpack; compartimentos independentes ainda estao em desenvolvimento.",
+  "type": "equipment",
+  "stackable": false,
+  "slot": "BACKPACK",
+  "levelRequired": 1,
+  "bonuses": {},
+  "value": 25
+}

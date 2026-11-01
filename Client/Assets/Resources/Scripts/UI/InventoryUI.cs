@@ -25,6 +25,7 @@ public class InventoryUI : MonoBehaviour
 
     private InputAction toggleInventoryAction;
     private bool isInventoryOpen = false;
+    public bool IsInventoryOpen => isInventoryOpen;
 
     // =========================
     // CICLO DE VIDA
@@ -80,6 +81,20 @@ public class InventoryUI : MonoBehaviour
     {
         isInventoryOpen = false;
         if (inventoryPanel != null) inventoryPanel.SetActive(false);
+        C8SidebarDynamicDock.Instance?.OnInventoryVisibilityChanged(false);
+    }
+
+    /// <summary>Abre o inventario real pelo botão MOCHILA, sem duplicar snapshots.</summary>
+    public void OpenInventory()
+    {
+        if (inventoryPanel == null) return;
+        if (!isInventoryOpen)
+        {
+            isInventoryOpen = true;
+            inventoryPanel.SetActive(true);
+            RefreshUI();
+        }
+        C8SidebarDynamicDock.Instance?.OnInventoryVisibilityChanged(true);
     }
 
     private void ToggleInventory()
@@ -89,6 +104,7 @@ public class InventoryUI : MonoBehaviour
         inventoryPanel.SetActive(isInventoryOpen);
         if (isInventoryOpen)
             RefreshUI();
+        C8SidebarDynamicDock.Instance?.OnInventoryVisibilityChanged(isInventoryOpen);
     }
 
     // =========================

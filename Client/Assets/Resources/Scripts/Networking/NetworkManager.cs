@@ -105,6 +105,10 @@ public class NetworkManager : MonoBehaviour
         // O viewport usa o limite em pixels da sidebar depois do F10.
         if (GetComponent<C8PlayfieldViewport>() == null)
             gameObject.AddComponent<C8PlayfieldViewport>();
+        // UI 2B: encaixa os PAINEIS EXISTENTES de inventario e loot.
+        // Aguarda Start dos controllers para nao quebrar List/Grid/ScrollRect.
+        if (GetComponent<C8SidebarDynamicDock>() == null)
+            gameObject.AddComponent<C8SidebarDynamicDock>();
 
         if (requireAuthenticatedSession && !HasCredentials)
         {
