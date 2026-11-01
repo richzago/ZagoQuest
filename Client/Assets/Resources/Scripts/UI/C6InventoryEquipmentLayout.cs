@@ -10,10 +10,10 @@ using UnityEngine.UI;
 /// </summary>
 public static class C6InventoryEquipmentLayout
 {
-    private static readonly Color Panel = new Color32(19, 27, 39, 247);
-    private static readonly Color Inner = new Color32(32, 45, 60, 245);
-    private static readonly Color Gold = new Color32(235, 191, 109, 255);
-    private static readonly Color Text = new Color32(232, 233, 228, 255);
+    private static readonly Color Panel = C11VisualTheme.Surface;
+    private static readonly Color Inner = C11VisualTheme.Recess;
+    private static readonly Color Gold = C11VisualTheme.Bronze;
+    private static readonly Color Text = C11VisualTheme.Text;
 
     private static void Dock(GameObject panel, float width, float right)
     {
