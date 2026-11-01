@@ -35,7 +35,7 @@ test("C9: chão aceita apenas 1 contêiner válido sem Bag e responde equipment"
  const src=server("network/handlers/inventory.handler.ts");
  assert.match(src,/item\.slot === EquipmentSlot\.BACKPACK/);
  assert.match(src,/onGround\.amount === 1/);
- assert.match(src,/player\.equipment\.set\(EquipmentSlot\.BACKPACK, onGround\.itemId\)/);
+ assert.match(src,/player\.attachGroundBag\(onGround\.itemId, onGround\.bagState, true\)/);
  assert.match(src,/if \(bootstrap\) ctx\.packetSender\.inventory\.sendEquipment\(player\)/);
  assert.match(src,/ctx\.world\.removeItemOnGround\(onGround\)/);
  assert.match(src,/ctx\.broadcast\.broadcastDespawn\(onGround\.id\)/);
@@ -96,9 +96,9 @@ test("C9: Bag e loot têm limites de altura, scroll lento, linhas pequenas e LRU
  assert.match(dock,/grid\.spacing = new Vector2\(4f, 3f\)/);
  assert.match(dock,/bagScroll\.scrollSensitivity = 9f/);
  assert.match(dock,/bagScroll\.inertia = false/);
- assert.match(dock,/Mathf\.Min\(142f,/);
- assert.match(dock,/Mathf\.Min\(176f,/);
- assert.match(dock,/freeHeight < 245f/);
+ assert.match(dock,/Mathf\.Min\(112f,/);
+ assert.match(dock,/Mathf\.Min\(128f,/);
+ assert.match(dock,/freeHeight < 210f/);
  assert.match(loot,/PrepareRow\(slot, 36f, i % 2 == 1\)/);
  assert.match(loot,/scroll\.scrollSensitivity = 10f/);
  assert.match(loot,/private const int MaxTrackedCorpses = 4/);
