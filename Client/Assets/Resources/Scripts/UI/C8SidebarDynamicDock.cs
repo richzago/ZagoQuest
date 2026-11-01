@@ -32,7 +32,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private CanvasGroup inventoryGroup;
     private CanvasGroup lootGroup;
     private Button backpackButton, lootButton, closeLootButton;
-    private Button previousLootButton, nextLootButton;
+    private Button previousLootButton, nextLootButton, takeAllMiniButton;
+    private RectTransform bagHost, corpseHost;
     private TextMeshProUGUI backpackLabel, lootLabel;
     private RectTransform tabBar;
     private GameObject tabBarObject;
@@ -54,7 +55,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) TryDock();
         if (!docked) return;
         if (shell == null || shell.DynamicHost == null) return;
-        float width = shell.DynamicHost.rect.width;
+        ResolveHosts();
+        float width = bagHost != null ? bagHost.rect.width : shell.DynamicHost.rect.width;
         if (Mathf.Abs(width - lastWidth) > 1f)
         {
             AdaptInventoryGrid();
@@ -110,6 +112,34 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         else if (inventory.IsInventoryOpen) selected = Tab.Backpack;
         ApplyVisibility();
         Debug.Log("[C8DynamicDock] Mochila e Loot originais encaixados na sidebar.");
+    }
+
+    /// <summary>
+    /// Troca APENAS o RectTransform REAL entre colunas configuráveis.
+    /// Nunca cria clones de LootUI/InventoryUI e mantém callbacks originais.
+    /// </summary>
+    private void ResolveHosts()
+    {
+        var preferences=C10ClientLayoutSettings.Instance;
+        var desiredBag=preferences != null && preferences.BagHost != null
+            ? preferences.BagHost : shell.DynamicHost;
+        var desiredLoot=preferences != null && preferences.LootHost != null
+            ? preferences.LootHost : shell.DynamicHost;
+        if (desiredBag != null && inventoryBackup.rect != null &&
+            inventoryBackup.rect.parent != desiredBag)
+        {
+            inventoryBackup.rect.SetParent(desiredBag,false);
+            bagHost=desiredBag;
+            lastWidth=-1f;
+        }
+        if (desiredLoot != null && lootBackup.rect != null &&
+            lootBackup.rect.parent != desiredLoot)
+        {
+            lootBackup.rect.SetParent(desiredLoot,false);
+            corpseHost=desiredLoot;
+        }
+        if (bagHost == null) bagHost=desiredBag;
+        if (corpseHost == null) corpseHost=desiredLoot;
     }
 
     private static PanelBackup Capture(RectTransform rect)
@@ -196,17 +226,17 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private void AdaptInventoryGrid()
     {
         if (inventory == null || inventory.slotsGrid == null || shell == null ||
-            shell.DynamicHost == null) return;
+            bagHost == null) return;
         var grid = inventory.slotsGrid.GetComponent<GridLayoutGroup>();
         if (grid == null) return;
         // 3 colunas de 92px estouravam a largura da barra (~240px).
         // 2 colunas preservam nome + ícone e scroll vertical do inventário.
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
-        float available = Mathf.Max(180f, shell.DynamicHost.rect.width - 24f);
+        float available = Mathf.Max(132f, bagHost.rect.width - 16f);
         // Linhas baixas e margem curta: o scroll não "pula" os itens
         // finais da Bag pequena. A altura deixa espaço ao Loot abaixo.
-        float width = Mathf.Clamp((available - 15f) * 0.5f, 72f, 108f);
+        float width = Mathf.Clamp((available - 15f) * 0.5f, 56f, 100f);
         grid.cellSize = new Vector2(width, 62f);
         grid.spacing = new Vector2(4f, 3f);
         grid.padding = new RectOffset(4, 4, 4, 4);
@@ -313,6 +343,10 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             () => loot?.NavigateLoot(-1));
         nextLootButton = NavigationButton(nextObj, ">", 0.89f,
             () => loot?.NavigateLoot(1));
+        var takeAllObj=new GameObject("TakeAllShortcut",typeof(RectTransform),
+            typeof(Image),typeof(Button));
+        takeAllMiniButton=NavigationButton(takeAllObj,"⇧E",0.61f,
+            () => loot?.TakeAllLoot());
     }
 
     private Button ButtonAt(string name, string title, float left, float right,
@@ -428,24 +462,26 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         bool showBag = connected && inventory != null &&
             inventory.IsInventoryOpen && inventory.HasEquippedBag;
         bool showLoot = connected && loot != null && loot.IsLootOpen;
-        float freeHeight = shell != null && shell.DynamicHost != null
-            ? shell.DynamicHost.rect.height : 0f;
+        float freeHeight = bagHost != null ? bagHost.rect.height : 0f;
+        bool sameHost = bagHost != null && bagHost == corpseHost;
         // Game View baixa/F10 130%: só a aba mais nova recebe a área;
         // não criar dois painéis inutilizáveis com altura de 20px.
-        if (showBag && showLoot && freeHeight < 245f)
+        if (sameHost && showBag && showLoot && freeHeight < 210f)
         {
             if (selected == Tab.Backpack) showLoot = false;
             else showBag = false;
         }
         // Não são mais abas que se ocultam mutuamente: Bag compacta acima,
         // Loot no restante do host. Dois (ou mais) cadáveres ficam navegáveis.
-        var host = shell != null ? shell.DynamicHost : null;
+        var host = bagHost;
         if (host != null)
         {
             float h = host.rect.height;
-            float bagHeight = showBag ? Mathf.Min(142f, Mathf.Max(78f, h * 0.40f)) : 0f;
-            float lootHeight = showLoot ? Mathf.Min(176f,
-                Mathf.Max(64f, h - bagHeight - 5f)) : 0f;
+            float bagHeight = showBag ? Mathf.Min(112f, Mathf.Max(66f, h * 0.39f)) : 0f;
+            float lootAvailable = corpseHost != null ? corpseHost.rect.height : h;
+            float lootHeight = showLoot ? Mathf.Min(128f,
+                Mathf.Max(52f, lootAvailable - (sameHost ? bagHeight + 5f : 0f))) : 0f;
+            float lootTop = sameHost && showBag && showLoot ? bagHeight + 5f : 0f;
             if (inventoryBackup.rect != null)
             {
                 var r = inventoryBackup.rect;
@@ -461,9 +497,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
                 r.anchorMin = new Vector2(0f, 1f);
                 r.anchorMax = Vector2.one;
                 r.pivot = new Vector2(0.5f, 1f);
-                r.offsetMax = new Vector2(0f, -bagHeight - (showBag && showLoot ? 5f : 0f));
-                r.offsetMin = new Vector2(0f, -bagHeight -
-                    (showBag && showLoot ? 5f : 0f) - lootHeight);
+                r.offsetMax = new Vector2(0f, -lootTop);
+                r.offsetMin = new Vector2(0f, -lootTop - lootHeight);
             }
         }
         if (inventoryGroup != null)
@@ -483,6 +518,9 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (backpackButton != null)
             backpackButton.interactable = connected && inventory != null &&
                 inventory.HasEquippedBag;
+        if (takeAllMiniButton != null)
+            takeAllMiniButton.interactable = connected && loot != null &&
+                loot.IsLootOpen && loot.VisibleLootItemCount > 0;
         if (previousLootButton != null)
             previousLootButton.interactable = connected && loot != null &&
                 loot.OpenedLootCount > 1;
@@ -530,6 +568,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (tabBarObject != null) Destroy(tabBarObject);
         if (previousLootButton != null) Destroy(previousLootButton.gameObject);
         if (nextLootButton != null) Destroy(nextLootButton.gameObject);
+        if (takeAllMiniButton != null) Destroy(takeAllMiniButton.gameObject);
         tabBarObject = null;
         tabBar = null;
         shell?.SetDynamicDocked(false);
