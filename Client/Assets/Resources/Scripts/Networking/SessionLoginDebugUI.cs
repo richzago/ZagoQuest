@@ -173,7 +173,7 @@ public class SessionLoginDebugUI : MonoBehaviour
             if (logoutButtonLabel != null)
             {
                 logoutButtonLabel.text = "OFF";
-                logoutButtonLabel.fontSize = 14f;
+                logoutButtonLabel.fontSize = 11f; // 7 ícones em 228px
             }
             logoutDocked = true;
         }
