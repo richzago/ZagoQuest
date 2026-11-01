@@ -2,6 +2,31 @@
 
 **Branch:** `feature/c18-atomic-inventory-slots-hotkeys-minimap` · [PR #124 DRAFT](https://github.com/richzago/ZagoQuest/pull/124) · Base `dev` após merge C17 `880787f`.
 
+## Homologação manual Unity C18 — 01/11/2026: 8/8 APROVADOS
+
+O usuário executou e comunicou **todos os oito cenários de homologação como OK**. Este registro preserva a distinção entre **homologação de uso em Unity** e testes específicos de falhas de processo/concorrência que não foram relatados.
+
+| Cenário executado | Resultado |
+| --- | --- |
+| Compilação Unity e conexão ao Node | **OK** |
+| Drop/pickup de itens e Bags com conteúdo: quantidades e UUIDs preservados | **OK** |
+| Compras, Loot e Fishing: maxStack e pilhas físicas | **OK** |
+| Stats e Backpack abertos simultaneamente, sem sobreposição | **OK** |
+| Atalhos F6/F7/F8 e personalização nas Configurações | **OK** |
+| Minimapa com terreno Tiled e posição confirmada do jogador | **OK** |
+| 1280×720, 1920×1080, F10, equipamentos, NPC e logout | **OK** |
+| Persistência íntegra após reinício normal do Node | **OK** |
+
+**Conclusão:** foram homologados compilação Unity e sessão Node; integridade de UUIDs/conteúdo após drop e pickup; `maxStack` em compras, Loot e Fishing; coexistência visual Stats/Backpack; atalhos configuráveis; minimapa Tiled com posição recebida do servidor; layouts 720p/1080p e F10, equipamentos/NPC/logout; e persistência após **reinício normal** do Node.
+
+**Evidência automatizada complementar:** [Actions #41347079354](https://github.com/richzago/ZagoQuest/actions/runs/41347079354): **618/618 Ubuntu e 618/618 Windows**, integração PostgreSQL aprovada, incluindo commit/rollback forçado em uma base descartável. A CI confirma contratos e backend; o relato acima é a evidência de execução do Unity.
+
+**Não confundir com cenários ainda não comprovados:** uma reinicialização normal não simula `SIGKILL`, pane abrupta ou falha de energia. Não há homologação informada de interrupção do processo em todas as janelas possíveis da transação. A transação SQL conjunta cobre handlers **drop/pickup**, não todo NPC/Loot/Fishing/corpse e efeitos de eventos concorrentes. Operações legadas ainda podem endereçar `itemId` em vez de `slotId`. Esses pontos seguem como riscos/pendências de aprofundamento, **não reprovações dos oito cenários executados**.
+
+**Decisão expressa:** [PR #124](https://github.com/richzago/ZagoQuest/pull/124) permanece **OPEN/DRAFT, SEM MERGE** na `dev`, até o usuário autorizar. Este registro é exclusivamente documental.
+
+---
+
 ## 1 — Drop/pickup com commit conjunto em PostgreSQL
 
 **Antes:** `World.onGroundItemsChanged` agendava snapshots de chão assíncronos; `DatabasePersistence.saveCharacter` persistia separadamente. Se o Node morresse entre gravações, a transferência personagem↔chão podia duplicar ou perder itens.
