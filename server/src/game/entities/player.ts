@@ -819,6 +819,107 @@ export class Player extends Creature {
     return Math.max(0, this.getMaxCarryWeight() - this.getCarriedWeight());
   }
 
+  /**
+   * C17: plano determinístico de colocação de compra, independente da Bag
+   * VISUALIZADA. Prioriza mochila equipada, depois descendentes em largura.
+   * Não aceita Bag desconectada/estrangeira, nem usa contêiner cheio só
+   * porque ainda possui espaço em outros contêineres.
+   */
+  private shopPlacement(itemId: string, amount: number):
+      Array<{bagId: string; amount: number}> | null {
+    if (!isValidItemId(itemId) || !isValidQuantity(amount) ||
+        !this.equippedBagInstanceId ||
+        !this.equipment.has(EquipmentSlot.BACKPACK)) return null;
+    const root = this.bagInstances.get(this.equippedBagInstanceId);
+    if (!root || root.itemId !== this.equipment.get(EquipmentSlot.BACKPACK))
+      return null;
+    // Moedas são creditadas diretamente em ouro, nunca armazenadas em Bag.
+    if (isCoin(itemId)) return this.canAddItem(itemId, amount)
+      ? [] : null;
+    if (this.getCarriedWeight() + Player.itemWeight(itemId) * amount >
+        this.getMaxCarryWeight() + 1e-6) return null;
+    let definition;
+    try { definition = ItemRegistry.get(itemId); }
+    catch { return null; }
+    const stackable = definition.stackable === true;
+    const ordered: typeof root[] = [];
+    const visited = new Set<string>();
+    const queue = [root.id];
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const bag = this.bagInstances.get(id);
+      if (!bag || !this.isContainerItem(bag.itemId)) return null;
+      // Um vínculo de filho órfão/inconsistente é um erro, não espaço grátis.
+      for (const childId of bag.children) {
+        const child = this.bagInstances.get(childId);
+        if (!child || (bag.items.get(child.itemId) ?? 0) < 1) return null;
+        queue.push(childId);
+      }
+      ordered.push(bag);
+    }
+    const placements: Array<{bagId:string;amount:number}> = [];
+    let remaining = amount;
+    // Pilhas já presentes são o primeiro alvo. Uma pilha não cria slot.
+    if (stackable) {
+      for (const bag of ordered) {
+        const current = bag.items.get(itemId) ?? 0;
+        if (current > 0 && Number.isSafeInteger(current + remaining)) {
+          return [{bagId:bag.id,amount:remaining}];
+        }
+      }
+    }
+    for (const bag of ordered) {
+      let used = 0;
+      for (const [id, qty] of bag.items) {
+        if (!isValidQuantity(qty)) return null;
+        try { used += ItemRegistry.get(id).stackable ? 1 : qty; }
+        catch { used += qty; }
+      }
+      const capacity = ItemRegistry.get(bag.itemId).containerSlots ?? 0;
+      if (!Number.isSafeInteger(capacity) || capacity <= 0 || used > capacity)
+        return null;
+      const free = capacity - used;
+      if (free === 0) continue;
+      const take = stackable ? remaining : Math.min(remaining, free);
+      const current = bag.items.get(itemId) ?? 0;
+      if (!Number.isSafeInteger(current + take)) return null;
+      placements.push({bagId:bag.id,amount:take});
+      remaining -= take;
+      if (remaining === 0) break;
+    }
+    return remaining === 0 ? placements : null;
+  }
+
+  /** Validação integral ANTES de debitar ouro; nunca escolhe a aba aberta. */
+  canStoreShopPurchase(itemId: string, amount: number): boolean {
+    return this.shopPlacement(itemId, amount) !== null;
+  }
+
+  /** Só chamado pelo fluxo de compra após pagamento validado; sem await. */
+  lastShopNestedStorage = false;
+  storeShopPurchase(itemId: string, amount: number): boolean {
+    const plan = this.shopPlacement(itemId, amount);
+    if (plan === null) return false;
+    this.lastShopNestedStorage = plan.some(p => p.bagId !== this.equippedBagInstanceId);
+    if (isCoin(itemId)) return this.addItem(itemId, amount);
+    // Todas as quantidades, stacks, slots, CAP e IDs já foram validados.
+    for (const entry of plan) {
+      const target = this.bagInstances.get(entry.bagId)!;
+      target.items.set(itemId, (target.items.get(itemId) ?? 0) + entry.amount);
+      if (this.isContainerItem(itemId))
+        for (let i = 0; i < entry.amount; i++)
+          target.children.push(this.createBag(itemId).id);
+    }
+    EventSystem.getInstance().emit<ItemPickupEventData>(GameEvent.ITEM_PICKUP,{
+      playerId:this.id,playerName:this.name,itemId,amount,
+    });
+    Logger.loot(this.name + " recebeu compra " + amount + "x " + itemId +
+      (this.lastShopNestedStorage ? " (Bag interna)" : ""));
+    return true;
+  }
+
   /** Exclusivo das transferências chão/cadáver para a Bag ativa. */
   canCollectItems(items: ReadonlyArray<{itemId: string; amount: number}>): boolean {
     const capacity = this.getContainerCapacity();

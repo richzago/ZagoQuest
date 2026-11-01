@@ -95,7 +95,10 @@ export async function handleBuyItem(
   }
 
   ctx.packetSender.shop.sendBuyResult(
-    true, `Comprou ${msg.amount}x ${itemDisplayName(msg.itemId)}.`,
+    true, `Comprou ${msg.amount}x ${itemDisplayName(msg.itemId)}.` +
+      (player.lastShopNestedStorage
+        ? " Guardado em uma Bag interna; abra-a para visualizar."
+        : ""),
   );
   ctx.packetSender.inventory.sendInventory(player);
   if (player.equipment.get(EquipmentSlot.BACKPACK) !== equippedBefore)
