@@ -349,6 +349,10 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         rect.offsetMax = new Vector2(-1f, -2f);
         root.SetAsLastSibling();
         scroll.verticalScrollbar = root.GetComponent<Scrollbar>();
+        // Wheel over the scrollbar track must be just as precise as over slots.
+        var wheel = root.GetComponent<C16FineScrollWheel>();
+        if (wheel == null) wheel = root.gameObject.AddComponent<C16FineScrollWheel>();
+        wheel.Bind(scroll);
         scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
         scroll.verticalScrollbarSpacing = 0f;
     }

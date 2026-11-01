@@ -24,17 +24,16 @@ public sealed class C16PanelResizeHandle : MonoBehaviour,
     public void OnBeginDrag(PointerEventData eventData)
     {
         dragging = dock != null &&
-            dock.TryBeginResize(isBag, out host, out startHeight) &&
+            dock.TryBeginResize(isBag, out host, out startHeight);
+        if (dragging && host != null &&
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 host, eventData.position, eventData.pressEventCamera,
-                out var local);
-        if (dragging)
+                out var first))
         {
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                host, eventData.position, eventData.pressEventCamera, out var first);
             startY = first.y;
             eventData.Use();
         }
+        else dragging = false;
     }
 
     public void OnDrag(PointerEventData eventData)
