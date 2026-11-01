@@ -26,7 +26,7 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class ChatMessageReceived { public string type; public string message; }
     [Serializable] public class LootWindowMessage { public string type; public string corpseId; public LootItem[] items; }
     [Serializable] public class LootErrorMessage { public string type; public string message; }
-    [Serializable] public class InventoryMessage { public string type; public int gold; public InventoryItem[] items; public InventoryEquipment[] equipment; }
+    [Serializable] public class InventoryMessage { public string type; public int gold; public InventoryItem[] items; public InventoryEquipment[] equipment; public string bagItemId; public int bagSlots; public int slotsUsed; }
     [Serializable] public class ItemUsedMessage { public string type; public string itemId; public bool success; public string message; }
     [Serializable] public class ShopWindowMessage { public string type; public string npcId; public ShopItem[] items; }
     [Serializable] public class BuyResultMessage { public string type; public bool success; public string message; }
