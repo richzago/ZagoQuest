@@ -40,8 +40,8 @@ public sealed class C8SidebarShell : MonoBehaviour
     {
         if (capLabel == null) return;
         capLabel.text = latestCapMaximum > 0f
-            ? $"CAP  {latestCapRemaining:0.#} / {latestCapMaximum:0.#} oz"
-            : "CAP  aguardando servidor";
+            ? $"CAP  {latestCapRemaining:0.#}"
+            : "CAP  --";
     }
 
     private GameObject canvasRoot;
@@ -180,7 +180,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
         var map = Card(surface.transform, "MiniMapSection", 62, 164);
         miniMapSection = (RectTransform)map.transform;
-        AddText(map.transform, "MapTitle", "MINIMAPA", 8, 25, 13, Text);
+        // C17: sem cabeçalho; mais área para o minimapa (placeholder).
         miniMapTexture = CreateCircularMiniMapTexture();
         miniMapSprite = Sprite.Create(miniMapTexture,
             new Rect(0, 0, miniMapTexture.width, miniMapTexture.height),
@@ -202,10 +202,10 @@ public sealed class C8SidebarShell : MonoBehaviour
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
         var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 293);
         equipmentSectionRect = (RectTransform)equipmentSection.transform;
-        AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 7, 28, 15, Text);
+        // A silhueta dos slots dispensa título "EQUIPAMENTOS".
         // Sem texto "arraste para equipar/retirar": menos poluicao visual.
         equipmentHost = Holder(equipmentSection.transform, "EquipmentHost",
-            Vector2.zero, Vector2.one, new Vector2(8f, 34f), new Vector2(-8f, -36f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 25f), new Vector2(-8f, -5f));
         // CAP tem sua propria faixa sob o equipamento; nao intercepta raycasts.
         var capObject = new GameObject("C14CapacityLabel",
             typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -225,16 +225,16 @@ public sealed class C8SidebarShell : MonoBehaviour
         // 3. ACESSOS FUTUROS — pictogramas, nunca siglas ou botões falsos.
         var settings = Card(surface.transform, "SettingsIconsSection", 535, 58);
         settingsSectionRect = (RectTransform)settings.transform;
-        AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
+        // Sem texto "ACESSO RÁPIDO": somente ícones.
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
-            Vector2.zero, Vector2.one, new Vector2(8f, 5f), new Vector2(-8f, -24f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 3f), new Vector2(-8f, -3f));
         quickAccessHost = icons;
         AddIcon(icons, "SettingsIcon", 0, 6);
         AddIcon(icons, "SoundIcon", 1, 6);
         AddIcon(icons, "ChatIcon", 2, 6);
         AddIcon(icons, "BackpackIcon", 3, 6);
         AddIcon(icons, "MapIcon", 4, 6);
-        AddIcon(icons, "HelpIcon", 5, 6);
+        AddIcon(icons, "StatsIcon", 5, 6);
 
         // 4. HOST DINAMICO RESERVADO para futuro Loot/Backpack.
         // Nenhum callback de loot/backpack e alterado aqui.
@@ -250,12 +250,9 @@ public sealed class C8SidebarShell : MonoBehaviour
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
-        AddText(dynamicSection.transform, "DynamicTitle", "CONTEINÊRES  /  LOOT", 9, 30, 14, Text);
-        AddText(dynamicSection.transform, "DynamicHint",
-            "Espaco reservado para janelas dinamicas", 39, 45, 11, Muted);
-        dynamicHint = dynamicSection.transform.Find("DynamicHint").gameObject;
+        dynamicHint = null;
         dynamicHost = Holder(dynamicSection.transform, "SidebarDynamicHost",
-            Vector2.zero, Vector2.one, new Vector2(10, 9), new Vector2(-10, -91));
+            Vector2.zero, Vector2.one, new Vector2(6, 4), new Vector2(-6, -8));
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
     }
 
@@ -285,22 +282,23 @@ public sealed class C8SidebarShell : MonoBehaviour
         // para o host dinamico, sem ampliar cards sobre o mundo.
         bool compact = (C10ClientLayoutSettings.Instance == null ||
             C10ClientLayoutSettings.Instance.Compact) || height < 760f;
+        bool shortView = height < 680f;
         PlaceTop(miniMapSection, compact ? 43f : 62f,
-            compact ? 91f : 164f, 8f, 8f);
-        PlaceTop(equipmentSectionRect, compact ? 142f : 234f,
-            compact ? 244f : 293f, 8f, 8f);
-        PlaceTop(settingsSectionRect, compact ? 391f : 535f,
-            compact ? 48f : 58f, 8f, 8f);
-        float diameter = compact ? 58f : 112f;
+            shortView ? 124f : compact ? 156f : 232f, 8f, 8f);
+        PlaceTop(equipmentSectionRect, shortView ? 173f : compact ? 205f : 301f,
+            shortView ? 198f : compact ? 207f : 210f, 8f, 8f);
+        PlaceTop(settingsSectionRect, shortView ? 377f : compact ? 418f : 518f,
+            34f, 8f, 8f);
+        float diameter = shortView ? 88f : compact ? 118f : 187f;
         if (miniMapCircleRect != null)
         {
             miniMapCircleRect.sizeDelta = new Vector2(diameter, diameter);
-            miniMapCircleRect.anchoredPosition = new Vector2(0f, compact ? -38f : -39f);
+            miniMapCircleRect.anchoredPosition = new Vector2(0f, shortView ? -18f : compact ? -20f : -22f);
         }
         dynamicSection.offsetMin = new Vector2(12f, 0f);
         // Nunca inverter a area dinamica: rolagem/resize funcional fica
         // para outra etapa, mas a base sempre cabe na sidebar.
-        float dynamicTop = compact ? 447f : 602f;
+        float dynamicTop = shortView ? 422f : compact ? 458f : 561f;
         dynamicSection.offsetMax = new Vector2(-12f,
             -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
         lastDynamicHeight = -1f;
@@ -337,8 +335,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         float height = dynamicSection.rect.height;
         if (Mathf.Abs(height - lastDynamicHeight) <= 0.5f) return;
         lastDynamicHeight = height;
-        float header = Mathf.Min(91f, Mathf.Max(39f, height - 10f));
-        dynamicHost.offsetMax = new Vector2(-10f, -header);
+        dynamicHost.offsetMax = new Vector2(-6f, -8f);
         if (dynamicHint != null) dynamicHint.SetActive(!dynamicDocked && height >= 125f);
     }
 
@@ -417,10 +414,10 @@ public sealed class C8SidebarShell : MonoBehaviour
 
         // Em 720p/F10 130%, 4 linhas de 50px estourariam a nova
         // faixa CAP. Compactar somente os slots, não o painel de peso.
-        float cellSize = Mathf.Min(EquipmentSlotSize,
-            Mathf.Max(40f, (equipmentHost.rect.height - 12f) / 4f));
-        float rowStep = Mathf.Min(EquipmentStepY,
-            Mathf.Max(39f, (equipmentHost.rect.height - cellSize - 8f) / 3f));
+        float cellSize = Mathf.Min(46f, EquipmentSlotSize,
+            Mathf.Max(36f, (equipmentHost.rect.height - 8f) / 4f));
+        float rowStep = Mathf.Min(50f, EquipmentStepY,
+            Mathf.Max(38f, (equipmentHost.rect.height - cellSize - 5f) / 3f));
         float total = cellSize + EquipmentStepX * 2f;
         // 3 slots de 50, com passos de 62: 174, centralizados no painel.
         float x0 = Mathf.Max(8f, (panel.rect.width - total) * 0.5f);
@@ -536,8 +533,8 @@ public sealed class C8SidebarShell : MonoBehaviour
                 Shape(obj.transform, "CompassHorizontal", 0, 0, 21, 3, Gold);
                 Shape(obj.transform, "CompassCenter", 0, 0, 7, 7, Muted);
                 break;
-            default: // ajuda: pontuacao reconhecivel, nao sigla
-                AddCenterText(obj.transform, "HelpSymbol", "?", 20f, Gold);
+            default: // status do personagem
+                AddCenterText(obj.transform, "StatsSymbol", "S", 20f, Gold);
                 break;
         }
     }
