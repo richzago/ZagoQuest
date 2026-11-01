@@ -444,7 +444,9 @@ test("C6 UI: logout é UGUI overlay visível sem configurar a Hierarchy",()=>{
  assert.match(login,/typeof\(GraphicRaycaster\)/);
  assert.match(login,/canvas\.sortingOrder = 500/);
  assert.match(login,/btn\.onClick\.AddListener\(Logout\)/);
- assert.match(login,/text\.text = "⏻  SAIR"/);
+  assert.match(login,/text\.text = "SAIR"/);
+  assert.match(login,/logoutButtonLabel\.text = "OFF"/);
+  assert.doesNotMatch(login,/\u23FB/);
  assert.match(login,/network\.LogoutAuthenticatedSession\(\)/);
 });
 
