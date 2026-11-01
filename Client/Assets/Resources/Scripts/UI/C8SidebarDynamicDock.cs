@@ -38,6 +38,17 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private RectTransform tabBar;
     private GameObject tabBarObject;
     private float lastWidth = -1f;
+
+    // C16: alturas preferidas são configurações LOCAIS, nunca pacotes Node.
+    // A altura de verdade é sempre limitada pelo host e pela outra janela.
+    private const float MinBagHeight = 170f; // 2×2 slots + rodapé + puxador
+    private const float MinLootHeight = 150f;
+    private const float PanelGap = 6f;
+    private const string BagHeightKey = "ZagoQuest.C16.BagHeight";
+    private const string LootHeightKey = "ZagoQuest.C16.LootHeight";
+    private float requestedBagHeight = MinBagHeight;
+    private float requestedLootHeight = 180f;
+    private C16PanelResizeHandle bagResizeHandle, lootResizeHandle;
     private readonly Color32 idle = C11VisualTheme.Recess;
     private readonly Color32 active = C11VisualTheme.BronzeDark;
     private readonly Color32 letters = C11VisualTheme.Text;
@@ -48,6 +59,10 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(this); return; }
         Instance = this;
         shell = GetComponent<C8SidebarShell>();
+        requestedBagHeight = Mathf.Max(MinBagHeight,
+            PlayerPrefs.GetFloat(BagHeightKey, MinBagHeight));
+        requestedLootHeight = Mathf.Max(MinLootHeight,
+            PlayerPrefs.GetFloat(LootHeightKey, 180f));
     }
 
     private void LateUpdate()
@@ -103,6 +118,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         ConfigureInventoryPanel();
         ConfigureLootPanel();
         BuildTabs();
+        bagResizeHandle = CreateResizeHandle(inventoryBackup.rect, true);
+        lootResizeHandle = CreateResizeHandle(lootBackup.rect, false);
 
         shell.SetDynamicDocked(true);
         loot.SetSidebarDocked(true);
@@ -202,7 +219,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
                 viewport.gameObject.AddComponent<C9LootBagDropTarget>();
             viewport.anchorMin = Vector2.zero;
             viewport.anchorMax = Vector2.one;
-            viewport.offsetMin = new Vector2(5f, 35f);
+            // Rodapé (ouro + slots) fica sobre o puxador de 16 px.
+            viewport.offsetMin = new Vector2(5f, 46f);
             viewport.offsetMax = new Vector2(-5f, -5f);
         }
         if (inventory.goldText != null)
@@ -211,8 +229,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             gold.anchorMin = new Vector2(0f, 0f);
             gold.anchorMax = new Vector2(1f, 0f);
             gold.pivot = new Vector2(0.5f, 0f);
-            gold.offsetMin = new Vector2(8f, 4f);
-            gold.offsetMax = new Vector2(-8f, 29f);
+            gold.offsetMin = new Vector2(8f, 18f);
+            gold.offsetMax = new Vector2(-8f, 43f);
             inventory.goldText.enableAutoSizing = true;
             inventory.goldText.fontSizeMin = 10f;
             inventory.goldText.fontSizeMax = 13f;
@@ -355,9 +373,11 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             var scrollRect = scroll.transform as RectTransform;
             if (scrollRect != null)
             {
-                scrollRect.anchorMin = new Vector2(0.02f, 0.04f);
-                scrollRect.anchorMax = new Vector2(0.98f, 0.98f);
-                scrollRect.offsetMin = scrollRect.offsetMax = Vector2.zero;
+                scrollRect.anchorMin = Vector2.zero;
+                scrollRect.anchorMax = Vector2.one;
+                // 16 px de puxador + ação TODOS acima, ambos fora do viewport.
+                scrollRect.offsetMin = new Vector2(5f, 46f);
+                scrollRect.offsetMax = new Vector2(-5f, -5f);
             }
             if (scroll.viewport != null)
             {
@@ -378,9 +398,10 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             var all = loot.takeAllButton.transform as RectTransform;
             if (all != null)
             {
-                all.anchorMin = new Vector2(0.38f, 0.02f);
-                all.anchorMax = new Vector2(0.96f, 0.18f);
-                all.offsetMin = all.offsetMax = Vector2.zero;
+                all.anchorMin = new Vector2(0.38f, 0f);
+                all.anchorMax = new Vector2(0.96f, 0f);
+                all.offsetMin = new Vector2(0f, 19f);
+                all.offsetMax = new Vector2(0f, 44f);
             }
             var label = loot.takeAllButton.GetComponentInChildren<TextMeshProUGUI>(true);
             if (label != null)
@@ -394,6 +415,91 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         }
         var image = loot.GetComponent<Image>();
         if (image != null) image.raycastTarget = false;
+    }
+
+    private static C16PanelResizeHandle CreateResizeHandle(
+        RectTransform panel, bool bag)
+    {
+        if (panel == null) return null;
+        var existing = panel.Find("C16BottomResizeGrip");
+        var obj = existing != null ? existing.gameObject :
+            new GameObject("C16BottomResizeGrip",
+                typeof(RectTransform), typeof(Image), typeof(C16PanelResizeHandle));
+        if (existing == null) obj.transform.SetParent(panel, false);
+        var rect = (RectTransform)obj.transform;
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.offsetMin = new Vector2(0f, 0f);
+        rect.offsetMax = new Vector2(0f, 16f);
+        var image = obj.GetComponent<Image>();
+        image.color = C11VisualTheme.BronzeDark;
+        image.raycastTarget = true;
+        var labelObject = obj.transform.Find("Hint");
+        if (labelObject == null)
+        {
+            var labelGo = new GameObject("Hint",
+                typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelGo.transform.SetParent(obj.transform, false);
+            labelObject = labelGo.transform;
+        }
+        var hint = labelObject.GetComponent<TextMeshProUGUI>();
+        hint.text = "↕  PUXE PARA AJUSTAR  ↕";
+        hint.fontSize = 9f;
+        hint.color = C11VisualTheme.Text;
+        hint.alignment = TextAlignmentOptions.Center;
+        hint.raycastTarget = false;
+        var labelRect = hint.rectTransform;
+        labelRect.anchorMin = Vector2.zero; labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
+        obj.transform.SetAsLastSibling(); // sem cobrir slots/rodapé
+        var grip = obj.GetComponent<C16PanelResizeHandle>();
+        grip.Bind(Instance, bag);
+        return grip;
+    }
+
+    public bool TryBeginResize(bool bag, out RectTransform host, out float height)
+    {
+        host = bag ? bagHost : corpseHost;
+        var panel = bag ? inventoryBackup.rect : lootBackup.rect;
+        height = panel != null ? panel.rect.height : 0f;
+        return docked && host != null && panel != null &&
+            (bag ? inventory != null && inventory.IsInventoryOpen :
+                loot != null && loot.IsLootOpen);
+    }
+
+    public void ResizePanel(bool bag, float height)
+    {
+        float maximum = bag ? BagContentHeight() : LootContentHeight();
+        if (bag)
+            requestedBagHeight = Mathf.Clamp(height, MinBagHeight, maximum);
+        else
+            requestedLootHeight = Mathf.Clamp(height, MinLootHeight, maximum);
+        ApplyVisibility();
+    }
+
+    public void FinishResize(bool bag)
+    {
+        PlayerPrefs.SetFloat(bag ? BagHeightKey : LootHeightKey,
+            bag ? requestedBagHeight : requestedLootHeight);
+        PlayerPrefs.Save();
+    }
+
+    private float BagContentHeight()
+    {
+        // O total de slots é informado pelo Node, incluindo posições vazias.
+        int slots = inventory != null ? Mathf.Max(4, inventory.BagSlots) : 4;
+        int rows = Mathf.CeilToInt(slots / 2f);
+        return Mathf.Max(MinBagHeight, 59f + rows * 50f +
+            Mathf.Max(0, rows - 1) * 3f);
+    }
+
+    private float LootContentHeight()
+    {
+        int rows = loot != null ? Mathf.Max(1, loot.VisibleLootItemCount) : 1;
+        // VerticalLayoutGroup: 36px por linha, spacing 8px, padding 16px.
+        return Mathf.Max(MinLootHeight, 69f + rows * 36f +
+            Mathf.Max(0, rows - 1) * 8f);
     }
 
     private static void SetChildActive(Transform root, string name, bool active)
@@ -553,24 +659,31 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         bool showLoot = connected && loot != null && loot.IsLootOpen;
         float freeHeight = bagHost != null ? bagHost.rect.height : 0f;
         bool sameHost = bagHost != null && bagHost == corpseHost;
-        // Game View baixa/F10 130%: só a aba mais nova recebe a área;
-        // não criar dois painéis inutilizáveis com altura de 20px.
-        if (sameHost && showBag && showLoot && freeHeight < 210f)
+        // Em colunas pequenas, exibir uma ABA completa (4 slots na Bag)
+        // ao invés de duas janelas com metade dos itens escondidos.
+        if (sameHost && showBag && showLoot &&
+            freeHeight < MinBagHeight + MinLootHeight + PanelGap)
         {
             if (selected == Tab.Backpack) showLoot = false;
             else showBag = false;
         }
-        // Não são mais abas que se ocultam mutuamente: Bag compacta acima,
-        // Loot no restante do host. Dois (ou mais) cadáveres ficam navegáveis.
         var host = bagHost;
         if (host != null)
         {
-            float h = host.rect.height;
-            float bagHeight = showBag ? Mathf.Min(112f, Mathf.Max(66f, h * 0.39f)) : 0f;
-            float lootAvailable = corpseHost != null ? corpseHost.rect.height : h;
-            float lootHeight = showLoot ? Mathf.Min(128f,
-                Mathf.Max(52f, lootAvailable - (sameHost ? bagHeight + 5f : 0f))) : 0f;
-            float lootTop = sameHost && showBag && showLoot ? bagHeight + 5f : 0f;
+            float h = Mathf.Max(0f, host.rect.height);
+            float lootSpace = corpseHost != null ?
+                Mathf.Max(0f, corpseHost.rect.height) : h;
+            float bagMax = showBag ? Mathf.Min(BagContentHeight(),
+                Mathf.Max(0f, h - (sameHost && showLoot ? MinLootHeight + PanelGap : 0f))) : 0f;
+            float bagHeight = showBag ? Mathf.Min(bagMax,
+                Mathf.Max(MinBagHeight, requestedBagHeight)) : 0f;
+            float lootMax = showLoot ? Mathf.Min(LootContentHeight(),
+                Mathf.Max(0f, lootSpace -
+                    (sameHost && showBag ? bagHeight + PanelGap : 0f))) : 0f;
+            float lootHeight = showLoot ? Mathf.Min(lootMax,
+                Mathf.Max(MinLootHeight, requestedLootHeight)) : 0f;
+            float lootTop = sameHost && showBag && showLoot
+                ? bagHeight + PanelGap : 0f;
             if (inventoryBackup.rect != null)
             {
                 var r = inventoryBackup.rect;
