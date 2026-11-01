@@ -1,3 +1,20 @@
+## C16 — 4 slots por padrão, rolagem fina e altura ajustável (01/11/2026)
+
+- [x] C15 [PR #121](https://github.com/richzago/ZagoQuest/pull/121) integrado à `dev` a pedido do usuário, mesmo com homologação anterior 6/8; commit de merge `6c80da4`. A UX de slots/scroll ficou para C16.
+- [x] Branch `feature/c16-resizable-inventory-loot-scroll` criada sobre o merge C15; [PR #122](https://github.com/richzago/ZagoQuest/pull/122) **Draft**, ainda não integrado.
+- [x] Backpack inicia com 2×2 slots visíveis e células vazias até a capacidade de slots informada pelo Node.
+- [x] Scroll de Backpack/Loot em passos de até 18 pixels por evento, sem saltos por deltas ±120; scrollbar funcional com viewport separado, roda também sobre o trilho.
+- [x] Layout redimensionável no eixo vertical por alça inferior de Bag e Loot, limitado pela altura disponível na coluna, conteúdo e painel adjacente; preferência local via PlayerPrefs.
+- [x] Atualização parcial da lista de Loot não retorna o scroll ao topo.
+- [x] Testes estáticos/contratos C8/C9 atualizados e criados testes C16; **ainda não equivalem a Play Mode Unity**.
+- [x] **Homologação Unity C16 — 7/7 cenários aprovados pelo usuário em 01/11/2026:** 2×2 slots e vazios, roda sem saltos, puxador de scrollbar até último item, alça de redimensionamento de Bag, redimensionamento/Loot/TODOS, mesma coluna e colunas separadas em 1280×720 e 1920×1080 com F10, recusa de Bag cheia e transferências inválidas sem perda/duplicação observada. Testes manuais relatados pelo usuário, separados da CI.
+- [x] **Integridade funcional Bag cheia e recusas de transferências:** homologadas manualmente pelo usuário sem perda ou duplicação observada; os testes automatizados C15 verificam posse/UUID/ciclos/slots. **Não confundir essa evidência com testes de invasão usando UUID forjado no Unity.**
+- [ ] Aguardar autorização explícita para integrar PR #122 na `dev`.
+
+[Relatório técnico e checklist C16](C16_RESIZABLE_INVENTORY_LOOT_SCROLL.md)
+
+---
+
 ## C15 — implementação para homologação (01/11/2026)
 
 - [x] C14 homologada (8/8) e [PR #120](https://github.com/richzago/ZagoQuest/pull/120) integrada na `dev` (`4af9cd1`).

@@ -55,7 +55,7 @@ test("C9: Bag e loot compartilham área responsiva, logout na zona de acesso rá
  const shell=sourceFile("UI/C8SidebarShell.cs");
  const login=sourceFile("Networking/SessionLoginDebugUI.cs");
  assert.match(dock,/inventory\.HasEquippedBag/);
- assert.match(dock,/showBag \? Mathf\.Min\(112f,/);
+ assert.match(dock,/float bagHeight = showBag \? Mathf\.Min\(bagMax,/);
  assert.match(dock,/lootBackup\.rect/);
  assert.match(dock,/loot\.OpenedLootCount > 1/);
  assert.match(shell,/public RectTransform QuickAccessHost => quickAccessHost/);

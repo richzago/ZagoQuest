@@ -222,7 +222,9 @@ public class InventoryUI : MonoBehaviour
         slotObjects.Clear();
 
         if (slotPrefab == null || slotsGrid == null) return;
-        ShowEmptyState(visibleRows != null ? visibleRows.Count == 0 : items.Count == 0);
+        // As células vazias preservam o grid de slots de verdade, como Tibia.
+        // A quantidade sempre vem do CAP de slots do Node, não do cliente.
+        ShowEmptyState(false);
         if (visibleRows != null)
         {
             foreach (var row in visibleRows)
@@ -238,6 +240,7 @@ public class InventoryUI : MonoBehaviour
                 }
                 slotObjects.Add(go);
             }
+            CreateEmptySlotVisuals();
             return;
         }
         foreach (var kvp in items)
@@ -251,6 +254,25 @@ public class InventoryUI : MonoBehaviour
                 slotScript.OnDoubleClick += OnSlotDoubleClicked;
             }
             slotObjects.Add(slot);
+        }
+        CreateEmptySlotVisuals();
+    }
+
+    private void CreateEmptySlotVisuals()
+    {
+        if (slotsGrid == null || !HasEquippedBag) return;
+        // Cada Bag tem um limite de slots do servidor. O cliente só desenha
+        // os vazios, sem criar itens, sem aceitar drag nem modificar inventário.
+        int available = Mathf.Max(0, bagSlots - slotsUsed);
+        for (int i = 0; i < available; i++)
+        {
+            var cell = new GameObject("C16EmptyBagSlot", typeof(RectTransform),
+                typeof(UnityEngine.UI.Image));
+            cell.transform.SetParent(slotsGrid, false);
+            var image = cell.GetComponent<UnityEngine.UI.Image>();
+            image.color = new Color32(31, 42, 51, 160);
+            image.raycastTarget = false;
+            slotObjects.Add(cell);
         }
     }
 

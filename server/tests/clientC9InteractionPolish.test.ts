@@ -88,19 +88,19 @@ test("C9: cadáver->chão é comando próprio, com scope, distância, bounds, í
  ]) assert.equal(parseClientMessage(JSON.stringify(invalid)).ok,false);
 });
 
-test("C9: Bag e loot têm limites de altura, scroll lento, linhas pequenas e LRU de cadáveres",()=>{
+test("C16: Bag e loot têm 4 slots iniciais, scroll preciso, resize com limites e LRU de cadáveres",()=>{
  const dock=unity("UI/C8SidebarDynamicDock.cs");
  const inv=unity("Player/InventorySlot.cs");
  const loot=unity("UI/LootUI.cs");
- assert.match(dock,/grid\.cellSize = new Vector2\(width, 62f\)/);
+ assert.match(dock,/grid\.cellSize = new Vector2\(width, 50f\)/);
  assert.match(dock,/grid\.spacing = new Vector2\(4f, 3f\)/);
- assert.match(dock,/bagScroll\.scrollSensitivity = 5f/);
+ assert.match(dock,/bagScroll\.scrollSensitivity = 1f/);
  assert.match(dock,/bagScroll\.inertia = false/);
- assert.match(dock,/Mathf\.Min\(112f,/);
- assert.match(dock,/Mathf\.Min\(128f,/);
- assert.match(dock,/freeHeight < 210f/);
+ assert.match(dock,/private const float MinBagHeight = 170f/);
+ assert.match(dock,/private const float MinLootHeight = 150f/);
+ assert.match(dock,/freeHeight < MinBagHeight \+ MinLootHeight \+ PanelGap/);
  assert.match(loot,/PrepareRow\(slot, 36f, i % 2 == 1\)/);
- assert.match(loot,/scroll\.scrollSensitivity = 10f/);
+ assert.match(loot,/scroll\.scrollSensitivity = 1f/);
  assert.match(loot,/private const int MaxTrackedCorpses = 4/);
  assert.match(loot,/openedCorpses\.RemoveAt\(0\)/);
  assert.match(loot,/net\.Inventory\.SendLoot\(openedCorpses\[next\]\)/);
