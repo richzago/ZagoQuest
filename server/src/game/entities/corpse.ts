@@ -12,7 +12,9 @@ import { LootItem } from "../../shared/interfaces/loot.interface";
 
 export class Corpse extends Entity {
   public loot: LootItem[];
-  public killerId?: string; // ← agora string (UUID)
+  public killerId?: string; // golpe final
+  /** Direito de autoloot: maior golpe efetivo, salvo no momento da morte. */
+  public lootOwnerId?: string;
 
   /**
    * Cria um novo corpo.

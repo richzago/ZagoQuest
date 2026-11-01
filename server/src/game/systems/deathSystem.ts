@@ -195,6 +195,16 @@ export class DeathSystem {
     // ==========================================================
     const corpseId = generateId();
     const corpse = new Corpse(corpseId, monster.position.x, monster.position.y, loot, killer?.id);
+    // Maior hit (não dano total/XP nem último golpe); empate pelo dano
+    // total, depois UUID, para resultado determinístico.
+    const leaderHit = [...monster.maxHitByPlayer]
+      .filter(([id]) => world.players.some(p => p.id === id))
+      .sort((a,b) => b[1]-a[1] ||
+        (monster.damageByPlayer.get(b[0]) ?? 0) -
+        (monster.damageByPlayer.get(a[0]) ?? 0) ||
+        a[0].localeCompare(b[0]))[0];
+    corpse.lootOwnerId = leaderHit?.[0] ??
+      (killer instanceof Player ? killer.id : undefined);
     world.addCorpse(corpse);
 
     const ws = WebSocketServer.getInstance();

@@ -81,6 +81,8 @@ export interface ClientDropCorpseLootMessage {
 }
 
 /** Arrastar diretamente do cadáver para o chão (sem passar pela mochila). */
+export interface ClientAutoLootNearbyMessage { type: "autoLootNearby"; }
+
 export interface ClientLootMessage {
   type: "loot";
   corpseId: string;

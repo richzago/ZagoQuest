@@ -31,6 +31,7 @@ import type {
   ClientDropItemMessage,
   ClientPickupItemMessage,
   ClientLootMessage,
+  ClientAutoLootNearbyMessage,
   ClientDropCorpseLootMessage,
   ClientTakeLootMessage,
   ClientChatMessage,
@@ -108,6 +109,7 @@ export type ClientMessage =
   | ClientDropItemMessage
   | ClientPickupItemMessage
   | ClientLootMessage
+  | ClientAutoLootNearbyMessage
   | ClientDropCorpseLootMessage
   | ClientTakeLootMessage
   | ClientChatMessage
