@@ -345,7 +345,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             () => loot?.NavigateLoot(1));
         var takeAllObj=new GameObject("TakeAllShortcut",typeof(RectTransform),
             typeof(Image),typeof(Button));
-        takeAllMiniButton=NavigationButton(takeAllObj,"⇧E",0.61f,
+        takeAllMiniButton=NavigationButton(takeAllObj,"TODOS",0.61f,
             () => loot?.TakeAllLoot());
     }
 
