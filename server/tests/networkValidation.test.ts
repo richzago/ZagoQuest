@@ -28,6 +28,8 @@ const validMessages = [
   { type: "stopAutoAttack" },
   { type: "chat", message: "oi, tudo bem?" },
   { type: "loot", corpseId: "corpse-1" },
+  { type: "openBag", itemId: "equipment/backpack/simple_bag" },
+  { type: "closeBag" },
   { type: "dropCorpseLoot", corpseId: "corpse-1", itemIndex: 0, x: 2, y: 3 },
   { type: "takeLoot", corpseId: "corpse-1", takeAll: true },
   { type: "takeLoot", corpseId: "corpse-1", takeAll: false, itemIndex: 0 },
