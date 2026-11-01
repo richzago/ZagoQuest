@@ -223,6 +223,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
 
     private void RebuildRails()
     {
+        GetComponent<C8SidebarDynamicDock>()?.ReturnToPrimaryHost();
         foreach(var old in rails) if(old!=null) Destroy(old);
         foreach(var old in spellBars) if(old!=null) Destroy(old);
         rails.Clear();spellBars.Clear();leftHosts.Clear();rightHosts.Clear();
@@ -325,7 +326,8 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
     {
         if(Instance==this) Instance=null;
         if(gear!=null)gear.onClick.RemoveListener(Toggle);
-        // C8 resgata os painéis quando a sidebar principal terminar.
+        // C8 resgata os painéis ANTES que seus antigos hosts desapareçam.
+        GetComponent<C8SidebarDynamicDock>()?.ReturnToPrimaryHost();
         foreach(var rail in rails)if(rail!=null)Destroy(rail);
         foreach(var bar in spellBars)if(bar!=null)Destroy(bar);
         if(canvasRoot!=null)Destroy(canvasRoot);
