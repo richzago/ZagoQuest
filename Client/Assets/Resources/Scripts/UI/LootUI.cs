@@ -25,6 +25,7 @@ public class LootUI : MonoBehaviour
     private readonly List<GameObject> itemSlots = new List<GameObject>();
     private bool awaitingServer;
     private const int MaxTrackedCorpses = 4;
+    public int VisibleLootItemCount => visibleItems.Count;
     // LRU: o mais recente fica no final; remover o mais antigo da lista
     // NÃO remove cadáver, loot ou itens do servidor.
     private readonly List<string> openedCorpses = new List<string>();
@@ -214,8 +215,9 @@ public class LootUI : MonoBehaviour
             return;
         }
         var k = Keyboard.current;
-        if (k == null || !IsLootOpen || !k.lKey.wasPressedThisFrame ||
-            !(k.leftCtrlKey.isPressed || k.rightCtrlKey.isPressed) ||
+        // Shift+E: mais simples que Ctrl+Shift+L; também há botão discreto
+        // no cabeçalho da área. Não dispara ao escrever no chat.
+        if (k == null || !IsLootOpen || !k.eKey.wasPressedThisFrame ||
             !(k.leftShiftKey.isPressed || k.rightShiftKey.isPressed)) return;
         var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
         if (selected != null && selected.GetComponentInParent<TMP_InputField>() != null) return;
@@ -272,9 +274,10 @@ public class LootUI : MonoBehaviour
         net.Inventory.SendLoot(openedCorpses[next]);
     }
 
-    private void TakeAllLoot()
+    public void TakeAllLoot()
     {
         if (!ReadyToTake() || visibleItems.Count == 0) return;
+        Debug.Log($"[LootUI] Shift+E / botão TODOS -> takeAll corpse={currentCorpseId}, linhas={visibleItems.Count}");
         awaitingServer = true;
         if (takeAllButton != null) takeAllButton.interactable = false;
         NetworkManager.Instance.Inventory.SendTakeLoot(currentCorpseId, true);
@@ -282,7 +285,12 @@ public class LootUI : MonoBehaviour
 
     private void OnItemClicked(int index)
     {
-        if (!ReadyToTake() || index < 0 || index >= visibleItems.Count) return;
+        if (!ReadyToTake() || index < 0 || index >= visibleItems.Count)
+        {
+            Debug.LogWarning($"[LootUI] Clique não enviado: corpse={currentCorpseId}, index={index}, awaiting={awaitingServer}");
+            return;
+        }
+        Debug.Log($"[LootUI] takeLoot corpse={currentCorpseId}, index={index}");
         awaitingServer = true;
         if (takeAllButton != null) takeAllButton.interactable = false;
         NetworkManager.Instance.Inventory.SendTakeLoot(currentCorpseId, false, index);
