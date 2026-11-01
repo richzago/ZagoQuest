@@ -18,6 +18,8 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     private string itemType;
     private string bagInstanceId;
     public string BagInstanceId => bagInstanceId;
+    public string ItemId => itemId;
+    public int ItemAmount => amount;
     /** Duplo clique na instância concreta, nunca no itemId agregado. */
     public System.Action<string,string> OnBagOpen;
     private NetworkManager networkManager;
@@ -273,8 +275,19 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         }
         else
         {
-            // Futuro: reorganização de inventário (swap)
-            Debug.Log("[InventorySlot] 🧩 Drop de item do inventário (reorganização futura)");
+            // C15: soltar um item sobre uma Bag filha move a unidade real,
+            // incluindo UUID de outra Bag. O Node valida propriedade/ciclos.
+            var source = DragDropManager.Instance.GetSourceInventorySlot();
+            var currentBag = InventoryUI.Instance?.CurrentBagInstanceId;
+            if (source != null && source != this &&
+                !string.IsNullOrEmpty(bagInstanceId) &&
+                !string.IsNullOrEmpty(currentBag))
+            {
+                NetworkManager.Instance?.Inventory?.TransferBagItem(
+                    currentBag, bagInstanceId, source.ItemId,
+                    source.BagInstanceId != null ? 1 : source.ItemAmount,
+                    source.BagInstanceId);
+            }
             DragDropManager.Instance.EndDrag();
         }
     }
