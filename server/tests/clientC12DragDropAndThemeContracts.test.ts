@@ -33,6 +33,8 @@ test("C12 UI: cabeçalho e minimapa quadrado de placeholder", () => {
   assert.match(shell, /ObsidianTitlePlate/);
   assert.match(shell, /MiniMapTilePreview/);
   assert.match(shell, /tileLine = x % 16 == 0/);
-  assert.match(shell, /CLIENTE C12/);
+  // C17 remove o subtítulo de versão para evitar sobreposição ao minimapa.
+  assert.doesNotMatch(shell, /CLIENTE C12/);
+  assert.match(shell, /Card\(surface.transform, "ObsidianTitlePlate", 5f, 34f/);
   assert.match(unity("UI/C11VisualTheme.cs"), /public static readonly Color32 Bronze/);
 });
