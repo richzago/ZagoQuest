@@ -101,6 +101,10 @@ public class NetworkManager : MonoBehaviour
         // UI passo 1/4: sidebar visual independente. Nao move nenhum painel.
         // Adicionar apos C7UiAccessibility para respeitar a escala F10.
         if (GetComponent<C8SidebarShell>() == null) gameObject.AddComponent<C8SidebarShell>();
+        // C8: UMA Camera.main, sem Camera extra e sem manipular mapa/Tiled.
+        // O viewport usa o limite em pixels da sidebar depois do F10.
+        if (GetComponent<C8PlayfieldViewport>() == null)
+            gameObject.AddComponent<C8PlayfieldViewport>();
 
         if (requireAuthenticatedSession && !HasCredentials)
         {
