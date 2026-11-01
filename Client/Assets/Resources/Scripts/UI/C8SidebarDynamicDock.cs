@@ -345,7 +345,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             () => loot?.NavigateLoot(1));
         var takeAllObj=new GameObject("TakeAllShortcut",typeof(RectTransform),
             typeof(Image),typeof(Button));
-        takeAllMiniButton=NavigationButton(takeAllObj,"TODOS",0.61f,
+        takeAllMiniButton=NavigationButton(takeAllObj,"TODOS",0.54f,
             () => loot?.TakeAllLoot());
     }
 
@@ -385,7 +385,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         obj.transform.SetParent(shell.DynamicSection, false);
         var rect = (RectTransform)obj.transform;
         rect.anchorMin = new Vector2(left, 1f);
-        rect.anchorMax = new Vector2(left + 0.09f, 1f);
+        rect.anchorMax = new Vector2(left + (glyph == "TODOS" ? 0.21f : 0.09f), 1f);
         rect.pivot = new Vector2(0.5f, 1f);
         rect.offsetMin = new Vector2(0f, -36f);
         rect.offsetMax = new Vector2(0f, -8f);
@@ -398,7 +398,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         labelObj.transform.SetParent(obj.transform, false);
         var label = labelObj.GetComponent<TextMeshProUGUI>();
         label.text = glyph;
-        label.fontSize = 17f;
+        label.fontSize = glyph == "TODOS" ? 10f : 17f;
         label.color = letters;
         label.alignment = TextAlignmentOptions.Center;
         label.raycastTarget = false;
