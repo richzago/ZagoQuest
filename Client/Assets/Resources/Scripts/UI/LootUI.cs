@@ -222,6 +222,32 @@ public class LootUI : MonoBehaviour
         TakeAllLoot();
     }
 
+    /// <summary>
+    /// Soltar uma linha do cadáver no chão NÃO coleta no inventário:
+    /// o Node transfere do cadáver diretamente ao tile e confirma com lootTaken.
+    /// </summary>
+    public void DropItemToWorld(int index, Vector2 screenPosition)
+    {
+        if (!ReadyToTake() || index < 0 || index >= visibleItems.Count) return;
+        var camera = Camera.main;
+        var player = PlayerController.Instance;
+        if (camera == null || !camera.pixelRect.Contains(screenPosition) ||
+            player == null || !player.TryGetConfirmedGridPosition(out Vector2Int tile))
+            return;
+        var world = camera.ScreenToWorldPoint(
+            new Vector3(screenPosition.x, screenPosition.y, 0f));
+        int x = Mathf.FloorToInt(world.x), y = Mathf.FloorToInt(world.y);
+        long distance = System.Math.Abs((long)x - tile.x) +
+                        System.Math.Abs((long)y - tile.y);
+        if (distance > 2)
+        {
+            ChatUI.Instance?.AddMessage("Loot: muito longe para soltar no chão.");
+            return;
+        }
+        awaitingServer = true;
+        NetworkManager.Instance.Inventory.SendDropCorpseLoot(currentCorpseId, index, x, y);
+    }
+
     public void TakeByDrop(int index)
     {
         // O servidor valida Bag, capacidade, alcance e índice do cadáver.
