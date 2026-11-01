@@ -228,12 +228,14 @@ public class LootUI : MonoBehaviour
             }
         }
         var k = Keyboard.current;
-        // Shift+L não conflita com movimentação WASD/E; só com Loot aberto.
-        if (k == null || !IsLootOpen || !k.lKey.wasPressedThisFrame ||
-            !(k.leftShiftKey.isPressed || k.rightShiftKey.isPressed)) return;
+        // Shift+L funciona com a HUD fechada: o Node escolhe cadáveres
+        // em volta do jogador e valida maior hit, CAP e direito de loot.
+        if (k == null || !k.lKey.wasPressedThisFrame ||
+            !(k.leftShiftKey.isPressed || k.rightShiftKey.isPressed) ||
+            net.Inventory == null) return;
         var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
         if (selected != null && selected.GetComponentInParent<TMP_InputField>() != null) return;
-        TakeAllLoot();
+        net.Inventory.SendAutoLootNearby();
     }
 
     /// <summary>

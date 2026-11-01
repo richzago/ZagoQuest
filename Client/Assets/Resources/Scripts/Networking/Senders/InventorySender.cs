@@ -130,6 +130,11 @@ namespace ZagoQuest.Networking.Senders
             });
         }
 
+        public void SendAutoLootNearby()
+        {
+            Send(new AutoLootNearbyMessage { type = "autoLootNearby" });
+        }
+
         public void SendLoot(string corpseId)
         {
             var msg = new LootMessage
