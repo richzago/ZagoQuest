@@ -139,7 +139,13 @@ public class EquipmentSlotUI : MonoBehaviour, IPointerClickHandler, IDropHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (string.IsNullOrEmpty(currentItemId)) return;
+        if (slotType == EquipmentSlot.BACKPACK &&
+            eventData.button == PointerEventData.InputButton.Left &&
+            !string.IsNullOrEmpty(currentItemId))
+        {
+            // C9: somente clicar na Backpack equipada abre a Bag real.
+            InventoryUI.Instance?.ToggleBackpack();
+        }
     }
 
     public void OnDrop(PointerEventData eventData)
