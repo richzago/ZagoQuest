@@ -192,8 +192,9 @@ export class Player extends Creature {
     const holder = this.viewedBag();
     const ids = holder ? holder.children : [...this.bagInstances.keys()]
       .filter(id => id !== this.equippedBagInstanceId);
-    const index = ids.findIndex(id => this.bagInstances.get(id)?.itemId === itemId);
-    if (index < 0) return this.createBag(itemId);
+    const index = ids.findIndex(id => this.bagInstances.get(id)?.itemId === itemId &&
+      (!instanceId || id === instanceId));
+    if (index < 0) return instanceId ? undefined : this.createBag(itemId);
     const id = ids[index];
     if (holder) holder.children.splice(index, 1);
     return this.bagInstances.get(id)!;
