@@ -519,7 +519,7 @@ export class Player extends Creature {
    * player.equipItem("equipment/weapon/swords/boneSword");
    * ```
    */
-  equipItem(itemId: string): boolean {
+  equipItem(itemId: string, instanceId?: string): boolean {
     const item = ItemRegistry.get(itemId);
     if (!item || item.type !== "equipment") {
       Logger.warn(`Não é possível equipar ${itemId}: não é um equipamento.`);
