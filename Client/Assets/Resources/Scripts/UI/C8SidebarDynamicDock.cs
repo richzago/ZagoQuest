@@ -204,10 +204,19 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
         float available = Mathf.Max(180f, shell.DynamicHost.rect.width - 24f);
-        float size = Mathf.Clamp((available - 15f) * 0.5f, 72f, 108f);
-        grid.cellSize = new Vector2(size, size);
-        grid.spacing = new Vector2(5f, 5f);
-        grid.padding = new RectOffset(5, 5, 5, 5);
+        // Linhas baixas e margem curta: o scroll não "pula" os itens
+        // finais da Bag pequena. A altura deixa espaço ao Loot abaixo.
+        float width = Mathf.Clamp((available - 15f) * 0.5f, 72f, 108f);
+        grid.cellSize = new Vector2(width, 62f);
+        grid.spacing = new Vector2(4f, 3f);
+        grid.padding = new RectOffset(4, 4, 4, 4);
+        var bagScroll = inventory.slotsGrid.GetComponentInParent<ScrollRect>();
+        if (bagScroll != null)
+        {
+            bagScroll.scrollSensitivity = 9f;
+            bagScroll.inertia = false;
+            bagScroll.movementType = ScrollRect.MovementType.Clamped;
+        }
     }
 
     private void ConfigureLootPanel()
@@ -230,7 +239,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             var scrollRect = scroll.transform as RectTransform;
             if (scrollRect != null)
             {
-                scrollRect.anchorMin = new Vector2(0.02f, 0.21f);
+                scrollRect.anchorMin = new Vector2(0.02f, 0.04f);
                 scrollRect.anchorMax = new Vector2(0.98f, 0.98f);
                 scrollRect.offsetMin = scrollRect.offsetMax = Vector2.zero;
             }
@@ -243,6 +252,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             }
             scroll.horizontal = false;
             scroll.vertical = true;
+            scroll.scrollSensitivity = 9f;
+            scroll.inertia = false;
         }
         if (loot.takeAllButton != null)
         {
@@ -417,13 +428,24 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         bool showBag = connected && inventory != null &&
             inventory.IsInventoryOpen && inventory.HasEquippedBag;
         bool showLoot = connected && loot != null && loot.IsLootOpen;
+        float freeHeight = shell != null && shell.DynamicHost != null
+            ? shell.DynamicHost.rect.height : 0f;
+        // Game View baixa/F10 130%: só a aba mais nova recebe a área;
+        // não criar dois painéis inutilizáveis com altura de 20px.
+        if (showBag && showLoot && freeHeight < 245f)
+        {
+            if (selected == Tab.Backpack) showLoot = false;
+            else showBag = false;
+        }
         // Não são mais abas que se ocultam mutuamente: Bag compacta acima,
         // Loot no restante do host. Dois (ou mais) cadáveres ficam navegáveis.
         var host = shell != null ? shell.DynamicHost : null;
         if (host != null)
         {
             float h = host.rect.height;
-            float bagHeight = showBag ? Mathf.Min(168f, Mathf.Max(80f, h * 0.42f)) : 0f;
+            float bagHeight = showBag ? Mathf.Min(142f, Mathf.Max(78f, h * 0.40f)) : 0f;
+            float lootHeight = showLoot ? Mathf.Min(176f,
+                Mathf.Max(64f, h - bagHeight - 5f)) : 0f;
             if (inventoryBackup.rect != null)
             {
                 var r = inventoryBackup.rect;
@@ -436,10 +458,12 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             if (lootBackup.rect != null)
             {
                 var r = lootBackup.rect;
-                r.anchorMin = Vector2.zero;
+                r.anchorMin = new Vector2(0f, 1f);
                 r.anchorMax = Vector2.one;
-                r.offsetMin = Vector2.zero;
+                r.pivot = new Vector2(0.5f, 1f);
                 r.offsetMax = new Vector2(0f, -bagHeight - (showBag && showLoot ? 5f : 0f));
+                r.offsetMin = new Vector2(0f, -bagHeight -
+                    (showBag && showLoot ? 5f : 0f) - lootHeight);
             }
         }
         if (inventoryGroup != null)
