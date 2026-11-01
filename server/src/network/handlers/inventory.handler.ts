@@ -272,7 +272,7 @@ export async function handleDropItem(
       ctx.packetSender.inventory.sendDropError("Cada Bag é uma instância: solte apenas uma.");
       return;
     }
-    const payload = player.detachBagForGround(itemId, fromEquipment);
+    const payload = player.detachBagForGround(itemId, fromEquipment, msg.instanceId);
     if (!payload) {
       ctx.packetSender.inventory.sendDropError("Falha ao soltar esta Bag.");
       return;
