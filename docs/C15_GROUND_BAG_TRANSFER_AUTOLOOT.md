@@ -32,6 +32,10 @@ Implementação: `feature/c15-ground-persistence-bag-transfer-area-loot` / [PR #
 - O comando só coleta corpos cujo `lootOwnerId` é o jogador autenticado. Faz validação de CAP e slots **por cadáver** antes de transferir o lote; não coleta parcialmente um cadáver sem capacidade. Outros cadáveres permanecem intactos. O botão TODOS da janela continua coletando apenas o cadáver aberto (fluxo manual existente).
 - Corpos continuam expirando como antes (15 s padrão); autoloot não altera tempo de vida nem propriedade da XP.
 
+## Resultado de CI: aprovado em 01/11/2026
+
+[GitHub Actions #41335350708](https://github.com/richzago/ZagoQuest/actions/runs/41335350708): **595/595 testes aprovados no Ubuntu e 595/595 no Windows**, além de integração real PostgreSQL e compilação TypeScript. A CI não executa C# ou cenas no Unity.
+
 ## Testes automatizados e homologação
 
 - `server/tests/c15GroundBagAreaLoot.test.ts`: ciclo/posse/UUID/slots, serialização e reconstituição de chão, maior hit, box 3×3 e CAP, contratos Unity e Zod.
