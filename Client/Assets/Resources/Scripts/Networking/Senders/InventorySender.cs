@@ -11,6 +11,17 @@ namespace ZagoQuest.Networking.Senders
     {
         public InventorySender(WebSocket websocket) : base(websocket) { }
 
+        public void OpenBag(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId)) return;
+            Send(new OpenBagMessage { type = "openBag", itemId = itemId });
+        }
+
+        public void CloseBag()
+        {
+            Send(new CloseBagMessage { type = "closeBag" });
+        }
+
         public void UseItem(string itemId)
         {
             var msg = new UseItemMessage
