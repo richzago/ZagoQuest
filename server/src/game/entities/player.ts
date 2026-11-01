@@ -204,7 +204,7 @@ export class Player extends Creature {
    * Drop de Bag: move toda árvore para o objeto do chão.
    * Não deixa o inventário da Bag antiga visível na Bag nova.
    */
-  detachBagForGround(itemId: string, equipped: boolean): BagStateSave | null {
+  detachBagForGround(itemId: string, equipped: boolean, instanceId?: string): BagStateSave | null {
     if (!this.isContainerItem(itemId)) return null;
     if (equipped && this.isViewingNestedBag) return null;
     let root;
@@ -218,8 +218,15 @@ export class Player extends Creature {
       this.looseItems = this.inventory;
       this.recalculateStats();
     } else {
-      if (!this.removeItem(itemId, 1)) return null;
-      root = this.takeContainedBag(itemId);
+      if (!this.hasItem(itemId, 1)) return null;
+      root = this.takeContainedBag(itemId, instanceId);
+      if (!root) return null; // UUID estranho NÃO pode consumir outra Bag.
+      if (!this.removeItem(itemId, 1)) {
+        const parent = this.viewedBag();
+        if (parent && !parent.children.includes(root.id))
+          parent.children.push(root.id);
+        return null;
+      }
     }
     if (!root) return null;
     const bags: BagInstanceSave[] = [];
