@@ -51,6 +51,15 @@ export interface ClientPickupItemMessage {
 /**
  * Abrir loot de um cadáver.
  */
+export interface ClientDropCorpseLootMessage {
+  type: "dropCorpseLoot";
+  corpseId: string;
+  itemIndex: number;
+  x: number;
+  y: number;
+}
+
+/** Arrastar diretamente do cadáver para o chão (sem passar pela mochila). */
 export interface ClientLootMessage {
   type: "loot";
   corpseId: string;
