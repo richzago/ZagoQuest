@@ -55,6 +55,11 @@ public class ItemNameManager : MonoBehaviour
         }
 
         newText.text = displayName;
+        // O nome é apenas um indicador do objeto 2D: sem capturar clique
+        // nem drag do mundo/NPC, mesmo quando o rótulo fica sobre o sprite.
+        newText.raycastTarget = false;
+        foreach (var graphic in go.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+            graphic.raycastTarget = false;
         activeTexts[id] = newText;
         UpdateTextPosition(newText, worldPosition);
     }
