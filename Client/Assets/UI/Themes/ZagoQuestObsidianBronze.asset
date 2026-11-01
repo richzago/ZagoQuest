@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a31db682d1b54970a1d2e4b0b2908c17, type: 3}
+  m_Name: ZagoQuestObsidianBronze
+  m_EditorClassIdentifier: Assembly-CSharp::ZagoQuestUIThemeAsset
+  surface:
+    serializedVersion: 2
+    rgba: 4162327312
+  recess:
+    serializedVersion: 2
+    rgba: 4162984983
+  row:
+    serializedVersion: 2
+    rgba: 4197132322
+  bronze:
+    serializedVersion: 2
+    rgba: 4282746292
+  bronzeLight:
+    serializedVersion: 2
+    rgba: 4285311696
+  bronzeDark:
+    serializedVersion: 2
+    rgba: 4113186644
+  cyanAccent:
+    serializedVersion: 2
+    rgba: 4289504620
+  text:
+    serializedVersion: 2
+    rgba: 4292207335
+  mutedText:
+    serializedVersion: 2
+    rgba: 4289374883
+  hp:
+    serializedVersion: 2
+    rgba: 4282467773
+  mana:
+    serializedVersion: 2
+    rgba: 4291660361
+  experience:
+    serializedVersion: 2
+    rgba: 4285311696
+  skillProgress:
+    serializedVersion: 2
+    rgba: 4289504620
+  panelHeaderHeight: 27
+  panelPadding: 6
+  equipmentSlotSize: 38
+  utilityIconSize: 23
+  skillRowHeight: 23
+  progressBarHeight: 5
+  panelGap: 8
+  bodyFont: {fileID: 0}
+  titleFont: {fileID: 0}
