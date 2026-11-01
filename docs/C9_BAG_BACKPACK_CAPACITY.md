@@ -1,5 +1,8 @@
 # ZagoQuest C9 — Bag/Backpack via JSON, capacidade e coleta autoritativa
 
+> **C10 atualizado (01/11/2026):** a arquitetura C9 de inventário único foi substituída por **Bags com instâncias/UUID e conteúdo persistente próprio**, Merchant requer Bag para poções e Take All usa **Shift+E**. A sidebar agora é configurável via engrenagem (colunas 0–3 esquerda e 1–3 direita) e tem dimensões menores. As descrições e atalhos C9 abaixo são históricos: **a especificação vigente é [C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md](C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md)**. PR #119 continua em Draft, sem merge.
+
+
 ## Revisão de homologação pós-PR #119 (bugs reportados)
 
 **Ver [C9_CRITICAL_HOMOLOGATION_FIXES.md](C9_CRITICAL_HOMOLOGATION_FIXES.md)** para diagnóstico, código afetado, semântica do novo comando `dropCorpseLoot`, recuperação da primeira Bag do chão, confirmação de origem `fromEquipment`, prioridade de clique NPC sobre itens, scroll 9–10, layouts compactos e checklist completo. Os testes manuais anteriormente anotados devem ser executados **junto com** a revisão de regressão.
