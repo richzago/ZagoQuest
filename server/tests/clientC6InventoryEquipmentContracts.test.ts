@@ -42,9 +42,12 @@ test("C6: arrastar inventário para slot envia equipItem uma vez, sem drop de ch
  assert.match(eq,/DragDropManager\.Instance\.DropOnEquipmentSlot\(slotType\)/);
  assert.match(drag,/NetworkManager\.Instance\?\.Inventory\.SendEquipItem\(draggedItemId, bagInstanceId\)/);
  assert.match(inv,/if \(DragDropManager\.Instance == null \|\| !DragDropManager\.Instance\.IsDragging\(\)\) return/);
- assert.match(inv,/GetComponentInParent<EquipmentSlotUI>\(\)/);
- assert.match(inv,/target\.GetComponentInParent<Canvas>\(\) != null/);
- assert.match(eq,/target\.GetComponentInParent<Canvas>\(\) != null/);
+ assert.match(inv,/DragDropManager\.PointerBlocksWorldDrop\(eventData\)/);
+ assert.match(eq,/DragDropManager\.PointerBlocksWorldDrop\(eventData\)/);
+ assert.match(inv,/Camera\.main\.pixelRect\.Contains\(eventData\.position\)/);
+ assert.match(eq,/Camera\.main\.pixelRect\.Contains\(eventData\.position\)/);
+ assert.doesNotMatch(inv,/target\.GetComponentInParent<Canvas>\(\)/);
+ assert.doesNotMatch(eq,/target\.GetComponentInParent<Canvas>\(\)/);
  assert.match(eq,/NetworkManager\.Instance/);
 });
 

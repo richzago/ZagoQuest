@@ -29,7 +29,7 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   }
   assert.match(ui, /public RectTransform DynamicHost => dynamicHost/);
   assert.match(ui, /SidebarDynamicHost/);
-  assert.match(ui, /new GameObject\("MiniMapCircularPreview"/);
+  assert.match(ui, /new GameObject\("MiniMapTilePreview"/);
   assert.match(ui, /CreateCircularMiniMapTexture\(\)/);
   assert.match(ui, /ACESSO RÁPIDO/);
   assert.match(ui, /CONTEINÊRES  \/  LOOT/);
@@ -127,7 +127,7 @@ test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico 
   assert.doesNotMatch(scene, /m_Name: C8SidebarCanvas/);
 });
 
-test("UI 2A refinamento: 6 pictogramas sem siglas, minimapa circular e barra full bleed", () => {
+test("C12 refinamento: 6 pictogramas sem siglas, minimapa quadrado e barra full bleed", () => {
   const ui = unity("UI/C8SidebarShell.cs");
   const icons = ["SettingsIcon","SoundIcon","ChatIcon","BackpackIcon","MapIcon","HelpIcon"];
   for (const icon of icons) assert.match(ui,new RegExp('"' + icon + '"'));
