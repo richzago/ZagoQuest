@@ -24,6 +24,7 @@ public class LootUI : MonoBehaviour
     private readonly List<LootItem> visibleItems = new List<LootItem>();
     private readonly List<GameObject> itemSlots = new List<GameObject>();
     private bool awaitingServer;
+    private bool resetScrollOnRebuild = true;
     private float nextRangeCheckAt;
     private const int LootReachTiles = 2;
     private const int MaxTrackedCorpses = 4;
@@ -122,6 +123,7 @@ public class LootUI : MonoBehaviour
         openedCorpses.Remove(corpseId);
         openedCorpses.Add(corpseId);
         if (openedCorpses.Count > MaxTrackedCorpses) openedCorpses.RemoveAt(0);
+        resetScrollOnRebuild = currentCorpseId != corpseId;
         currentCorpseId = corpseId;
         awaitingServer = false;
         visibleItems.Clear();
@@ -187,9 +189,11 @@ public class LootUI : MonoBehaviour
         var scroll = itemsContainer.GetComponentInParent<ScrollRect>();
         if (scroll != null)
         {
-            scroll.scrollSensitivity = 10f;
-            scroll.inertia = false; // scroll preciso: um movimento nao pula linhas
-            scroll.verticalNormalizedPosition = 1f;
+            scroll.scrollSensitivity = 1f;
+            scroll.inertia = false;
+            // Retirar UMA linha de loot não manda a lista de volta ao topo.
+            if (resetScrollOnRebuild) scroll.verticalNormalizedPosition = 1f;
+            resetScrollOnRebuild = false;
         }
         if (takeAllButton != null) takeAllButton.interactable = visibleItems.Count > 0 && !awaitingServer;
         Canvas.ForceUpdateCanvases();

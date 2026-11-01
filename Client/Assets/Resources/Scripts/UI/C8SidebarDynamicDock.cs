@@ -234,31 +234,65 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
         float available = Mathf.Max(132f, bagHost.rect.width - 16f);
-        // Linhas baixas e margem curta: o scroll não "pula" os itens
-        // finais da Bag pequena. A altura deixa espaço ao Loot abaixo.
-        float width = Mathf.Clamp((available - 15f) * 0.5f, 56f, 100f);
-        grid.cellSize = new Vector2(width, 62f);
+        // Quatro slots visíveis por padrão: duas colunas × duas linhas.
+        // Slots menores para caber até em 720p/F10 sem cortar linhas.
+        float width = Mathf.Clamp((available - 22f) * 0.5f, 50f, 100f);
+        grid.cellSize = new Vector2(width, 50f);
         grid.spacing = new Vector2(4f, 3f);
         grid.padding = new RectOffset(4, 4, 4, 4);
         var bagScroll = inventory.slotsGrid.GetComponentInParent<ScrollRect>();
         if (bagScroll != null)
         {
-            bagScroll.scrollSensitivity = 5f;
+            bagScroll.scrollSensitivity = 1f;
             bagScroll.inertia = false;
             EnsureVerticalScrollbar(bagScroll, "C15BagScrollbar");
             bagScroll.movementType = ScrollRect.MovementType.Clamped;
         }
     }
 
-    /** Mouse wheel + handle clicável/arrastável; não cobre os slots. */
+    /// <summary>
+    /// Sempre usar um viewport FILHO separado. No inventário C6 o
+    /// ScrollRect.viewport apontava para o próprio RectTransform do ScrollRect;
+    /// alterar anchorMax ali encolhia a janela toda e cortava slots.
+    /// </summary>
     private static void EnsureVerticalScrollbar(ScrollRect scroll, string id)
     {
-        if (scroll == null || scroll.viewport == null) return;
+        if (scroll == null || scroll.content == null) return;
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 5f;
         scroll.inertia = false;
+        scroll.scrollSensitivity = 1f; // fallback: C16FineScrollWheel recebe o evento
+        var scrollRoot = (RectTransform)scroll.transform;
+        var view = scroll.viewport;
+        if (view == null || view == scrollRoot)
+        {
+            var existing = scroll.transform.Find("C16ClippedViewport");
+            if (existing == null)
+            {
+                var go = new GameObject("C16ClippedViewport", typeof(RectTransform),
+                    typeof(Image), typeof(RectMask2D));
+                go.transform.SetParent(scroll.transform, false);
+                existing = go.transform;
+            }
+            view = (RectTransform)existing;
+            scroll.content.SetParent(view, false);
+            scroll.viewport = view;
+        }
+        if (view.GetComponent<RectMask2D>() == null)
+            view.gameObject.AddComponent<RectMask2D>();
+        var target = view.GetComponent<Image>();
+        if (target == null) target = view.gameObject.AddComponent<Image>();
+        target.color = new Color(0f, 0f, 0f, 0f);
+        target.raycastTarget = true;
+        var handler = view.GetComponent<C16FineScrollWheel>();
+        if (handler == null) handler = view.gameObject.AddComponent<C16FineScrollWheel>();
+        handler.Bind(scroll);
+
+        view.anchorMin = Vector2.zero;
+        view.anchorMax = Vector2.one;
+        view.offsetMin = Vector2.zero;
+        view.offsetMax = new Vector2(-14f, 0f);
         if (scroll.content != null)
         {
             var fitter = scroll.content.GetComponent<ContentSizeFitter>();
@@ -267,6 +301,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         }
+
         var root = scroll.transform.Find(id);
         if (root == null)
         {
@@ -292,14 +327,12 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         rect.anchorMin = new Vector2(1f, 0f);
         rect.anchorMax = Vector2.one;
         rect.pivot = new Vector2(1f, 0.5f);
-        rect.offsetMin = new Vector2(-12f, 4f);
-        rect.offsetMax = new Vector2(-1f, -4f);
+        rect.offsetMin = new Vector2(-12f, 2f);
+        rect.offsetMax = new Vector2(-1f, -2f);
         root.SetAsLastSibling();
         scroll.verticalScrollbar = root.GetComponent<Scrollbar>();
         scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
-        // A barra precisa de espaço separado, jamais sobre a célula clicável.
-        var view = scroll.viewport;
-        view.anchorMax = new Vector2(0.92f, 1f);
+        scroll.verticalScrollbarSpacing = 0f;
     }
 
     private void ConfigureLootPanel()
@@ -330,12 +363,13 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             {
                 var vr = scroll.viewport;
                 vr.anchorMin = Vector2.zero;
-                vr.anchorMax = new Vector2(0.92f, 1f);
-                vr.offsetMin = vr.offsetMax = Vector2.zero;
+                vr.anchorMax = Vector2.one;
+                vr.offsetMin = Vector2.zero;
+                vr.offsetMax = new Vector2(-14f, 0f);
             }
             scroll.horizontal = false;
             scroll.vertical = true;
-            scroll.scrollSensitivity = 5f;
+            scroll.scrollSensitivity = 1f;
             scroll.inertia = false;
             EnsureVerticalScrollbar(scroll, "C15LootScrollbar");
         }
