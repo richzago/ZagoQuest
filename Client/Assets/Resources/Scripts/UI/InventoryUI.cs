@@ -16,6 +16,15 @@ public class InventoryUI : MonoBehaviour
     private NetworkManager networkManager;
     private Dictionary<string, int> items = new Dictionary<string, int>();
     private Dictionary<string, string> itemTypes = new Dictionary<string, string>();
+    /** Visual rows: distinct Bags with same itemId no longer collapse to xN. */
+    public sealed class InventoryEntry
+    {
+        public string itemId;
+        public int amount;
+        public string itemType;
+        public string instanceId;
+    }
+    private List<InventoryEntry> visibleRows;
     private int currentGold = 0;
     // Evita que redraw do inventário equipe outro item sob o cursor em segundos.
     private float lastEquipmentUseAt = -1f;
@@ -117,6 +126,21 @@ public class InventoryUI : MonoBehaviour
         Dictionary<string, string> newItemTypes,
         string equippedBagId, int capacity, int used)
     {
+        visibleRows = null;
+        SetInventorySnapshot(gold,newItems,newItemTypes,equippedBagId,capacity,used);
+    }
+
+    public void HandleInventory(int gold, Dictionary<string,int> newItems,
+        Dictionary<string,string> newItemTypes,string bagId,int capacity,int used,
+        List<InventoryEntry> rows)
+    {
+        visibleRows = rows;
+        SetInventorySnapshot(gold,newItems,newItemTypes,bagId,capacity,used);
+    }
+
+    private void SetInventorySnapshot(int gold, Dictionary<string,int> newItems,
+        Dictionary<string,string> newItemTypes,string equippedBagId,int capacity,int used)
+    {
         currentGold = gold;
         items = newItems ?? new Dictionary<string, int>();
         itemTypes = newItemTypes ?? new Dictionary<string, string>();
@@ -192,7 +216,24 @@ public class InventoryUI : MonoBehaviour
         slotObjects.Clear();
 
         if (slotPrefab == null || slotsGrid == null) return;
-        ShowEmptyState(items.Count == 0);
+        ShowEmptyState(visibleRows != null ? visibleRows.Count == 0 : items.Count == 0);
+        if (visibleRows != null)
+        {
+            foreach (var row in visibleRows)
+            {
+                var go=Instantiate(slotPrefab, slotsGrid);
+                var slot=go.GetComponent<InventorySlot>();
+                if (slot != null)
+                {
+                    slot.Setup(row.itemId,row.amount,NetworkManager.Instance ?? networkManager,
+                        row.itemType,row.instanceId);
+                    slot.OnBagOpen += OpenBagInstance;
+                    slot.OnDoubleClick += OnSlotDoubleClicked;
+                }
+                slotObjects.Add(go);
+            }
+            return;
+        }
         foreach (var kvp in items)
         {
             GameObject slot = Instantiate(slotPrefab, slotsGrid);
@@ -251,6 +292,13 @@ public class InventoryUI : MonoBehaviour
             selected.GetComponentInParent<TMP_InputField>() != null) return;
         var net = NetworkManager.Instance;
         if (net != null && net.isConnected) net.Inventory?.CloseBag();
+    }
+
+    private void OpenBagInstance(string itemId,string instanceId)
+    {
+        var net=NetworkManager.Instance;
+        if (net == null || !net.isConnected || string.IsNullOrEmpty(instanceId)) return;
+        net.Inventory?.OpenBag(itemId,instanceId);
     }
 
     private void OnSlotDoubleClicked(string itemId)
