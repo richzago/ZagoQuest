@@ -1,5 +1,10 @@
 # ZagoQuest C9 — Bag/Backpack via JSON, capacidade e coleta autoritativa
 
+## Revisão de homologação pós-PR #119 (bugs reportados)
+
+**Ver [C9_CRITICAL_HOMOLOGATION_FIXES.md](C9_CRITICAL_HOMOLOGATION_FIXES.md)** para diagnóstico, código afetado, semântica do novo comando `dropCorpseLoot`, recuperação da primeira Bag do chão, confirmação de origem `fromEquipment`, prioridade de clique NPC sobre itens, scroll 9–10, layouts compactos e checklist completo. Os testes manuais anteriormente anotados devem ser executados **junto com** a revisão de regressão.
+
+
 > **Status:** PR de refatoração / homologação Unity pendente. Branch `feature/server-authoritative-containers-loot-c9` criada após merge autorizado #118 na `dev`. **Nenhum merge nesta etapa até novos testes do usuário.**
 
 ## Configuração por item (pedido explícito)
