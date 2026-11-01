@@ -1,5 +1,8 @@
 # ZagoQuest C10 — Bolsas por instância, Merchant, Loot e cliente configurável
 
+> **Atualização C11 (01/11/2026):** a especificação vigente da interação NPC, loot por distância, **Shift+L**, múltiplas Bags com UUID individuais na UI e tema original **Obsidian & Bronze** está em [C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md](C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md). Atalhos e detalhes de layout abaixo podem representar a etapa C10 anterior. **CAP por peso ainda não está implementado**, apenas limites por slots. PR #119 permanece Draft, sem merge.
+
+
 **Ramo de homologação:** `feature/server-authoritative-containers-loot-c9` — PR [#119](https://github.com/richzago/ZagoQuest/pull/119), **base `dev`, Draft, sem merge**. Mantido no mesmo ramo por pedido explícito após falhas encontradas no Unity em 01/11/2026.
 
 ## 1. Bugs reproduzidos e causa
