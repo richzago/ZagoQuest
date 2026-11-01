@@ -65,6 +65,11 @@
       "itemId": "fishing/fish/golden",
       "buyPrice": 110,
       "sellPrice": 45
+    },
+    {
+      "itemId": "equipment/backpack/basic_backpack",
+      "buyPrice": 35,
+      "sellPrice": 15
     }
   ]
 }
