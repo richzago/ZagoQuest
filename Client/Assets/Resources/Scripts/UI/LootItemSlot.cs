@@ -65,7 +65,17 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
     }
 
     public void OnDrag(PointerEventData eventData) { }
-    public void OnEndDrag(PointerEventData eventData) { }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        // O drop sobre C9LootBagDropTarget/InventorySlot é atendido
+        // primeiro pelo EventSystem. Sobre Canvas, nunca dropar no mundo.
+        var over = eventData.pointerCurrentRaycast.gameObject;
+        if (over != null && over.GetComponentInParent<Canvas>() != null)
+            return;
+        if (eventData.button != PointerEventData.InputButton.Left) return;
+        LootUI.Instance?.DropItemToWorld(index, eventData.position);
+    }
 
     public void OnPointerClick(PointerEventData eventData)
     {
