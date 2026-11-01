@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **C10 atualizado (01/11/2026):** a arquitetura C9 de inventário único foi substituída por **Bags com instâncias/UUID e conteúdo persistente próprio**, Merchant requer Bag para poções e Take All usa **Shift+E**. A sidebar agora é configurável via engrenagem (colunas 0–3 esquerda e 1–3 direita) e tem dimensões menores. As descrições e atalhos C9 abaixo são históricos: **a especificação vigente é [C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md](C10_INDIVIDUAL_BAGS_CLIENT_SETTINGS.md)**. PR #119 continua em Draft, sem merge.
+
+
 > **C9 — revisão crítica dos testes do usuário (P0/P1):** sequência drop/ground pickup da Bag não podia terminar sem outra bolsa, e o mesmo itemId de equipado/inventário podia derrubar cópia errada. Corrigidos com bootstrap de Bag do chão, `fromEquipment` explícito e validação Zod; ItemName UI sem raycasts e NPC ganha precedência sobre item no mesmo tile. Adicionado drag `corpse → chão` autoritativo, mais compacto Bag(142px)/Loot(176px), linhas 62/36px, scroll 9–10 e histórico LRU de quatro cadáveres. [Diagnóstico + QA](C9_CRITICAL_HOMOLOGATION_FIXES.md). **PR #119 Draft, SEM MERGE; CI Node não executa Unity.**
 
 
