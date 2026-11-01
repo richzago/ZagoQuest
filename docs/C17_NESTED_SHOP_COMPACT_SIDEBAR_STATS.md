@@ -43,6 +43,29 @@ O painel de Stats real é **reparentado** para `SidebarDynamicHost`, responsivo,
 - Atualizadas verificações históricas C6/C8/C9/C10/C11/C16 que exigiam aba ou status antigo. Isso não significa que testes antigos de gameplay foram desabilitados.
 - **CI Node/TypeScript/PostgreSQL não compila C# nem executa o Editor Unity.** Validação visual e do evento de botão depende de Play Mode manual.
 
+## Homologação manual parcial — 01/11/2026 (7/8)
+
+O usuário confirmou **sete cenários OK** no Unity; **um pendente, não reprovado**. Os resultados são relatos de homologação manual, não logs ou screenshots anexados.
+
+| Cenário | Resultado |
+| --- | --- |
+| Comprar potions com Bag raiz cheia e filha vazia, conferir destino e único débito de gold | **OK** |
+| Recusar compras com árvore lotada ou CAP insuficiente, sem perda de ouro | **OK** |
+| Respeitar `maxStack=10` e distribuir entre Bags diferentes | **OK** |
+| Comprar, largar e recolher Bag aninhada preservando conteúdo e UUID | **OK** |
+| Sidebar sem títulos, abas, setas ou botão TODOS duplicados | **OK** |
+| Stats via ícone `S`, tecla `P` inativa e janela sem sobreposição | **PENDENTE** |
+| CAP restante atualizado ao comprar, coletar, equipar e largar | **OK** |
+| Regressões NPC, Loot, pesca, banco, logout, 1280×720, 1920×1080 e F10 | **OK** |
+
+**Avaliação:** as alterações econômicas mais críticas (itens não invisíveis, autorização para armazenar em Bag filha, integridade de UUIDs, limites de pilha e gold não debitado em operações recusadas) foram aprovadas nos cenários executados. O layout compacto e as regressões gerais também foram aprovados. Isso não equivale a homologação integral: o fluxo Stats exige verificação visual e de interação.
+
+**Como fechar a pendência Stats (sem presumir defeito):** em sessão autenticada, clicar no pictograma **S** da barra de ícones e verificar se abre/fecha; pressionar **P** e confirmar que não há efeito; testar todos os atributos/scroll/fechamento pelo X; alternar entre Stats e janelas Backpack/Loot e observar se mapa, NPC e slots seguem clicáveis, inclusive 720p/1080p e F10. Se não abrir, inspecionar no Unity Console e no Inspector se `StatusManager.Instance` está ativo, se `StatsIcon` possui Button ligado a `TogglePanel` e se o `statusPanel` foi reparentado a `SidebarDynamicHost`. A revisão estática evidencia esse fluxo no código, mas não demonstra sua execução.
+
+**Governança:** [PR #123](https://github.com/richzago/ZagoQuest/pull/123) permanece **OPEN/DRAFT**, sem merge na `dev`, por solicitação expressa do usuário. Concluir a pendência e aguardar autorização de integração; homologação dos demais itens não autoriza merge.
+
+---
+
 ### Checklist de homologação Unity C17
 
 1. **NPC + Bag raiz com slots cheios + filha vazia:** comprar potions, observar aviso sobre Bag interna, abrir a filha e conferir o lote; gold debitado apenas uma vez.
