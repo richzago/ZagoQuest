@@ -48,6 +48,8 @@ export interface ClientDropItemMessage {
   y: number;
   /** true apenas ao arrastar do slot de equipamento; evita tirar cópia errada. */
   fromEquipment?: boolean;
+  /** Qual Bag não-stackable está sendo arrastada (UUID). */
+  instanceId?: string;
 }
 
 /**
