@@ -20,7 +20,8 @@ namespace ZagoQuest.Networking.Handlers
                         itemTypes[item.itemId] = item.itemType;
                 }
             }
-            context.InventoryUI?.HandleInventory(invMsg.gold, itemsDict, itemTypes);
+            context.InventoryUI?.HandleInventory(invMsg.gold, itemsDict, itemTypes,
+                invMsg.bagItemId, invMsg.bagSlots, invMsg.slotsUsed);
         }
     }
 }
