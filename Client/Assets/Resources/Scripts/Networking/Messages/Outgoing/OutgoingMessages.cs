@@ -17,6 +17,8 @@ namespace ZagoQuest.Networking.Messages
     // Take-all does not send itemIndex: the server requires non-negative indices when supplied.
     [Serializable] public class TakeAllLootMessage { public string type; public string corpseId; public bool takeAll; }
     [Serializable] public class UseItemMessage { public string type; public string itemId; }
+    [Serializable] public class OpenBagMessage { public string type; public string itemId; }
+    [Serializable] public class CloseBagMessage { public string type; }
     [Serializable] public class StartAutoAttackMessage { public string type; public string targetId; }
     [Serializable] public class StopAutoAttackMessage { public string type; }
     [Serializable] public class OpenShopMessage { public string type; public string npcId; }
