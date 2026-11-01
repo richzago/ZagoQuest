@@ -9,6 +9,8 @@ import { BankingSystem } from "../src/game/systems/bankingSystem";
 import { ShopSystem } from "../src/game/systems/shopSystem";
 import { MAX_GOLD } from "../src/game/systems/economyRules";
 import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
+import { ItemRegistry } from "../src/data/items/itemRegistry";
+import { join } from "node:path";
 import { handleDropItem, handlePickupItem } from "../src/network/handlers/inventory.handler";
 import { handleTakeLoot } from "../src/network/handlers/loot.handler";
 import type { HandlerContext } from "../src/network/handlers/HandlerContext";
@@ -16,6 +18,11 @@ import type { WebSocket } from "ws";
 
 const potion = "consumable/health_potion";
 const createPlayer = () => new Player("player-test", "Testador", 2, 2);
+const withBag = (player: Player): void => {
+  // C9: simular Bag já equipada e carregar capacidade do JSON REAL.
+  ItemRegistry.loadAll(join(process.cwd(), "src", "data", "items"));
+  player.equipment.set(EquipmentSlot.BACKPACK, "equipment/backpack/basic_backpack");
+};
 const createMerchant = () => {
   const npc = new Npc("merchant-1", "Mercador", 3, 2, "Olá", "merchant");
   npc.shopItems = [{ itemId: potion, buyPrice: 10, sellPrice: 4, stock: 5 }];
@@ -242,6 +249,7 @@ test("drop e pickup válidos transferem item uma única vez", async () => {
   const world = new World();
   world.generateMap(10, 10);
   const player = createPlayer();
+  withBag(player);
   player.addItem(potion, 3);
   const { ctx } = createContext(world);
   await handleDropItem(ws, player, {
@@ -260,6 +268,7 @@ test("drop e pickup válidos transferem item uma única vez", async () => {
 test("pickup rejeitado por overflow mantém o item no chão", async () => {
   const world = new World();
   const player = createPlayer();
+  withBag(player);
   player.gold = MAX_GOLD;
   const ground = new ItemOnGround(
     "ground-1", "currency/gold_coin", 1, 2, 2, "Gold coin",
@@ -275,6 +284,7 @@ test("pickup rejeitado por overflow mantém o item no chão", async () => {
 test("loot inteiro inválido não desaparece com o corpo", async () => {
   const world = new World();
   const player = createPlayer();
+  withBag(player);
   player.gold = MAX_GOLD;
   const corpse = new Corpse("corpse-1", 2, 2, [
     { itemId: potion, amount: 1 },
@@ -294,6 +304,7 @@ test("loot inteiro inválido não desaparece com o corpo", async () => {
 test("loot de um item falha sem removê-lo e rejeita índices negativos", async () => {
   const world = new World();
   const player = createPlayer();
+  withBag(player);
   const corpse = new Corpse("corpse-2", 2, 2, [{ itemId: potion, amount: 2 }]);
   world.addCorpse(corpse);
   const { ctx, errors } = createContext(world);
@@ -308,6 +319,7 @@ test("loot de um item falha sem removê-lo e rejeita índices negativos", async 
 test("loot de corpse transfere tudo e remove o cadáver", async () => {
   const world = new World();
   const player = createPlayer();
+  withBag(player);
   const corpse = new Corpse("corpse-3", 2, 2, [
     { itemId: potion, amount: 3 },
     { itemId: "currency/gold_coin", amount: 5 },
@@ -327,6 +339,7 @@ test("C5: loot individual pelo indice intermediário preserva os outros itens e 
   const world = new World();
   world.generateMap(10,10);
   const player = createPlayer();
+  withBag(player);
   world.addPlayer(player);
   const corpse = new Corpse("corpse-c5-partial", 2, 2, [
     { itemId: potion, amount: 1 },
