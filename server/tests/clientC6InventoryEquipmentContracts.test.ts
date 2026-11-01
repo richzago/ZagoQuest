@@ -366,7 +366,7 @@ test("C6: clique simples consome por itemType do Node; equipamento usa useItem n
  const dto=unity("Networking/Messages/Incoming/IncomingMessages.cs");
  const sender=readFileSync(join(process.cwd(),"src/network/senders/inventorySender.ts"),"utf8");
  const model=readFileSync(join(process.cwd(),"src/network/messages/server/inventory.messages.ts"),"utf8");
- assert.match(sender,/itemType = ItemRegistry\.get\(itemId\)\.type/);
+ assert.match(sender,/itemType=ItemRegistry\.get\(itemId\)\.type/);
  assert.match(model,/itemType\?: string/);
  assert.match(dto,/public string itemType;/);
  assert.match(handler,/itemTypes\[item\.itemId\] = item\.itemType/);

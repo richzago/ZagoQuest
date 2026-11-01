@@ -106,7 +106,8 @@ test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de 
   assert.match(ui, /private void RefreshResponsiveLayout\(\)/);
   assert.match(ui, /height < 760f/);
   assert.match(ui, /private void AdjustDynamicPlaceholder\(\)/);
- assert.match(ui, /dynamicHost\.offsetMax = new Vector2\(-6f, -8f\)/);
+ assert.match(ui, /dynamicHost\.offsetMax = new Vector2\(-6f,/);
+  assert.match(ui, /statsHost\.offsetMin = new Vector2\(6f, -4f-statsHeight\)/);
 });
 
 test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico ou pesca", () => {

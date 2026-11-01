@@ -39,8 +39,12 @@ export class InventorySender extends BaseSender {
       }
     } else {
       // Compatibilidade inventário antigo sem Backpack equipada.
-      for (const [itemId,amount] of player.inventory)
-        itemsArray.push({itemId,amount});
+      for (const [itemId,amount] of player.inventory) {
+        let itemType: string | undefined;
+        try { itemType=ItemRegistry.get(itemId).type; }
+        catch { /* IDs legados */ }
+        itemsArray.push({itemId,amount,itemType});
+      }
     }
 
     this.send({

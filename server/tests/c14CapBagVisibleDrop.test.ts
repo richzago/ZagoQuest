@@ -155,7 +155,8 @@ test("C14: equipar/desequipar no CAP máximo não conta peça duas vezes",()=>{
  const {p,merchant}=setup();
  assert.equal(ShopSystem.buyItem(p,merchant,simple,1),true);
  p.equipment.set(EquipmentSlot.ARMOR,"bone_armor");
- assert.equal(p.addItem(potion,111),true); // 12 + 55 + 333 = 400
+ p.inventory.set(potion,111); // save legado overstack: 12 + 55 + 333 = 400
+ assert.equal(p.canCollectItems([{itemId:potion,amount:1}]),false);
  assert.equal(p.getRemainingCap(),0);
  assert.equal(p.unequipItem(EquipmentSlot.ARMOR),true);
  assert.equal(p.getCarriedWeight(),400);
