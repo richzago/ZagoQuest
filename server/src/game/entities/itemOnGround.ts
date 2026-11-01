@@ -7,6 +7,7 @@
  */
 
 import { Entity } from "./entity";
+import type { BagStateSave } from "./player";
 
 /**
  * Item solto no mundo.
