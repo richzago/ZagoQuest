@@ -12,9 +12,9 @@ using UnityEngine.UI;
 public sealed class C8SidebarShell : MonoBehaviour
 {
     private const float SidebarWidth = 304f;
-    private const float EquipmentSlotSize = 52f;
-    private const float EquipmentStepX = 65f;
-    private const float EquipmentStepY = 58f;
+    private const float EquipmentSlotSize = 50f;
+    private const float EquipmentStepX = 62f;
+    private const float EquipmentStepY = 53f;
 
     private static readonly Color Background = new Color32(18, 27, 39, 249);
     private static readonly Color Inner = new Color32(29, 41, 56, 244);
@@ -49,6 +49,9 @@ public sealed class C8SidebarShell : MonoBehaviour
     // Contrato para futura etapa de loot/backpack: host existe mas NENHUM
     // panel e movido para ele nesta fase de homologacao do equipamento.
     public RectTransform DynamicHost => dynamicHost;
+    // Coordenada visual da margem esquerda REAL da sidebar,
+    // usada por C8PlayfieldViewport (sem adivinhar CanvasScaler/F10).
+    public RectTransform SidebarSurface => sidebarSurface;
 
     private void Start()
     {
@@ -156,15 +159,15 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddCenterText(circle.transform, "MapWaiting", "EM BREVE", 11f, Muted);
 
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
-        var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 290);
+        var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 265);
         equipmentSectionRect = (RectTransform)equipmentSection.transform;
         AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 7, 28, 15, Text);
         // Sem texto "arraste para equipar/retirar": menos poluicao visual.
         equipmentHost = Holder(equipmentSection.transform, "EquipmentHost",
-            Vector2.zero, Vector2.one, new Vector2(8f, 8f), new Vector2(-8f, -44f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 6f), new Vector2(-8f, -40f));
 
         // 3. ACESSOS FUTUROS — pictogramas, nunca siglas ou botões falsos.
-        var settings = Card(surface.transform, "SettingsIconsSection", 532, 58);
+        var settings = Card(surface.transform, "SettingsIconsSection", 507, 58);
         settingsSectionRect = (RectTransform)settings.transform;
         AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
@@ -186,7 +189,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dr.anchorMin = Vector2.zero;
         dr.anchorMax = Vector2.one;
         dr.offsetMin = new Vector2(12f, 0f);
-        dr.offsetMax = new Vector2(-12f, -599f);
+        dr.offsetMax = new Vector2(-12f, -574f);
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
@@ -214,8 +217,8 @@ public sealed class C8SidebarShell : MonoBehaviour
         PlaceTop(miniMapSection, compact ? 58f : 62f,
             compact ? 131f : 164f, 13f, 13f);
         PlaceTop(equipmentSectionRect, compact ? 197f : 234f,
-            compact ? 285f : 290f, 13f, 13f);
-        PlaceTop(settingsSectionRect, compact ? 490f : 532f,
+            compact ? 260f : 265f, 13f, 13f);
+        PlaceTop(settingsSectionRect, compact ? 465f : 507f,
             compact ? 54f : 58f, 13f, 13f);
         float diameter = compact ? 79f : 112f;
         if (miniMapCircleRect != null)
@@ -226,7 +229,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dynamicSection.offsetMin = new Vector2(12f, 0f);
         // Nunca inverter a area dinamica: rolagem/resize funcional fica
         // para outra etapa, mas a base sempre cabe na sidebar.
-        float dynamicTop = compact ? 552f : 599f;
+        float dynamicTop = compact ? 527f : 574f;
         dynamicSection.offsetMax = new Vector2(-12f,
             -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
         lastDynamicHeight = -1f;
@@ -348,7 +351,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         slots.offsetMax = Vector2.zero;
 
         float total = EquipmentSlotSize + EquipmentStepX * 2f;
-        // 3 slots de 52, com passos de 65: 182, centralizados no painel.
+        // 3 slots de 50, com passos de 62: 174, centralizados no painel.
         float x0 = Mathf.Max(8f, (panel.rect.width - total) * 0.5f);
         foreach (Transform child in ui.slotsContainer)
         {
@@ -372,14 +375,14 @@ public sealed class C8SidebarShell : MonoBehaviour
             rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = new Vector2(x0 + col * EquipmentStepX,
-                -6f - row * EquipmentStepY);
+                -4f - row * EquipmentStepY);
             rect.sizeDelta = new Vector2(EquipmentSlotSize, EquipmentSlotSize);
             rect.localScale = Vector3.one;
             if (slot.slotText != null)
             {
                 slot.slotText.enableAutoSizing = true;
                 slot.slotText.fontSizeMin = 7.5f;
-                slot.slotText.fontSizeMax = 11f;
+                slot.slotText.fontSizeMax = 10.5f;
                 slot.slotText.enableWordWrapping = true;
                 slot.slotText.raycastTarget = false;
             }
