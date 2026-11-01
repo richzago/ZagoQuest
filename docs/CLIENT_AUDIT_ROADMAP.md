@@ -6,8 +6,8 @@
 - [x] CAP por peso configurável em JSON, com equipamentos e árvores de Bags; envia snapshot para HUD abaixo de equipamentos, inclusive em 720p/F10.
 - [x] Drop em janela autoritativa 8×6 tiles, dentro da câmera do Unity, destino walkable, livre e com linha de visão; NPC/cadáver continuam acessíveis a 2 tiles.
 - [x] Testes automatizados C14 para ciclo Bag antiga→chão→nova Bag, CAP, loot/bag pesada, LOS, HUD.
-- [ ] **Homologação local Unity C14**: compile/Play Mode e oito cenários do documento.
-- [ ] Autorizar merge de PR #120 somente após homologação.
+- [x] **Homologação manual Unity C14 concluída em 01/11/2026 — 8/8 aprovados conforme relato do usuário:** Bag antiga com itens→chão→nova Bag→recolher→abrir por clique direito/duplo; UUIDs e conteúdos independentes; CAP insuficiente em coleta/compra/loot sem perda ou duplicação; troca de equipamento no CAP cheio; drops próximos e distantes dentro do limite visual; bloqueio em paredes/água/tiles ocupados; HUD em 1280×720/1920×1080 e F10 100/115/130%; NPC/pesca/loot/logout e persistência no personagem sem regressão observada. Relato manual distinto da CI automatizada.
+- [ ] **Aguardar autorização explícita do usuário para merge do PR #120.** QA 8/8 aprovado, mas o PR permanece aberto e Draft; não integrar automaticamente.
 - [ ] Próximas fases: persistir Bags no chão após restart; arraste direto Bag↔Bag, CAP por vocação e regras de áreas especiais Tiled.
 
 [Documento C14](C14_NESTED_BAG_CAP_VISIBLE_DROP.md)
