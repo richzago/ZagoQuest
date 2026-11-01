@@ -543,6 +543,23 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     }
 
     /// <summary>
+    /// Antes de destruir uma coluna configurável, salva os RectTransforms reais
+    /// no host principal. O recálculo seguinte pode encaixá-los em outra coluna.
+    /// </summary>
+    public void ReturnToPrimaryHost()
+    {
+        if (!docked || shell == null || shell.DynamicHost == null) return;
+        if (inventoryBackup.rect != null &&
+            inventoryBackup.rect.parent != shell.DynamicHost)
+            inventoryBackup.rect.SetParent(shell.DynamicHost,false);
+        if (lootBackup.rect != null &&
+            lootBackup.rect.parent != shell.DynamicHost)
+            lootBackup.rect.SetParent(shell.DynamicHost,false);
+        bagHost = corpseHost = shell.DynamicHost;
+        lastWidth=-1f;
+    }
+
+    /// <summary>
     /// Chamado pelo C8SidebarShell antes de destruir o Canvas, para nao
     /// destruir os painéis reais que foram reparentados para a sidebar.
     /// </summary>
