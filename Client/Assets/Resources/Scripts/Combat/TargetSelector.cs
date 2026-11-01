@@ -381,6 +381,10 @@ public class TargetSelector : MonoBehaviour
         RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
         Collider2D best = null;
         int bestLayer = int.MinValue;
+        // Para NPC: clique na criatura deve prevalecer sobre qualquer item
+        // solto no mesmo tile (mesmo com SpriteRenderer de ordem superior).
+        Collider2D bestNpc = null;
+        int npcLayer = int.MinValue, npcOrder = int.MinValue;
         int bestOrder = int.MinValue;
         int bestPriority = int.MinValue;
         float bestDistance = float.MaxValue;
@@ -396,6 +400,14 @@ public class TargetSelector : MonoBehaviour
             int layer = sprite != null
                 ? SortingLayer.GetLayerValueFromID(sprite.sortingLayerID) : 0;
             int order = sprite != null ? sprite.sortingOrder : 0;
+            if (kind == WorldClickKind.Npc &&
+                (bestNpc == null || layer > npcLayer ||
+                 (layer == npcLayer && order > npcOrder)))
+            {
+                bestNpc = candidate;
+                npcLayer = layer;
+                npcOrder = order;
+            }
             int priority = kind == WorldClickKind.Corpse ? 4 :
                 kind == WorldClickKind.Monster ? 3 :
                 kind == WorldClickKind.GroundItem ? 2 : 1;
@@ -412,7 +424,9 @@ public class TargetSelector : MonoBehaviour
             bestPriority = priority;
             bestDistance = hit.distance;
         }
-        return best;
+        // NPC que está sobre um item recebe o clique mesmo se o item
+        // estiver em sorting layer/ordem acima; o Node valida alcance.
+        return bestNpc != null ? bestNpc : best;
     }
 
     /// <summary>
