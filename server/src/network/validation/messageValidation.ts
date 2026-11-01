@@ -33,6 +33,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("chat"), message: z.string().trim().min(1).max(MAX_CHAT_LENGTH) }),
   z.strictObject({ type: z.literal("loot"), corpseId: identifier }),
   z.strictObject({
+    type: z.literal("dropCorpseLoot"), corpseId: identifier,
+    itemIndex: z.number().int().nonnegative().safe(),
+    x: tileCoordinate, y: tileCoordinate,
+  }),
+  z.strictObject({
     type: z.literal("takeLoot"),
     corpseId: identifier,
     takeAll: z.boolean(),
