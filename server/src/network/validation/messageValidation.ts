@@ -61,6 +61,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     itemId: identifier,
     amount: positiveAmount.optional(), // Legado: handler adota 1 quando omitido.
     fromEquipment: z.boolean().optional(),
+    instanceId: identifier.optional(),
     x: tileCoordinate,
     y: tileCoordinate,
   }),
