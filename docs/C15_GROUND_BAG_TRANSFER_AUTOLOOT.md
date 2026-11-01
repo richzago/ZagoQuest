@@ -42,6 +42,29 @@ Implementação: `feature/c15-ground-persistence-bag-transfer-area-loot` / [PR #
 - `phase4PostgresIntegration.test.ts`: caso real de gravação, restart lógico e remoção do item com UUID/conteúdo preservado.
 - **Testes TS de contrato não compilam scripts C#**. É obrigatório executar Play Mode e abrir Backpack/Loot em diversas resoluções.
 
+## Homologação manual parcial — 01/11/2026
+
+**Resultado informado pelo usuário: 6/8 cenários aprovados, 2 pendentes (não reprovados).** Não é homologação final nem autorização para merge.
+
+| Cenário de QA no Unity | Resultado |
+| --- | --- |
+| Chão: itens e Bag com conteúdo reaparecem após encerramento/restart normal do Node, mesmo UUID | OK |
+| Recolhimento da Bag restaurada, conteúdo íntegro e sem duplicações observadas | OK |
+| Drag básico da Bag aberta para Bag filha | OK |
+| Recusa de ciclos, Bags lotadas e UUIDs inexistentes/alheios sem perda | **PENDENTE** |
+| Roda do mouse e puxador arrastável em Backpack e Loot | **PENDENTE** |
+| Shift+L sem janela Loot aberta, cadáveres na box 3×3 | OK |
+| Dois jogadores: autoloot somente para o dono do maior hit individual | OK |
+| CAP cheio, F10, 1280×720/1920×1080, NPC, pesca, logout | OK |
+
+**Critério de encerramento:** concluir os dois cenários ainda não executados. Para Bags, observar itemId/quantidade e UUID antes/depois de operações recusadas, especialmente Bags A→A e A→filha, destino cheio e UUID que não pertence à árvore carregada pelo personagem. Para scroll, criar conteúdo que exceda a altura da janela, testar roda sobre viewport e arraste do puxador até primeiro/último item; verificar se os cliques continuam acessíveis.
+
+**Classificação:** não há bug novo comprovado nesses dois itens; são *lacunas de homologação*. As transferências inválidas exigem validação negativa de integridade (prioridade alta). O scroll requer inspeção de UI/usabilidade (prioridade normal). Testes automatizados de ambos não contam como Play Mode manual.
+
+**Governança:** [PR #121](https://github.com/richzago/ZagoQuest/pull/121) permanece OPEN/DRAFT, base `dev`, sem merge. Requer QA complementar e autorização explícita. O risco de crash abrupto entre salvar personagem e chão segue fora do escopo dos testes de reinício normal.
+
+---
+
 ### Checklist de homologação Unity
 
 1. Deixar Bag com itens e outra Bag dentro dela no chão, encerrar Node normalmente, reiniciar Node, entrar e recolher: UUID e conteúdo intactos.

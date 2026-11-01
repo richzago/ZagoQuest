@@ -6,7 +6,10 @@
 - [x] Transferência server-authoritative entre Bags com ciclo/ownership/slots/UUID e drag do Unity para Bag filha.
 - [x] Wheel e scrollbar puxável em Backpack/Loot, sem interceptar slots.
 - [x] Shift+L autoloot na box 3×3 sem abrir corpse, elegível pelo maior hit único efetivo registrado.
-- [ ] Homologação Unity de persistência, scroll, transferências e autoloot; C# não compila na CI Node.
+- [ ] **Homologação Unity C15 parcial — 6/8 cenários aprovados pelo usuário (01/11/2026).** Aprovados: persistência de itens/Bag com UUID após restart normal do Node; recolhimento sem duplicação; transferência direta básica para Bag filha; Shift+L sem janela aberta em box 3×3; cenário multiplayer com maior hit individual; regressões CAP/F10/1280×720/1920×1080/NPC/pesca/logout.
+- [ ] **Pendente P1 — testes negativos de transferências entre Bags:** ciclos (Bag dentro dela mesma/descendente), destino sem slots e UUID inexistente/alheio, garantindo que não haja alteração de quantidade, UUID ou conteúdo nem em origem nem em destino. Testes Node anteriores NÃO substituem confirmação no Unity.
+- [ ] **Pendente P2 — ergonomia de scroll Backpack e Loot:** roda do mouse, arrastar lentamente o puxador vertical, primeiro e último item clicáveis com listas suficientemente longas, inclusive nas resoluções/escalas informadas. Ainda não testado; não classificar como bug até tentativa.
+- [ ] Merge PR #121 condicionado à conclusão do QA e autorização explícita, mantendo OPEN/DRAFT.
 - [x] [CI #41335350708](https://github.com/richzago/ZagoQuest/actions/runs/41335350708): 595/595 testes no Ubuntu e Windows, build TypeScript e integração PostgreSQL aprovados; Unity C# e Play Mode ainda pendentes.
 - [ ] Não realizar merge C15 sem aprovação.
 - [ ] Mitigar risco de crash abrupto entre save de jogador e snapshot de chão em etapa de transação SQL conjunta.
