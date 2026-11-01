@@ -10,7 +10,7 @@ import { ItemOnGround } from "../src/game/entities/itemOnGround";
 import { ItemRegistry } from "../src/data/items/itemRegistry";
 import { EquipmentSlot } from "../src/shared/enums/equipmentSlot.enum";
 import { ShopSystem } from "../src/game/systems/shopSystem";
-import { handlePickupItem } from "../src/network/handlers/inventory.handler";
+import { handlePickupItem, handleDropItem } from "../src/network/handlers/inventory.handler";
 import { handleOpenBag, handleCloseBag } from "../src/network/handlers/inventory.handler";
 import { handleOpenShop } from "../src/network/handlers/shop.handler";
 import { parseClientMessage } from "../src/network/validation/messageValidation";
@@ -41,6 +41,7 @@ function scene() {
         sendInventory:()=>responses.push("inventory"),
         sendEquipment:()=>responses.push("equipment"),
         sendPickupError:(message:string)=>errors.push(message),
+        sendDropError:(message:string)=>errors.push(message),
         sendError:(message:string)=>errors.push(message),
       },
       shop:{
@@ -50,6 +51,7 @@ function scene() {
     },
     broadcast:{
       broadcastDespawn:()=>responses.push("despawn"),
+      broadcastSpawnItemOnGround:()=>responses.push("spawn"),
     },
   } as unknown as HandlerContext;
   return {world,ctx,errors,responses};
@@ -172,6 +174,39 @@ test("C11 Unity: snapshot preserva UUID no slot e dupla seleção abre Bag exata
  assert.match(inventory,/slot\.Setup\(row\.itemId,row\.amount/);
  assert.match(inventory,/net\.Inventory\?\.OpenBag\(itemId,instanceId\)/);
  assert.match(slot,/OnBagOpen\?\.Invoke\(itemId, bagInstanceId\)/);
+});
+test("C11: drop por UUID escolhe Bag correta e UUID falso nunca remove item",async()=>{
+ const s=scene(),p=player(),n=merchant();p.gold=1000;
+ assert.equal(ShopSystem.buyItem(p,n,simple,1),true);
+ assert.equal(ShopSystem.buyItem(p,n,simple,1),true);
+ assert.equal(ShopSystem.buyItem(p,n,simple,1),true);
+ const rootId=p.equippedBagInstanceId;
+ const child=p.getVisibleBagChildren();
+ assert.equal(child.length,2);
+ const a=child[0].instanceId,b=child[1].instanceId;
+ assert.equal(p.openNestedBag(simple,a),true);
+ assert.equal(p.addItem(potion,7),true);
+ assert.equal(p.closeNestedBag(),true);
+ await handleDropItem(ws,p,{
+    type:"dropItem",itemId:simple,amount:1,x:2,y:3,fromEquipment:false,
+    instanceId:"falso-uuid",
+ },s.ctx);
+ assert.equal(s.world.itemsOnGround.length,0);
+ assert.equal(p.inventory.get(simple),2);
+ assert.equal(p.getVisibleBagChildren().length,2);
+ await handleDropItem(ws,p,{
+    type:"dropItem",itemId:simple,amount:1,x:2,y:3,fromEquipment:false,
+    instanceId:b,
+ },s.ctx);
+ assert.equal(s.world.itemsOnGround.length,1);
+ assert.equal(s.world.itemsOnGround[0].bagState?.equippedId,b);
+ assert.equal(s.world.itemsOnGround[0].bagState?.bags[0].items[potion],undefined);
+ assert.equal(p.inventory.get(simple),1);
+ assert.equal(p.getVisibleBagChildren()[0].instanceId,a);
+ assert.equal(p.equippedBagInstanceId,rootId);
+ assert.equal(p.equipItem(simple,a),true);
+ assert.equal(p.equippedBagInstanceId,a);
+ assert.equal(p.inventory.get(potion),7,"equipa UUID selecionado, não outra Bag igual");
 });
 test("C11 UI: NPC não dispara shop fora de alcance; shopError não é exceção",()=>{
  const click=unity("NPC/ClickInteract.cs");
