@@ -32,6 +32,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private CanvasGroup inventoryGroup;
     private CanvasGroup lootGroup;
     private Button backpackButton, lootButton, closeLootButton;
+    private Button previousLootButton, nextLootButton;
     private TextMeshProUGUI backpackLabel, lootLabel;
     private RectTransform tabBar;
     private GameObject tabBarObject;
@@ -167,6 +168,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         var viewport = panel.Find("C6InventoryViewport") as RectTransform;
         if (viewport != null)
         {
+            if (viewport.GetComponent<C9LootBagDropTarget>() == null)
+                viewport.gameObject.AddComponent<C9LootBagDropTarget>();
             viewport.anchorMin = Vector2.zero;
             viewport.anchorMax = Vector2.one;
             viewport.offsetMin = new Vector2(5f, 35f);
@@ -282,13 +285,23 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         tabBar.offsetMin = new Vector2(8f, -84f);
         tabBar.offsetMax = new Vector2(-8f, -45f);
 
-        backpackButton = ButtonAt("BackpackTab", "MOCHILA", 0f, 0.44f,
+        backpackButton = ButtonAt("BackpackTab", "BACKPACK", 0f, 0.44f,
             OpenBackpackTab, out backpackLabel);
         lootButton = ButtonAt("LootTab", "LOOT", 0.455f, 0.86f,
             OpenLootTab, out lootLabel);
         TextMeshProUGUI ignore;
         closeLootButton = ButtonAt("CloseLoot", "×", 0.89f, 1f,
             CloseLoot, out ignore);
+        // Pequeno seletor de cadáveres: mantém múltiplas janelas de loot
+        // acessíveis, sempre revalidando conteúdo pelo Node ao trocar.
+        var prevObj = new GameObject("PreviousCorpse", typeof(RectTransform),
+            typeof(Image), typeof(Button));
+        var nextObj = new GameObject("NextCorpse", typeof(RectTransform),
+            typeof(Image), typeof(Button));
+        previousLootButton = NavigationButton(prevObj, "<", 0.78f,
+            () => loot?.NavigateLoot(-1));
+        nextLootButton = NavigationButton(nextObj, ">", 0.89f,
+            () => loot?.NavigateLoot(1));
     }
 
     private Button ButtonAt(string name, string title, float left, float right,
@@ -310,6 +323,36 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         label = titleObj.GetComponent<TextMeshProUGUI>();
         label.text = title;
         label.fontSize = title == "×" ? 20f : 12f;
+        label.color = letters;
+        label.alignment = TextAlignmentOptions.Center;
+        label.raycastTarget = false;
+        var lr = label.rectTransform;
+        lr.anchorMin = Vector2.zero;
+        lr.anchorMax = Vector2.one;
+        lr.offsetMin = lr.offsetMax = Vector2.zero;
+        return button;
+    }
+
+    private Button NavigationButton(GameObject obj, string glyph,
+        float left, UnityEngine.Events.UnityAction action)
+    {
+        obj.transform.SetParent(shell.DynamicSection, false);
+        var rect = (RectTransform)obj.transform;
+        rect.anchorMin = new Vector2(left, 1f);
+        rect.anchorMax = new Vector2(left + 0.09f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.offsetMin = new Vector2(0f, -36f);
+        rect.offsetMax = new Vector2(0f, -8f);
+        var img = obj.GetComponent<Image>();
+        img.color = idle;
+        img.raycastTarget = true;
+        var button = obj.GetComponent<Button>();
+        button.onClick.AddListener(action);
+        var labelObj = new GameObject("Symbol", typeof(RectTransform), typeof(TextMeshProUGUI));
+        labelObj.transform.SetParent(obj.transform, false);
+        var label = labelObj.GetComponent<TextMeshProUGUI>();
+        label.text = glyph;
+        label.fontSize = 17f;
         label.color = letters;
         label.alignment = TextAlignmentOptions.Center;
         label.raycastTarget = false;
@@ -371,10 +414,34 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) return;
         bool connected = NetworkManager.Instance != null &&
             NetworkManager.Instance.isConnected;
-        bool showBag = connected && selected == Tab.Backpack &&
-            inventory != null && inventory.IsInventoryOpen;
-        bool showLoot = connected && selected == Tab.Loot &&
-            loot != null && loot.IsLootOpen;
+        bool showBag = connected && inventory != null &&
+            inventory.IsInventoryOpen && inventory.HasEquippedBag;
+        bool showLoot = connected && loot != null && loot.IsLootOpen;
+        // Não são mais abas que se ocultam mutuamente: Bag compacta acima,
+        // Loot no restante do host. Dois (ou mais) cadáveres ficam navegáveis.
+        var host = shell != null ? shell.DynamicHost : null;
+        if (host != null)
+        {
+            float h = host.rect.height;
+            float bagHeight = showBag ? Mathf.Min(168f, Mathf.Max(80f, h * 0.42f)) : 0f;
+            if (inventoryBackup.rect != null)
+            {
+                var r = inventoryBackup.rect;
+                r.anchorMin = new Vector2(0f, 1f);
+                r.anchorMax = new Vector2(1f, 1f);
+                r.pivot = new Vector2(0.5f, 1f);
+                r.offsetMin = new Vector2(0f, -bagHeight);
+                r.offsetMax = Vector2.zero;
+            }
+            if (lootBackup.rect != null)
+            {
+                var r = lootBackup.rect;
+                r.anchorMin = Vector2.zero;
+                r.anchorMax = Vector2.one;
+                r.offsetMin = Vector2.zero;
+                r.offsetMax = new Vector2(0f, -bagHeight - (showBag && showLoot ? 5f : 0f));
+            }
+        }
         if (inventoryGroup != null)
         {
             inventoryGroup.alpha = showBag ? 1f : 0f;
@@ -389,7 +456,20 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         }
         if (lootButton != null) lootButton.interactable =
             connected && loot != null && loot.IsLootOpen;
-        if (backpackButton != null) backpackButton.interactable = connected;
+        if (backpackButton != null)
+            backpackButton.interactable = connected && inventory != null &&
+                inventory.HasEquippedBag;
+        if (previousLootButton != null)
+            previousLootButton.interactable = connected && loot != null &&
+                loot.OpenedLootCount > 1;
+        if (nextLootButton != null)
+            nextLootButton.interactable = connected && loot != null &&
+                loot.OpenedLootCount > 1;
+        if (backpackLabel != null && inventory != null)
+            backpackLabel.text = inventory.HasEquippedBag
+                ? (inventory.EquippedBagId != null &&
+                    inventory.EquippedBagId.Contains("simple_bag") ? "BAG" : "BACKPACK")
+                : "SEM BAG";
         if (closeLootButton != null)
             closeLootButton.gameObject.SetActive(connected && loot != null && loot.IsLootOpen);
         if (backpackButton != null)
@@ -424,6 +504,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         Restore(inventoryBackup);
         Restore(lootBackup);
         if (tabBarObject != null) Destroy(tabBarObject);
+        if (previousLootButton != null) Destroy(previousLootButton.gameObject);
+        if (nextLootButton != null) Destroy(nextLootButton.gameObject);
         tabBarObject = null;
         tabBar = null;
         shell?.SetDynamicDocked(false);
