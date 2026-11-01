@@ -32,13 +32,7 @@ export class GroundCharacterTransaction {
         player.equipment = new Map(oldEquipment);
         player.inventory = new Map(oldItems);
         player.restoreBagState(oldBags);
-        // Restore a janela originalmente aberta se era um filho direto.
-        // A identidade de itens e UUIDs permanece intacta mesmo se a
-        // janela precisar ser fechada após erro.
-        if (previousView && previousView !== player.getViewedBagInstanceId()) {
-          const bag = player.bagInstances.get(previousView);
-          if (bag) player.inventory = bag.items;
-        }
+        player.restoreBagView(previousView);
         player.gold=oldGold;player.bankGold=oldBank;
         player.recalculateStats();
       };

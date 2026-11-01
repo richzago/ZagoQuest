@@ -283,6 +283,13 @@ export async function handleDropItem(
   // anteriores. Em falha SQL restauramos os Maps e os UUIDs em memória.
   let errorText = "Falha ao persistir drop; item restaurado.";
   const committed = await GroundCharacterTransaction.execute(ctx.world, player, () => {
+    // Validação dentro do lock: dois drops concorrentes não podem usar
+    // o mesmo equipamento após o primeiro ter sido removido.
+    if (fromEquipment &&
+        player.equipment.get(equippedSlot!) !== itemId) {
+      errorText = "Item equipado já não está disponível.";
+      return false;
+    }
     if (player.isContainerItem(itemId)) {
       if (amount !== 1) {
         errorText = "Cada Bag é uma instância: solte apenas uma.";
@@ -349,6 +356,10 @@ export async function handlePickupItem(
     isGroundContainer && onGround.amount === 1;
   let accepted = false;
   const committed = await GroundCharacterTransaction.execute(ctx.world, player, () => {
+    // Impede que duas sessões coletem o mesmo UUID do chão enquanto
+    // a primeira transação está em voo.
+    if (ctx.world.getItemOnGround(msg.itemId) !== onGround)
+      return false;
     if (bootstrap) {
       accepted = player.attachGroundBag(onGround.itemId, onGround.bagState, true);
     } else if (isGroundContainer && onGround.amount === 1) {

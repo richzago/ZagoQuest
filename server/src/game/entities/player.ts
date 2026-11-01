@@ -76,6 +76,23 @@ export class Player extends Creature {
     return this.viewedBag()?.id ?? null;
   }
 
+  /** Apenas rollback interno: restaurar a janela sem mudar posse/identidades. */
+  restoreBagView(instanceId: string | null): void {
+    if (!instanceId || !this.equippedBagInstanceId) return;
+    const accessible=new Set<string>();
+    const visit=(id:string) => {
+      if(accessible.has(id))return;
+      accessible.add(id);
+      for(const child of this.bagInstances.get(id)?.children??[]) visit(child);
+    };
+    visit(this.equippedBagInstanceId);
+    if(!accessible.has(instanceId)) return;
+    const bag=this.bagInstances.get(instanceId);
+    if(!bag)return;
+    this.viewedBagInstanceId=instanceId;
+    this.inventory=bag.items;
+  }
+
   /**
    * Transação síncrona entre contêineres do MESMO personagem.
    * Tudo é validado antes de uma única mutação; nunca aceita UUID de terceiros,

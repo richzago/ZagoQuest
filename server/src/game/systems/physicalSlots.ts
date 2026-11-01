@@ -52,6 +52,10 @@ export function reconcilePhysicalSlots(
   for(const [itemId,qty] of remaining){
     let rest=qty;
     const limit=stackLimit(itemId);
+    // Saves adulterados/legados extremos nunca devem gerar milhões de
+    // objetos no heap. Não apagar dados: rejeitar para migração assistida.
+    if (rest / limit > 10000)
+      throw new Error("Bag excede 10000 pilhas; migração deve ser auditada.");
     while(rest>0){
       const amount=Math.min(rest,limit);
       const id=generateId();
