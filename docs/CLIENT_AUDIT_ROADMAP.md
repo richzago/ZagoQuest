@@ -1,3 +1,23 @@
+## C18 — atomicidade, slots físicos, HUD independente e minimapa Tiled (01/11/2026)
+
+**Estado:** [PR #124](https://github.com/richzago/ZagoQuest/pull/124) **OPEN/DRAFT — ainda NÃO integrado na `dev`**. Base: C17 homologada e integrada no merge `880787f`.
+
+- [x] **Persistência transacional SQL de drop/pickup:** `GroundCharacterTransaction.execute` protege gravação de `Character` e snapshot de `ground_items` no **mesmo commit PostgreSQL**, após esperar escrituras anteriores do chão. Efeitos visuais de spawn/despawn ocorrem após commit. Erro de SQL reverte inventário, Bag UUID, equipamento e chão em memória. Revalidação sob lock reduz duplo drop/pickup do mesmo UUID.
+- [x] **Teste PostgreSQL real** para commit conjunto e erro injetado em `ground_items` causando rollback de personagem e chão; restringido a `zagoquest_ci` pelo teste de integração existente.
+- [x] **Pilhas físicas com UUIDs persistidos:** `BagInstanceSave.slots` é sidecar retrocompatível do Map legado. `physicalSlots.ts` preserva IDs e divide itens por `maxStack`. O servidor conta slots físicos em compras, transferência, Loot, pickup e Fishing (`addItem`), sem descartar quantidades em saves antigos. O `InventorySender` devolve linhas individuais com `slotId`/`slotIndex` para o Unity, que já desenha múltiplas entradas.
+- [x] **HUD**: novos atalhos locais (Backpack F6, Stats F7, fechar Loot F8), alteráveis na janela de configurações sem duplicar teclas; captura bloqueada em TMP_InputField e com Settings aberto; botão fechar real do Loot recuperado.
+- [x] **Stats e Backpack simultâneos**: `StatsHost` separado do `SidebarDynamicHost`, realocação de altura automática e rolagem independente, sem fechar uma janela ao abrir a outra.
+- [x] **Minimapa do Tiled**: `C18TiledMinimap` renderiza terreno/colisão do JSON local e posição confirmada pelo servidor no centro; redesenha somente quando a célula muda, sem novos pacotes WS. Ainda usa cores semânticas determinísticas para GIDs (não sprites originais nem fog of war).
+- [x] Criados testes estáticos/funcionais C18 e testes SQL de falha simulada; ajustes nos testes históricos para refletir a nova capacidade física por `maxStack`.
+- [ ] **Homologar no Unity:** compilar scripts C#, login/respawn; drop/pickup com reinício e falha de banco, Bags contendo pilhas e UUIDs, NPC/loot/fishing, CAP, drag, HUD/atalhos/configurações, Stats+Backpack, minimapa/posicionamento e 720p/1080p/F10.
+- [ ] Verificar crash abrupto em staging com **processo interrompido em pontos da transação**, sem executar testes destrutivos na database `zagoquest` do usuário.
+- [ ] **Limitação P1**: transação conjunta está integrada especificamente a **drop/pickup**, não a todos os fluxos de loot/corpse/fishing e operações de terceiros que alteram personagem durante uma transação. `Map<itemId,qty>` segue índice agregado legado; UI não envia ainda um `slotId` em cada comando de drag específico. Há riscos residuais a auditar, não afirmar sistema anti-dupe universal.
+- [ ] **Não realizar merge do PR #124 até autorização expressa após testes Unity.**
+
+[Relatório técnico e checklist C18](C18_ATOMIC_STACKS_HUD_TILED_MINIMAP.md)
+
+---
+
 ## C17 — compra segura em Bags aninhadas + UI compacta (01/11/2026)
 
 - [x] C16 homologada 7/7, [PR #122](https://github.com/richzago/ZagoQuest/pull/122) integrada na `dev` (`4d02a8f`).
