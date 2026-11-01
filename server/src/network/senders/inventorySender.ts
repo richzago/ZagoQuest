@@ -19,26 +19,31 @@ export class InventorySender extends BaseSender {
    */
   public sendInventory(player: Player): void {
     const itemsArray: Array<{
-      itemId: string; amount: number; itemType?: string; instanceId?: string
+      itemId: string; amount: number; itemType?: string; instanceId?: string;
+      slotId?: string; slotIndex?: number
     }> = [];
     // Separar Bags não-stackable por identidade. Duas Simple Bags do mesmo
     // tipo nunca podem aparecer como "x2" com um clique ambíguo.
     const visibleChildren = player.getVisibleBagChildren();
-    for (const [itemId, qty] of player.inventory.entries()) {
-      let itemType: string | undefined;
-      try { itemType = ItemRegistry.get(itemId).type; }
-      catch { /* Save legado: mantém o ID literal. */ }
-
-      if (player.isContainerItem(itemId)) {
-        const instances = visibleChildren.filter(child => child.itemId === itemId);
-        for (const instance of instances)
-          itemsArray.push({itemId, amount:1, itemType, instanceId:instance.instanceId});
-        // Se um save legado tiver contagem sem uma instância correspondente,
-        // não apagar ou esconder suas unidades do cliente.
-        const untracked = qty - instances.length;
-        if (untracked > 0) itemsArray.push({itemId,amount:untracked,itemType});
-      } else {
-        itemsArray.push({itemId,amount:qty,itemType});
+    const physical=player.getVisiblePhysicalSlots();
+    if (physical.length>0) {
+      for (let i=0; i<physical.length; i++) {
+        const slot=physical[i];
+        let itemType: string | undefined;
+        try { itemType=ItemRegistry.get(slot.itemId).type; }
+        catch { /* legacy */ }
+        itemsArray.push({itemId:slot.itemId,amount:slot.amount,itemType,
+          ...(slot.instanceId ? {instanceId:slot.instanceId} : {}),
+          slotId:slot.id, slotIndex:i,
+        });
+      }
+    } else {
+      // Compatibilidade inventário antigo sem Backpack equipada.
+      for (const [itemId,amount] of player.inventory) {
+        let itemType: string | undefined;
+        try { itemType=ItemRegistry.get(itemId).type; }
+        catch { /* IDs legados */ }
+        itemsArray.push({itemId,amount,itemType});
       }
     }
 

@@ -78,7 +78,8 @@ test("C14: CAP considera equipamentos, peso JSON e conteúdo oculto de Bags",()=
   assert.equal(ItemRegistry.get(simple).weight,12);
   assert.equal(ItemRegistry.get(potion).weight,3);
   assert.equal(p.getCarriedWeight(),12);
-  assert.equal(p.addItem(potion,129),true); // 12 + 387 = 399
+  p.inventory.set(potion,129); // save legado com 13 pilhas excede Bag de 10 slots
+  assert.equal(p.canCollectItems([{itemId:potion,amount:1}]),false);
   assert.equal(p.getCarriedWeight(),399);
   assert.equal(p.getRemainingCap(),1);
   assert.equal(p.canCollectItems([{itemId:potion,amount:1}]),false);
@@ -155,12 +156,21 @@ test("C14: equipar/desequipar no CAP máximo não conta peça duas vezes",()=>{
  const {p,merchant}=setup();
  assert.equal(ShopSystem.buyItem(p,merchant,simple,1),true);
  p.equipment.set(EquipmentSlot.ARMOR,"bone_armor");
- assert.equal(p.addItem(potion,111),true); // 12 + 55 + 333 = 400
+ p.inventory.set(potion,111); // save legado overstack: 12 + 55 + 333 = 400
+ assert.equal(p.canCollectItems([{itemId:potion,amount:1}]),false);
  assert.equal(p.getRemainingCap(),0);
+ // C18 nunca aceita tirar a armadura para uma Bag já estourada em slots,
+ // mesmo que o CAP total não mude. Falha deve restaurar equipamento.
+ assert.equal(p.unequipItem(EquipmentSlot.ARMOR),false);
+ assert.equal(p.equipment.get(EquipmentSlot.ARMOR),"bone_armor");
+ assert.equal(p.getRemainingCap(),0);
+ // Após liberar pilhas físicas, unequip/equip não duplicam peso.
+ assert.equal(p.removeItem(potion,61),true);
+ const weight=p.getCarriedWeight();
  assert.equal(p.unequipItem(EquipmentSlot.ARMOR),true);
- assert.equal(p.getCarriedWeight(),400);
+ assert.equal(p.getCarriedWeight(),weight);
  assert.equal(p.inventory.get("bone_armor"),1);
  assert.equal(p.equipItem("bone_armor"),true);
  assert.equal(p.equipment.get(EquipmentSlot.ARMOR),"bone_armor");
- assert.equal(p.getRemainingCap(),0);
+ assert.equal(p.getCarriedWeight(),weight);
 });

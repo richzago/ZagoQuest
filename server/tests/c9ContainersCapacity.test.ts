@@ -68,19 +68,19 @@ test("C9: 10 slots preenchidos recusa item 11; pilhas empilham e moedas viram go
   p.equipment.set(EquipmentSlot.BACKPACK,simple);
   const item="consumable/health_potion";
   const other="consumable/mana_potion";
-  // Potions stackable -> uma pilha já existente continua 1 slot.
+  // C18: 40 potions ocupam 4 pilhas (maxStack=10).
   assert.equal(p.canCollectItems([{itemId:item,amount:40}]),true);
   p.inventory.set(item,40);
-  assert.equal(p.getContainerSlotsUsed(),1);
+  assert.equal(p.getContainerSlotsUsed(),4);
   assert.equal(p.canCollectItems([{itemId:item,amount:10}]),true);
   assert.equal(p.canCollectItems([{itemId:other,amount:1}]),true);
   assert.equal(p.canCollectItems([{itemId:"currency/gold_coin",amount:100}]),true);
-  // Nove outros itens não-stackable produzem 10 slots usados.
+  // Seis unidades não-stackable + 4 pilhas lotam os dez slots.
   const nonstack=basic;
-  p.inventory.set(nonstack,9);
+  p.inventory.set(nonstack,6);
   assert.equal(p.getContainerSlotsUsed(),10);
   assert.equal(p.canCollectItems([{itemId:other,amount:1}]),false);
-  assert.equal(p.canCollectItems([{itemId:item,amount:3}]),true);
+  assert.equal(p.canCollectItems([{itemId:item,amount:3}]),false);
   assert.equal(p.canCollectItems([{itemId:nonstack,amount:2}]),false);
 });
 

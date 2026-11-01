@@ -10,6 +10,7 @@ import { ItemOnGround } from "../entities/itemOnGround";
 import type { World } from "../world/World";
 import { Logger } from "../core/logger/logger";
 import type { BagStateSave } from "../entities/player";
+import type { EntityManager } from "typeorm";
 
 export interface GroundRow {
   id: string;
@@ -73,6 +74,37 @@ export class GroundItemPersistence {
     world.onGroundItemsChanged = () => this.schedule(world);
   }
 
+  /** Espera os snapshots de chão anteriores, antes de iniciar transferência. */
+  static async waitForPending(world: World): Promise<void> {
+    await (queues.get(world) ?? Promise.resolve());
+  }
+
+  /**
+   * Durante uma transação personagem/chão, não agendar snapshot separado.
+   * Ao sair, preserva eventuais mudanças de outros sistemas no mundo.
+   */
+  static suspendWrites(world: World): () => void {
+    const previous=world.onGroundItemsChanged;
+    let dirty=false;
+    world.onGroundItemsChanged=()=>{dirty=true;};
+    return () => {
+      world.onGroundItemsChanged=previous;
+      if (dirty && previous) previous();
+    };
+  }
+
+  /** Participa da transação SQL do personagem, NÃO inicia outra. */
+  static async saveSnapshotWithManager(
+    manager: EntityManager, snapshot: GroundRow[],
+  ): Promise<void> {
+    await manager.query('DELETE FROM "ground_items" WHERE "world_key" = $1',[worldName]);
+    for (const item of snapshot)
+      await manager.query(
+        'INSERT INTO "ground_items" ("world_key","id","payload") VALUES ($1,$2,$3::jsonb)',
+        [worldName,item.id,JSON.stringify(item)],
+      );
+  }
+
   static schedule(world: World): void {
     if (!AppDataSource.isInitialized) return;
     // Capturar já: writes concorrentes nunca podem aplicar estado obsoleto.
@@ -84,14 +116,8 @@ export class GroundItemPersistence {
   }
 
   private static async write(snapshot: GroundRow[]): Promise<void> {
-    await AppDataSource.transaction(async manager => {
-      await manager.query('DELETE FROM "ground_items" WHERE "world_key" = $1',[worldName]);
-      for (const item of snapshot)
-        await manager.query(
-          'INSERT INTO "ground_items" ("world_key","id","payload") VALUES ($1,$2,$3::jsonb)',
-          [worldName,item.id,JSON.stringify(item)],
-        );
-    });
+    await AppDataSource.transaction(async manager =>
+      this.saveSnapshotWithManager(manager,snapshot));
   }
 
   static async flush(world: World): Promise<void> {

@@ -6,7 +6,8 @@
 export interface ServerInventoryMessage {
   type: "inventory";
   gold: number;
-  items: Array<{ itemId: string; amount: number; itemType?: string; instanceId?: string }>;
+  items: Array<{ itemId: string; amount: number; itemType?: string;
+    instanceId?: string; slotId?: string; slotIndex?: number }>;
   bagItemId?: string | null;
   viewedBagInstanceId?: string | null;
   bagSlots?: number;

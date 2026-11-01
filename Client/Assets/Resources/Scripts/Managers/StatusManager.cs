@@ -38,7 +38,7 @@ public class StatusManager : MonoBehaviour
     public bool IsDockedToSidebar =>
         dockedInSidebar && statusPanel != null && statsIconButton != null &&
         C8SidebarShell.Instance != null &&
-        statusPanel.transform.parent == C8SidebarShell.Instance.DynamicHost;
+        statusPanel.transform.parent == C8SidebarShell.Instance.StatsHost;
     private TextMeshProUGUI satietyText;
     private TextMeshProUGUI fishingLevelText;
     public bool IsOpen => isOpen;

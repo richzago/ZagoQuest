@@ -47,17 +47,21 @@ test("C17: compra empilha em Bag já ocupada mesmo quando não está aberta",()=
  const gold=player.gold;
  assert.equal(ShopSystem.buyItem(player,npc,potion,7),true);
  assert.ok(player.gold<gold);
- assert.equal(player.bagInstances.get(children[0].instanceId)?.items.get(potion),10);
- assert.equal(player.bagInstances.get(children[1].instanceId)?.items.get(potion),2);
+ assert.equal(player.bagInstances.get(children[0].instanceId)?.items.get(potion),12);
+ assert.equal(player.bagInstances.get(children[1].instanceId)?.items.get(potion),undefined);
+ assert.equal(player.getVisiblePhysicalSlots().length,10); // raiz ainda cheia
  assert.equal(player.bagInstances.get(rootId)?.items.get(potion),undefined);
 });
-test("C17: se maxStack=10, compra de 11 potions SEM segunda Bag é recusada, sem débito",()=>{
+test("C18: compra de 11 potions ocupa duas pilhas físicas na mesma Bag",()=>{
  const {player,npc}=setup();
  assert.equal(ItemRegistry.get(potion).maxStack,10);
  const gold=player.gold;
- assert.equal(ShopSystem.buyItem(player,npc,potion,11),false);
- assert.equal(player.gold,gold);
- assert.equal(player.inventory.has(potion),false);
+ assert.equal(ShopSystem.buyItem(player,npc,potion,11),true);
+ assert.ok(player.gold<gold);
+ assert.equal(player.inventory.get(potion),11);
+ const potions=player.getVisiblePhysicalSlots().filter(x=>x.itemId===potion);
+ assert.deepEqual(potions.map(x=>x.amount),[10,1]);
+ assert.equal(new Set(potions.map(x=>x.id)).size,2);
 });
 test("C17: potions não ultrapassam maxStack quando principal lotada",()=>{
  const {player,npc}=setup();const children=fillRoot(player,npc);
@@ -65,8 +69,10 @@ test("C17: potions não ultrapassam maxStack quando principal lotada",()=>{
  const gold=player.gold;
  assert.equal(ShopSystem.buyItem(player,npc,potion,10),true);
  assert.ok(player.gold < gold);
- assert.equal(player.bagInstances.get(children[0].instanceId)!.items.get(potion),10);
- assert.equal(player.bagInstances.get(children[1].instanceId)!.items.get(potion),10);
+ assert.equal(player.bagInstances.get(children[0].instanceId)!.items.get(potion),20);
+ assert.equal(player.bagInstances.get(children[1].instanceId)!.items.get(potion),undefined);
+ assert.equal(player.openNestedBag(bag,children[0].instanceId),true);
+ assert.deepEqual(player.getVisiblePhysicalSlots().filter(x=>x.itemId===potion).map(x=>x.amount),[10,10]);
 });
 
 test("C17: Bag recém-comprada dentro de outra Bag recebe UUID sem sumir ao navegar",()=>{
@@ -147,7 +153,7 @@ test("C17: UI sem tecla P, Stats via ícone, CAP restante e títulos removidos",
  assert.match(status,/C17StatsViewport/);
  assert.match(dock,/StatusManager\.Instance\?\.DockToSidebar/);
  assert.doesNotMatch(dock,/BuildTabs\(\)/);
- assert.match(dock,/if \(statsActive\)/);
+ assert.match(dock,/Stats usa StatsHost independente/);
 });
 
 test("C17: botão Stats fica ao lado da engrenagem e logout não o encobre",()=>{
@@ -165,10 +171,10 @@ test("C17: botão Stats fica ao lado da engrenagem e logout não o encobre",()=>
  assert.match(login,/logoutButtonRect\.anchorMin = new Vector2\(6f \/ 7f \+ 0\.008f, 0f\)/);
  assert.doesNotMatch(login,/logoutButtonRect\.anchorMin = new Vector2\(5f \/ 6f/);
  assert.match(status,/public bool IsDockedToSidebar/);
- assert.match(status,/statusPanel\.transform\.parent == C8SidebarShell\.Instance\.DynamicHost/);
+ assert.match(status,/statusPanel\.transform\.parent == C8SidebarShell\.Instance\.StatsHost/);
  assert.match(status,/if \(statusPanel\.transform\.parent != host\)/);
  assert.match(status,/statsIconButton\.onClick\.AddListener\(TogglePanel\)/);
  assert.match(dock,/!StatusManager\.Instance\.IsDockedToSidebar/);
- assert.match(dock,/StatusManager\.Instance\.DockToSidebar\(shell\.DynamicHost\)/);
+ assert.match(dock,/StatusManager\.Instance\.DockToSidebar\(shell\.StatsHost\)/);
  assert.doesNotMatch(status,/<Keyboard>\/p|toggleStatusAction/);
 });

@@ -593,3 +593,72 @@ test("C15 PostgreSQL real: estado/UUID da Bag no chão sobrevivem a novo World",
   await GroundItemPersistence.restore(third);
   assert.equal(third.getItemOnGround("c15-pg-bag"),undefined);
 });
+
+test("C18 PostgreSQL: drop de Bag/itens e personagem usam UM commit",async()=>{
+ const {GroundCharacterTransaction}=await import("../src/game/systems/groundCharacterTransaction");
+ const {ItemOnGround}=await import("../src/game/entities/itemOnGround");
+ ItemRegistry.loadAll(join(process.cwd(),"src","data","items"));
+ const row=await fixture(1000);
+ const p=new Player(row.id,row.name,2,2);
+ const bag="equipment/backpack/simple_bag",potion="consumable/health_potion";
+ p.equipment.set(EquipmentSlot.BACKPACK,bag);
+ p.restoreBagState(undefined);
+ assert.equal(p.addItem(potion,3),true);
+ await DatabasePersistence.saveCharacter(p);
+ const world=new World();world.generateMap(20,20);
+ await (await import("../src/game/systems/groundItemPersistence")).GroundItemPersistence.restore(world);
+ const id="c18-atomic-"+row.id;
+ const item=new ItemOnGround(id,potion,1,2,3,"Health Potion");
+ const committed=await GroundCharacterTransaction.execute(world,p,()=>{
+   if(!p.removeItem(potion,1))return false;
+   world.addItemOnGround(item);
+   return true;
+ });
+ assert.equal(committed,true);
+ assert.equal(p.inventory.get(potion),2);
+ assert.equal(world.getItemOnGround(id),item);
+ const saved=await AppDataSource.getRepository(Character).findOneByOrFail({id:row.id});
+ assert.equal((saved.containerState as any).bags[0].items[potion],2);
+ const ground=await AppDataSource.query(
+   'SELECT "payload" FROM "ground_items" WHERE "id"=$1',[id]);
+ assert.equal(ground[0].payload.amount,1);
+ // Limpar no próprio teste, sem tocar banco real (guard RUN_PG_TESTS acima).
+ world.removeItemOnGround(item);
+ await (await import("../src/game/systems/groundItemPersistence")).GroundItemPersistence.flush(world);
+});
+
+test("C18 PostgreSQL: falha injetada no chão reverte personagem e mundo",async()=>{
+ const {GroundCharacterTransaction}=await import("../src/game/systems/groundCharacterTransaction");
+ const {ItemOnGround}=await import("../src/game/entities/itemOnGround");
+ ItemRegistry.loadAll(join(process.cwd(),"src","data","items"));
+ const row=await fixture(1000);
+ const p=new Player(row.id,row.name,2,2);
+ const potion="consumable/health_potion",bag="equipment/backpack/simple_bag";
+ p.equipment.set(EquipmentSlot.BACKPACK,bag);
+ p.restoreBagState(undefined);
+ assert.equal(p.addItem(potion,4),true);
+ await DatabasePersistence.saveCharacter(p);
+ const world=new World();world.generateMap(20,20);
+ await (await import("../src/game/systems/groundItemPersistence")).GroundItemPersistence.restore(world);
+ const item=new ItemOnGround("c18-fail",potion,1,2,3,"Potion");
+ await AppDataSource.query(
+   "CREATE FUNCTION ci_c18_abort() RETURNS trigger AS $$ BEGIN IF NEW.id='c18-fail' THEN RAISE EXCEPTION 'ci c18 failure'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql");
+ await AppDataSource.query(
+   "CREATE TRIGGER ci_c18_abort_trigger BEFORE INSERT ON ground_items FOR EACH ROW EXECUTE FUNCTION ci_c18_abort()");
+ try {
+   assert.equal(await GroundCharacterTransaction.execute(world,p,()=>{
+     if(!p.removeItem(potion,1))return false;
+     world.addItemOnGround(item);
+     return true;
+   }),false);
+   assert.equal(p.inventory.get(potion),4);
+   assert.equal(world.getItemOnGround(item.id),undefined);
+   const saved=await AppDataSource.getRepository(Character).findOneByOrFail({id:row.id});
+   assert.equal((saved.containerState as any).bags[0].items[potion],4);
+   const rows=await AppDataSource.query('SELECT "id" FROM ground_items WHERE "id"=$1',[item.id]);
+   assert.equal(rows.length,0);
+ } finally {
+   await AppDataSource.query("DROP TRIGGER IF EXISTS ci_c18_abort_trigger ON ground_items");
+   await AppDataSource.query("DROP FUNCTION IF EXISTS ci_c18_abort()");
+ }
+});

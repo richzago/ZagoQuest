@@ -23,6 +23,7 @@ public class InventoryUI : MonoBehaviour
         public int amount;
         public string itemType;
         public string instanceId;
+        public string slotId; // UUID da pilha física recebido do servidor.
     }
     private List<InventoryEntry> visibleRows;
     private int currentGold = 0;

@@ -20,7 +20,8 @@ namespace ZagoQuest.Networking.Handlers
                         ? old + item.amount : item.amount;
                     rows.Add(new InventoryUI.InventoryEntry {
                         itemId=item.itemId, amount=item.amount,
-                        itemType=item.itemType, instanceId=item.instanceId
+                        itemType=item.itemType, instanceId=item.instanceId,
+                        slotId=item.slotId
                     });
                     if (!string.IsNullOrWhiteSpace(item.itemType))
                         itemTypes[item.itemId] = item.itemType;

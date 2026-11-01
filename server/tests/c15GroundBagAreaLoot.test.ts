@@ -111,7 +111,8 @@ test("C15: auto-loot respeita maior hit por corpse e box 3x3, sem escolher ID",(
 test("C15: auto-loot não coleta se CAP insuficiente e preserva cadáver",()=>{
  const {world,ctx,errors}=scene();
  const p=player();world.addPlayer(p);
- assert.equal(p.addItem(potion,129),true);
+ // Estado legado overstack antes do limite C18, não permitir novos itens.
+ p.inventory.set(potion,129);
  const corpse=new Corpse("heavy",3,2,[{itemId:potion,amount:1}]);
  corpse.lootOwnerId=p.id;world.addCorpse(corpse);
  handleAutoLootNearby(ws,p,{type:"autoLootNearby"},ctx);

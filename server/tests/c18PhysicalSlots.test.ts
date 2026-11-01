@@ -1,0 +1,102 @@
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {join} from "node:path";
+import {Player} from "../src/game/entities/player";
+import {EquipmentSlot} from "../src/shared/enums/equipmentSlot.enum";
+import {ItemRegistry} from "../src/data/items/itemRegistry";
+import {stackLimit,countPhysicalSlots,reconcilePhysicalSlots} from "../src/game/systems/physicalSlots";
+const simple="equipment/backpack/simple_bag";
+const potion="consumable/health_potion";
+ItemRegistry.loadAll(join(process.cwd(),"src","data","items"));
+function player(){
+ const p=new Player("c18-physical","Stacker",2,2);
+ p.equipment.set(EquipmentSlot.BACKPACK,simple);
+ p.restoreBagState(undefined);
+ return p;
+}
+test("C18: duas pilhas de 10 + 1 de potion geram três slots/UUIDs",()=>{
+ const p=player();
+ assert.equal(stackLimit(potion),10);
+ assert.equal(p.addItem(potion,21),true);
+ const slots=p.getVisiblePhysicalSlots();
+ assert.deepEqual(slots.map(s=>s.amount),[10,10,1]);
+ assert.equal(new Set(slots.map(s=>s.id)).size,3);
+ assert.equal(p.getContainerSlotsUsed(),3);
+});
+test("C18: save C10 legado sem slots migra sem perda e IDs novos persistem",()=>{
+ const p=player();
+ p.inventory.set(potion,24);
+ const oldSave=p.exportBagState();
+ const copy=new Player("c18-copy","Copy",2,2);
+ copy.equipment.set(EquipmentSlot.BACKPACK,simple);
+ const legacy=JSON.parse(JSON.stringify(oldSave));
+ delete legacy.bags[0].slots;
+ copy.restoreBagState(legacy);
+ assert.equal(copy.inventory.get(potion),24);
+ assert.deepEqual(copy.getVisiblePhysicalSlots().map(s=>s.amount),[10,10,4]);
+ const newSave=copy.exportBagState();
+ assert.equal(newSave.bags[0].slots?.length,3);
+ const again=new Player("c18-again","Again",2,2);
+ again.equipment.set(EquipmentSlot.BACKPACK,simple);
+ again.restoreBagState(JSON.parse(JSON.stringify(newSave)));
+ assert.deepEqual(again.getVisiblePhysicalSlots().map(s=>s.id),
+   newSave.bags[0].slots?.map(s=>s.id));
+ assert.equal(again.inventory.get(potion),24);
+});
+test("C18: receber e consumir potions mantém ID da primeira pilha",()=>{
+ const p=player();
+ assert.equal(p.addItem(potion,9),true);
+ const first=p.getVisiblePhysicalSlots()[0].id;
+ assert.equal(p.addItem(potion,9),true);
+ assert.deepEqual(p.getVisiblePhysicalSlots().map(s=>s.amount),[10,8]);
+ assert.equal(p.getVisiblePhysicalSlots()[0].id,first);
+ assert.equal(p.removeItem(potion,17),true);
+ assert.equal(p.getVisiblePhysicalSlots().length,1);
+ assert.equal(p.getVisiblePhysicalSlots()[0].id,first);
+ assert.equal(p.inventory.get(potion),1);
+});
+test("C18: lotação por slots físicos bloqueia loja/loot/fishing e preserva valores",()=>{
+ const p=player();
+ assert.equal(p.addItem(potion,100),true);
+ assert.equal(p.getContainerSlotsUsed(),10);
+ const oldWeight=p.getCarriedWeight();
+ assert.equal(p.canCollectItems([{itemId:potion,amount:1}]),false);
+ assert.equal(p.addItem(potion,1),false);
+ assert.equal(p.inventory.get(potion),100);
+ assert.equal(p.getCarriedWeight(),oldWeight);
+});
+test("C18: migração nunca mistura pilhas de tipos diferentes e rejeita duplicação de UUID",()=>{
+ const items=new Map([[potion,11],["consumable/mana_potion",21]]);
+ const slots=reconcilePhysicalSlots(items);
+ assert.equal(slots.length,countPhysicalSlots(items));
+ assert.equal(new Set(slots.map(s=>s.id)).size,slots.length);
+ assert.equal(slots.filter(s=>s.itemId===potion).reduce((a,s)=>a+s.amount,0),11);
+ const duplicate=[{...slots[0],id:"dupe"},{...slots[1],id:"dupe"}];
+ const rebuilt=reconcilePhysicalSlots(items,duplicate);
+ assert.equal(new Set(rebuilt.map(s=>s.id)).size,rebuilt.length);
+});
+test("C18: contratos cliente — Stats host separado, minimapa Tiled e hotkeys persistentes",()=>{
+ const code=(p:string)=>readFileSync(join(process.cwd(),"..","Client","Assets","Resources","Scripts",p),"utf8");
+ const shell=code("UI/C8SidebarShell.cs");
+ const dock=code("UI/C8SidebarDynamicDock.cs");
+ const stats=code("Managers/StatusManager.cs");
+ const map=code("UI/C18TiledMinimap.cs");
+ const keys=code("UI/C18HudHotkeys.cs");
+ const prefs=code("UI/C10ClientLayoutSettings.cs");
+ assert.match(shell,/public RectTransform StatsHost => statsHost/);
+ assert.match(shell,/new Vector2\(6f, -4f-statsHeight\)/);
+ assert.match(dock,/\/\/ Stats usa StatsHost independente/);
+ assert.doesNotMatch(dock,/StatusManager\.Instance\?\.ClosePanel\(\)/);
+ assert.match(stats,/C8SidebarShell\.Instance\.StatsHost/);
+ assert.match(map,/TryGetConfirmedGridPosition/);
+ assert.match(map,/renderer\.mapJson\.text/);
+ assert.match(map,/tile == lastTile/);
+ assert.match(map,/map\.height - 1 - y/);
+ assert.match(keys,/PlayerPrefs\.SetInt/);
+ assert.match(keys,/Key\.F6, Key\.F7, Key\.F8/);
+ assert.match(keys,/Conflicts\(name, next\)/);
+ assert.match(prefs,/Atalho Backpack/);
+ assert.match(prefs,/Atalho Stats/);
+ assert.match(prefs,/Atalho Fechar Loot/);
+});

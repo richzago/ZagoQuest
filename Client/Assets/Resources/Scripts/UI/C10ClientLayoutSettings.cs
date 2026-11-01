@@ -27,6 +27,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
     public int LeftColumns => Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "Left",0),0,3);
     public int RightColumns => Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "Right",1),1,3);
     public bool Compact => PlayerPrefs.GetInt(Prefix + "Compact",1) == 1;
+    public bool IsSettingsOpen => settingsPanel != null && settingsPanel.activeSelf;
     public int BagSide => Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "BagSide",1),0,2);
     public int LootSide => Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "LootSide",0),0,2);
     public bool TopSpells => PlayerPrefs.GetInt(Prefix + "TopSpells",0) == 1;
@@ -129,7 +130,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
         settingsPanel.transform.SetParent(canvasRoot.transform,false);
         var rect=(RectTransform)settingsPanel.transform;
         rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(0.5f,0.5f);
-        rect.sizeDelta=new Vector2(438f,468f);
+        rect.sizeDelta=new Vector2(438f,598f);
         rect.anchoredPosition=Vector2.zero;
         settingsPanel.GetComponent<Image>().color=Surface;
         C11VisualTheme.Frame(settingsPanel);
@@ -186,12 +187,21 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
             ()=>Set("MiddleSpells",MiddleSpells?0:1),()=>Set("MiddleSpells",MiddleSpells?0:1));
         Row(panel,7,"Magias embaixo",BottomSpells?"VISÍVEL":"OCULTA",
             ()=>Set("BottomSpells",BottomSpells?0:1),()=>Set("BottomSpells",BottomSpells?0:1));
+        Row(panel,8,"Atalho Backpack",C18HudHotkeys.Caption(C18HudHotkeys.BagKey),
+            ()=>{C18HudHotkeys.Cycle("Bag",-1);RefreshRows();},
+            ()=>{C18HudHotkeys.Cycle("Bag",1);RefreshRows();});
+        Row(panel,9,"Atalho Stats",C18HudHotkeys.Caption(C18HudHotkeys.StatsKey),
+            ()=>{C18HudHotkeys.Cycle("Stats",-1);RefreshRows();},
+            ()=>{C18HudHotkeys.Cycle("Stats",1);RefreshRows();});
+        Row(panel,10,"Atalho Fechar Loot",C18HudHotkeys.Caption(C18HudHotkeys.LootKey),
+            ()=>{C18HudHotkeys.Cycle("Loot",-1);RefreshRows();},
+            ()=>{C18HudHotkeys.Cycle("Loot",1);RefreshRows();});
 
         var note=Label(panel,"C10RowNote",
-            "Colunas extras recebem Bag/Loot. Faixas de magia são reserva visual, sem feitiços ainda. Layout salvo neste computador.",
+            "Atalhos não repetem teclas. F8 fecha Loot, mas abrir requer clicar no cadáver. Dados ficam neste computador.",
             11f,TextAlignmentOptions.Center);
-        note.rectTransform.anchorMin=new Vector2(0.06f,0.06f);
-        note.rectTransform.anchorMax=new Vector2(0.94f,0.13f);
+        note.rectTransform.anchorMin=new Vector2(0.06f,0.015f);
+        note.rectTransform.anchorMax=new Vector2(0.94f,0.072f);
         note.rectTransform.offsetMin=note.rectTransform.offsetMax=Vector2.zero;
     }
 

@@ -48,6 +48,8 @@ public sealed class C8SidebarShell : MonoBehaviour
     private GameObject canvasRoot;
     private RectTransform sidebarSurface;
     private RectTransform miniMapSection;
+    private RectTransform statsHost;
+    public RectTransform StatsHost => statsHost;
     private RectTransform equipmentSectionRect;
     private RectTransform settingsSectionRect;
     private RectTransform quickAccessHost;
@@ -197,7 +199,8 @@ public sealed class C8SidebarShell : MonoBehaviour
         mapImage.color = Color.white;
         mapImage.preserveAspect = true;
         mapImage.raycastTarget = false;
-        AddCenterText(circle.transform, "MapWaiting", "MAPA\nEM BREVE", 11f, Text);
+        AddCenterText(circle.transform, "MapWaiting", "CARREGANDO", 10f, Text);
+        circle.AddComponent<C18TiledMinimap>();
 
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
         var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 293);
@@ -258,6 +261,10 @@ public sealed class C8SidebarShell : MonoBehaviour
         dynamicHint = null;
         dynamicHost = Holder(dynamicSection.transform, "SidebarDynamicHost",
             Vector2.zero, Vector2.one, new Vector2(6, 4), new Vector2(-6, -8));
+        // Stats têm host PRÓPRIO, nunca são filho do host Backpack/Loot.
+        statsHost = Holder(dynamicSection.transform, "C18StatsHost",
+            new Vector2(0f,1f), Vector2.one, new Vector2(6f,-4f),
+            new Vector2(-6f,-4f));
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
     }
 
@@ -338,9 +345,24 @@ public sealed class C8SidebarShell : MonoBehaviour
         // F10 chega a 130%. A altura util do Canvas diminui: nunca
         // deixar offset de host invertido em 1280x720 / 1920x1080.
         float height = dynamicSection.rect.height;
-        if (Mathf.Abs(height - lastDynamicHeight) <= 0.5f) return;
+        // Mesmo com altura igual, a divisão do host muda quando Stats abre.
+        // Não antecipar retorno: recálculo barato, sem criar GameObjects.
         lastDynamicHeight = height;
-        dynamicHost.offsetMax = new Vector2(-6f, -8f);
+        bool statsOpen = StatusManager.Instance != null &&
+            StatusManager.Instance.IsOpen;
+        // C18: Stats e Backpack podem coexistir. Em resoluções baixas
+        // a altura livre é dividida e cada painel mantém seu próprio scroll.
+        float statsHeight = statsOpen ?
+            Mathf.Clamp(height - 170f, 75f, 265f) : 0f;
+        dynamicHost.offsetMax = new Vector2(-6f,
+            -8f - (statsOpen ? statsHeight + 5f : 0f));
+        if (statsHost != null)
+        {
+            statsHost.anchorMin = new Vector2(0f,1f);
+            statsHost.anchorMax = Vector2.one;
+            statsHost.offsetMin = new Vector2(6f, -4f-statsHeight);
+            statsHost.offsetMax = new Vector2(-6f, -4f);
+        }
         if (dynamicHint != null) dynamicHint.SetActive(!dynamicDocked && height >= 125f);
     }
 
