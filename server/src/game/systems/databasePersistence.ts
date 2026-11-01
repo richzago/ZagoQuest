@@ -70,6 +70,10 @@ export class DatabasePersistence {
       player.equipment.set(slot as EquipmentSlot, itemId);
     }
 
+    // C10: migracao automatica de saves antigos (sem apagar inventory).
+    // Cada instância de Bag tem identidade e conteúdo próprio persistido.
+    player.restoreBagState(character.containerState as any);
+
     // Restaura skills
     player.skills.clear();
     for (const [skillKey, skillState] of Object.entries(character.skills)) {
