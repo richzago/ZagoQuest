@@ -14,7 +14,7 @@ import { Player } from "../../game/entities/player";
 import { handleMove, handleMoveDir } from "./move.handler";
 import { handleChat } from "./chat.handler";
 import { handleAttack, handleStartAutoAttack, handleStopAutoAttack } from "./attack.handler";
-import { handleLoot, handleTakeLoot } from "./loot.handler";
+import { handleLoot, handleTakeLoot, handleDropCorpseLoot } from "./loot.handler";
 import {
   handleUseItem,
   handleEquipItem,
