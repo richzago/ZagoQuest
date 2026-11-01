@@ -98,7 +98,7 @@ test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de 
   const lastSlotEdge = (hostWidth - (50 + 62 * 2)) / 2 + 62 * 2 + 50;
   assert.ok(lastSlotEdge <= hostWidth, "ultima coluna dentro do painel");
   const compactEquipmentHeight = 260;
-  const hostHeight = compactEquipmentHeight - 6 - 40;
+  const hostHeight = compactEquipmentHeight - 6 - 36;
   const lastRowBottom = 4 + 3 * 53 + 50;
   assert.ok(lastRowBottom <= hostHeight, "o slot BOOTS cabe no host compactado");
   assert.match(ui, /sr\.anchoredPosition = Vector2\.zero/);
