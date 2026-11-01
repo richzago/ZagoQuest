@@ -49,6 +49,7 @@ export class InitialSchema1793400000000 implements MigrationInterface {
         "mana" integer NOT NULL DEFAULT 0,
         "maxMana" integer NOT NULL DEFAULT 0,
         "inventory" jsonb NOT NULL DEFAULT '{}',
+        "containerState" jsonb NOT NULL DEFAULT '{}',
         "equipment" jsonb NOT NULL DEFAULT '{}',
         "skills" jsonb NOT NULL DEFAULT '{}',
         "gold" integer NOT NULL DEFAULT 0,
