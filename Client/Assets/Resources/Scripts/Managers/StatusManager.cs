@@ -287,7 +287,8 @@ public class StatusManager : MonoBehaviour
         viewport.anchorMin = Vector2.zero;
         viewport.anchorMax = Vector2.one;
         viewport.offsetMin = new Vector2(4f, 5f);
-        viewport.offsetMax = new Vector2(-4f, -36f);
+        // O canto superior fica livre para o botão X e o título.
+        viewport.offsetMax = new Vector2(-4f, -51f);
         var image = obj.GetComponent<Image>();
         image.color = new Color(0f, 0f, 0f, 0f);
         image.raycastTarget = true;

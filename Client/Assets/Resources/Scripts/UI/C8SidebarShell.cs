@@ -172,11 +172,10 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddOutline(surface, Gold);
 
         // Placa em relevo com hierarquia visual distinta da HUD anterior.
-        Card(surface.transform, "ObsidianTitlePlate", 5f, 70f,
+        Card(surface.transform, "ObsidianTitlePlate", 5f, 34f,
             7f, 7f, C11VisualTheme.Recess);
-        AddText(surface.transform, "Brand", "ZAGOQUEST", 12, 31, 21, Gold);
-        AddText(surface.transform, "Subtitle", "OBSIDIAN / BRONZE  -  CLIENTE C12", 45, 20, 10, Muted);
-        AddLine(surface.transform, "TopDivider", 75, Gold);
+        AddText(surface.transform, "Brand", "ZAGOQUEST", 7f, 26f, 18f, Gold);
+        AddLine(surface.transform, "TopDivider", 40f, Gold);
 
         // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
         var map = Card(surface.transform, "MiniMapSection", 62, 164);
