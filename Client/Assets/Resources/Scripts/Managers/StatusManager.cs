@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// Painel de status visual: apresenta apenas snapshots do Node.
@@ -29,7 +28,17 @@ public class StatusManager : MonoBehaviour
     [SerializeField] private Button closeButton;
 
     private bool isOpen;
-    private InputAction toggleStatusAction;
+    private RectTransform statsContent;
+    private Transform originalStatusParent;
+    private int originalStatusSibling;
+    private Button statsIconButton;
+    private bool dockedInSidebar;
+    // O Script Start() pode rodar após o docking e mudar o pai do painel.
+    // O dock consulta esta propriedade e refaz o vínculo somente se necessário.
+    public bool IsDockedToSidebar =>
+        dockedInSidebar && statusPanel != null && statsIconButton != null &&
+        C8SidebarShell.Instance != null &&
+        statusPanel.transform.parent == C8SidebarShell.Instance.DynamicHost;
     private TextMeshProUGUI satietyText;
     private TextMeshProUGUI fishingLevelText;
     public bool IsOpen => isOpen;
@@ -72,16 +81,62 @@ public class StatusManager : MonoBehaviour
         statusPanel.SetActive(false);
         isOpen = false;
 
-        toggleStatusAction = new InputAction("ToggleStatus", binding: "<Keyboard>/p");
-        toggleStatusAction.performed += OnToggleStatus;
-        toggleStatusAction.Enable();
+        // C17: tecla P removida; painel abre somente pelo ícone Status.
     }
 
-    private void OnToggleStatus(InputAction.CallbackContext context)
+    /// <summary>
+    /// Usa o mesmo host responsivo do inventário; não sobrepõe o mapa,
+    /// a Backpack, Loot, NPCs ou outras janelas do jogo.
+    /// </summary>
+    public void DockToSidebar(RectTransform host)
     {
-        var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
-        if (selected != null && selected.GetComponentInParent<TMP_InputField>() != null) return;
-        TogglePanel();
+        if (host == null || statusPanel == null) return;
+        var shell = C8SidebarShell.Instance;
+        var quick = shell != null ? shell.QuickAccessHost : null;
+        var icon = quick != null ? quick.Find("StatsIcon") : null;
+        if (icon != null && statsIconButton == null)
+        {
+            var img = icon.GetComponent<Image>();
+            if (img != null) img.raycastTarget = true;
+            statsIconButton = icon.GetComponent<Button>();
+            if (statsIconButton == null)
+                statsIconButton = icon.gameObject.AddComponent<Button>();
+            statsIconButton.onClick.AddListener(TogglePanel);
+        }
+        if (!dockedInSidebar)
+        {
+            originalStatusParent = statusPanel.transform.parent;
+            originalStatusSibling = statusPanel.transform.GetSiblingIndex();
+            dockedInSidebar = true;
+        }
+        // Reaplicar caso StatusManager.Start tenha reposicionado o painel
+        // após a primeira tentativa de dock (ordem Start/LateUpdate do Unity).
+        if (statusPanel.transform.parent != host)
+            statusPanel.transform.SetParent(host, false);
+        var rect = statusPanel.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.localScale = Vector3.one;
+    }
+
+    public void DetachFromSidebar()
+    {
+        if (statsIconButton != null)
+        {
+            statsIconButton.onClick.RemoveListener(TogglePanel);
+            statsIconButton = null;
+        }
+        if (dockedInSidebar && statusPanel != null && originalStatusParent != null)
+        {
+            statusPanel.transform.SetParent(originalStatusParent, false);
+            statusPanel.transform.SetSiblingIndex(
+                Mathf.Min(originalStatusSibling, originalStatusParent.childCount - 1));
+        }
+        dockedInSidebar = false;
+        ClosePanel();
     }
 
     public void OnCloseButtonClicked() => ClosePanel();
@@ -90,6 +145,7 @@ public class StatusManager : MonoBehaviour
     {
         isOpen = false;
         if (statusPanel != null) statusPanel.SetActive(false);
+        C8SidebarDynamicDock.Instance?.OnStatusVisibilityChanged(false);
     }
 
     public void TogglePanel()
@@ -98,6 +154,7 @@ public class StatusManager : MonoBehaviour
         if (statusPanel == null || network == null || !network.isConnected) return;
         isOpen = !statusPanel.activeSelf;
         statusPanel.SetActive(isOpen);
+        C8SidebarDynamicDock.Instance?.OnStatusVisibilityChanged(isOpen);
         if (isOpen)
         {
             statusPanel.transform.SetAsLastSibling();
@@ -118,7 +175,7 @@ public class StatusManager : MonoBehaviour
         if (levelText != null) levelText.text = $"NÍVEL {stats.level:N0}";
         if (experienceText != null)
             experienceText.text = stats.levelXpToNext > 0
-                ? $"XP total: {stats.xp:N0}\nProgresso: {stats.levelXp:N0}/{stats.levelXpToNext:N0}  •  Histórico: {stats.lifetimeXp:N0}"
+                ? $"XP {stats.levelXp:N0}/{stats.levelXpToNext:N0}\nTotal {stats.lifetimeXp:N0}"
                 : $"XP total: {stats.xp:N0}  •  Nível máximo";
         if (hpText != null) hpText.text = $"VIDA   {stats.hp:N0} / {stats.maxHp:N0}";
         if (manaText != null) manaText.text = $"MANA   {stats.mana:N0} / {stats.maxMana:N0}";
@@ -163,8 +220,8 @@ public class StatusManager : MonoBehaviour
         if (rect == null) return;
         rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
         rect.pivot = new Vector2(0f, 0.5f);
-        rect.anchoredPosition = new Vector2(18, 0);
-        rect.sizeDelta = new Vector2(380, 510);
+        rect.anchoredPosition = new Vector2(8, 0);
+        rect.sizeDelta = new Vector2(244, 350);
         rect.localScale = Vector3.one;
 
         var bg = statusPanel.GetComponent<Image>();
@@ -182,27 +239,33 @@ public class StatusManager : MonoBehaviour
             new GameObject("C6StatusTitle", typeof(RectTransform), typeof(TextMeshProUGUI));
         if (header == null) title.transform.SetParent(statusPanel.transform, false);
         var headerText = title.GetComponent<TextMeshProUGUI>();
-        headerText.text = "PERSONAGEM  /  STATUS";
-        StyleLabel(headerText, 14, 40, 23, Gold);
+        headerText.text = "ATRIBUTOS";
+        headerText.fontSize = 15f;
+        headerText.color = Gold;
+        headerText.raycastTarget = false;
+        var titleRect = headerText.rectTransform;
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = Vector2.one;
+        titleRect.offsetMin = new Vector2(11f, -33f);
+        titleRect.offsetMax = new Vector2(-36f, -5f);
 
-        StyleLabel(levelText, 60, 31, 19, Gold);
-        StyleLabel(experienceText, 93, 61, 13, Light);
-        StyleLabel(hpText, 165, 27, 15, Light);
-        StyleSlider(hpSlider, 197, HpRed);
-        StyleLabel(manaText, 240, 27, 15, Light);
-        StyleSlider(manaSlider, 272, ManaBlue);
-        StyleLabel(attackText, 316, 25, 15, Light);
-        StyleLabel(defenseText, 348, 25, 15, Light);
-        StyleLabel(armorText, 380, 25, 15, Light);
-        fishingLevelText = WorldWindowLayout.EnsureLabel(statusPanel.transform,
-            "C8FishingLevelText", "Pesca   —", 14, Light);
-        StyleLabel(fishingLevelText, 409, 25, 14, Gold);
-        satietyText = WorldWindowLayout.EnsureLabel(statusPanel.transform, "C6SatietyText",
-            "Saciedade  0/120", 14, Light);
-        StyleLabel(satietyText, 439, 25, 14, Gold);
-        StyleSlider(experienceSlider, 475, Gold);
-        WorldWindowLayout.MakeDraggable(statusPanel, "PERSONAGEM  /  STATUS", "status");
-        title.SetActive(false);
+        EnsureStatsScroll();
+        StyleLabel(levelText, 9, 27, 18, Gold);
+        StyleLabel(experienceText, 40, 53, 12, Light);
+        StyleLabel(hpText, 99, 23, 13, Light);
+        StyleSlider(hpSlider, 125, HpRed);
+        StyleLabel(manaText, 151, 23, 13, Light);
+        StyleSlider(manaSlider, 177, ManaBlue);
+        StyleLabel(attackText, 209, 23, 13, Light);
+        StyleLabel(defenseText, 239, 23, 13, Light);
+        StyleLabel(armorText, 269, 23, 13, Light);
+        fishingLevelText = WorldWindowLayout.EnsureLabel(statsContent,
+            "C8FishingLevelText", "Pesca   —", 13, Light);
+        StyleLabel(fishingLevelText, 299, 23, 13, Gold);
+        satietyText = WorldWindowLayout.EnsureLabel(statsContent, "C6SatietyText",
+            "Saciedade  0/120", 13, Light);
+        StyleLabel(satietyText, 329, 23, 13, Gold);
+        StyleSlider(experienceSlider, 365, Gold);
 
         if (closeButton != null)
         {
@@ -219,18 +282,78 @@ public class StatusManager : MonoBehaviour
         }
     }
 
+    private void EnsureStatsScroll()
+    {
+        var obj = statusPanel.transform.Find("C17StatsViewport");
+        if (obj == null)
+        {
+            var view = new GameObject("C17StatsViewport", typeof(RectTransform),
+                typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
+            view.transform.SetParent(statusPanel.transform, false);
+            obj = view.transform;
+        }
+        var viewport = (RectTransform)obj;
+        viewport.anchorMin = Vector2.zero;
+        viewport.anchorMax = Vector2.one;
+        viewport.offsetMin = new Vector2(4f, 5f);
+        // O canto superior fica livre para o botão X e o título.
+        viewport.offsetMax = new Vector2(-4f, -51f);
+        var image = obj.GetComponent<Image>();
+        image.color = new Color(0f, 0f, 0f, 0f);
+        image.raycastTarget = true;
+
+        var existing = obj.Find("Content");
+        if (existing == null)
+        {
+            var contentObj = new GameObject("Content", typeof(RectTransform));
+            contentObj.transform.SetParent(obj, false);
+            existing = contentObj.transform;
+        }
+        statsContent = (RectTransform)existing;
+        statsContent.anchorMin = new Vector2(0f, 1f);
+        statsContent.anchorMax = Vector2.one;
+        statsContent.pivot = new Vector2(0.5f, 1f);
+        statsContent.anchoredPosition = Vector2.zero;
+        statsContent.sizeDelta = new Vector2(0f, 409f);
+        var scroll = obj.GetComponent<ScrollRect>();
+        scroll.viewport = viewport;
+        scroll.content = statsContent;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.scrollSensitivity = 4f;
+        scroll.inertia = false;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        // Capturar roda em um filho evita dupla entrega ao ScrollRect no
+        // mesmo GameObject (que também implementa IScrollHandler).
+        var input = obj.Find("C17WheelSurface");
+        if (input == null)
+        {
+            var go = new GameObject("C17WheelSurface",
+                typeof(RectTransform), typeof(Image), typeof(C16FineScrollWheel));
+            go.transform.SetParent(obj, false);
+            input = go.transform;
+        }
+        var inputRect = (RectTransform)input;
+        inputRect.anchorMin = Vector2.zero; inputRect.anchorMax = Vector2.one;
+        inputRect.offsetMin = inputRect.offsetMax = Vector2.zero;
+        var inputImage = input.GetComponent<Image>();
+        inputImage.color = new Color(0f,0f,0f,0f);
+        inputImage.raycastTarget = true;
+        input.GetComponent<C16FineScrollWheel>().Bind(scroll);
+    }
+
     private void StyleLabel(TextMeshProUGUI label, float top, float height,
         float font, Color color)
     {
         if (label == null || statusPanel == null) return;
-        if (label.transform.parent != statusPanel.transform)
-            label.transform.SetParent(statusPanel.transform, false);
+        if (statsContent != null && label.transform.parent != statsContent)
+            label.transform.SetParent(statsContent, false);
         var rt = label.rectTransform;
         rt.anchorMin = new Vector2(0f, 1f);
         rt.anchorMax = new Vector2(1f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
         rt.anchoredPosition = new Vector2(0, -top);
-        rt.sizeDelta = new Vector2(-36, height);
+        rt.sizeDelta = new Vector2(-19f, height);
         label.fontSize = font;
         label.alignment = TextAlignmentOptions.MidlineLeft;
         label.color = color;
@@ -240,15 +363,15 @@ public class StatusManager : MonoBehaviour
     private void StyleSlider(Slider slider, float top, Color color)
     {
         if (slider == null || statusPanel == null) return;
-        if (slider.transform.parent != statusPanel.transform)
-            slider.transform.SetParent(statusPanel.transform, false);
+        if (statsContent != null && slider.transform.parent != statsContent)
+            slider.transform.SetParent(statsContent, false);
         var rt = slider.transform as RectTransform;
         if (rt == null) return;
         rt.anchorMin = new Vector2(0f, 1f);
         rt.anchorMax = new Vector2(1f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
         rt.anchoredPosition = new Vector2(0, -top);
-        rt.sizeDelta = new Vector2(-36, 17);
+        rt.sizeDelta = new Vector2(-19f, 10f);
         slider.interactable = false;
         if (slider.fillRect != null)
         {
@@ -262,13 +385,7 @@ public class StatusManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (toggleStatusAction != null)
-        {
-            toggleStatusAction.performed -= OnToggleStatus;
-            toggleStatusAction.Disable();
-            toggleStatusAction.Dispose();
-            toggleStatusAction = null;
-        }
+        DetachFromSidebar();
         if (closeButton != null)
             closeButton.onClick.RemoveListener(OnCloseButtonClicked);
         if (Instance == this) Instance = null;

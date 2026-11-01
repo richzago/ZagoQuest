@@ -20,13 +20,14 @@ export class ShopSystem {
     if (!item || !Number.isSafeInteger(item.buyPrice) || item.buyPrice < 0 ||
         !isValidGoldBalance(player.gold) || !isValidGoldBalance(player.bankGold)) return false;
 
+    player.lastShopNestedStorage = false;
     const firstBag = player.getContainerCapacity() === 0 &&
       !player.equipment.has(EquipmentSlot.BACKPACK) &&
       player.isContainerItem(itemId) && quantity === 1;
-    // A primeira Bag destrava o inventário. Todas as demais compras devem
-    // caber na Bag EQUIPADA; sem Bag, comprar poções NÃO é permitido.
+    // Primeira Bag equipa automaticamente. Depois, toda compra precisa caber
+    // em Bag acessível (raiz ou descendente), independente do painel aberto.
     if (!(firstBag ? player.canAddItem(itemId, quantity) :
-          player.canCollectItems([{itemId,amount:quantity}]))) return false;
+          player.canStoreShopPurchase(itemId, quantity))) return false;
 
     // Coletar uma moeda já credita seu valor diretamente na carteira.
     // Se um NPC vendesse uma moeda abaixo desse valor, o jogador conseguiria
@@ -43,14 +44,16 @@ export class ShopSystem {
     player.bankGold -= bankCost;
 
     // Preserva o dinheiro se, por qualquer motivo, a inserção não se completar.
-    if (!player.addItem(itemId, quantity)) {
+    if (!(firstBag ? player.addItem(itemId, quantity) :
+          player.storeShopPurchase(itemId, quantity))) {
       player.gold += walletCost;
       player.bankGold += bankCost;
       return false;
     }
 
     // Registrar uma identidade POR Bag antes de equipar a primeira unidade.
-    player.registerPurchasedBags(itemId, quantity);
+    if (firstBag) player.registerPurchasedBags(itemId, quantity);
+    // Demais Bags recebem UUIDs no contêiner exato pelo storeShopPurchase.
 
     // Primeiro contêiner comprado pode ser equipado automaticamente.
     // Evita softlock: a tecla I foi removida, sem Bag a área de itens fecha.

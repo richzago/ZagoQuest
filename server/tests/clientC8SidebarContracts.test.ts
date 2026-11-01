@@ -31,8 +31,8 @@ test("UI 2A: quatro áreas ordenadas, com minimapa e configuracoes ainda futuros
   assert.match(ui, /SidebarDynamicHost/);
   assert.match(ui, /new GameObject\("MiniMapTilePreview"/);
   assert.match(ui, /CreateCircularMiniMapTexture\(\)/);
-  assert.match(ui, /ACESSO RÁPIDO/);
-  assert.match(ui, /CONTEINÊRES  \/  LOOT/);
+ assert.doesNotMatch(ui, /AddText\(settings.transform, "SettingsTitle"/);
+ assert.doesNotMatch(ui, /AddText\(dynamicSection.transform, "DynamicTitle"/);
 });
 
 test("UI 2A: EquipmentPanel ORIGINAL é reparentado sem clone e sem perder slots/WS", () => {
@@ -106,7 +106,7 @@ test("UI 2A: equipamentos cabem fisicamente na coluna, sem resize horizontal de 
   assert.match(ui, /private void RefreshResponsiveLayout\(\)/);
   assert.match(ui, /height < 760f/);
   assert.match(ui, /private void AdjustDynamicPlaceholder\(\)/);
-  assert.match(ui, /dynamicHost\.offsetMax = new Vector2\(-10f, -header\)/);
+ assert.match(ui, /dynamicHost\.offsetMax = new Vector2\(-6f, -8f\)/);
 });
 
 test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico ou pesca", () => {
@@ -127,9 +127,9 @@ test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico 
   assert.doesNotMatch(scene, /m_Name: C8SidebarCanvas/);
 });
 
-test("C12 refinamento: 6 pictogramas sem siglas, minimapa quadrado e barra full bleed", () => {
+test("C17: seis pictogramas, sétima célula reservada ao logout, minimapa e barra full bleed", () => {
   const ui = unity("UI/C8SidebarShell.cs");
-  const icons = ["SettingsIcon","SoundIcon","ChatIcon","BackpackIcon","MapIcon","HelpIcon"];
+  const icons = ["SettingsIcon","SoundIcon","ChatIcon","BackpackIcon","MapIcon","StatsIcon"];
   for (const icon of icons) assert.match(ui,new RegExp('"' + icon + '"'));
   for (const legacy of ['"CFG"','"SOM"','"AJUDA"'])
     assert.ok(!ui.includes(legacy), "sigla antiga removida: " + legacy);

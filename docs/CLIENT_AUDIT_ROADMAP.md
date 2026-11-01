@@ -1,7 +1,30 @@
+## C17 — compra segura em Bags aninhadas + UI compacta (01/11/2026)
+
+- [x] C16 homologada 7/7, [PR #122](https://github.com/richzago/ZagoQuest/pull/122) integrada na `dev` (`4d02a8f`).
+- [x] Criada branch `feature/c17-nested-purchases-compact-sidebar-stats` a partir do merge e [PR #123](https://github.com/richzago/ZagoQuest/pull/123) **Draft**.
+- [x] Compra de NPC sempre planejada no servidor: Bag raiz e descendentes de UUID alcançável, independente da Bag aberta no cliente; seleciona pilha existente primeiro, depois espaço livre.
+- [x] `maxStack` de potion respeitado por Bag na compra (um Map por tipo por Bag); quantidade que não cabe completamente recusa a transação inteira sem retirar gold. CAP e dinheiro checados antes de inserir.
+- [x] Compras de novas Bags criam UUIDs em cada contêiner destino; mensagem avisa quando item foi colocado em Bag interna. Drop da Bag com conteúdo mantém árvore C14/C15.
+- [x] Sidebar sem títulos redundantes/abas adicionais: removidas as escritas contêineres, acesso rápido, equipamentos e duplicatas Backpack/Loot/TODOS e setas de cadáver.
+- [x] CAP representa somente capacidade restante recalculada pelo Node; mini mapa **placeholder** maior, equipamentos compactados.
+- [x] Stats passa a ser aberto pelo ícone **S** na barra e não mais pela tecla `P`; painel de atributos usa scroll no host dinâmico sem cobrir gameplay, alternando com Bag/Loot.
+- [x] Acrescentadas regressões C17 no Node e atualizados contratos estáticos legados de UI; atenção: CI Node não compila scripts C#.
+- [x] **Homologação manual C17 parcial — 7/8 cenários OK (01/11/2026).** Aprovados: compra de potions com raiz cheia/Bag filha vazia e débito correto; árvore cheia/CAP insuficiente sem desconto; `maxStack=10` e distribuição entre Bags; compra/drop/pickup de Bag aninhada com UUID e conteúdo íntegros; sidebar sem títulos/abas/setas/TODOS duplicados; CAP restante atualizado; regressões NPC, Loot, pesca, banco, logout, 1280×720, 1920×1080 e F10.
+- [x] **Bug C17 identificado e corrigido no código — Stats ocultos:** `StatsIcon` era o sexto ícone, sobreposto pelo `OFF` que usava o mesmo sexto espaço. Agora engrenagem é 0/7, Stats é 1/7 (visível, ao lado), demais ícones são 2–5/7, logout fica na célula exclusiva 6/7. Texto OFF reduzido para 11 pt para não cortar. `StatusManager` restaura o docking caso `Start()` e `TryDock()` terminem em ordem diferente; testado por contratos estáticos.
+- [ ] **Reteste Unity obrigatório — Stats:** confirmar ícone `S` visível imediatamente ao lado da engrenagem, clique abre/fecha Stats, tecla `P` inativa, scroll/valores do Node, layout sem sobreposição, abertura/fechamento após NPC/Bag/Loot/F10, logout e login. A correção foi commitada, mas **ainda não homologada no Editor**.
+- [x] [GitHub Actions #41342565817](https://github.com/richzago/ZagoQuest/actions/runs/41342565817): **611/611 testes Node no Ubuntu, 611/611 no Windows, integração PostgreSQL e compilação TS aprovados.** Unity C# ainda requer Play Mode manual.
+- [ ] **Não fazer merge da C17 antes de homologação e autorização expressa do usuário.**
+- [ ] Dívida técnica: inventário físico por slot/pilha para suportar várias pilhas do mesmo itemId dentro de uma mesma Bag; hoje Map por itemId limita uma pilha por Bag.
+- [ ] Dívida de segurança transacional: persistência de personagem e itens do chão ainda são commits separados sob crash abrupto.
+
+[Relatório C17 e checklist](C17_NESTED_SHOP_COMPACT_SIDEBAR_STATS.md)
+
+---
+
 ## C16 — 4 slots por padrão, rolagem fina e altura ajustável (01/11/2026)
 
 - [x] C15 [PR #121](https://github.com/richzago/ZagoQuest/pull/121) integrado à `dev` a pedido do usuário, mesmo com homologação anterior 6/8; commit de merge `6c80da4`. A UX de slots/scroll ficou para C16.
-- [x] Branch `feature/c16-resizable-inventory-loot-scroll` criada sobre o merge C15; [PR #122](https://github.com/richzago/ZagoQuest/pull/122) **Draft**, ainda não integrado.
+- [x] C16 [PR #122](https://github.com/richzago/ZagoQuest/pull/122) homologado no Unity (7/7) e integrado na `dev` por autorização do usuário; commit `4d02a8f`.
 - [x] Backpack inicia com 2×2 slots visíveis e células vazias até a capacidade de slots informada pelo Node.
 - [x] Scroll de Backpack/Loot em passos de até 18 pixels por evento, sem saltos por deltas ±120; scrollbar funcional com viewport separado, roda também sobre o trilho.
 - [x] Layout redimensionável no eixo vertical por alça inferior de Bag e Loot, limitado pela altura disponível na coluna, conteúdo e painel adjacente; preferência local via PlayerPrefs.

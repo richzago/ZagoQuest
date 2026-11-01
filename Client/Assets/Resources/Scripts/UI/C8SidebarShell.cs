@@ -25,6 +25,7 @@ public sealed class C8SidebarShell : MonoBehaviour
     private static readonly Color Muted = C11VisualTheme.Muted;
 
     private static C8SidebarShell activeShell;
+    public static C8SidebarShell Instance => activeShell;
     private static float latestCapRemaining;
     private static float latestCapMaximum;
     private TextMeshProUGUI capLabel;
@@ -40,8 +41,8 @@ public sealed class C8SidebarShell : MonoBehaviour
     {
         if (capLabel == null) return;
         capLabel.text = latestCapMaximum > 0f
-            ? $"CAP  {latestCapRemaining:0.#} / {latestCapMaximum:0.#} oz"
-            : "CAP  aguardando servidor";
+            ? $"CAP  {latestCapRemaining:0.#}"
+            : "CAP  --";
     }
 
     private GameObject canvasRoot;
@@ -171,16 +172,15 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddOutline(surface, Gold);
 
         // Placa em relevo com hierarquia visual distinta da HUD anterior.
-        Card(surface.transform, "ObsidianTitlePlate", 5f, 70f,
+        Card(surface.transform, "ObsidianTitlePlate", 5f, 34f,
             7f, 7f, C11VisualTheme.Recess);
-        AddText(surface.transform, "Brand", "ZAGOQUEST", 12, 31, 21, Gold);
-        AddText(surface.transform, "Subtitle", "OBSIDIAN / BRONZE  -  CLIENTE C12", 45, 20, 10, Muted);
-        AddLine(surface.transform, "TopDivider", 75, Gold);
+        AddText(surface.transform, "Brand", "ZAGOQUEST", 7f, 26f, 18f, Gold);
+        AddLine(surface.transform, "TopDivider", 40f, Gold);
 
         // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
         var map = Card(surface.transform, "MiniMapSection", 62, 164);
         miniMapSection = (RectTransform)map.transform;
-        AddText(map.transform, "MapTitle", "MINIMAPA", 8, 25, 13, Text);
+        // C17: sem cabeçalho; mais área para o minimapa (placeholder).
         miniMapTexture = CreateCircularMiniMapTexture();
         miniMapSprite = Sprite.Create(miniMapTexture,
             new Rect(0, 0, miniMapTexture.width, miniMapTexture.height),
@@ -202,10 +202,10 @@ public sealed class C8SidebarShell : MonoBehaviour
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
         var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 293);
         equipmentSectionRect = (RectTransform)equipmentSection.transform;
-        AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 7, 28, 15, Text);
+        // A silhueta dos slots dispensa título "EQUIPAMENTOS".
         // Sem texto "arraste para equipar/retirar": menos poluicao visual.
         equipmentHost = Holder(equipmentSection.transform, "EquipmentHost",
-            Vector2.zero, Vector2.one, new Vector2(8f, 34f), new Vector2(-8f, -36f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 25f), new Vector2(-8f, -5f));
         // CAP tem sua propria faixa sob o equipamento; nao intercepta raycasts.
         var capObject = new GameObject("C14CapacityLabel",
             typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -225,16 +225,21 @@ public sealed class C8SidebarShell : MonoBehaviour
         // 3. ACESSOS FUTUROS — pictogramas, nunca siglas ou botões falsos.
         var settings = Card(surface.transform, "SettingsIconsSection", 535, 58);
         settingsSectionRect = (RectTransform)settings.transform;
-        AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
+        // Sem texto "ACESSO RÁPIDO": somente ícones.
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
-            Vector2.zero, Vector2.one, new Vector2(8f, 5f), new Vector2(-8f, -24f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 3f), new Vector2(-8f, -3f));
         quickAccessHost = icons;
-        AddIcon(icons, "SettingsIcon", 0, 6);
-        AddIcon(icons, "SoundIcon", 1, 6);
-        AddIcon(icons, "ChatIcon", 2, 6);
-        AddIcon(icons, "BackpackIcon", 3, 6);
-        AddIcon(icons, "MapIcon", 4, 6);
-        AddIcon(icons, "HelpIcon", 5, 6);
+        // C17: seis ícones próprios + sétima célula RESERVADA ao OFF.
+        // A engrenagem e os atributos ficam lado a lado e o logout
+        // nunca ocupa o mesmo RectTransform de um botão existente.
+        const int slots = 7;
+        AddIcon(icons, "SettingsIcon", 0, slots);
+        AddIcon(icons, "StatsIcon", 1, slots);
+        AddIcon(icons, "SoundIcon", 2, slots);
+        AddIcon(icons, "ChatIcon", 3, slots);
+        AddIcon(icons, "BackpackIcon", 4, slots);
+        AddIcon(icons, "MapIcon", 5, slots);
+        // 6/7 é reservado para o botão real de logout (OFF).
 
         // 4. HOST DINAMICO RESERVADO para futuro Loot/Backpack.
         // Nenhum callback de loot/backpack e alterado aqui.
@@ -250,12 +255,9 @@ public sealed class C8SidebarShell : MonoBehaviour
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
-        AddText(dynamicSection.transform, "DynamicTitle", "CONTEINÊRES  /  LOOT", 9, 30, 14, Text);
-        AddText(dynamicSection.transform, "DynamicHint",
-            "Espaco reservado para janelas dinamicas", 39, 45, 11, Muted);
-        dynamicHint = dynamicSection.transform.Find("DynamicHint").gameObject;
+        dynamicHint = null;
         dynamicHost = Holder(dynamicSection.transform, "SidebarDynamicHost",
-            Vector2.zero, Vector2.one, new Vector2(10, 9), new Vector2(-10, -91));
+            Vector2.zero, Vector2.one, new Vector2(6, 4), new Vector2(-6, -8));
         // Container vazio: sem Image, sem CanvasGroup e SEM raycast.
     }
 
@@ -285,22 +287,23 @@ public sealed class C8SidebarShell : MonoBehaviour
         // para o host dinamico, sem ampliar cards sobre o mundo.
         bool compact = (C10ClientLayoutSettings.Instance == null ||
             C10ClientLayoutSettings.Instance.Compact) || height < 760f;
+        bool shortView = height < 680f;
         PlaceTop(miniMapSection, compact ? 43f : 62f,
-            compact ? 91f : 164f, 8f, 8f);
-        PlaceTop(equipmentSectionRect, compact ? 142f : 234f,
-            compact ? 244f : 293f, 8f, 8f);
-        PlaceTop(settingsSectionRect, compact ? 391f : 535f,
-            compact ? 48f : 58f, 8f, 8f);
-        float diameter = compact ? 58f : 112f;
+            shortView ? 124f : compact ? 156f : 232f, 8f, 8f);
+        PlaceTop(equipmentSectionRect, shortView ? 173f : compact ? 205f : 301f,
+            shortView ? 198f : compact ? 207f : 210f, 8f, 8f);
+        PlaceTop(settingsSectionRect, shortView ? 377f : compact ? 418f : 518f,
+            34f, 8f, 8f);
+        float diameter = shortView ? 88f : compact ? 118f : 187f;
         if (miniMapCircleRect != null)
         {
             miniMapCircleRect.sizeDelta = new Vector2(diameter, diameter);
-            miniMapCircleRect.anchoredPosition = new Vector2(0f, compact ? -38f : -39f);
+            miniMapCircleRect.anchoredPosition = new Vector2(0f, shortView ? -18f : compact ? -20f : -22f);
         }
         dynamicSection.offsetMin = new Vector2(12f, 0f);
         // Nunca inverter a area dinamica: rolagem/resize funcional fica
         // para outra etapa, mas a base sempre cabe na sidebar.
-        float dynamicTop = compact ? 447f : 602f;
+        float dynamicTop = shortView ? 422f : compact ? 458f : 561f;
         dynamicSection.offsetMax = new Vector2(-12f,
             -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
         lastDynamicHeight = -1f;
@@ -337,8 +340,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         float height = dynamicSection.rect.height;
         if (Mathf.Abs(height - lastDynamicHeight) <= 0.5f) return;
         lastDynamicHeight = height;
-        float header = Mathf.Min(91f, Mathf.Max(39f, height - 10f));
-        dynamicHost.offsetMax = new Vector2(-10f, -header);
+        dynamicHost.offsetMax = new Vector2(-6f, -8f);
         if (dynamicHint != null) dynamicHint.SetActive(!dynamicDocked && height >= 125f);
     }
 
@@ -417,10 +419,10 @@ public sealed class C8SidebarShell : MonoBehaviour
 
         // Em 720p/F10 130%, 4 linhas de 50px estourariam a nova
         // faixa CAP. Compactar somente os slots, não o painel de peso.
-        float cellSize = Mathf.Min(EquipmentSlotSize,
-            Mathf.Max(40f, (equipmentHost.rect.height - 12f) / 4f));
-        float rowStep = Mathf.Min(EquipmentStepY,
-            Mathf.Max(39f, (equipmentHost.rect.height - cellSize - 8f) / 3f));
+        float cellSize = Mathf.Min(46f, EquipmentSlotSize,
+            Mathf.Max(36f, (equipmentHost.rect.height - 8f) / 4f));
+        float rowStep = Mathf.Min(50f, EquipmentStepY,
+            Mathf.Max(38f, (equipmentHost.rect.height - cellSize - 5f) / 3f));
         float total = cellSize + EquipmentStepX * 2f;
         // 3 slots de 50, com passos de 62: 174, centralizados no painel.
         float x0 = Mathf.Max(8f, (panel.rect.width - total) * 0.5f);
@@ -491,8 +493,8 @@ public sealed class C8SidebarShell : MonoBehaviour
     private static void AddIcon(RectTransform parent, string name,
         int index, int count)
     {
-        // Pictogramas geométricos de UI, sem siglas e sem dependencias
-        // de glifos unicode ou sprites externos. Tudo decorativo.
+        // Pictogramas locais; apenas os controles com Button respondem.
+        // Stats é destacado e recebe Button/OnClick pelo StatusManager.
         var obj = new GameObject(name, typeof(RectTransform), typeof(Image));
         obj.transform.SetParent(parent, false);
         var rect = (RectTransform)obj.transform;
@@ -501,7 +503,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         rect.anchorMax = new Vector2((index + 1) / (float)count - gap, 1f);
         rect.offsetMin = rect.offsetMax = Vector2.zero;
         var image = obj.GetComponent<Image>();
-        image.color = Inset;
+        image.color = name == "StatsIcon" ? C11VisualTheme.BronzeDark : Inset;
         image.raycastTarget = false;
 
         switch (index)
@@ -513,31 +515,31 @@ public sealed class C8SidebarShell : MonoBehaviour
                 Shape(obj.transform, "GearLeft", -9, 0, 6, 4, Muted);
                 Shape(obj.transform, "GearRight", 9, 0, 6, 4, Muted);
                 break;
-            case 1: // audio
+            case 1: // Stats imediatamente ao lado da engrenagem.
+                AddCenterText(obj.transform, "StatsSymbol", "S", 19f, Text);
+                break;
+            case 2: // áudio
                 Shape(obj.transform, "SoundBase", -7, -1, 6, 10, Muted);
                 Shape(obj.transform, "SoundOne", 2, 0, 3, 13, Gold);
                 Shape(obj.transform, "SoundTwo", 9, 0, 3, 20, Gold);
                 break;
-            case 2: // chat
+            case 3: // chat
                 Shape(obj.transform, "ChatTop", 0, 8, 20, 2, Gold);
                 Shape(obj.transform, "ChatBottom", -2, -8, 16, 2, Gold);
                 Shape(obj.transform, "ChatLeft", -10, 0, 2, 16, Gold);
                 Shape(obj.transform, "ChatRight", 10, 0, 2, 16, Gold);
                 Shape(obj.transform, "ChatTail", -8, -12, 4, 5, Gold);
                 break;
-            case 3: // mochila
+            case 4: // mochila
                 Shape(obj.transform, "BagTop", 0, 11, 10, 3, Gold);
                 Shape(obj.transform, "BagLeft", -9, -1, 3, 20, Gold);
                 Shape(obj.transform, "BagRight", 9, -1, 3, 20, Gold);
                 Shape(obj.transform, "BagBottom", 0, -11, 18, 3, Gold);
                 break;
-            case 4: // mapa/rosa dos ventos
+            case 5: // mapa
                 Shape(obj.transform, "CompassVertical", 0, 0, 3, 21, Gold);
                 Shape(obj.transform, "CompassHorizontal", 0, 0, 21, 3, Gold);
                 Shape(obj.transform, "CompassCenter", 0, 0, 7, 7, Muted);
-                break;
-            default: // ajuda: pontuacao reconhecivel, nao sigla
-                AddCenterText(obj.transform, "HelpSymbol", "?", 20f, Gold);
                 break;
         }
     }

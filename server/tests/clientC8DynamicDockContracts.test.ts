@@ -33,9 +33,9 @@ test("UI2B: abas e contenção de raycast isoladas da área de jogo",()=>{
  const dock=unity("UI/C8SidebarDynamicDock.cs");
  const sidebar=unity("UI/C8SidebarShell.cs");
  const target=unity("Combat/TargetSelector.cs");
- assert.match(dock,/ButtonAt\("BackpackTab", "BACKPACK"/);
- assert.match(dock,/ButtonAt\("LootTab", "LOOT"/);
- assert.match(dock,/ButtonAt\("CloseLoot", "×"/);
+ assert.match(dock,/WireBackpackIcon\(\)/);
+ assert.match(dock,/public void OnLootOpened\(\)/);
+ assert.doesNotMatch(dock,/ButtonAt\("CloseLoot"/);
  assert.match(dock,/inventoryGroup\.blocksRaycasts = showBag/);
  assert.match(dock,/lootGroup\.blocksRaycasts = showLoot/);
  assert.match(dock,/image\.raycastTarget = true/);
@@ -89,12 +89,12 @@ test("UI2B: mochila é inventário já existente, 2 colunas e scroll; nenhuma mo
 
 test("UI2B: proporções da área dinâmica aceitam 1280x720 e F10 sem modificar viewport",()=>{
  const dock=unity("UI/C8SidebarDynamicDock.cs"),view=unity("UI/C8PlayfieldViewport.cs");
- assert.match(dock,/tabBar\.offsetMin = new Vector2\(8f, -84f\)/);
- assert.match(dock,/tabBar\.offsetMax = new Vector2\(-8f, -45f\)/);
+ assert.doesNotMatch(dock,/tabBar\.offsetMin = new Vector2/);
+ assert.match(dock,/StatusManager\.Instance\?\.DockToSidebar/);
  assert.match(dock,/scrollRect\.anchorMin = Vector2\.zero/);
  assert.match(dock,/scrollRect\.anchorMax = Vector2\.one/);
- assert.match(dock,/closeLootButton\.gameObject\.SetActive/);
- assert.match(dock,/if \(lootButton != null\) lootButton\.interactable/);
+ assert.match(dock,/public void OnStatusVisibilityChanged\(bool opened\)/);
+ assert.match(dock,/if \(sameHost && showBag && showLoot\)/);
  assert.match(view,/worldCamera\.rect = new Rect\(viewportStart, 0f, viewportWidth, 1f\)/);
  assert.doesNotMatch(dock,/worldCamera|Screen\.width|CameraFollow|GameManager\.Instance|Physics2D/);
 });

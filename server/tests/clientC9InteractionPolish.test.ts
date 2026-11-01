@@ -98,7 +98,7 @@ test("C16: Bag e loot têm 4 slots iniciais, scroll preciso, resize com limites 
  assert.match(dock,/bagScroll\.inertia = false/);
  assert.match(dock,/private const float MinBagHeight = 170f/);
  assert.match(dock,/private const float MinLootHeight = 150f/);
- assert.match(dock,/freeHeight < MinBagHeight \+ MinLootHeight \+ PanelGap/);
+ assert.match(dock,/if \(sameHost && showBag && showLoot\)/);
  assert.match(loot,/PrepareRow\(slot, 36f, i % 2 == 1\)/);
  assert.match(loot,/scroll\.scrollSensitivity = 1f/);
  assert.match(loot,/private const int MaxTrackedCorpses = 4/);

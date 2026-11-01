@@ -12,7 +12,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
 {
     public static C8SidebarDynamicDock Instance { get; private set; }
 
-    private enum Tab { None, Backpack, Loot }
+    private enum Tab { None, Backpack, Loot, Stats }
     private struct PanelBackup
     {
         public RectTransform rect;
@@ -70,6 +70,11 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) TryDock();
         if (!docked) return;
         if (shell == null || shell.DynamicHost == null) return;
+        // A primeira tentativa no TryDock pode preceder StatusManager.Start.
+        // Reconciliar sem reparentar a cada frame para evitar flicker.
+        if (StatusManager.Instance != null &&
+            !StatusManager.Instance.IsDockedToSidebar)
+            StatusManager.Instance.DockToSidebar(shell.DynamicHost);
         ResolveHosts();
         float width = bagHost != null ? bagHost.rect.width : shell.DynamicHost.rect.width;
         if (Mathf.Abs(width - lastWidth) > 1f)
@@ -117,7 +122,8 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
 
         ConfigureInventoryPanel();
         ConfigureLootPanel();
-        BuildTabs();
+        WireBackpackIcon();
+        StatusManager.Instance?.DockToSidebar(shell.DynamicHost);
         bagResizeHandle = CreateResizeHandle(inventoryBackup.rect, true);
         lootResizeHandle = CreateResizeHandle(lootBackup.rect, false);
 
@@ -520,105 +526,41 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (child != null) child.gameObject.SetActive(active);
     }
 
-    private void BuildTabs()
-    {
-        var section = shell.DynamicSection;
-        tabBarObject = new GameObject("C8DynamicTabs", typeof(RectTransform));
-        tabBarObject.transform.SetParent(section, false);
-        tabBar = (RectTransform)tabBarObject.transform;
-        tabBar.anchorMin = new Vector2(0f, 1f);
-        tabBar.anchorMax = new Vector2(1f, 1f);
-        tabBar.pivot = new Vector2(0.5f, 1f);
-        tabBar.offsetMin = new Vector2(8f, -84f);
-        tabBar.offsetMax = new Vector2(-8f, -45f);
+    // Sem barra de abas, TODOS duplicado, texto ou setas < > visuais.
+    private Button quickBackpackButton;
 
-        backpackButton = ButtonAt("BackpackTab", "BACKPACK", 0f, 0.44f,
-            OpenBackpackTab, out backpackLabel);
-        lootButton = ButtonAt("LootTab", "LOOT", 0.455f, 0.86f,
-            OpenLootTab, out lootLabel);
-        TextMeshProUGUI ignore;
-        closeLootButton = ButtonAt("CloseLoot", "×", 0.89f, 1f,
-            CloseLoot, out ignore);
-        // Pequeno seletor de cadáveres: mantém múltiplas janelas de loot
-        // acessíveis, sempre revalidando conteúdo pelo Node ao trocar.
-        var prevObj = new GameObject("PreviousCorpse", typeof(RectTransform),
-            typeof(Image), typeof(Button));
-        var nextObj = new GameObject("NextCorpse", typeof(RectTransform),
-            typeof(Image), typeof(Button));
-        previousLootButton = NavigationButton(prevObj, "<", 0.78f,
-            () => loot?.NavigateLoot(-1));
-        nextLootButton = NavigationButton(nextObj, ">", 0.89f,
-            () => loot?.NavigateLoot(1));
-        var takeAllObj=new GameObject("TakeAllShortcut",typeof(RectTransform),
-            typeof(Image),typeof(Button));
-        takeAllMiniButton=NavigationButton(takeAllObj,"TODOS",0.54f,
-            () => loot?.TakeAllLoot());
+    private void WireBackpackIcon()
+    {
+        var icon = shell.QuickAccessHost != null
+            ? shell.QuickAccessHost.Find("BackpackIcon") : null;
+        if (icon == null) return;
+        var image = icon.GetComponent<Image>();
+        if (image != null) image.raycastTarget = true;
+        quickBackpackButton = icon.GetComponent<Button>();
+        if (quickBackpackButton == null)
+            quickBackpackButton = icon.gameObject.AddComponent<Button>();
+        quickBackpackButton.onClick.RemoveListener(OpenBackpackTab);
+        quickBackpackButton.onClick.AddListener(OpenBackpackTab);
     }
 
-    private Button ButtonAt(string name, string title, float left, float right,
-        UnityEngine.Events.UnityAction action, out TextMeshProUGUI label)
+    public void OnStatusVisibilityChanged(bool opened)
     {
-        var obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        obj.transform.SetParent(tabBar, false);
-        var rect = (RectTransform)obj.transform;
-        rect.anchorMin = new Vector2(left, 0f);
-        rect.anchorMax = new Vector2(right, 1f);
-        rect.offsetMin = rect.offsetMax = Vector2.zero;
-        var image = obj.GetComponent<Image>();
-        image.color = idle;
-        image.raycastTarget = true; // botão visível APENAS na sidebar
-        var button = obj.GetComponent<Button>();
-        C11VisualTheme.StyleButton(button);
-        button.onClick.AddListener(action);
-        var titleObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-        titleObj.transform.SetParent(rect, false);
-        label = titleObj.GetComponent<TextMeshProUGUI>();
-        label.text = title;
-        label.fontSize = title == "×" ? 20f : 12f;
-        label.color = letters;
-        label.alignment = TextAlignmentOptions.Center;
-        label.raycastTarget = false;
-        var lr = label.rectTransform;
-        lr.anchorMin = Vector2.zero;
-        lr.anchorMax = Vector2.one;
-        lr.offsetMin = lr.offsetMax = Vector2.zero;
-        return button;
-    }
-
-    private Button NavigationButton(GameObject obj, string glyph,
-        float left, UnityEngine.Events.UnityAction action)
-    {
-        obj.transform.SetParent(shell.DynamicSection, false);
-        var rect = (RectTransform)obj.transform;
-        rect.anchorMin = new Vector2(left, 1f);
-        rect.anchorMax = new Vector2(left + (glyph == "TODOS" ? 0.21f : 0.09f), 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.offsetMin = new Vector2(0f, -36f);
-        rect.offsetMax = new Vector2(0f, -8f);
-        var img = obj.GetComponent<Image>();
-        img.color = idle;
-        img.raycastTarget = true;
-        var button = obj.GetComponent<Button>();
-        button.onClick.AddListener(action);
-        var labelObj = new GameObject("Symbol", typeof(RectTransform), typeof(TextMeshProUGUI));
-        labelObj.transform.SetParent(obj.transform, false);
-        var label = labelObj.GetComponent<TextMeshProUGUI>();
-        label.text = glyph;
-        label.fontSize = glyph == "TODOS" ? 10f : 17f;
-        label.color = letters;
-        label.alignment = TextAlignmentOptions.Center;
-        label.raycastTarget = false;
-        var lr = label.rectTransform;
-        lr.anchorMin = Vector2.zero;
-        lr.anchorMax = Vector2.one;
-        lr.offsetMin = lr.offsetMax = Vector2.zero;
-        return button;
+        if (!docked) return;
+        if (opened) selected = Tab.Stats;
+        else if (selected == Tab.Stats)
+            selected = loot != null && loot.IsLootOpen ? Tab.Loot :
+                inventory != null && inventory.IsInventoryOpen ? Tab.Backpack : Tab.None;
+        ApplyVisibility();
     }
 
     public void OnInventoryVisibilityChanged(bool opened)
     {
         if (!docked) return;
-        if (opened) selected = Tab.Backpack;
+        if (opened)
+        {
+            StatusManager.Instance?.ClosePanel();
+            selected = Tab.Backpack;
+        }
         else if (selected == Tab.Backpack)
             selected = loot != null && loot.IsLootOpen ? Tab.Loot : Tab.None;
         ApplyVisibility();
@@ -627,6 +569,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     public void OnLootOpened()
     {
         if (!docked) return;
+        StatusManager.Instance?.ClosePanel();
         selected = Tab.Loot;
         ApplyVisibility();
     }
@@ -643,7 +586,10 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     private void OpenBackpackTab()
     {
         if (inventory == null) return;
-        inventory.OpenInventory();
+        StatusManager.Instance?.ClosePanel();
+        // A Bag pode já estar aberta em outra coluna ou oculta por Loot:
+        // o ícone deve TRAZÊ-LA, não fechá-la no primeiro clique.
+        if (!inventory.IsInventoryOpen) inventory.OpenInventory();
         selected = Tab.Backpack;
         ApplyVisibility();
     }
@@ -669,12 +615,18 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         bool showBag = connected && inventory != null &&
             inventory.IsInventoryOpen && inventory.HasEquippedBag;
         bool showLoot = connected && loot != null && loot.IsLootOpen;
+        bool statsActive = StatusManager.Instance != null &&
+            StatusManager.Instance.IsOpen;
+        if (statsActive)
+        {
+            showBag = false;
+            showLoot = false;
+        }
         float freeHeight = bagHost != null ? bagHost.rect.height : 0f;
         bool sameHost = bagHost != null && bagHost == corpseHost;
         // Em colunas pequenas, exibir uma ABA completa (4 slots na Bag)
         // ao invés de duas janelas com metade dos itens escondidos.
-        if (sameHost && showBag && showLoot &&
-            freeHeight < MinBagHeight + MinLootHeight + PanelGap)
+        if (sameHost && showBag && showLoot)
         {
             if (selected == Tab.Backpack) showLoot = false;
             else showBag = false;
@@ -732,33 +684,6 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             lootGroup.interactable = showLoot;
             lootGroup.blocksRaycasts = showLoot;
         }
-        if (lootButton != null) lootButton.interactable =
-            connected && loot != null && loot.IsLootOpen;
-        if (backpackButton != null)
-            backpackButton.interactable = connected && inventory != null &&
-                inventory.HasEquippedBag;
-        if (takeAllMiniButton != null)
-            takeAllMiniButton.interactable = connected && loot != null &&
-                loot.IsLootOpen && loot.VisibleLootItemCount > 0;
-        if (previousLootButton != null)
-            previousLootButton.interactable = connected && loot != null &&
-                loot.OpenedLootCount > 1;
-        if (nextLootButton != null)
-            nextLootButton.interactable = connected && loot != null &&
-                loot.OpenedLootCount > 1;
-        if (backpackLabel != null && inventory != null)
-            backpackLabel.text = inventory.HasEquippedBag
-                ? (inventory.EquippedBagId != null &&
-                    inventory.EquippedBagId.Contains("simple_bag") ? "BAG" : "BACKPACK")
-                : "SEM BAG";
-        if (closeLootButton != null)
-            closeLootButton.gameObject.SetActive(connected && loot != null && loot.IsLootOpen);
-        if (backpackButton != null)
-            backpackButton.GetComponent<Image>().color = showBag ? active : idle;
-        if (lootButton != null)
-            lootButton.GetComponent<Image>().color = showLoot ? active : idle;
-        if (lootLabel != null)
-            lootLabel.color = lootButton != null && lootButton.interactable ? letters : disabled;
     }
 
     /// <summary>
@@ -801,10 +726,9 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         }
         Restore(inventoryBackup);
         Restore(lootBackup);
-        if (tabBarObject != null) Destroy(tabBarObject);
-        if (previousLootButton != null) Destroy(previousLootButton.gameObject);
-        if (nextLootButton != null) Destroy(nextLootButton.gameObject);
-        if (takeAllMiniButton != null) Destroy(takeAllMiniButton.gameObject);
+        if (quickBackpackButton != null)
+            quickBackpackButton.onClick.RemoveListener(OpenBackpackTab);
+        StatusManager.Instance?.DetachFromSidebar();
         tabBarObject = null;
         tabBar = null;
         shell?.SetDynamicDocked(false);
