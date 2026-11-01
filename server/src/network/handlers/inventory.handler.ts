@@ -34,7 +34,7 @@ import type {
 export function handleOpenBag(
   _ws: WebSocket, player: Player, msg: ClientOpenBagMessage, ctx: HandlerContext,
 ): void {
-  if (!player.openNestedBag(msg.itemId)) {
+  if (!player.openNestedBag(msg.itemId, msg.instanceId)) {
     ctx.packetSender.inventory.sendError("Não foi possível abrir esta Bag.");
     return;
   }
