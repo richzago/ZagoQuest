@@ -36,6 +36,8 @@ export interface ClientDropItemMessage {
   amount?: number;
   x: number;
   y: number;
+  /** true apenas ao arrastar do slot de equipamento; evita tirar cópia errada. */
+  fromEquipment?: boolean;
 }
 
 /**
