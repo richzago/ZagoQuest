@@ -451,8 +451,9 @@ test("C9: drop do slot equipado remove EXATAMENTE uma Bag mesmo com cópias no i
 test("C9: primeira Bag caída pode ser coletada sem outra Bag e autoequipada", async () => {
   for (const bag of ["equipment/backpack/simple_bag","equipment/backpack/basic_backpack"]) {
     const world = new World(); world.generateMap(10, 10);
-    const player=createPlayer(); withBag(player);
-    player.equipment.clear();
+    // Primeira Bag: personagem realmente NÃO tinha nenhuma previamente.
+    const player=createPlayer();
+    ItemRegistry.loadAll(join(process.cwd(), "src", "data", "items"));
     const {ctx,errors}=createContext(world);
     const item=new ItemOnGround("ground-"+bag.split("/").pop(),bag,1,2,2,"Bag");
     world.addItemOnGround(item);
@@ -473,7 +474,8 @@ test("C9: primeira Bag caída pode ser coletada sem outra Bag e autoequipada", a
 
 test("C9: sem Bag, itens comuns e gold continuam no chão, sem alterar inventário", async()=>{
   const world=new World();world.generateMap(10,10);
-  const player=createPlayer();withBag(player);player.equipment.clear();
+  const player=createPlayer();
+  ItemRegistry.loadAll(join(process.cwd(), "src", "data", "items"));
   const {ctx,errors}=createContext(world);
   const ground=new ItemOnGround("ordinary",potion,2,2,2,"Potion");
   world.addItemOnGround(ground);
