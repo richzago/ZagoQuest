@@ -42,7 +42,41 @@ public class PlayerHUD : MonoBehaviour
         Instance = this;
     }
 
-    private void Start() => StyleGameplayHud();
+    [Header("U02 — Layout serializado no Prefab (opt-in)")]
+    [Tooltip("Ativar somente após converter TopCenter em Prefab pelo menu U02-B. " +
+             "Não altera snapshots HP/MP/XP do servidor.")]
+    [SerializeField] private bool useInspectorVitalsLayout;
+
+    public bool UsesInspectorVitalsLayout => useInspectorVitalsLayout;
+    public Transform VitalsVisualRoot =>
+        playerNameText != null ? playerNameText.transform.parent : null;
+
+    private void Start()
+    {
+        // Até a migração ser confirmada no Editor, a HUD permanece idêntica à C18.
+        if (!useInspectorVitalsLayout)
+            StyleGameplayHud();
+        else
+            KeepVitalsNonInteractive();
+    }
+
+#if UNITY_EDITOR
+    // Usado APENAS pelo menu Editor U02-B para capturar o layout legado
+    // antes de criar a instância do Prefab. Sem execução automática.
+    public void ApplyLegacyVitalsLayoutForEditor() => StyleGameplayHud();
+#endif
+
+    private void KeepVitalsNonInteractive()
+    {
+        Transform root = VitalsVisualRoot;
+        if (root == null) return;
+        var backdrop = root.GetComponent<Image>();
+        if (backdrop != null) backdrop.raycastTarget = false;
+        foreach (var label in root.GetComponentsInChildren<TextMeshProUGUI>(true))
+            label.raycastTarget = false;
+        foreach (var slider in root.GetComponentsInChildren<Slider>(true))
+            slider.interactable = false;
+    }
 
     private void Update()
     {
