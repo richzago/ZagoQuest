@@ -16,6 +16,10 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     private string itemId;          // ID completo do item
     private int amount;             // Quantidade
     private string itemType;
+    private string bagInstanceId;
+    public string BagInstanceId => bagInstanceId;
+    /** Duplo clique na instância concreta, nunca no itemId agregado. */
+    public System.Action<string,string> OnBagOpen;
     private NetworkManager networkManager;
 
     // Evento disparado no duplo clique
@@ -42,13 +46,15 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
     /// </summary>
     /// 
     /// 
-    public void Setup(string itemId, int amount, NetworkManager networkManager, string itemType = null)
+    public void Setup(string itemId, int amount, NetworkManager networkManager, string itemType = null,
+        string instanceId = null)
     {
         // Debug.Log($"[InventorySlot] 🛠️ Setup: itemId={itemId}, amount={amount}");
         this.itemId = itemId;
         this.amount = amount;
         this.networkManager = networkManager;
         this.itemType = itemType;
+        this.bagInstanceId = instanceId;
         // Um slot reciclado ou reconstruído não deve herdar a janela de clique.
         hasFirstClick = false;
 
@@ -169,7 +175,9 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             {
                 hasFirstClick = false; // um evento, não duas ações seguidas
                 Debug.Log($"[InventorySlot] Duplo clique em {itemId} → usar");
-                OnDoubleClick?.Invoke(itemId);
+                if (!string.IsNullOrEmpty(bagInstanceId))
+                    OnBagOpen?.Invoke(itemId, bagInstanceId);
+                else OnDoubleClick?.Invoke(itemId);
                 return;
             }
             hasFirstClick = true;
