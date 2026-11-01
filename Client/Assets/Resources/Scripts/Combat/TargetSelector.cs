@@ -51,6 +51,10 @@ public class TargetSelector : MonoBehaviour
     private InputAction toggleFollowAction;
     // Reuso da lista: não alocar por clique quando o player está em combate.
     private readonly List<RaycastResult> uiHits = new List<RaycastResult>(16);
+    // Coleta do chão finaliza no mouse UP: aceita clique ou drag até
+    // o slot BACKPACK, sem exigir Physics2DRaycaster no EventSystem.
+    private string pendingGroundId;
+    private Vector2 pendingGroundStart;
 
     // =========================
     // CICLO DE VIDA
@@ -90,6 +94,7 @@ public class TargetSelector : MonoBehaviour
 
     void Update()
     {
+        CompleteGroundPickupOnRelease();
         if (!autoFollowEnabled || currentTarget == null) return;
         if (PlayerController.Instance == null || NetworkManager.Instance == null ||
             !NetworkManager.Instance.isConnected) return;
@@ -116,6 +121,7 @@ public class TargetSelector : MonoBehaviour
         mouseClickAction?.Dispose();
         attackAction?.Dispose();
         toggleFollowAction?.Dispose();
+        pendingGroundId = null;
     }
 
     // =========================
@@ -198,7 +204,8 @@ public class TargetSelector : MonoBehaviour
                 if (!string.IsNullOrEmpty(groundItem.groundItemId))
                 {
                     Debug.Log($"[TargetSelector] Clicou no item {groundItem.itemName} (ID: {groundItem.groundItemId})");
-                    network.Inventory?.SendPickupItem(groundItem.groundItemId);
+                    pendingGroundId = groundItem.groundItemId;
+                    pendingGroundStart = Mouse.current.position.ReadValue();
                 }
                 else
                 {
@@ -220,6 +227,43 @@ public class TargetSelector : MonoBehaviour
 #endif
             ClearTarget();
         }
+    }
+
+    private void CompleteGroundPickupOnRelease()
+    {
+        if (string.IsNullOrEmpty(pendingGroundId) ||
+            Mouse.current == null || !Mouse.current.leftButton.wasReleasedThisFrame)
+            return;
+        string id = pendingGroundId;
+        pendingGroundId = null;
+        var network = NetworkManager.Instance;
+        if (network == null || !network.isConnected ||
+            network.Inventory == null || ChatUI.IsChatActive) return;
+
+        Vector2 release = Mouse.current.position.ReadValue();
+        // Clique normal: tolerância pequena para tremor de mão.
+        bool isClick = Vector2.Distance(release, pendingGroundStart) <= 12f;
+        bool overBackpack = false;
+        var ui = EventSystem.current;
+        if (ui != null)
+        {
+            uiHits.Clear();
+            ui.RaycastAll(new PointerEventData(ui) { position = release }, uiHits);
+            foreach (var hit in uiHits)
+            {
+                var slot = hit.gameObject != null
+                    ? hit.gameObject.GetComponentInParent<EquipmentSlotUI>() : null;
+                if (slot != null && slot.slotType == EquipmentSlot.BACKPACK)
+                {
+                    overBackpack = true;
+                    break;
+                }
+            }
+        }
+        // Arrastar para qualquer outro painel ou para longe do sprite
+        // cancela; somente clique comum ou drop no BACKPACK solicita pickup.
+        if (!overBackpack && (!isClick || IsPointerOverUi())) return;
+        network.Inventory.SendPickupItem(id);
     }
 
     private void OnAttackKey()
