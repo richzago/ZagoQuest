@@ -122,6 +122,7 @@ export class DatabasePersistence {
 
     // Serializa Map para objeto
     character.inventory = Object.fromEntries(player.inventory);
+    character.containerState = player.exportBagState() as unknown as Record<string, unknown>;
     character.equipment = Object.fromEntries(player.equipment);
     character.skills = Object.fromEntries(
       Array.from(player.skills.entries()).map(([k, v]) => [k, v]),
