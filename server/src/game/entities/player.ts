@@ -842,6 +842,11 @@ export class Player extends Creature {
     try { definition = ItemRegistry.get(itemId); }
     catch { return null; }
     const stackable = definition.stackable === true;
+    // O modelo atual guarda uma pilha por itemId em cada Bag. Respeitar o
+    // maxStack do JSON impede compras infinitas no mesmo slot; excedentes
+    // podem ir para outra Bag acessível, sem criar pilhas invisíveis.
+    const maxStack = stackable && Number.isSafeInteger(definition.maxStack) &&
+        (definition.maxStack ?? 0) > 0 ? definition.maxStack! : Number.MAX_SAFE_INTEGER;
     const ordered: typeof root[] = [];
     const visited = new Set<string>();
     const queue = [root.id];
@@ -861,13 +866,19 @@ export class Player extends Creature {
     }
     const placements: Array<{bagId:string;amount:number}> = [];
     let remaining = amount;
-    // Pilhas já presentes são o primeiro alvo. Uma pilha não cria slot.
+    // Empilhar sem ultrapassar maxStack. O saldo pode ser distribuído
+    // entre Bags diferentes; o Map local representa no máximo uma pilha
+    // de cada itemId por Bag, até uma futura modelagem por slots físicos.
     if (stackable) {
       for (const bag of ordered) {
         const current = bag.items.get(itemId) ?? 0;
-        if (current > 0 && Number.isSafeInteger(current + remaining)) {
-          return [{bagId:bag.id,amount:remaining}];
-        }
+        if (!Number.isSafeInteger(current) || current < 0) return null;
+        if (current === 0 || current >= maxStack) continue;
+        const take = Math.min(remaining, maxStack - current);
+        if (take <= 0) continue;
+        placements.push({bagId:bag.id,amount:take});
+        remaining -= take;
+        if (remaining === 0) return placements;
       }
     }
     for (const bag of ordered) {
@@ -882,9 +893,12 @@ export class Player extends Creature {
         return null;
       const free = capacity - used;
       if (free === 0) continue;
-      const take = stackable ? remaining : Math.min(remaining, free);
+      // Não se cria uma segunda pilha com o mesmo itemId num único Map.
+      if (stackable && bag.items.has(itemId)) continue;
+      const take = stackable ? Math.min(remaining, maxStack) :
+        Math.min(remaining, free);
       const current = bag.items.get(itemId) ?? 0;
-      if (!Number.isSafeInteger(current + take)) return null;
+      if (take <= 0 || !Number.isSafeInteger(current + take)) return null;
       placements.push({bagId:bag.id,amount:take});
       remaining -= take;
       if (remaining === 0) break;
