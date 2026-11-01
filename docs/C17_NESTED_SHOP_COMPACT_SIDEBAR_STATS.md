@@ -43,6 +43,24 @@ O painel de Stats real é **reparentado** para `SidebarDynamicHost`, responsivo,
 - Atualizadas verificações históricas C6/C8/C9/C10/C11/C16 que exigiam aba ou status antigo. Isso não significa que testes antigos de gameplay foram desabilitados.
 - **CI Node/TypeScript/PostgreSQL não compila C# nem executa o Editor Unity.** Validação visual e do evento de botão depende de Play Mode manual.
 
+## Correção visual dos Stats após homologação parcial — 01/11/2026
+
+O usuário informou que **não encontrou o símbolo `S`**, apesar de testar todos os pictogramas; logo, o cenário antes classificado como pendente foi bloqueado por um problema visual concreto.
+
+**Causa confirmada por inspeção cruzada do código:** `C8SidebarShell.BuildShell` desenhava `StatsIcon` na sexta posição (`5/6`). `SessionLoginDebugUI.TryDockLogout` colocava o botão real `OFF` na **mesma posição** (`5/6`) quando autenticado, por cima do `S` e capturando os cliques. Não era necessário alterar gameplay ou servidor.
+
+**Correção C17:**
+- Repartir a barra em **7 células**, com `SettingsIcon` em 0/7, `StatsIcon` em 1/7, `SoundIcon` em 2/7, `ChatIcon` em 3/7, `BackpackIcon` em 4/7, `MapIcon` em 5/7 e o botão `OFF` **exclusivamente** em 6/7.
+- Desenhar `S` contrastante no botão ao lado da engrenagem. Reduzir fonte de `OFF` para 11 para caber na coluna compacta (~228px), preservando o callback de logout original.
+- Reforçar `StatusManager.IsDockedToSidebar` e revalidar o pai do `statusPanel` em `C8SidebarDynamicDock.LateUpdate` caso a ordem de `Start`/docking desfaça o reparenting inicial. Não faz reparent a cada frame quando saudável.
+- Acrescentar teste automatizado de contratos verificando posições, não sobreposição, vínculo `StatsIcon`→`TogglePanel`, recuperação do docking e remoção do atalho `P`.
+
+**Pendente de homologação:** usuário deve compilar/abrir Unity local, identificar `S` imediatamente ao lado da engrenagem, clicar para abrir/fechar Stats, testar `P` inativo, scroll e dados; alternar com Backpack/Loot, inclusive 720p/1080p e F10. A CI Node lê código C#, **não compila Unity**, portanto o resultado de Play Mode ainda não é conhecido.
+
+**Decisão:** [PR #123](https://github.com/richzago/ZagoQuest/pull/123) **continua OPEN/DRAFT, sem merge**. Esperar relato do reteste e aprovação explícita para merge.
+
+---
+
 ## Homologação manual parcial — 01/11/2026 (7/8)
 
 O usuário confirmou **sete cenários OK** no Unity; **um pendente, não reprovado**. Os resultados são relatos de homologação manual, não logs ou screenshots anexados.
