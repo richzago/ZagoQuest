@@ -242,7 +242,7 @@ test("C6 estados vazios: inventory, loot e shop sem itens não exibem estado ant
  const inv=unity("UI/InventoryUI.cs");
  const loot=unity("UI/LootUI.cs");
  const shop=unity("UI/ShopUI.cs");
- assert.match(inv,/ShowEmptyState\(items\.Count == 0\)/);
+ assert.match(inv,/ShowEmptyState\(visibleRows != null \? visibleRows\.Count == 0 : items\.Count == 0\)/);
  assert.match(inv,/C6EmptyInventoryLabel/);
  assert.match(inv,/labelObject\.SetActive\(empty\)/);
  assert.match(shop,/if \(items == null\)/);
