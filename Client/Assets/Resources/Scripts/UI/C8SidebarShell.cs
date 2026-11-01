@@ -11,7 +11,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class C8SidebarShell : MonoBehaviour
 {
-    private const float SidebarWidth = 304f;
+    // Tela de configurações controla a largura; padrão ~25% menor que C8.
+    private const float SidebarWidth = C10ClientLayoutSettings.MainCompactWidth;
     private const float EquipmentSlotSize = 50f;
     private const float EquipmentStepX = 62f;
     private const float EquipmentStepY = 53f;
