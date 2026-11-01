@@ -10,6 +10,7 @@ import { Logger } from "../../game/core/logger/logger";
 import { ShopSystem } from "../../game/systems/shopSystem";
 import { NpcInteractionSystem } from "../../game/systems/npcInteractionSystem";
 import { ItemRegistry } from "../../data/items/itemRegistry";
+import { EquipmentSlot } from "../../shared/enums/equipmentSlot.enum";
 import type { ClientOpenShopMessage, ClientBuyItemMessage, ClientSellItemMessage, ClientCloseShopMessage } from "../messages";
 
 /** Um item antigo/experimental não deve derrubar a janela inteira. */
@@ -71,6 +72,7 @@ export async function handleBuyItem(
     return;
   }
 
+  const equippedBefore = player.equipment.get(EquipmentSlot.BACKPACK);
   const success = ShopSystem.buyItem(player, npc, msg.itemId, msg.amount);
   if (!success) {
     ctx.packetSender.shop.sendBuyResult(
@@ -83,7 +85,8 @@ export async function handleBuyItem(
     true, `Comprou ${msg.amount}x ${itemDisplayName(msg.itemId)}.`,
   );
   ctx.packetSender.inventory.sendInventory(player);
-  ctx.packetSender.inventory.sendEquipment(player); // Autoequip da primeira Bag
+  if (player.equipment.get(EquipmentSlot.BACKPACK) !== equippedBefore)
+    ctx.packetSender.inventory.sendEquipment(player); // Somente quando autoequip mudou
   ctx.packetSender.inventory.sendPlayerStats(player);
   ctx.packetSender.inventory.sendGold(player);
 }
