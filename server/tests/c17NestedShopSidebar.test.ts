@@ -138,7 +138,9 @@ test("C17: UI sem tecla P, Stats via ícone, CAP restante e títulos removidos",
  assert.doesNotMatch(shell,/\/ \{latestCapMaximum:0\.#\} oz/);
  for(const word of ["CONTEINÊRES  /  LOOT","ACESSO RÁPIDO","EQUIPAMENTOS"])
   assert.doesNotMatch(shell,new RegExp('AddText\\([^\\n]*"'+word+'"'));
- assert.match(shell,/AddIcon\(icons, "StatsIcon", 5, 6\)/);
+ assert.match(shell,/AddIcon\(icons, "SettingsIcon", 0, slots\)/);
+ assert.match(shell,/AddIcon\(icons, "StatsIcon", 1, slots\)/);
+ assert.match(shell,/const int slots = 7/);
  assert.doesNotMatch(status,/<Keyboard>\/p|toggleStatusAction/);
  assert.match(status,/statsIconButton\.onClick\.AddListener\(TogglePanel\)/);
  assert.match(status,/DockToSidebar\(RectTransform host\)/);
@@ -146,4 +148,27 @@ test("C17: UI sem tecla P, Stats via ícone, CAP restante e títulos removidos",
  assert.match(dock,/StatusManager\.Instance\?\.DockToSidebar/);
  assert.doesNotMatch(dock,/BuildTabs\(\)/);
  assert.match(dock,/if \(statsActive\)/);
+});
+
+test("C17: botão Stats fica ao lado da engrenagem e logout não o encobre",()=>{
+ const files=(p:string)=>readFileSync(join(process.cwd(),"..","Client","Assets","Resources","Scripts",p),"utf8");
+ const shell=files("UI/C8SidebarShell.cs");
+ const login=files("Networking/SessionLoginDebugUI.cs");
+ const status=files("Managers/StatusManager.cs");
+ const dock=files("UI/C8SidebarDynamicDock.cs");
+ assert.match(shell,/AddIcon\(icons, "SettingsIcon", 0, slots\)/);
+ assert.match(shell,/AddIcon\(icons, "StatsIcon", 1, slots\)/);
+ assert.match(shell,/AddIcon\(icons, "MapIcon", 5, slots\)/);
+ assert.match(shell,/const int slots = 7/);
+ assert.match(shell,/case 1: \/\/ Stats/);
+ assert.match(shell,/AddCenterText\(obj.transform, "StatsSymbol", "S"/);
+ assert.match(login,/logoutButtonRect\.anchorMin = new Vector2\(6f \/ 7f \+ 0\.008f, 0f\)/);
+ assert.doesNotMatch(login,/logoutButtonRect\.anchorMin = new Vector2\(5f \/ 6f/);
+ assert.match(status,/public bool IsDockedToSidebar/);
+ assert.match(status,/statusPanel\.transform\.parent == C8SidebarShell\.Instance\.DynamicHost/);
+ assert.match(status,/if \(statusPanel\.transform\.parent != host\)/);
+ assert.match(status,/statsIconButton\.onClick\.AddListener\(TogglePanel\)/);
+ assert.match(dock,/!StatusManager\.Instance\.IsDockedToSidebar/);
+ assert.match(dock,/StatusManager\.Instance\.DockToSidebar\(shell\.DynamicHost\)/);
+ assert.doesNotMatch(status,/<Keyboard>\/p|toggleStatusAction/);
 });

@@ -33,6 +33,12 @@ public class StatusManager : MonoBehaviour
     private int originalStatusSibling;
     private Button statsIconButton;
     private bool dockedInSidebar;
+    // O Script Start() pode rodar após o docking e mudar o pai do painel.
+    // O dock consulta esta propriedade e refaz o vínculo somente se necessário.
+    public bool IsDockedToSidebar =>
+        dockedInSidebar && statusPanel != null && statsIconButton != null &&
+        C8SidebarShell.Instance != null &&
+        statusPanel.transform.parent == C8SidebarShell.Instance.DynamicHost;
     private TextMeshProUGUI satietyText;
     private TextMeshProUGUI fishingLevelText;
     public bool IsOpen => isOpen;
@@ -101,9 +107,12 @@ public class StatusManager : MonoBehaviour
         {
             originalStatusParent = statusPanel.transform.parent;
             originalStatusSibling = statusPanel.transform.GetSiblingIndex();
-            statusPanel.transform.SetParent(host, false);
             dockedInSidebar = true;
         }
+        // Reaplicar caso StatusManager.Start tenha reposicionado o painel
+        // após a primeira tentativa de dock (ordem Start/LateUpdate do Unity).
+        if (statusPanel.transform.parent != host)
+            statusPanel.transform.SetParent(host, false);
         var rect = statusPanel.GetComponent<RectTransform>();
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;

@@ -165,11 +165,9 @@ public class SessionLoginDebugUI : MonoBehaviour
         if (connected && host != null && host.gameObject.activeInHierarchy)
         {
             if (logoutDocked) return;
-            var help = host.Find("HelpIcon");
-            if (help != null) help.gameObject.SetActive(false);
+            // Sétima célula, reservada ao OFF: não cobre Stats nem mapa.
             logoutButtonRect.SetParent(host, false);
-            // Sexto pictograma. Mantem o Button REAL (mesmo listener Logout).
-            logoutButtonRect.anchorMin = new Vector2(5f / 6f + 0.008f, 0f);
+            logoutButtonRect.anchorMin = new Vector2(6f / 7f + 0.008f, 0f);
             logoutButtonRect.anchorMax = new Vector2(1f - 0.008f, 1f);
             logoutButtonRect.offsetMin = logoutButtonRect.offsetMax = Vector2.zero;
             if (logoutButtonLabel != null)
@@ -190,11 +188,6 @@ public class SessionLoginDebugUI : MonoBehaviour
             {
                 logoutButtonLabel.text = "SAIR";
                 logoutButtonLabel.fontSize = 17f;
-            }
-            if (host != null)
-            {
-                var help = host.Find("HelpIcon");
-                if (help != null) help.gameObject.SetActive(true);
             }
             logoutDocked = false;
         }

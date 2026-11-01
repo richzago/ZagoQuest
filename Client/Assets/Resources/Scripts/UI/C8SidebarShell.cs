@@ -229,12 +229,17 @@ public sealed class C8SidebarShell : MonoBehaviour
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
             Vector2.zero, Vector2.one, new Vector2(8f, 3f), new Vector2(-8f, -3f));
         quickAccessHost = icons;
-        AddIcon(icons, "SettingsIcon", 0, 6);
-        AddIcon(icons, "SoundIcon", 1, 6);
-        AddIcon(icons, "ChatIcon", 2, 6);
-        AddIcon(icons, "BackpackIcon", 3, 6);
-        AddIcon(icons, "MapIcon", 4, 6);
-        AddIcon(icons, "StatsIcon", 5, 6);
+        // C17: seis ícones próprios + sétima célula RESERVADA ao OFF.
+        // A engrenagem e os atributos ficam lado a lado e o logout
+        // nunca ocupa o mesmo RectTransform de um botão existente.
+        const int slots = 7;
+        AddIcon(icons, "SettingsIcon", 0, slots);
+        AddIcon(icons, "StatsIcon", 1, slots);
+        AddIcon(icons, "SoundIcon", 2, slots);
+        AddIcon(icons, "ChatIcon", 3, slots);
+        AddIcon(icons, "BackpackIcon", 4, slots);
+        AddIcon(icons, "MapIcon", 5, slots);
+        // 6/7 é reservado para o botão real de logout (OFF).
 
         // 4. HOST DINAMICO RESERVADO para futuro Loot/Backpack.
         // Nenhum callback de loot/backpack e alterado aqui.
@@ -488,8 +493,8 @@ public sealed class C8SidebarShell : MonoBehaviour
     private static void AddIcon(RectTransform parent, string name,
         int index, int count)
     {
-        // Pictogramas geométricos de UI, sem siglas e sem dependencias
-        // de glifos unicode ou sprites externos. Tudo decorativo.
+        // Pictogramas locais; apenas os controles com Button respondem.
+        // Stats é destacado e recebe Button/OnClick pelo StatusManager.
         var obj = new GameObject(name, typeof(RectTransform), typeof(Image));
         obj.transform.SetParent(parent, false);
         var rect = (RectTransform)obj.transform;
@@ -498,7 +503,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         rect.anchorMax = new Vector2((index + 1) / (float)count - gap, 1f);
         rect.offsetMin = rect.offsetMax = Vector2.zero;
         var image = obj.GetComponent<Image>();
-        image.color = Inset;
+        image.color = name == "StatsIcon" ? C11VisualTheme.BronzeDark : Inset;
         image.raycastTarget = false;
 
         switch (index)
@@ -510,31 +515,31 @@ public sealed class C8SidebarShell : MonoBehaviour
                 Shape(obj.transform, "GearLeft", -9, 0, 6, 4, Muted);
                 Shape(obj.transform, "GearRight", 9, 0, 6, 4, Muted);
                 break;
-            case 1: // audio
+            case 1: // Stats imediatamente ao lado da engrenagem.
+                AddCenterText(obj.transform, "StatsSymbol", "S", 19f, Text);
+                break;
+            case 2: // áudio
                 Shape(obj.transform, "SoundBase", -7, -1, 6, 10, Muted);
                 Shape(obj.transform, "SoundOne", 2, 0, 3, 13, Gold);
                 Shape(obj.transform, "SoundTwo", 9, 0, 3, 20, Gold);
                 break;
-            case 2: // chat
+            case 3: // chat
                 Shape(obj.transform, "ChatTop", 0, 8, 20, 2, Gold);
                 Shape(obj.transform, "ChatBottom", -2, -8, 16, 2, Gold);
                 Shape(obj.transform, "ChatLeft", -10, 0, 2, 16, Gold);
                 Shape(obj.transform, "ChatRight", 10, 0, 2, 16, Gold);
                 Shape(obj.transform, "ChatTail", -8, -12, 4, 5, Gold);
                 break;
-            case 3: // mochila
+            case 4: // mochila
                 Shape(obj.transform, "BagTop", 0, 11, 10, 3, Gold);
                 Shape(obj.transform, "BagLeft", -9, -1, 3, 20, Gold);
                 Shape(obj.transform, "BagRight", 9, -1, 3, 20, Gold);
                 Shape(obj.transform, "BagBottom", 0, -11, 18, 3, Gold);
                 break;
-            case 4: // mapa/rosa dos ventos
+            case 5: // mapa
                 Shape(obj.transform, "CompassVertical", 0, 0, 3, 21, Gold);
                 Shape(obj.transform, "CompassHorizontal", 0, 0, 21, 3, Gold);
                 Shape(obj.transform, "CompassCenter", 0, 0, 7, 7, Muted);
-                break;
-            default: // status do personagem
-                AddCenterText(obj.transform, "StatsSymbol", "S", 20f, Gold);
                 break;
         }
     }

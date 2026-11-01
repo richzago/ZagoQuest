@@ -70,6 +70,11 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         if (!docked) TryDock();
         if (!docked) return;
         if (shell == null || shell.DynamicHost == null) return;
+        // A primeira tentativa no TryDock pode preceder StatusManager.Start.
+        // Reconciliar sem reparentar a cada frame para evitar flicker.
+        if (StatusManager.Instance != null &&
+            !StatusManager.Instance.IsDockedToSidebar)
+            StatusManager.Instance.DockToSidebar(shell.DynamicHost);
         ResolveHosts();
         float width = bagHost != null ? bagHost.rect.width : shell.DynamicHost.rect.width;
         if (Mathf.Abs(width - lastWidth) > 1f)

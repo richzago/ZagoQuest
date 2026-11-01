@@ -127,7 +127,7 @@ test("UI 2A: continua exclusivo da UI: nada de camera, backend, loot automatico 
   assert.doesNotMatch(scene, /m_Name: C8SidebarCanvas/);
 });
 
-test("C12 refinamento: 6 pictogramas sem siglas, minimapa quadrado e barra full bleed", () => {
+test("C17: seis pictogramas, sétima célula reservada ao logout, minimapa e barra full bleed", () => {
   const ui = unity("UI/C8SidebarShell.cs");
   const icons = ["SettingsIcon","SoundIcon","ChatIcon","BackpackIcon","MapIcon","StatsIcon"];
   for (const icon of icons) assert.match(ui,new RegExp('"' + icon + '"'));
