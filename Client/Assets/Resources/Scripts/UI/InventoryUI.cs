@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
-using UnityEngine.InputSystem;
 
 public class InventoryUI : MonoBehaviour
 {
@@ -23,13 +22,15 @@ public class InventoryUI : MonoBehaviour
     private const float EquipmentClickGuardSeconds = 0.45f;
     private List<GameObject> slotObjects = new List<GameObject>();
 
-    private InputAction toggleInventoryAction;
     private bool isInventoryOpen = false;
     public bool IsInventoryOpen => isInventoryOpen;
-
-    // =========================
-    // CICLO DE VIDA
-    // =========================
+    public bool HasEquippedBag => bagSlots > 0 && !string.IsNullOrEmpty(bagItemId);
+    public string EquippedBagId => bagItemId;
+    public int BagSlots => bagSlots;
+    public int SlotsUsed => slotsUsed;
+    private string bagItemId;
+    private int bagSlots;
+    private int slotsUsed;
 
     private void Awake()
     {
@@ -39,21 +40,6 @@ public class InventoryUI : MonoBehaviour
             return;
         }
         Instance = this;
-        toggleInventoryAction = new InputAction("ToggleInventory", binding: "<Keyboard>/i");
-        // Delegate nomeado: a mesma referência precisa ser removida no OnDestroy.
-        toggleInventoryAction.performed += OnToggleInventory;
-    }
-
-    private void OnEnable() => toggleInventoryAction?.Enable();
-    private void OnDisable() => toggleInventoryAction?.Disable();
-
-    private void OnToggleInventory(InputAction.CallbackContext context)
-    {
-        var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-        var selected = eventSystem != null ? eventSystem.currentSelectedGameObject : null;
-        if (selected != null && selected.GetComponentInParent<TMP_InputField>() != null)
-            return; // o atalho I não deve funcionar enquanto digita no chat/input.
-        ToggleInventory();
     }
 
     private void Start()
@@ -88,6 +74,11 @@ public class InventoryUI : MonoBehaviour
     public void OpenInventory()
     {
         if (inventoryPanel == null) return;
+        if (!HasEquippedBag)
+        {
+            ChatUI.Instance?.AddMessage("Equipe ou compre uma Bag/Backpack para abrir os itens.");
+            return;
+        }
         if (!isInventoryOpen)
         {
             isInventoryOpen = true;
@@ -97,14 +88,10 @@ public class InventoryUI : MonoBehaviour
         C8SidebarDynamicDock.Instance?.OnInventoryVisibilityChanged(true);
     }
 
-    private void ToggleInventory()
+    public void ToggleBackpack()
     {
-        if (inventoryPanel == null) return;
-        isInventoryOpen = !isInventoryOpen;
-        inventoryPanel.SetActive(isInventoryOpen);
-        if (isInventoryOpen)
-            RefreshUI();
-        C8SidebarDynamicDock.Instance?.OnInventoryVisibilityChanged(isInventoryOpen);
+        if (isInventoryOpen) CloseInventory();
+        else OpenInventory();
     }
 
     // =========================
@@ -123,11 +110,30 @@ public class InventoryUI : MonoBehaviour
     public void HandleInventory(int gold, Dictionary<string, int> newItems,
         Dictionary<string, string> newItemTypes)
     {
+        HandleInventory(gold, newItems, newItemTypes, bagItemId, bagSlots, slotsUsed);
+    }
+
+    public void HandleInventory(int gold, Dictionary<string, int> newItems,
+        Dictionary<string, string> newItemTypes,
+        string equippedBagId, int capacity, int used)
+    {
         currentGold = gold;
         items = newItems ?? new Dictionary<string, int>();
         itemTypes = newItemTypes ?? new Dictionary<string, string>();
-        if (isInventoryOpen)
-            RefreshUI();
+        bagItemId = equippedBagId;
+        bagSlots = Mathf.Max(0, capacity);
+        slotsUsed = Mathf.Max(0, used);
+        if (!HasEquippedBag && isInventoryOpen) CloseInventory();
+        if (isInventoryOpen) RefreshUI();
+        UpdateBagFooter();
+    }
+
+    private void UpdateBagFooter()
+    {
+        if (goldText != null)
+            goldText.text = HasEquippedBag
+                ? $"Slots: {slotsUsed}/{bagSlots}   Ouro: {currentGold:N0}"
+                : $"Sem Bag/Backpack   Ouro: {currentGold:N0}";
     }
 
     /// <summary>
@@ -137,8 +143,7 @@ public class InventoryUI : MonoBehaviour
     public void UpdateGold(int gold)
     {
         currentGold = gold;
-        if (goldText != null)
-            goldText.text = $"Ouro em mãos: {currentGold:N0} gold";
+        UpdateBagFooter();
     }
 
     /// <summary>
@@ -260,12 +265,6 @@ public class InventoryUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (toggleInventoryAction != null)
-        {
-            toggleInventoryAction.performed -= OnToggleInventory;
-            toggleInventoryAction.Dispose();
-            toggleInventoryAction = null;
-        }
         if (Instance == this) Instance = null;
     }
 }
