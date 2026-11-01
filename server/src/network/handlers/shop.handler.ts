@@ -83,6 +83,7 @@ export async function handleBuyItem(
     true, `Comprou ${msg.amount}x ${itemDisplayName(msg.itemId)}.`,
   );
   ctx.packetSender.inventory.sendInventory(player);
+  ctx.packetSender.inventory.sendEquipment(player); // Autoequip da primeira Bag
   ctx.packetSender.inventory.sendPlayerStats(player);
   ctx.packetSender.inventory.sendGold(player);
 }
