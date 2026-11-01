@@ -495,8 +495,13 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
             if (lootBackup.rect != null)
             {
                 var r = lootBackup.rect;
+                // O root do Loot tem ALTURA fixa. Antes anchorMin=(0,1)
+                // e anchorMax=(1,1), mas offsetMin partia da BASE do host,
+                // criando uma janela maior que a altura calculada.
+                // Corrigir as duas âncoras no topo garante que os slots e
+                // o RectMask2D usem exatamente a faixa reservada.
                 r.anchorMin = new Vector2(0f, 1f);
-                r.anchorMax = Vector2.one;
+                r.anchorMax = new Vector2(1f, 1f);
                 r.pivot = new Vector2(0.5f, 1f);
                 r.offsetMax = new Vector2(0f, -lootTop);
                 r.offsetMin = new Vector2(0f, -lootTop - lootHeight);

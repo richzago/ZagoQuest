@@ -46,7 +46,7 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
             itemNameText.enableAutoSizing = true;
             itemNameText.fontSizeMin = 9f;
             itemNameText.fontSizeMax = 12f;
-            itemNameText.enableWordWrapping = false;
+            itemNameText.textWrappingMode = TextWrappingModes.NoWrap;
         }
         if (amountText != null)
         {
@@ -80,12 +80,10 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        // O drop sobre C9LootBagDropTarget/InventorySlot é atendido
-        // primeiro pelo EventSystem. Sobre Canvas, nunca dropar no mundo.
-        var over = eventData.pointerCurrentRaycast.gameObject;
-        if (over != null && over.GetComponentInParent<Canvas>() != null)
-            return;
-        if (eventData.button != PointerEventData.InputButton.Left) return;
+        // UI interativa recebe OnDrop; um Canvas transparente não é
+        // evidência de janela visível. Compartilhar o mesmo filtro da Bag.
+        if (eventData.button != PointerEventData.InputButton.Left ||
+            DragDropManager.PointerBlocksWorldDrop(eventData)) return;
         LootUI.Instance?.DropItemToWorld(index, eventData.position);
     }
 

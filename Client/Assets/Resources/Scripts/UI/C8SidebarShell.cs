@@ -406,7 +406,7 @@ public sealed class C8SidebarShell : MonoBehaviour
                 slot.slotText.enableAutoSizing = true;
                 slot.slotText.fontSizeMin = 7.5f;
                 slot.slotText.fontSizeMax = 10.5f;
-                slot.slotText.enableWordWrapping = true;
+                slot.slotText.textWrappingMode = TextWrappingModes.Normal;
                 slot.slotText.raycastTarget = false;
             }
             // O Image de cada slot conserva raycastTarget=true para o drop.
@@ -548,7 +548,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         label.fontSize = size;
         label.color = color;
         label.alignment = TextAlignmentOptions.TopLeft;
-        label.enableWordWrapping = true;
+        label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
     }
 

@@ -14,9 +14,10 @@ namespace ZagoQuest.Networking.Senders
         public void OpenBag(string itemId, string instanceId = null)
         {
             if (string.IsNullOrWhiteSpace(itemId)) return;
-            Send(new OpenBagMessage {
-                type = "openBag", itemId = itemId, instanceId = instanceId
-            });
+            if (string.IsNullOrWhiteSpace(instanceId))
+                Send(new OpenBagWithoutInstanceMessage { type = "openBag", itemId = itemId });
+            else
+                Send(new OpenBagMessage { type = "openBag", itemId = itemId, instanceId = instanceId });
         }
 
         public void CloseBag()
@@ -37,14 +38,20 @@ namespace ZagoQuest.Networking.Senders
 
         public void SendEquipItem(string itemId, string instanceId = null)
         {
-            var msg = new EquipItemMessage
+            if (string.IsNullOrWhiteSpace(itemId)) return;
+            // Sem UUID o campo não pode existir no JSON; Zod usa identifier.optional(),
+            // que não aceita null nem string vazia quando a propriedade está presente.
+            if (string.IsNullOrWhiteSpace(instanceId))
             {
-                type = "equipItem",
-                itemId = itemId,
-                instanceId = instanceId
-            };
-            Debug.Log($"[InventorySender] Equipando item: {itemId}");
-            Send(msg);
+                Send(new EquipItemWithoutInstanceMessage { type = "equipItem", itemId = itemId });
+            }
+            else
+            {
+                var msg = new EquipItemMessage { type = "equipItem", itemId = itemId,
+                    instanceId = instanceId };
+                Send(msg);
+            }
+            Debug.Log($"[InventorySender] Equipando item: {itemId} (UUID específico={ !string.IsNullOrWhiteSpace(instanceId) })");
         }
 
         public void SendUnequipItem(EquipmentSlot slot)
@@ -60,18 +67,27 @@ namespace ZagoQuest.Networking.Senders
 
         public void SendDropItem(string itemId, int amount, int x, int y, bool fromEquipment = false, string instanceId = null)
         {
-            var msg = new DropItemMessage
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
+            // O equipamento não precisa inventar um instanceId. Enviar
+            // null/"" para identifier.optional() causava "Mensagem inválida".
+            // Manter fromEquipment explícito para não dropar uma cópia errada.
+            if (string.IsNullOrWhiteSpace(instanceId))
             {
-                type = "dropItem",
-                itemId = itemId,
-                amount = amount,
-                fromEquipment = fromEquipment,
-                instanceId = instanceId,
-                x = x,
-                y = y
-            };
-            Debug.Log($"[InventorySender] Dropando {amount}x {itemId} em ({x}, {y})");
-            Send(msg);
+                var basic = new DropItemWithoutInstanceMessage {
+                    type = "dropItem", itemId = itemId, amount = amount,
+                    fromEquipment = fromEquipment, x = x, y = y
+                };
+                Send(basic);
+            }
+            else
+            {
+                var specific = new DropItemMessage {
+                    type = "dropItem", itemId = itemId, amount = amount,
+                    fromEquipment = fromEquipment, instanceId = instanceId, x = x, y = y
+                };
+                Send(specific);
+            }
+            Debug.Log($"[InventorySender] dropItem {amount}x {itemId} destino=({x},{y}) origemEquip={fromEquipment} UUID={(!string.IsNullOrWhiteSpace(instanceId) ? "específico" : "omitido")}");
         }
 
         public void SendPickupItem(string itemOnGroundId)

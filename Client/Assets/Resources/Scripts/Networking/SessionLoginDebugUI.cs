@@ -143,7 +143,7 @@ public class SessionLoginDebugUI : MonoBehaviour
         feedback.transform.SetParent(logoutOverlay.transform, false);
         authFeedbackLabel = feedback.GetComponent<TextMeshProUGUI>();
         authFeedbackLabel.fontSize = 15;
-        authFeedbackLabel.enableWordWrapping = true;
+        authFeedbackLabel.textWrappingMode = TextWrappingModes.Normal;
         authFeedbackLabel.color = new Color32(239, 199, 135, 255);
         authFeedbackLabel.alignment = TextAlignmentOptions.MidlineRight;
         authFeedbackLabel.raycastTarget = false;

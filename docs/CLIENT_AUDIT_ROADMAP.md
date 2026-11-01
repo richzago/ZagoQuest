@@ -1,3 +1,15 @@
+## C13 — regressão de payload opcional e geometria de loot (01/11/2026)
+
+- [x] Inspeção comparativa da branch com `dev`: C11 acrescentou `instanceId` opcional e cliente usa `JsonUtility.ToJson`.
+- [x] DTOs separados com/sem UUID; Zod strict preservado, fromEquipment preservado.
+- [x] Raiz de Loot passa a usar âncoras verticais coerentes com lootHeight (sem ampliar window).
+- [x] LootItemSlot.OnEndDrag reusa filtro de UI visível.
+- [x] Seis warnings obsoletos de TMP/FindObjectsByType tratados nos arquivos informados.
+- [ ] Validar CI e testes estáticos efetivos desta revisão.
+- [ ] Compilar Unity e homologar bags/drop/loot/raycast/F10 em Play Mode.
+- [ ] Deliberar limite de drop visível e obstáculos antes de alterar autoridade do Node.
+- [ ] Autorizar explicitamente PR #119; permanece Draft, não fazer merge.
+
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
 > **Atualização C11 (01/11/2026):** a especificação vigente da interação NPC, loot por distância, **Shift+L**, múltiplas Bags com UUID individuais na UI e tema original **Obsidian & Bronze** está em [C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md](C11_NESTED_BAGS_NPC_LOOT_OBSIDIAN.md). Atalhos e detalhes de layout abaixo podem representar a etapa C10 anterior. **CAP por peso ainda não está implementado**, apenas limites por slots. PR #119 permanece Draft, sem merge.
