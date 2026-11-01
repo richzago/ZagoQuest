@@ -122,7 +122,13 @@ public class LootUI : MonoBehaviour
     private void RebuildRows()
     {
         foreach (var slot in itemSlots)
-            if (slot != null) Destroy(slot);
+            if (slot != null)
+            {
+                // Destroy so executa no fim do frame: desativar AGORA para
+                // a linha antiga nao interceptar clique ou index de lootTaken.
+                slot.SetActive(false);
+                Destroy(slot);
+            }
         itemSlots.Clear();
 
         if (itemsContainer == null || lootItemPrefab == null)
