@@ -30,7 +30,7 @@ namespace ZagoQuest.Networking.Messages
     [Serializable] public class SellItemMessage { public string type; public string npcId; public string itemId; public int amount; }
     [Serializable] public class DepositMessage { public string type; public int amount; }
     [Serializable] public class WithdrawMessage { public string type; public int amount; }
-    [Serializable] public class EquipItemMessage { public string type; public string itemId; }
+    [Serializable] public class EquipItemMessage { public string type; public string itemId; public string instanceId; }
     [Serializable] public class UnequipItemMessage { public string type; public string slot; }
     [Serializable] public class DropItemMessage { public string type; public string itemId; public int amount; public int x; public int y; public bool fromEquipment; }
     [Serializable] public class PickupItemMessage { public string type; public string itemId; }
