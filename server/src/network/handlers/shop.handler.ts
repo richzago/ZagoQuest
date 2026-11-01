@@ -75,9 +75,13 @@ export async function handleBuyItem(
   const equippedBefore = player.equipment.get(EquipmentSlot.BACKPACK);
   const success = ShopSystem.buyItem(player, npc, msg.itemId, msg.amount);
   if (!success) {
-    ctx.packetSender.shop.sendBuyResult(
-      false, "Não foi possível comprar. Verifique gold, quantidade ou capacidade.",
-    );
+    const noBag = player.getContainerCapacity() <= 0 &&
+      !player.isContainerItem(msg.itemId);
+    const message = noBag
+      ? "Equipe ou compre primeiro uma Bag/Backpack antes de comprar itens."
+      : "Não foi possível comprar. Verifique gold, quantidade ou espaço na Bag.";
+    Logger.warn(`[SERVER LOG][SHOP] ${player.name}: ${message}`);
+    ctx.packetSender.shop.sendBuyResult(false, message);
     return;
   }
 
