@@ -1,5 +1,8 @@
 # ZagoQuest — Auditoria viva do cliente Unity (C0–C8)
 
+> **UI 2A refinamento (31/10/2026) — mesmo PR #116/Draft:** feedback do usuário após Play Mode: remover título duplo (raiz confirmada `EquipmentPanel/Equipaments` de `scenebasic.unity`), diminuir card e slots com cuidado para nomes, minimapa circular, sidebar full bleed sem espaços topo/base/direita, retirar textos de arrastar, seis pictogramas em acesso rápido (sem siglas), ocultar painel de pesca mas preservar tecla R, adicionar nível real Fishing ao Status via campo aditivo `playerStats.fishingLevel`. PR #116 permanece sobre branch #115; `TargetSelector.cs`/`IsPointerOverUi` não alterados. Documentação e QA em `docs/CLIENT_UI_SIDEBAR_EQUIPMENT_2A.md`. **Sem merge ou avanço para 2B sem homologação e autorização do usuário.**
+
+
 > **UI 2A — equipamentos na sidebar, HOMOLOGAÇÃO PENDENTE:** branch `feature/client-ui-sidebar-equipment-2a` deriva da branch **ainda não integrada** `feature/client-ui-sidebar-step1` (PR #115). Quatro zonas nesta ordem: minimapa futuro, **EquipmentPanel original reparentado com os 10 slots**, ícones de configuração futuros e `SidebarDynamicHost` preparado (loot/backpack ainda NÃO redirecionados). Visual Tibia moderno `#121B27`, `#1D2938`, `#AF8B50`. Proteção crítica: `TargetSelector.cs` e `IsPointerOverUi` INALTERADOS, Canvas raiz sem Image, só superfícies opacas/slots legítimos com raycast; sorting 110 acima da HUD antiga para permitir drag/drop. Zero mudanças de pesca, servidor, câmera e cena. [Auditoria específica](CLIENT_UI_SIDEBAR_EQUIPMENT_2A.md). **Nenhum merge à `dev` ou início de UI 2B antes de testes Unity e aprovação explícita**.
 
 
