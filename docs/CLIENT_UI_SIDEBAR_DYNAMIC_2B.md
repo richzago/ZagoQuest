@@ -12,6 +12,16 @@ A área inferior `DynamicContentSection` da sidebar C8 passou de placeholder a *
 - **Reutilização, não duplicação:** a classe `C8SidebarDynamicDock` só encaixa objetos existentes, após `InventoryUI.Start` criar o scroll/grid e `LootUI.Start` criar `C6DragHeader`. Não existe segundo `LootUI`, `InventoryUI`, nem prefab ou container de itens novo. Em `Undock`, os dois objetos retornam a seus parents originais **antes do Canvas da sidebar ser destruído**.
 - **Identidade visual:** os títulos arrastáveis, botões antigos de fechar e a ajuda redundante desaparecem no dock. A sidebar continua minimalista (tons `#121B27`, `#1D2938`, acento `#AF8B50`); as abas são clicáveis apenas na área visível. Os cards minimapa, equipamento e ícones, bem como o recorte de Main Camera já homologado, não mudam.
 
+## Merchant — Backpack real para testar a UI
+
+A pedido do usuário, esta revisão também adiciona uma backpack básica ao catálogo **permanente** do NPC `Merchant`:
+
+- ID canônico `equipment/backpack/basic_backpack`, definição JSON em `server/src/data/items/equipment/backpack/basic_backpack.json`.
+- Nome visível: `Backpack`. `type="equipment"`, `stackable=false`, `slot="BACKPACK"` (igual ao enum que o servidor já utiliza), levelRequired=1 e sem bônus.
+- Ofertada no `server/src/data/npc/merchant.json` com preço **35 gold para comprar e 15 gold para vender**. Preços são sempre validados no Node; não há estoque finito.
+- Teste `server/tests/clientC8MerchantBackpack.test.ts` exercita carregamento do catálogo, compra, gold, equipar/desequipar, venda, proibição de venda duplicada e saldo insuficiente.
+- **Limite:** equipar a backpack não altera capacidade nem cria inventários internos; o sistema servidor de contêineres individuais ainda não existe. Esta mochila é equipamento de teste real, enquanto a aba MOCHILA mostra o inventário atual.
+
 ## Limite funcional — mochilas de verdade no backend
 
 No código atual, `InventoryUI` recebe **um inventário único** por snapshot (`InventoryHandler`). O slot `EquipmentSlot.BACKPACK` existe, mas o servidor ainda não implementa múltiplas backpacks independentes com IDs, capacidade, nested containers e persistência individual. A aba `MOCHILA` nesta PR é **a visualização do inventário atual**, e não um sistema novo de containers. Implementar backpacks separadas exige outra fase de contratos/Node/saves; não simular essa funcionalidade no cliente sem servidor autoritativo.
