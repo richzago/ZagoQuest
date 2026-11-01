@@ -52,6 +52,12 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({ type: z.literal("closeBag") }),
   z.strictObject({
+    type: z.literal("transferBagItem"),
+    sourceBagId: identifier, destinationBagId: identifier,
+    itemId: identifier, amount: positiveAmount,
+    instanceId: identifier.optional(),
+  }),
+  z.strictObject({
     type: z.literal("equipItem"), itemId: identifier,
     instanceId: identifier.optional(),
   }),

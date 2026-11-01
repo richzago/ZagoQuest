@@ -14,6 +14,15 @@ export interface ClientOpenBagMessage {
   instanceId?: string;
 }
 export interface ClientCloseBagMessage { type: "closeBag"; }
+export interface ClientTransferBagItemMessage {
+  type: "transferBagItem";
+  sourceBagId: string;
+  destinationBagId: string;
+  itemId: string;
+  amount: number;
+  /** UUID obrigatório ao mover uma Bag não-stackable. */
+  instanceId?: string;
+}
 
 export interface ClientUseItemMessage {
   type: "useItem";

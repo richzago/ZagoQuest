@@ -24,6 +24,7 @@ import type {
   ClientStopAutoAttackMessage,
   ClientOpenBagMessage,
   ClientCloseBagMessage,
+  ClientTransferBagItemMessage,
   ClientUseItemMessage,
   ClientEquipItemMessage,
   ClientUnequipItemMessage,
@@ -100,6 +101,7 @@ export type ClientMessage =
   | ClientStopAutoAttackMessage
   | ClientOpenBagMessage
   | ClientCloseBagMessage
+  | ClientTransferBagItemMessage
   | ClientUseItemMessage
   | ClientEquipItemMessage
   | ClientUnequipItemMessage

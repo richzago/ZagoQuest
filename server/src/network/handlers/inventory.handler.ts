@@ -25,6 +25,7 @@ import type {
   ClientUnequipItemMessage,
   ClientDropItemMessage,
   ClientPickupItemMessage,
+  ClientTransferBagItemMessage,
 } from "../messages";
 
 /**
@@ -37,6 +38,17 @@ export function handleOpenBag(
 ): void {
   if (!player.openNestedBag(msg.itemId, msg.instanceId)) {
     ctx.packetSender.inventory.sendError("Não foi possível abrir esta Bag.");
+    return;
+  }
+  ctx.packetSender.inventory.sendInventory(player);
+}
+
+export function handleTransferBagItem(
+  _ws: WebSocket, player: Player, msg: ClientTransferBagItemMessage, ctx: HandlerContext,
+): void {
+  if (!player.transferBagItem(msg.sourceBagId,msg.destinationBagId,
+                              msg.itemId,msg.amount,msg.instanceId)) {
+    ctx.packetSender.inventory.sendError("Transferência recusada: Bag, slots, UUID ou ciclo inválido.");
     return;
   }
   ctx.packetSender.inventory.sendInventory(player);

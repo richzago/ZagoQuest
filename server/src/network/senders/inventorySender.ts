@@ -47,6 +47,7 @@ export class InventorySender extends BaseSender {
       gold: player.gold,
       items: itemsArray,
       bagItemId: player.getContainerItemId(),
+      viewedBagInstanceId: player.getViewedBagInstanceId(),
       bagSlots: player.getContainerCapacity(),
       slotsUsed: player.getContainerSlotsUsed(),
       capUsed: player.getCarriedWeight(),

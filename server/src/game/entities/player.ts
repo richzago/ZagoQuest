@@ -68,6 +68,82 @@ export class Player extends Creature {
     return true;
   }
 
+  /** UUID da janela atualmente aberta, usado no snapshot e pelo servidor. */
+  getViewedBagInstanceId(): string | null {
+    return this.viewedBag()?.id ?? null;
+  }
+
+  /**
+   * Transação síncrona entre contêineres do MESMO personagem.
+   * Tudo é validado antes de uma única mutação; nunca aceita UUID de terceiros,
+   * Bags desconectadas da mochila equipada ou ciclos entre pais e filhos.
+   */
+  transferBagItem(sourceId: string, destinationId: string, itemId: string,
+                  amount: number, instanceId?: string): boolean {
+    if (!isValidItemId(itemId) || !isValidQuantity(amount) ||
+        sourceId === destinationId || !this.equippedBagInstanceId) return false;
+    const accessible = new Set<string>();
+    const visit = (id: string) => {
+      if (accessible.has(id)) return;
+      const bag = this.bagInstances.get(id);
+      if (!bag) return;
+      accessible.add(id);
+      for (const child of bag.children) visit(child);
+    };
+    visit(this.equippedBagInstanceId);
+    if (!accessible.has(sourceId) || !accessible.has(destinationId)) return false;
+    const source = this.bagInstances.get(sourceId)!;
+    const dest = this.bagInstances.get(destinationId)!;
+    const have = source.items.get(itemId) ?? 0;
+    if (!Number.isSafeInteger(have) || have < amount) return false;
+    let definition;
+    try { definition = ItemRegistry.get(itemId); } catch { return false; }
+    const movingBag = this.isContainerItem(itemId);
+    let movingId: string | undefined;
+    if (movingBag) {
+      if (amount !== 1 || !instanceId ||
+          !source.children.includes(instanceId)) return false;
+      const moved = this.bagInstances.get(instanceId);
+      if (!moved || moved.itemId !== itemId) return false;
+      // Mover para si mesma ou para qualquer descendente seria um ciclo.
+      const pending = [instanceId];
+      const visited = new Set<string>();
+      while (pending.length) {
+        const id = pending.pop()!;
+        if (id === destinationId) return false;
+        if (visited.has(id)) continue;
+        visited.add(id);
+        pending.push(...(this.bagInstances.get(id)?.children ?? []));
+      }
+      movingId = instanceId;
+    } else if (instanceId) return false;
+    let used = 0;
+    for (const [id, qty] of dest.items) {
+      if (!Number.isSafeInteger(qty) || qty <= 0) return false;
+      try { used += ItemRegistry.get(id).stackable ? 1 : qty; }
+      catch { used += qty; }
+    }
+    const extra = definition.stackable && dest.items.has(itemId) ? 0 : 
+      definition.stackable ? 1 : amount;
+    const limit = ItemRegistry.get(dest.itemId).containerSlots ?? 0;
+    if (!Number.isSafeInteger(limit) || used + extra > limit) return false;
+    // Conferir validade da contagem antes de qualquer mudança.
+    const destPrevious = dest.items.get(itemId) ?? 0;
+    if (!Number.isSafeInteger(destPrevious + amount)) return false;
+
+    const newAmount = have - amount;
+    if (newAmount === 0) source.items.delete(itemId);
+    else source.items.set(itemId,newAmount);
+    dest.items.set(itemId,destPrevious+amount);
+    if (movingId) {
+      source.children.splice(source.children.indexOf(movingId),1);
+      dest.children.push(movingId);
+    }
+    // inventory aponta para o Map da janela; não mudar referência ao transferir.
+    // O peso total não muda e, portanto, CAP global também não muda.
+    return true;
+  }
+
   closeNestedBag(): boolean {
     const activeId = this.viewedBagInstanceId;
     if (!activeId || activeId === this.equippedBagInstanceId) return false;
