@@ -182,7 +182,7 @@ test("C10 UI: gear configurável com 3 colunas, hotkey Shift+L, host real e came
  assert.match(dock,/ResolveHosts\(\)/);
  assert.match(dock,/public void ReturnToPrimaryHost\(\)/);
  assert.match(dock,/loot\?\.TakeAllLoot\(\)/);
- assert.match(loot,/k\.eKey\.wasPressedThisFrame/);
+ assert.match(loot,/k\.lKey\.wasPressedThisFrame/);
  assert.match(loot,/k\.leftShiftKey\.isPressed/);
  assert.match(camera,/worldCamera\.rect = new Rect\(viewportStart, 0f, viewportWidth, 1f\)/);
  assert.doesNotMatch(camera,/new Camera\(/);
