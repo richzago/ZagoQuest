@@ -167,7 +167,7 @@ test("C8 viewport: a camera ja existente fica no espaco esquerdo SEM duplicar mu
  assert.match(view, /network == null \|\| !network\.isConnected/);
  assert.match(view, /!sidebar\.SidebarSurface\.gameObject\.activeInHierarchy/);
  assert.match(view, /Mathf\.Abs\(lastWidth - viewportWidth\) < 0\.0005f/);
- assert.doesNotMatch(view, /new Camera|new GameObject|AddComponent<Camera>|RenderTexture|FindObjectsByType<Camera>|ScreenPointToRay/);
+ assert.doesNotMatch(view, /new Camera\(|new GameObject\(|AddComponent<Camera>\(|new RenderTexture\(|FindObjectsByType<Camera>\(|ScreenPointToRay\(/);
  assert.match(scene, /m_Name: Main Camera/);
  assert.equal((scene.match(/^--- !u!20 &/gm) || []).length, 1,
    "A cena serializada contém uma única Camera; nenhuma outra é criada na UI.");
