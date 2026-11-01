@@ -362,6 +362,7 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
         image.color = idle;
         image.raycastTarget = true; // botão visível APENAS na sidebar
         var button = obj.GetComponent<Button>();
+        C11VisualTheme.StyleButton(button);
         button.onClick.AddListener(action);
         var titleObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         titleObj.transform.SetParent(rect, false);
