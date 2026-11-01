@@ -345,7 +345,8 @@ public sealed class C8SidebarShell : MonoBehaviour
         // F10 chega a 130%. A altura util do Canvas diminui: nunca
         // deixar offset de host invertido em 1280x720 / 1920x1080.
         float height = dynamicSection.rect.height;
-        if (Mathf.Abs(height - lastDynamicHeight) <= 0.5f) return;
+        // Mesmo com altura igual, a divisão do host muda quando Stats abre.
+        // Não antecipar retorno: recálculo barato, sem criar GameObjects.
         lastDynamicHeight = height;
         bool statsOpen = StatusManager.Instance != null &&
             StatusManager.Instance.IsOpen;
