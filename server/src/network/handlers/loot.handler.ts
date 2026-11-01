@@ -64,9 +64,13 @@ export async function handleTakeLoot(
   }
 
   if (msg.takeAll) {
-    // Uma única verificação para a lista inteira evita overflow agregado.
-    if (!player.canAddItems(corpse.loot)) {
-      ctx.packetSender.loot.sendLootError("Loot inválido ou sem espaço para coleta.");
+    // Validar lote INTEIRO, para não consumir metade se a Bag encher.
+    if (!player.canCollectItems(corpse.loot)) {
+      const why = player.getContainerCapacity() <= 0
+        ? "Equipe uma Bag ou Backpack para coletar loot."
+        : "Não há slots suficientes na Bag/Backpack para pegar tudo.";
+      Logger.warn(`[SERVER LOG][LOOT] ${player.name}: ${why}`);
+      ctx.packetSender.loot.sendLootError(why);
       return;
     }
 
@@ -92,8 +96,13 @@ export async function handleTakeLoot(
   }
 
   const item = corpse.loot[msg.itemIndex!];
-  if (!item || !player.addItem(item.itemId, item.amount)) {
-    ctx.packetSender.loot.sendLootError("Item indisponível ou sem espaço.");
+  if (!item || !player.canCollectItems([item]) ||
+      !player.addItem(item.itemId, item.amount)) {
+    const why = player.getContainerCapacity() <= 0
+      ? "Equipe uma Bag ou Backpack antes de pegar itens."
+      : "Item indisponível ou sem espaço na Bag/Backpack.";
+    Logger.warn(`[SERVER LOG][LOOT] ${player.name}: ${why}`);
+    ctx.packetSender.loot.sendLootError(why);
     return;
   }
 
