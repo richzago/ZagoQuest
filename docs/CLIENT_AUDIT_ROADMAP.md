@@ -1,7 +1,28 @@
+## C17 — compra segura em Bags aninhadas + UI compacta (01/11/2026)
+
+- [x] C16 homologada 7/7, [PR #122](https://github.com/richzago/ZagoQuest/pull/122) integrada na `dev` (`4d02a8f`).
+- [x] Criada branch `feature/c17-nested-purchases-compact-sidebar-stats` a partir do merge e [PR #123](https://github.com/richzago/ZagoQuest/pull/123) **Draft**.
+- [x] Compra de NPC sempre planejada no servidor: Bag raiz e descendentes de UUID alcançável, independente da Bag aberta no cliente; seleciona pilha existente primeiro, depois espaço livre.
+- [x] `maxStack` de potion respeitado por Bag na compra (um Map por tipo por Bag); quantidade que não cabe completamente recusa a transação inteira sem retirar gold. CAP e dinheiro checados antes de inserir.
+- [x] Compras de novas Bags criam UUIDs em cada contêiner destino; mensagem avisa quando item foi colocado em Bag interna. Drop da Bag com conteúdo mantém árvore C14/C15.
+- [x] Sidebar sem títulos redundantes/abas adicionais: removidas as escritas contêineres, acesso rápido, equipamentos e duplicatas Backpack/Loot/TODOS e setas de cadáver.
+- [x] CAP representa somente capacidade restante recalculada pelo Node; mini mapa **placeholder** maior, equipamentos compactados.
+- [x] Stats passa a ser aberto pelo ícone **S** na barra e não mais pela tecla `P`; painel de atributos usa scroll no host dinâmico sem cobrir gameplay, alternando com Bag/Loot.
+- [x] Acrescentadas regressões C17 no Node e atualizados contratos estáticos legados de UI; atenção: CI Node não compila scripts C#.
+- [ ] Validar C17 no Unity 1280×720 e 1920×1080, F10 100/115/130%, NPCs, pagamentos, Bag filha, CAP/Stats e sidebar sem sobreposição.
+- [ ] Confirmar CI final do PR #123 e registrar resultados.
+- [ ] **Não fazer merge da C17 antes de homologação e autorização expressa do usuário.**
+- [ ] Dívida técnica: inventário físico por slot/pilha para suportar várias pilhas do mesmo itemId dentro de uma mesma Bag; hoje Map por itemId limita uma pilha por Bag.
+- [ ] Dívida de segurança transacional: persistência de personagem e itens do chão ainda são commits separados sob crash abrupto.
+
+[Relatório C17 e checklist](C17_NESTED_SHOP_COMPACT_SIDEBAR_STATS.md)
+
+---
+
 ## C16 — 4 slots por padrão, rolagem fina e altura ajustável (01/11/2026)
 
 - [x] C15 [PR #121](https://github.com/richzago/ZagoQuest/pull/121) integrado à `dev` a pedido do usuário, mesmo com homologação anterior 6/8; commit de merge `6c80da4`. A UX de slots/scroll ficou para C16.
-- [x] Branch `feature/c16-resizable-inventory-loot-scroll` criada sobre o merge C15; [PR #122](https://github.com/richzago/ZagoQuest/pull/122) **Draft**, ainda não integrado.
+- [x] C16 [PR #122](https://github.com/richzago/ZagoQuest/pull/122) homologado no Unity (7/7) e integrado na `dev` por autorização do usuário; commit `4d02a8f`.
 - [x] Backpack inicia com 2×2 slots visíveis e células vazias até a capacidade de slots informada pelo Node.
 - [x] Scroll de Backpack/Loot em passos de até 18 pixels por evento, sem saltos por deltas ±120; scrollbar funcional com viewport separado, roda também sobre o trilho.
 - [x] Layout redimensionável no eixo vertical por alça inferior de Bag e Loot, limitado pela altura disponível na coluna, conteúdo e painel adjacente; preferência local via PlayerPrefs.
