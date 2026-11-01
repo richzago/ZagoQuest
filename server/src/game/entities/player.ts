@@ -221,6 +221,7 @@ export class Player extends Creature {
       if (!this.removeItem(itemId, 1)) return null;
       root = this.takeContainedBag(itemId);
     }
+    if (!root) return null;
     const bags: BagInstanceSave[] = [];
     const walk = (id: string) => {
       const bag = this.bagInstances.get(id);
