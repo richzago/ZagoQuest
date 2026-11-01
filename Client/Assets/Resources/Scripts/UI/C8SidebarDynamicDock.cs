@@ -582,7 +582,9 @@ public sealed class C8SidebarDynamicDock : MonoBehaviour
     {
         if (inventory == null) return;
         StatusManager.Instance?.ClosePanel();
-        inventory.ToggleBackpack();
+        // A Bag pode já estar aberta em outra coluna ou oculta por Loot:
+        // o ícone deve TRAZÊ-LA, não fechá-la no primeiro clique.
+        if (!inventory.IsInventoryOpen) inventory.OpenInventory();
         selected = Tab.Backpack;
         ApplyVisibility();
     }

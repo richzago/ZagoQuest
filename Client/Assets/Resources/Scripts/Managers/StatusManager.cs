@@ -313,9 +313,23 @@ public class StatusManager : MonoBehaviour
         scroll.scrollSensitivity = 4f;
         scroll.inertia = false;
         scroll.movementType = ScrollRect.MovementType.Clamped;
-        var fine = obj.GetComponent<C16FineScrollWheel>();
-        if (fine == null) fine = obj.gameObject.AddComponent<C16FineScrollWheel>();
-        fine.Bind(scroll);
+        // Capturar roda em um filho evita dupla entrega ao ScrollRect no
+        // mesmo GameObject (que também implementa IScrollHandler).
+        var input = obj.Find("C17WheelSurface");
+        if (input == null)
+        {
+            var go = new GameObject("C17WheelSurface",
+                typeof(RectTransform), typeof(Image), typeof(C16FineScrollWheel));
+            go.transform.SetParent(obj, false);
+            input = go.transform;
+        }
+        var inputRect = (RectTransform)input;
+        inputRect.anchorMin = Vector2.zero; inputRect.anchorMax = Vector2.one;
+        inputRect.offsetMin = inputRect.offsetMax = Vector2.zero;
+        var inputImage = input.GetComponent<Image>();
+        inputImage.color = new Color(0f,0f,0f,0f);
+        inputImage.raycastTarget = true;
+        input.GetComponent<C16FineScrollWheel>().Bind(scroll);
     }
 
     private void StyleLabel(TextMeshProUGUI label, float top, float height,

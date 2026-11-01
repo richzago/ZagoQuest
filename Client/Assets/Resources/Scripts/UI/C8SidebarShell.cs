@@ -25,6 +25,7 @@ public sealed class C8SidebarShell : MonoBehaviour
     private static readonly Color Muted = C11VisualTheme.Muted;
 
     private static C8SidebarShell activeShell;
+    public static C8SidebarShell Instance => activeShell;
     private static float latestCapRemaining;
     private static float latestCapMaximum;
     private TextMeshProUGUI capLabel;
