@@ -11,9 +11,9 @@ public static class C11VisualTheme
 {
     public static readonly Color32 Surface = new Color32(16, 19, 24, 248);
     public static readonly Color32 Recess = new Color32(23, 28, 34, 248);
-    public static readonly Color32 Row = new Color32(30, 36, 43, 248);
+    public static readonly Color32 Row = new Color32(34, 40, 43, 250);
     public static readonly Color32 RowAlternate = new Color32(36, 42, 49, 248);
-    public static readonly Color32 Bronze = new Color32(151, 115, 65, 252);
+    public static readonly Color32 Bronze = new Color32(180, 133, 69, 255);
     public static readonly Color32 BronzeDark = new Color32(84, 63, 42, 245);
     public static readonly Color32 Accent = new Color32(108, 165, 172, 255);
     public static readonly Color32 Text = new Color32(231, 226, 213, 255);

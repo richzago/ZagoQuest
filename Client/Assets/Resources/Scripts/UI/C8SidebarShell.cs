@@ -144,8 +144,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         background.raycastTarget = true; // somente dentro da barra visivel
         AddOutline(surface, Gold);
 
-        AddText(surface.transform, "Brand", "ZAGOQUEST", 14, 28, 18, Gold);
-        AddText(surface.transform, "Subtitle", "OBSIDIAN  •  CLIENTE DE AVENTURAS", 43, 24, 11, Muted);
+        // Placa em relevo com hierarquia visual distinta da HUD anterior.
+        Card(surface.transform, "ObsidianTitlePlate", 5f, 70f,
+            7f, 7f, C11VisualTheme.Recess);
+        AddText(surface.transform, "Brand", "ZAGOQUEST", 12, 31, 21, Gold);
+        AddText(surface.transform, "Subtitle", "OBSIDIAN / BRONZE  -  CLIENTE C12", 45, 20, 10, Muted);
         AddLine(surface.transform, "TopDivider", 75, Gold);
 
         // 1. MINIMAPA FUTURO — formato circular; sem dados de mapa.
@@ -156,10 +159,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         miniMapSprite = Sprite.Create(miniMapTexture,
             new Rect(0, 0, miniMapTexture.width, miniMapTexture.height),
             new Vector2(0.5f, 0.5f), 100f);
-        var circle = new GameObject("MiniMapCircularPreview",
+        var circle = new GameObject("MiniMapTilePreview",
             typeof(RectTransform), typeof(Image));
         circle.transform.SetParent(map.transform, false);
         miniMapCircleRect = (RectTransform)circle.transform;
+        C11VisualTheme.Frame(circle);
         miniMapCircleRect.anchorMin = miniMapCircleRect.anchorMax = new Vector2(0.5f, 1f);
         miniMapCircleRect.pivot = new Vector2(0.5f, 1f);
         var mapImage = circle.GetComponent<Image>();
@@ -167,7 +171,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         mapImage.color = Color.white;
         mapImage.preserveAspect = true;
         mapImage.raycastTarget = false;
-        AddCenterText(circle.transform, "MapWaiting", "EM BREVE", 11f, Muted);
+        AddCenterText(circle.transform, "MapWaiting", "MAPA\nEM BREVE", 11f, Text);
 
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
         var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 265);
@@ -263,8 +267,7 @@ public sealed class C8SidebarShell : MonoBehaviour
 
     private static Texture2D CreateCircularMiniMapTexture()
     {
-        // Placeholder circular real, gerado localmente sem prefab nem asset
-        // de minimapa. Todos os pixels fora do circulo sao transparentes.
+        // Placeholder quadrado em grade; NÃO representa um mapa funcional.
         const int size = 128;
         var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
         texture.name = "C8MiniMapCirclePlaceholder";
@@ -274,17 +277,11 @@ public sealed class C8SidebarShell : MonoBehaviour
         for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++)
         {
-            float dx = (x + 0.5f - size * 0.5f) / (size * 0.5f);
-            float dy = (y + 0.5f - size * 0.5f) / (size * 0.5f);
-            float radius = Mathf.Sqrt(dx * dx + dy * dy);
-            byte alpha = (byte)Mathf.RoundToInt(
-                255f * Mathf.Clamp01((1f - radius) * size * 0.35f));
-            Color32 color = radius > 0.925f
-                ? new Color32(175, 139, 80, alpha)
-                : radius > 0.86f
-                    ? new Color32(39, 55, 72, alpha)
-                    : new Color32(22, 37, 52, alpha);
-            pixels[y * size + x] = color;
+            bool edge = x < 3 || y < 3 || x >= size - 3 || y >= size - 3;
+            bool tileLine = x % 16 == 0 || y % 16 == 0;
+            pixels[y * size + x] = edge ? new Color32(151, 115, 65, 255)
+                : tileLine ? new Color32(51, 65, 63, 255)
+                : new Color32(25, 38, 39, 255);
         }
         texture.SetPixels32(pixels);
         texture.Apply(false, false);

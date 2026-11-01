@@ -215,26 +215,14 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
         if (string.IsNullOrEmpty(itemId))
             return;
 
-        // 🔥 CORRIGIDO: pointerCurrentRaycast é struct, usa .gameObject diretamente
-        GameObject target = eventData.pointerCurrentRaycast.gameObject;
-        if (target != null)
-        {
-            EquipmentSlotUI slotUI = target.GetComponentInParent<EquipmentSlotUI>();
-            if (slotUI != null)
-            {
-                Debug.Log($"[InventorySlot] ✅ Drop sobre EquipmentSlotUI ({slotUI.slotType})");
-                DragDropManager.Instance?.EndDrag();
-                return;
-            }
-        }
-
-        // Não mandar drop no mundo ao soltar sobre janela ou botão da UI.
-        if (target != null && target.GetComponentInParent<Canvas>() != null)
+        // O OnDrop do equipamento cuida do destino interativo.
+        // Ignorar overlays transparentes da HUD ao soltar no mundo.
+        if (DragDropManager.PointerBlocksWorldDrop(eventData))
         {
             DragDropManager.Instance.EndDrag();
             return;
         }
-        if (Camera.main == null)
+        if (Camera.main == null || !Camera.main.pixelRect.Contains(eventData.position))
         {
             DragDropManager.Instance.EndDrag();
             return;

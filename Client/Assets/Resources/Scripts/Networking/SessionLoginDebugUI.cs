@@ -35,8 +35,7 @@ public class SessionLoginDebugUI : MonoBehaviour
         var network = NetworkManager.Instance;
         if (network == null || !network.requireAuthenticatedSession) return;
 
-        // HUD autenticada usa um botão UGUI em Canvas superior, não IMGUI
-        // (o caractere ⏻ ficava invisível sobre o Canvas da cena).
+        // HUD autenticada usa UGUI e texto compatível com o atlas TMP.
         if (network.isConnected || network.HasCredentials) return;
 
         // Tela de entrada compacta só aparece fora da sessão autenticada.
@@ -129,7 +128,7 @@ public class SessionLoginDebugUI : MonoBehaviour
         label.transform.SetParent(go.transform, false);
         var text = label.GetComponent<TextMeshProUGUI>();
         logoutButtonLabel = text;
-        text.text = "⏻  SAIR";
+        text.text = "SAIR";
         text.alignment = TextAlignmentOptions.Center;
         text.fontSize = 17;
         text.color = new Color32(237, 195, 117, 255);
@@ -175,8 +174,8 @@ public class SessionLoginDebugUI : MonoBehaviour
             logoutButtonRect.offsetMin = logoutButtonRect.offsetMax = Vector2.zero;
             if (logoutButtonLabel != null)
             {
-                logoutButtonLabel.text = "⏻";
-                logoutButtonLabel.fontSize = 21f;
+                logoutButtonLabel.text = "OFF";
+                logoutButtonLabel.fontSize = 14f;
             }
             logoutDocked = true;
         }
@@ -189,7 +188,7 @@ public class SessionLoginDebugUI : MonoBehaviour
             logoutButtonRect.sizeDelta = new Vector2(112, 40);
             if (logoutButtonLabel != null)
             {
-                logoutButtonLabel.text = "⏻  SAIR";
+                logoutButtonLabel.text = "SAIR";
                 logoutButtonLabel.fontSize = 17f;
             }
             if (host != null)
