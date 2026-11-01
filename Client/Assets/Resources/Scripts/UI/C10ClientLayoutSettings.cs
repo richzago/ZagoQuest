@@ -19,10 +19,10 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
     public const float ExtraBarWidth = 172f;
     public const float MainCompactWidth = 228f;
     public const float MainComfortWidth = 276f;
-    private static readonly Color32 Surface = new Color32(18, 29, 42, 248);
-    private static readonly Color32 Cell = new Color32(35, 50, 67, 246);
-    private static readonly Color32 Gold = new Color32(222, 183, 100, 255);
-    private static readonly Color32 White = new Color32(237, 239, 239, 255);
+    private static readonly Color32 Surface = C11VisualTheme.Surface;
+    private static readonly Color32 Cell = C11VisualTheme.Row;
+    private static readonly Color32 Gold = C11VisualTheme.Bronze;
+    private static readonly Color32 White = C11VisualTheme.Text;
 
     public int LeftColumns => Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "Left",0),0,3);
     public int RightColumns => Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "Right",1),1,3);
@@ -104,6 +104,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
         rect.offsetMin=new Vector2(2f,2f);
         rect.offsetMax=new Vector2(-2f,-2f);
         obj.GetComponent<Image>().color=Cell;
+        C11VisualTheme.Frame(obj);
         var button=obj.GetComponent<Button>();
         button.onClick.AddListener(()=>onClick());
         Label(rect,"Text",caption,13f,TextAlignmentOptions.Center);
@@ -130,6 +131,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
         rect.sizeDelta=new Vector2(438f,468f);
         rect.anchoredPosition=Vector2.zero;
         settingsPanel.GetComponent<Image>().color=Surface;
+        C11VisualTheme.Frame(settingsPanel);
         var title=Label(rect,"Title","CONFIGURAÇÕES  /  CLIENTE",17f,TextAlignmentOptions.Center);
         var titleRect=title.rectTransform;
         titleRect.anchorMin=new Vector2(0f,1f);titleRect.anchorMax=Vector2.one;
@@ -258,6 +260,7 @@ public sealed class C10ClientLayoutSettings : MonoBehaviour
             -(Compact?MainCompactWidth:MainComfortWidth)-index*width,0f);
         r.sizeDelta=new Vector2(width,0);
         go.GetComponent<Image>().color=Surface;
+        C11VisualTheme.Frame(go);
         var title=Label(go.transform,"LaneTitle",left?"BARRA ESQ.":"BARRA DIR.",
             11f,TextAlignmentOptions.Center);
         title.rectTransform.anchorMin=new Vector2(0,1);
