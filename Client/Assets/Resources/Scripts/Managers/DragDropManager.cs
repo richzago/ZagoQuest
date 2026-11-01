@@ -162,7 +162,8 @@ public class DragDropManager : MonoBehaviour
         }
 
         Debug.Log($"[DragDropManager] 📤 Enviando equipItem: {draggedItemId} para {slotType}");
-        NetworkManager.Instance?.Inventory.SendEquipItem(draggedItemId);
+        var bagInstanceId = GetSourceInventorySlot()?.BagInstanceId;
+        NetworkManager.Instance?.Inventory.SendEquipItem(draggedItemId, bagInstanceId);
         EndDrag();
     }
 
