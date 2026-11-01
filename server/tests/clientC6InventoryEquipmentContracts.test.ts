@@ -272,7 +272,7 @@ test("C6 P1 drag distante: cliente valida tile confirmado, Manhattan e rede ante
  assert.match(drag,/System\.Math\.Abs\(\(long\)tileX - playerTile\.x\)/);
  assert.match(drag,/System\.Math\.Abs\(\(long\)tileY - playerTile\.y\)/);
  assert.match(drag,/if \(distance > 2\)[\s\S]*?return;/);
- assert.match(drag,/network\.Inventory\.SendDropItem\(draggedItemId, 1, tileX, tileY\)/);
+ assert.match(drag,/network\.Inventory\.SendDropItem\(draggedItemId, 1, tileX, tileY, IsFromEquipment\(\)\)/);
  assert.match(handler,/const distance = Math\.abs\(tileX - Math\.floor\(player\.position\.x\)\)/);
  assert.match(handler,/Math\.abs\(tileY - Math\.floor\(player\.position\.y\)\)/);
  assert.match(handler,/distance > 2/);
