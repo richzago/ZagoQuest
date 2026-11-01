@@ -24,6 +24,8 @@ public class LootUI : MonoBehaviour
     private readonly List<LootItem> visibleItems = new List<LootItem>();
     private readonly List<GameObject> itemSlots = new List<GameObject>();
     private bool awaitingServer;
+    private float nextRangeCheckAt;
+    private const int LootReachTiles = 2;
     private const int MaxTrackedCorpses = 4;
     public int VisibleLootItemCount => visibleItems.Count;
     // LRU: o mais recente fica no final; remover o mais antigo da lista
@@ -214,10 +216,20 @@ public class LootUI : MonoBehaviour
             }
             return;
         }
+        if (IsLootOpen && Time.unscaledTime >= nextRangeCheckAt)
+        {
+            nextRangeCheckAt = Time.unscaledTime + 0.16f;
+            // O Node continua sendo a autoridade para loot; esta checagem
+            // fecha a UI rapidamente quando o jogador se afasta do cadáver.
+            if (!IsCurrentCorpseReachable())
+            {
+                CloseAllLootWindows();
+                return;
+            }
+        }
         var k = Keyboard.current;
-        // Shift+E: mais simples que Ctrl+Shift+L; também há botão discreto
-        // no cabeçalho da área. Não dispara ao escrever no chat.
-        if (k == null || !IsLootOpen || !k.eKey.wasPressedThisFrame ||
+        // Shift+L não conflita com movimentação WASD/E; só com Loot aberto.
+        if (k == null || !IsLootOpen || !k.lKey.wasPressedThisFrame ||
             !(k.leftShiftKey.isPressed || k.rightShiftKey.isPressed)) return;
         var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
         if (selected != null && selected.GetComponentInParent<TMP_InputField>() != null) return;
@@ -277,7 +289,7 @@ public class LootUI : MonoBehaviour
     public void TakeAllLoot()
     {
         if (!ReadyToTake() || visibleItems.Count == 0) return;
-        Debug.Log($"[LootUI] Shift+E / botão TODOS -> takeAll corpse={currentCorpseId}, linhas={visibleItems.Count}");
+        Debug.Log($"[LootUI] Shift+L / botão TODOS -> takeAll corpse={currentCorpseId}, linhas={visibleItems.Count}");
         awaitingServer = true;
         if (takeAllButton != null) takeAllButton.interactable = false;
         NetworkManager.Instance.Inventory.SendTakeLoot(currentCorpseId, true);
@@ -331,6 +343,46 @@ public class LootUI : MonoBehaviour
         if (takeAllButton != null) takeAllButton.interactable = visibleItems.Count > 0;
         Debug.LogWarning("[LootUI] " + message);
         ChatUI.Instance?.AddMessage("Loot: " + message);
+        if (message != null &&
+            (message.ToLowerInvariant().Contains("far from corpse") ||
+             message.ToLowerInvariant().Contains("muito longe") ||
+             message.ToLowerInvariant().Contains("corpse not found")))
+            CloseAllLootWindows();
+    }
+
+    /// <summary>
+    /// Usa SOMENTE a posição já confirmada pelo Node e a entidade do corpse.
+    /// A UI nunca permite continuar aberta além dos 2 tiles permitidos.
+    /// Se o corpo ainda não estiver registrado visualmente, mantém a UI
+    /// até receber despawn/erro do Node, evitando falso fechamento.
+    /// </summary>
+    private bool IsCurrentCorpseReachable()
+    {
+        var player=PlayerController.Instance;
+        var entities=EntityManager.Instance;
+        if (player == null || entities == null ||
+            !player.TryGetConfirmedGridPosition(out Vector2Int pos))
+            return true;
+        var corpse=entities.GetGameObject(currentCorpseId);
+        if (corpse == null) return true; // Pode haver atraso de snapshot visual.
+        int x=Mathf.RoundToInt(corpse.transform.position.x);
+        int y=Mathf.RoundToInt(corpse.transform.position.y);
+        return Mathf.Abs(pos.x-x)+Mathf.Abs(pos.y-y) <= LootReachTiles;
+    }
+
+    public void CloseAllLootWindows()
+    {
+        // Não navegar para outro corpse distante quando o jogador sai
+        // da área: descarta somente as referências locais.
+        openedCorpses.Clear();
+        currentCorpseId = null;
+        awaitingServer = false;
+        visibleItems.Clear();
+        if (lootPanel != null) lootPanel.SetActive(false);
+        var header=transform.Find("C6DragHeader");
+        if (header != null) header.gameObject.SetActive(false);
+        if (closeButton != null) closeButton.gameObject.SetActive(false);
+        C8SidebarDynamicDock.Instance?.OnLootClosed();
     }
 
     public void CloseLootWindow()
