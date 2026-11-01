@@ -17,6 +17,8 @@ import { handleAttack, handleStartAutoAttack, handleStopAutoAttack } from "./att
 import { handleLoot, handleTakeLoot, handleDropCorpseLoot } from "./loot.handler";
 import {
   handleUseItem,
+  handleOpenBag,
+  handleCloseBag,
   handleEquipItem,
   handleUnequipItem,
   handleDropItem,
