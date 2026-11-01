@@ -54,7 +54,7 @@ export class Player extends Creature {
   private viewedBagInstanceId: string | null = null;
 
   /** Permite quantas Bags distintas couberem, em qualquer profundidade. */
-  openNestedBag(itemId: string): boolean {
+  openNestedBag(itemId: string, instanceId?: string): boolean {
     const parent = this.viewedBag();
     if (!parent || !this.isContainerItem(itemId) ||
         (parent.items.get(itemId) ?? 0) < 1) return false;
