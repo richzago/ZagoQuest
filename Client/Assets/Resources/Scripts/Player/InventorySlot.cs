@@ -242,6 +242,15 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
 
     public void OnDrop(PointerEventData eventData)
     {
+        // Drop da linha do cadáver para uma célula da Bag.
+        // Não usa DragDropManager: envia o índice real ao Node.
+        var lootRow = eventData.pointerDrag != null
+            ? eventData.pointerDrag.GetComponentInParent<LootItemSlot>() : null;
+        if (lootRow != null)
+        {
+            LootUI.Instance?.TakeByDrop(lootRow.ItemIndex);
+            return;
+        }
         Debug.Log($"[InventorySlot] 📥 OnDrop recebido de {eventData.pointerDrag?.name}");
 
         if (!DragDropManager.Instance.IsDragging()) return;
