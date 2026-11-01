@@ -225,7 +225,8 @@ export async function handleDropItem(
   const fromEquipment = msg.fromEquipment === true ||
     // Compatibilidade com cliente antigo: só vem do equipamento se não
     // houver nenhuma unidade no inventário.
-    (!player.hasItem(itemId, amount) && amount === 1 && equippedSlot !== undefined);
+    (msg.fromEquipment === undefined &&
+     !player.hasItem(itemId, amount) && amount === 1 && equippedSlot !== undefined);
 
   // Validar posse e ORIGEM antes de qualquer mutação.
   if (fromEquipment) {
