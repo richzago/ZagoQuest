@@ -9,5 +9,6 @@
   "satietyPoints": 20,
   "regenHpPerTick": 1,
   "regenManaPerTick": 1,
-  "regenTickSeconds": 3
+  "regenTickSeconds": 3,
+  "weight": 1
 }

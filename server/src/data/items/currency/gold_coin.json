@@ -5,5 +5,6 @@
   "type": "currency",
   "stackable": true,
   "maxStack": 100,
-  "value": 1
+  "value": 1,
+  "weight": 0.1
 }

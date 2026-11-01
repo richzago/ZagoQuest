@@ -251,11 +251,13 @@ public class LootUI : MonoBehaviour
         var world = camera.ScreenToWorldPoint(
             new Vector3(screenPosition.x, screenPosition.y, 0f));
         int x = Mathf.FloorToInt(world.x), y = Mathf.FloorToInt(world.y);
-        long distance = System.Math.Abs((long)x - tile.x) +
-                        System.Math.Abs((long)y - tile.y);
-        if (distance > 2)
+        // O cadáver continua precisando estar a 2 tiles para abrir/pegar,
+        // mas o destino do item pode ser qualquer tile visível da janela C14.
+        long dx = System.Math.Abs((long)x - tile.x);
+        long dy = System.Math.Abs((long)y - tile.y);
+        if (dx > 8 || dy > 6)
         {
-            ChatUI.Instance?.AddMessage("Loot: muito longe para soltar no chão.");
+            ChatUI.Instance?.AddMessage("Loot: tile fora do campo de visão.");
             return;
         }
         awaitingServer = true;

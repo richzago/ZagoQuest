@@ -10,5 +10,6 @@
     "attack": 8,
     "criticalChance": 0
   },
-  "value": 10
+  "value": 10,
+  "weight": 32
 }

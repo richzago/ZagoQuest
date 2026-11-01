@@ -88,7 +88,7 @@ export async function handleBuyItem(
       !player.isContainerItem(msg.itemId);
     const message = noBag
       ? "Equipe ou compre primeiro uma Bag/Backpack antes de comprar itens."
-      : "Não foi possível comprar. Verifique gold, quantidade ou espaço na Bag.";
+      : "Não foi possível comprar. Verifique gold, CAP ou slots da Bag.";
     Logger.warn(`[SERVER LOG][SHOP] ${player.name}: ${message}`);
     ctx.packetSender.shop.sendBuyResult(false, message);
     return;

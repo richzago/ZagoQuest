@@ -16,6 +16,7 @@ import { ItemOnGround } from "../../game/entities/itemOnGround";
 import { generateId } from "../../shared/utils/idUtils";
 import { isValidItemId, isValidQuantity } from "../../game/systems/economyRules";
 import { FoodRegenerationSystem } from "../../game/systems/foodRegenerationSystem";
+import { canDropOnWorldTile } from "../../game/systems/worldDropRules";
 import type {
   ClientUseItemMessage,
   ClientOpenBagMessage,
@@ -236,11 +237,8 @@ export async function handleDropItem(
 
   const tileX = Math.floor(x);
   const tileY = Math.floor(y);
-  const distance = Math.abs(tileX - Math.floor(player.position.x)) +
-                   Math.abs(tileY - Math.floor(player.position.y));
-
-  if (!ctx.world.isWithinBounds(tileX, tileY) || distance > 2) {
-    ctx.packetSender.inventory.sendDropError("Local de drop inválido ou distante.");
+  if (!canDropOnWorldTile(ctx.world, player, tileX, tileY)) {
+    ctx.packetSender.inventory.sendDropError("Tile bloqueado, fora da visão ou sem linha de visão.");
     return;
   }
 
@@ -340,7 +338,7 @@ export async function handlePickupItem(
   if (!accepted) {
     const why = player.getContainerCapacity() <= 0
       ? "Equipe uma Bag/Backpack para pegar itens do chão."
-      : "Sua Bag/Backpack está cheia ou o item é inválido.";
+      : "CAP insuficiente, Bag/Backpack cheia ou item inválido.";
     Logger.warn(`[SERVER LOG][PICKUP] ${player.name}: ${why}`);
     ctx.packetSender.inventory.sendPickupError(why);
     return;

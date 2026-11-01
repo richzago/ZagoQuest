@@ -8,5 +8,6 @@
   "levelRequired": 1,
   "containerSlots": 10,
   "bonuses": {},
-  "value": 10
+  "value": 10,
+  "weight": 12
 }

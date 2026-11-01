@@ -49,6 +49,9 @@ export class InventorySender extends BaseSender {
       bagItemId: player.getContainerItemId(),
       bagSlots: player.getContainerCapacity(),
       slotsUsed: player.getContainerSlotsUsed(),
+      capUsed: player.getCarriedWeight(),
+      capMax: player.getMaxCarryWeight(),
+      capRemaining: player.getRemainingCap(),
     });
   }
 

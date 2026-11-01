@@ -10,7 +10,7 @@
     "fishingTime": 3000,
     "fishingBonus": 0.05,
     "bonuses": {},
-    "value": 10
+    "value": 10,
+    "weight": 12
   }
-  
 ]

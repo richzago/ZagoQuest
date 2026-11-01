@@ -277,13 +277,14 @@ public class DragDropManager : MonoBehaviour
             int tileX = Mathf.FloorToInt(worldPosition.x);
             int tileY = Mathf.FloorToInt(worldPosition.y);
 
-            // O Node usa Manhattan <= 2 (não distância Euclidiana).
-            // Convertendo para long evita overflow na subtração de tiles.
-            long distance = System.Math.Abs((long)tileX - playerTile.x) +
-                            System.Math.Abs((long)tileY - playerTile.y);
-            if (distance > 2)
+            // Campo de visão C14: até 8 tiles horizontais e 6 verticais
+            // E somente dentro do pixelRect da câmera. O Node revalida
+            // janela, colisão do tile, ocupação e linha de visão.
+            long dx = System.Math.Abs((long)tileX - playerTile.x);
+            long dy = System.Math.Abs((long)tileY - playerTile.y);
+            if (dx > 8 || dy > 6)
             {
-                ShowDropFeedback("Muito longe para soltar o item (máximo: 2 tiles).");
+                ShowDropFeedback("Destino fora do campo de visão permitido.");
                 return;
             }
 

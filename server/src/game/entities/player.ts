@@ -242,26 +242,57 @@ export class Player extends Creature {
     return { equippedId:root.id, bags };
   }
 
-  /** Pickup restaura a identidade e o conteúdo real da Bag caída. */
+  /** Pickup de Bag preserva UUID/filhos e valida peso integral ANTES de mutar. */
   attachGroundBag(itemId: string, state: BagStateSave | undefined, autoequip: boolean): boolean {
     if (!this.isContainerItem(itemId)) return false;
     const incoming = state?.bags?.length ? state.bags : [{
       id:generateId(), itemId, items:{}, children:[],
     }];
     const rootId = state?.equippedId ?? incoming[0].id;
-    if (incoming.some(row => this.bagInstances.has(row.id))) return false;
-    const parent = this.viewedBag();
-    // Validar ANTES de mutar qualquer instância. Uma Bag ocupa somente 1
-    // slot no pai, independentemente do que carregue em seus próprios slots.
-    if (!autoequip && (!parent ||
-        !this.canCollectItems([{itemId, amount:1}]))) return false;
-    if (autoequip && this.equipment.has(EquipmentSlot.BACKPACK)) return false;
+    const rootRow = incoming.find(row => row.id === rootId);
+    if (!rootRow || rootRow.itemId !== itemId ||
+        incoming.some(row => this.bagInstances.has(row.id)) ||
+        new Set(incoming.map(row => row.id)).size !== incoming.length) return false;
+
+    const ids = new Set(incoming.map(row => row.id));
+    const visitedChildren = new Set<string>();
+    let nestedWeight = 0;
     for (const row of incoming) {
+      if (!this.isContainerItem(row.itemId) || !Array.isArray(row.children) ||
+          !row.items || typeof row.items !== "object") return false;
+      const childCounts = new Map<string, number>();
+      for (const childId of row.children) {
+        const child = incoming.find(b => b.id === childId);
+        if (!ids.has(childId) || !child || childId === rootId ||
+            visitedChildren.has(childId)) return false;
+        visitedChildren.add(childId);
+        childCounts.set(child.itemId, (childCounts.get(child.itemId) ?? 0) + 1);
+      }
+      if ([...childCounts].some(([id, count]) => (row.items[id] ?? 0) < count))
+        return false;
+      for (const [id, qty] of Object.entries(row.items)) {
+        if (!isValidItemId(id) || !isValidQuantity(qty)) return false;
+        nestedWeight += Player.itemWeight(id) * qty;
+      }
+    }
+    if (visitedChildren.size !== incoming.length - 1 ||
+        incoming.some(row => row.id !== rootId && !visitedChildren.has(row.id)))
+      return false;
+    // Uma Bag ocupa UM slot, mas seu conteúdo completo pesa no CAP.
+    if (!Number.isFinite(nestedWeight) ||
+        this.getCarriedWeight() + Player.itemWeight(itemId) + nestedWeight >
+          this.getMaxCarryWeight() + 1e-6) return false;
+    const parent = this.viewedBag();
+    if (!autoequip && (!parent || !this.canCollectItems([{itemId,amount:1}])))
+      return false;
+    if (autoequip && this.equipment.has(EquipmentSlot.BACKPACK)) return false;
+
+    // Creditar ao pai antes de ligar a árvore: evita double-count em canAddItem.
+    if (!autoequip && !this.addItem(itemId, 1)) return false;
+    for (const row of incoming)
       this.bagInstances.set(row.id, {id:row.id,itemId:row.itemId,
         items:new Map(Object.entries(row.items)),children:[...row.children]});
-    }
-    const root = this.bagInstances.get(rootId);
-    if (!root || root.itemId !== itemId) return false;
+    const root = this.bagInstances.get(rootId)!;
     if (autoequip) {
       this.equipment.set(EquipmentSlot.BACKPACK, itemId);
       this.equippedBagInstanceId = rootId;
@@ -269,16 +300,7 @@ export class Player extends Creature {
       this.inventory = root.items;
       this.recalculateStats();
     } else {
-      const holder = this.viewedBag();
-      if (!holder) return false;
-      holder.children.push(rootId);
-      // canCollectItems foi verificado antes de inserir as instâncias.
-      // AddItem apenas incrementa a pilha não-stackable do pai.
-      if (!this.addItem(itemId,1)) {
-        holder.children.pop();
-        for (const row of incoming) this.bagInstances.delete(row.id);
-        return false;
-      }
+      parent!.children.push(rootId);
     }
     return true;
   }
@@ -589,8 +611,12 @@ export class Player extends Creature {
     }
 
     const currentItemId = this.equipment.get(slot);
+    // Transferência de peso, não pickup: remover do equipamento antes
+    // de adicionar ao inventário evita contar o item antigo duas vezes.
+    if (currentItemId) this.equipment.delete(slot);
     if (currentItemId && !this.addItem(currentItemId, 1)) {
-      this.addItem(itemId, 1);
+      this.equipment.set(slot, currentItemId);
+      this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + 1);
       return false;
     }
 
@@ -624,10 +650,13 @@ export class Player extends Creature {
       this.recalculateStats();
       return true;
     }
-    // Primeiro garante espaço; não deixa o equipamento desaparecer.
-    if (!this.canAddItem(itemId, 1)) return false;
-    if (!this.addItem(itemId, 1)) return false;
+    // É transferência do próprio equipamento, não peso extra: primeiro
+    // remove do slot, depois adiciona no inventário, revertendo se falhar.
     this.equipment.delete(slot);
+    if (!this.canAddItem(itemId, 1) || !this.addItem(itemId, 1)) {
+      this.equipment.set(slot, itemId);
+      return false;
+    }
 
     // Recalcula os atributos (attack, defense, armor)
     this.recalculateStats();
@@ -674,6 +703,46 @@ export class Player extends Creature {
     return total;
   }
 
+  /** C14: peso de cada unidade, configurável no JSON; padrão 1 oz para saves antigos. */
+  static itemWeight(itemId: string): number {
+    if (isCoin(itemId)) return 0; // Moedas recolhidas são convertidas para gold.
+    try {
+      const value = ItemRegistry.get(itemId).weight;
+      return typeof value === "number" && Number.isFinite(value) && value >= 0
+        ? value : 1;
+    } catch { return 1; }
+  }
+
+  getMaxCarryWeight(): number {
+    // CAP base 400 oz +10 oz por level. Não depende de entrada do Unity.
+    return 400 + Math.max(0, this.level - 1) * 10;
+  }
+
+  getCarriedWeight(): number {
+    let weight = 0;
+    for (const id of this.equipment.values()) weight += Player.itemWeight(id);
+    const visited = new Set<string>();
+    const traverse = (id: string): void => {
+      if (visited.has(id)) return;
+      visited.add(id); // Bloqueia ciclos em saves antigos sem travar a rede.
+      const bag = this.bagInstances.get(id);
+      if (!bag) return;
+      for (const [itemId, amount] of bag.items)
+        if (Number.isSafeInteger(amount) && amount > 0)
+          weight += Player.itemWeight(itemId) * amount;
+      for (const childId of bag.children) traverse(childId);
+    };
+    if (this.equippedBagInstanceId) traverse(this.equippedBagInstanceId);
+    else for (const [itemId, amount] of this.inventory)
+      if (Number.isSafeInteger(amount) && amount > 0)
+        weight += Player.itemWeight(itemId) * amount;
+    return weight;
+  }
+
+  getRemainingCap(): number {
+    return Math.max(0, this.getMaxCarryWeight() - this.getCarriedWeight());
+  }
+
   /** Exclusivo das transferências chão/cadáver para a Bag ativa. */
   canCollectItems(items: ReadonlyArray<{itemId: string; amount: number}>): boolean {
     const capacity = this.getContainerCapacity();
@@ -716,9 +785,11 @@ export class Player extends Creature {
     }
 
     const current = this.inventory.get(itemId) ?? 0;
+    const afterWeight = this.getCarriedWeight() + Player.itemWeight(itemId) * amount;
     return Number.isSafeInteger(current) &&
       current >= 0 &&
-      Number.isSafeInteger(current + amount);
+      Number.isSafeInteger(current + amount) &&
+      Number.isFinite(afterWeight) && afterWeight <= this.getMaxCarryWeight() + 1e-6;
   }
 
   /**
@@ -743,6 +814,12 @@ export class Player extends Creature {
     }
 
     if (!this.canReceiveGold(goldToAdd)) return false;
+    let addedWeight = 0;
+    for (const [itemId, amount] of pending)
+      addedWeight += Player.itemWeight(itemId) * amount;
+    if (!Number.isFinite(addedWeight) ||
+        this.getCarriedWeight() + addedWeight > this.getMaxCarryWeight() + 1e-6)
+      return false;
     for (const [itemId, amount] of pending) {
       const current = this.inventory.get(itemId) ?? 0;
       if (!Number.isSafeInteger(current) || current < 0 ||
