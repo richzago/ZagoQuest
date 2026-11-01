@@ -56,6 +56,7 @@ export const handlers: Record<string, HandlerFn> = {
   // Loot
   loot: handleLoot,
   takeLoot: handleTakeLoot,
+  dropCorpseLoot: handleDropCorpseLoot,
 
   // Inventário e equipamento
   useItem: handleUseItem,
