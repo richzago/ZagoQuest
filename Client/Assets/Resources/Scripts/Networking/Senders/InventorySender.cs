@@ -70,6 +70,16 @@ namespace ZagoQuest.Networking.Senders
             Send(msg);
         }
 
+        public void SendDropCorpseLoot(string corpseId, int itemIndex, int x, int y)
+        {
+            if (string.IsNullOrEmpty(corpseId) || itemIndex < 0) return;
+            Send(new DropCorpseLootMessage
+            {
+                type = "dropCorpseLoot", corpseId = corpseId,
+                itemIndex = itemIndex, x = x, y = y
+            });
+        }
+
         public void SendLoot(string corpseId)
         {
             var msg = new LootMessage
