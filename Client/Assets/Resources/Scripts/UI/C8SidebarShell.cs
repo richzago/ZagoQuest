@@ -36,6 +36,7 @@ public sealed class C8SidebarShell : MonoBehaviour
     private RectTransform dynamicHost;
     private RectTransform dynamicSection;
     private GameObject dynamicHint;
+    private bool dynamicDocked;
     private float lastDynamicHeight = -1f;
     private EquipmentUI dockedEquipment;
     private Transform originalEquipmentParent;
@@ -49,6 +50,13 @@ public sealed class C8SidebarShell : MonoBehaviour
     // Contrato para futura etapa de loot/backpack: host existe mas NENHUM
     // panel e movido para ele nesta fase de homologacao do equipamento.
     public RectTransform DynamicHost => dynamicHost;
+    public RectTransform DynamicSection => dynamicSection;
+
+    public void SetDynamicDocked(bool docked)
+    {
+        dynamicDocked = docked;
+        if (dynamicHint != null) dynamicHint.SetActive(!docked);
+    }
     // Coordenada visual da margem esquerda REAL da sidebar,
     // usada por C8PlayfieldViewport (sem adivinhar CanvasScaler/F10).
     public RectTransform SidebarSurface => sidebarSurface;
@@ -275,7 +283,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         lastDynamicHeight = height;
         float header = Mathf.Min(91f, Mathf.Max(39f, height - 10f));
         dynamicHost.offsetMax = new Vector2(-10f, -header);
-        if (dynamicHint != null) dynamicHint.SetActive(height >= 125f);
+        if (dynamicHint != null) dynamicHint.SetActive(!dynamicDocked && height >= 125f);
     }
 
     private void TryDockExistingEquipment()
