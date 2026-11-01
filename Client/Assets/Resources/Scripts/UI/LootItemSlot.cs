@@ -58,6 +58,18 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
 
     public int ItemIndex => index;
 
+    private void Awake()
+    {
+        // Garantir que o próprio root receba o raycast. Prefabs antigos
+        // podem ter Image ausente/desativada, então só rótulos clicariam.
+        var image = GetComponent<UnityEngine.UI.Image>();
+        if (image == null) image = gameObject.AddComponent<UnityEngine.UI.Image>();
+        image.raycastTarget = true;
+        image.enabled = true;
+        if (itemNameText != null) itemNameText.raycastTarget = false;
+        if (amountText != null) amountText.raycastTarget = false;
+    }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         // O EventSystem entrega pointerDrag ao destino, sem tocar no
@@ -80,6 +92,9 @@ public class LootItemSlot : MonoBehaviour, IPointerClickHandler,
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button == PointerEventData.InputButton.Left)
+        {
+            Debug.Log($"[LootItemSlot] Selecionado index={index}");
             onItemClick?.Invoke(index);
+        }
     }
 }
