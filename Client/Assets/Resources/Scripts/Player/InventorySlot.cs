@@ -142,8 +142,14 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler, IBeginDragHand
             if (network != null && network.isConnected && network.Inventory != null &&
                 !string.IsNullOrWhiteSpace(itemId))
             {
-                Debug.Log($"[InventorySlot] Usar item: {itemId}");
-                network.Inventory.UseItem(itemId);
+                // C14: clique direito em Bag abre aquela instância, incluindo
+                // Bags compradas, recuperadas do chão e aninhadas.
+                if (!string.IsNullOrWhiteSpace(bagInstanceId))
+                    OnBagOpen?.Invoke(itemId, bagInstanceId);
+                else if (itemId.Contains("/backpack/"))
+                    network.Inventory.OpenBag(itemId);
+                else
+                    network.Inventory.UseItem(itemId);
             }
             return;
         }

@@ -24,6 +24,26 @@ public sealed class C8SidebarShell : MonoBehaviour
     private static readonly Color Text = C11VisualTheme.Text;
     private static readonly Color Muted = C11VisualTheme.Muted;
 
+    private static C8SidebarShell activeShell;
+    private static float latestCapRemaining;
+    private static float latestCapMaximum;
+    private TextMeshProUGUI capLabel;
+
+    public static void SetCapacity(float remaining, float maximum)
+    {
+        latestCapRemaining = Mathf.Max(0f, remaining);
+        latestCapMaximum = Mathf.Max(0f, maximum);
+        if (activeShell != null) activeShell.RefreshCapLabel();
+    }
+
+    private void RefreshCapLabel()
+    {
+        if (capLabel == null) return;
+        capLabel.text = latestCapMaximum > 0f
+            ? $"CAP  {latestCapRemaining:0.#} / {latestCapMaximum:0.#} oz"
+            : "CAP  aguardando servidor";
+    }
+
     private GameObject canvasRoot;
     private RectTransform sidebarSurface;
     private RectTransform miniMapSection;
@@ -66,7 +86,9 @@ public sealed class C8SidebarShell : MonoBehaviour
 
     private void Start()
     {
+        activeShell = this;
         BuildShell();
+        RefreshCapLabel();
         GetComponent<C7UiAccessibility>()?.ApplyCurrent();
         RefreshVisibility();
     }
@@ -174,15 +196,30 @@ public sealed class C8SidebarShell : MonoBehaviour
         AddCenterText(circle.transform, "MapWaiting", "MAPA\nEM BREVE", 11f, Text);
 
         // 2. EQUIPAMENTOS — reutiliza o painel e os slots reais.
-        var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 265);
+        var equipmentSection = Card(surface.transform, "EquipmentSection", 234, 293);
         equipmentSectionRect = (RectTransform)equipmentSection.transform;
         AddText(equipmentSection.transform, "EquipmentTitle", "EQUIPAMENTOS", 7, 28, 15, Text);
         // Sem texto "arraste para equipar/retirar": menos poluicao visual.
         equipmentHost = Holder(equipmentSection.transform, "EquipmentHost",
-            Vector2.zero, Vector2.one, new Vector2(8f, 6f), new Vector2(-8f, -36f));
+            Vector2.zero, Vector2.one, new Vector2(8f, 34f), new Vector2(-8f, -36f));
+        // CAP tem sua propria faixa sob o equipamento; nao intercepta raycasts.
+        var capObject = new GameObject("C14CapacityLabel",
+            typeof(RectTransform), typeof(TextMeshProUGUI));
+        capObject.transform.SetParent(equipmentSection.transform, false);
+        var capRect = (RectTransform)capObject.transform;
+        capRect.anchorMin = new Vector2(0f, 0f);
+        capRect.anchorMax = new Vector2(1f, 0f);
+        capRect.offsetMin = new Vector2(13f, 5f);
+        capRect.offsetMax = new Vector2(-13f, 30f);
+        capLabel = capObject.GetComponent<TextMeshProUGUI>();
+        capLabel.fontSize = 12f;
+        capLabel.color = Gold;
+        capLabel.alignment = TextAlignmentOptions.MidlineLeft;
+        capLabel.raycastTarget = false;
+        RefreshCapLabel();
 
         // 3. ACESSOS FUTUROS — pictogramas, nunca siglas ou botões falsos.
-        var settings = Card(surface.transform, "SettingsIconsSection", 507, 58);
+        var settings = Card(surface.transform, "SettingsIconsSection", 535, 58);
         settingsSectionRect = (RectTransform)settings.transform;
         AddText(settings.transform, "SettingsTitle", "ACESSO RÁPIDO", 3, 20, 11, Muted);
         var icons = Holder(settings.transform, "SettingsIconsPlaceholder",
@@ -205,7 +242,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dr.anchorMin = Vector2.zero;
         dr.anchorMax = Vector2.one;
         dr.offsetMin = new Vector2(12f, 0f);
-        dr.offsetMax = new Vector2(-12f, -574f);
+        dr.offsetMax = new Vector2(-12f, -602f);
         var di = dynamicSection.GetComponent<Image>();
         di.color = Inner;
         di.raycastTarget = false;
@@ -247,8 +284,8 @@ public sealed class C8SidebarShell : MonoBehaviour
         PlaceTop(miniMapSection, compact ? 43f : 62f,
             compact ? 91f : 164f, 8f, 8f);
         PlaceTop(equipmentSectionRect, compact ? 142f : 234f,
-            compact ? 216f : 265f, 8f, 8f);
-        PlaceTop(settingsSectionRect, compact ? 363f : 507f,
+            compact ? 244f : 293f, 8f, 8f);
+        PlaceTop(settingsSectionRect, compact ? 391f : 535f,
             compact ? 48f : 58f, 8f, 8f);
         float diameter = compact ? 58f : 112f;
         if (miniMapCircleRect != null)
@@ -259,7 +296,7 @@ public sealed class C8SidebarShell : MonoBehaviour
         dynamicSection.offsetMin = new Vector2(12f, 0f);
         // Nunca inverter a area dinamica: rolagem/resize funcional fica
         // para outra etapa, mas a base sempre cabe na sidebar.
-        float dynamicTop = compact ? 419f : 574f;
+        float dynamicTop = compact ? 447f : 602f;
         dynamicSection.offsetMax = new Vector2(-12f,
             -Mathf.Min(dynamicTop, Mathf.Max(0f, height - 22f)));
         lastDynamicHeight = -1f;
@@ -601,8 +638,10 @@ public sealed class C8SidebarShell : MonoBehaviour
             if (help != null) help.gameObject.SetActive(previousHelpVisible);
             dockedEquipment.SetSidebarDocked(false);
         }
+        if (activeShell == this) activeShell = null;
         if (canvasRoot != null) Destroy(canvasRoot);
         canvasRoot = null;
+        capLabel = null;
         equipmentHost = null;
         dynamicHost = null;
         dynamicSection = null;

@@ -10,6 +10,9 @@ export interface ServerInventoryMessage {
   bagItemId?: string | null;
   bagSlots?: number;
   slotsUsed?: number;
+  capUsed?: number;
+  capMax?: number;
+  capRemaining?: number;
 }
 
 export interface ServerEquipmentMessage {
