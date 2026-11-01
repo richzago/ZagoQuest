@@ -40,7 +40,8 @@ namespace ZagoQuest.Networking.Senders
             var msg = new EquipItemMessage
             {
                 type = "equipItem",
-                itemId = itemId
+                itemId = itemId,
+                instanceId = instanceId
             };
             Debug.Log($"[InventorySender] Equipando item: {itemId}");
             Send(msg);
