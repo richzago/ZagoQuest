@@ -17,8 +17,45 @@ import { SkillState } from "../../shared/interfaces/playerSave.interface";
 import { Vocation } from "../../shared/enums/vocation.enum";
 import { Logger } from "../core/logger/logger";
 import { withCharacterWriteLock } from "./characterWriteLock";
+import type { EntityManager } from "typeorm";
 
 export class DatabasePersistence {
+  /**
+   * C18: grava o MESMO snapshot do Player pelo manager de uma transação
+   * que também grava o chão. Não adquirir characterWriteLock aqui:
+   * GroundCharacterTransaction já o segura desde antes da mutação.
+   */
+  static async saveCharacterWithManager(player: Player, manager: EntityManager): Promise<void> {
+    const repo = manager.getRepository(Character);
+    let character = await repo.findOne({where:{id:player.id}});
+    if (!character) {
+      character = repo.create();
+      character.id = player.id;
+      character.name = player.name;
+    }
+    character.level=player.level;
+    character.xp=player.experience;
+    character.lifetimeXp=player.lifetimeExperience;
+    character.xpVersion=2;
+    character.hp=player.hp;
+    character.maxHp=player.maxHp;
+    character.mana=player.mana;
+    character.maxMana=player.maxMana;
+    character.gold=player.gold;
+    character.bankGold=player.bankGold;
+    character.gender=player.gender;
+    character.world=player.world;
+    character.posX=player.position.x;
+    character.posY=player.position.y;
+    character.vocation=player.vocation;
+    character.promotionStage=player.promotionStage;
+    character.inventory=Object.fromEntries(player.inventory);
+    character.containerState=player.exportBagState() as unknown as Record<string,unknown>;
+    character.equipment=Object.fromEntries(player.equipment);
+    character.skills=Object.fromEntries(player.skills);
+    await repo.save(character);
+  }
+
   private static characterRepo = AppDataSource.getRepository(Character);
 
   /**

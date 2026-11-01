@@ -17,6 +17,7 @@ import { generateId } from "../../shared/utils/idUtils";
 import { isValidItemId, isValidQuantity } from "../../game/systems/economyRules";
 import { FoodRegenerationSystem } from "../../game/systems/foodRegenerationSystem";
 import { canDropOnWorldTile } from "../../game/systems/worldDropRules";
+import { GroundCharacterTransaction } from "../../game/systems/groundCharacterTransaction";
 import type {
   ClientUseItemMessage,
   ClientOpenBagMessage,
@@ -277,27 +278,36 @@ export async function handleDropItem(
   try { itemName = ItemRegistry.get(itemId).name; } catch { /* save legado */ }
   const onGround = new ItemOnGround(generateId(), itemId, amount, tileX, tileY, itemName);
 
-  if (player.isContainerItem(itemId)) {
-    if (amount !== 1) {
-      ctx.packetSender.inventory.sendDropError("Cada Bag é uma instância: solte apenas uma.");
-      return;
+  // C18: o item só é anunciado aos clientes APÓS commit conjunto em SQL.
+  // Se o processo morrer antes do commit, o banco conserva ambos os lados
+  // anteriores. Em falha SQL restauramos os Maps e os UUIDs em memória.
+  let errorText = "Falha ao persistir drop; item restaurado.";
+  const committed = await GroundCharacterTransaction.execute(ctx.world, player, () => {
+    if (player.isContainerItem(itemId)) {
+      if (amount !== 1) {
+        errorText = "Cada Bag é uma instância: solte apenas uma.";
+        return false;
+      }
+      const payload = player.detachBagForGround(itemId, fromEquipment, msg.instanceId);
+      if (!payload) {
+        errorText = "Falha ao soltar esta Bag.";
+        return false;
+      }
+      onGround.bagState = payload;
+    } else if (fromEquipment) {
+      player.equipment.delete(equippedSlot!);
+      player.recalculateStats();
+    } else if (!player.removeItem(itemId, amount)) {
+      errorText = "Falha ao remover o item.";
+      return false;
     }
-    const payload = player.detachBagForGround(itemId, fromEquipment, msg.instanceId);
-    if (!payload) {
-      ctx.packetSender.inventory.sendDropError("Falha ao soltar esta Bag.");
-      return;
-    }
-    // Guardar conteúdo no OBJETO do chão, nunca no inventário global.
-    onGround.bagState = payload;
-  } else if (fromEquipment) {
-    player.equipment.delete(equippedSlot!);
-    player.recalculateStats();
-  } else if (!player.removeItem(itemId, amount)) {
-    ctx.packetSender.inventory.sendDropError("Falha ao remover o item.");
+    ctx.world.addItemOnGround(onGround);
+    return true;
+  });
+  if (!committed) {
+    ctx.packetSender.inventory.sendDropError(errorText);
     return;
   }
-
-  ctx.world.addItemOnGround(onGround);
   ctx.broadcast.broadcastSpawnItemOnGround(onGround);
   ctx.packetSender.inventory.sendInventory(player);
   ctx.packetSender.inventory.sendEquipment(player);
@@ -338,16 +348,20 @@ export async function handlePickupItem(
     !player.equipment.has(EquipmentSlot.BACKPACK) &&
     isGroundContainer && onGround.amount === 1;
   let accepted = false;
-  if (bootstrap) {
-    accepted = player.attachGroundBag(onGround.itemId, onGround.bagState, true);
-  } else if (isGroundContainer && onGround.amount === 1) {
-    accepted = player.canCollectItems([{itemId:onGround.itemId,amount:1}]) &&
-      player.attachGroundBag(onGround.itemId, onGround.bagState, false);
-  } else {
-    accepted = player.canCollectItems([{itemId:onGround.itemId,amount:onGround.amount}]) &&
-      player.addItem(onGround.itemId, onGround.amount);
-  }
-  if (!accepted) {
+  const committed = await GroundCharacterTransaction.execute(ctx.world, player, () => {
+    if (bootstrap) {
+      accepted = player.attachGroundBag(onGround.itemId, onGround.bagState, true);
+    } else if (isGroundContainer && onGround.amount === 1) {
+      accepted = player.canCollectItems([{itemId:onGround.itemId,amount:1}]) &&
+        player.attachGroundBag(onGround.itemId, onGround.bagState, false);
+    } else {
+      accepted = player.canCollectItems([{itemId:onGround.itemId,amount:onGround.amount}]) &&
+        player.addItem(onGround.itemId, onGround.amount);
+    }
+    if (accepted) ctx.world.removeItemOnGround(onGround);
+    return accepted;
+  });
+  if (!committed) {
     const why = player.getContainerCapacity() <= 0
       ? "Equipe uma Bag/Backpack para pegar itens do chão."
       : "CAP insuficiente, Bag/Backpack cheia ou item inválido.";
@@ -356,7 +370,6 @@ export async function handlePickupItem(
     return;
   }
 
-  ctx.world.removeItemOnGround(onGround);
   ctx.broadcast.broadcastDespawn(onGround.id);
   ctx.packetSender.inventory.sendInventory(player);
   if (bootstrap) ctx.packetSender.inventory.sendEquipment(player);
