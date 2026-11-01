@@ -97,3 +97,21 @@ test("stale or non-positive contributors never create XP", (t) => {
     assert.equal(b.experience,0);
   }finally{DeathSystem.cancelPendingTimers(world)}
 });
+
+
+test("C15: lootOwnerId é maior HIT único, não dano total ou último golpe", (t) => {
+  t.mock.timers.enable({apis:["setTimeout"]});
+  const {world,players:[a,b],monster}=fixture();
+  try {
+    monster.recordPlayerDamage(a.id,12);
+    monster.recordPlayerDamage(a.id,8);  // 20 somados, maior hit 12
+    monster.recordPlayerDamage(b.id,15); // 15 único, 15 total
+    monster.hp=0;
+    DeathSystem.handleDeath(monster,a,world); // a deu golpe final
+    assert.equal(world.corpses.length,1);
+    assert.equal(world.corpses[0].killerId,a.id);
+    assert.equal(world.corpses[0].lootOwnerId,b.id);
+  } finally {
+    DeathSystem.cancelPendingTimers(world);
+  }
+});
