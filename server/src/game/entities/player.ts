@@ -235,7 +235,7 @@ export class Player extends Creature {
     // slot no pai, independentemente do que carregue em seus próprios slots.
     if (!autoequip && (!parent ||
         !this.canCollectItems([{itemId, amount:1}]))) return false;
-    if (autoequip && this.equippedBagInstanceId !== null) return false;
+    if (autoequip && this.equipment.has(EquipmentSlot.BACKPACK)) return false;
     for (const row of incoming) {
       this.bagInstances.set(row.id, {id:row.id,itemId:row.itemId,
         items:new Map(Object.entries(row.items)),children:[...row.children]});
@@ -620,9 +620,11 @@ export class Player extends Creature {
 
   /** Capacidade da mochila EQUIPADA. Itens legados permanecem no save se ela sair. */
   getContainerCapacity(): number {
-    const bagId = this.viewedBag()?.itemId ??
-      this.equipment.get(EquipmentSlot.BACKPACK);
-    if (!bagId) return 0;
+    // Um view stale nunca pode conceder capacidade se nenhum slot estiver
+    // equipado (logout, reload de save antigo, ou estado legado).
+    const equipped = this.equipment.get(EquipmentSlot.BACKPACK);
+    if (!equipped) return 0;
+    const bagId = this.viewedBag()?.itemId ?? equipped;
     try {
       const bag = ItemRegistry.get(bagId);
       return bag.type === "equipment" && bag.slot === EquipmentSlot.BACKPACK &&
