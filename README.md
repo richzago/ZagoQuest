@@ -1,41 +1,72 @@
 # 🎮 ZagoQuest
 
-⚠️ Branch de desenvolvimento ativo.
+ZagoQuest é um MMORPG 2D inspirado em jogos clássicos como Tibia e similares, desenvolvido em Node.js + TypeScript com arquitetura modular e data-driven.
 
-Esta branch contém funcionalidades em implementação, testes e refatorações. O conteúdo pode mudar frequentemente e algumas funcionalidades podem estar incompletas.
+Atualmente o projeto está em desenvolvimento ativo e possui apenas o módulo de servidor implementado.
 
-## 📦 Estrutura
+---
+
+## 📦 Estrutura atual
 
 ```txt
-server/ → Servidor do MMORPG
+server/   → Servidor do jogo (Node.js + TypeScript)
 ```
 
-Novos módulos serão adicionados futuramente:
+Futuramente o projeto incluirá:
 
-* client/
-* assets/
-* maps/
-* tools/
+* client/ (Unity ou outro engine gráfico)
+* assets/ (sprites, tiles, ícones)
+* maps/ (Tiled maps)
+* tools/ (editores e utilitários)
+
+---
+
+## ⚙️ Tecnologias
+
+* Node.js
+* TypeScript
+* Arquitetura Data-Driven
+* Sistema modular de gameplay (AI, Combat, World, etc.)
+
+---
+
+## 🚀 Status atual do projeto
+
+O servidor já conta com sistemas funcionais como:
+
+* Mundo e mapa
+* Entidades (Player, Monster, NPC)
+* Sistema de combate
+* AI de monstros e NPCs
+* Sistema de loot e morte
+* Inventário e equipamentos
+* Persistência de dados
+* Sistema de logs estruturado
+* API base (em evolução)
+
+---
 
 ## 📚 Documentação
 
-### ⚠️ Importante
+### ⚠️ IMPORTANTE
 
-* `LICENSE.md`
-* `CONTRIBUTING.md`
+- 📄 `LICENSE.md` → Regras de uso e propriedade do projeto (leitura obrigatória)
+- 🤝 `CONTRIBUTING.md` → Guia de contribuição e padrões do código (leitura obrigatória)
 
-### 🔧 Documentação Técnica
+---
 
-* `server/docs/typedoc/`
+### 🔧 Documentação técnica
 
-### 📖 Documentação do Servidor
+- 📘 `docs/typedoc/` → documentação automática gerada a partir do código (TypeDoc)
 
-Para detalhes completos sobre arquitetura, sistemas implementados, API e roadmap do servidor:
+## ⚠️ Aviso
 
-* `server/README.md`
+Este é um projeto privado em desenvolvimento.
 
-## 🚧 Status
+Todo o código, assets e sistemas são propriedade exclusiva do autor do projeto, conforme descrito em `LICENSE.md`.
 
-Branch utilizada para desenvolvimento contínuo do projeto.
+---
 
-A documentação oficial e estável deve ser consultada na branch `main`.
+## 👤 Autor
+
+Richard Zago – ZagoQuest (2026)
