@@ -82,7 +82,7 @@ test("C15: snapshot do chão preserva itens e árvore Bag, bloqueia IDs repetido
   [{id:"invalid",itemId:potion,amount:1,x:300,y:300,itemName:"P"}],restarted));
 });
 test("C15: maior hit é golpe único efetivo, não soma de hits",()=>{
- const m=new Monster("m" as string,{name:"Test",stats:{hp:100}} as any,2,2,
+ const m=new Monster("m" as string,{name:"Test",stats:{hp:100},combat:{xp:12}} as any,2,2,
    {update:()=>{}} as any);
  m.recordPlayerDamage("a",12);m.recordPlayerDamage("a",12);
  m.recordPlayerDamage("b",20);
