@@ -1,5 +1,7 @@
 # C13 — Contrato WebSocket, drag & drop e recuperação do Loot
 
+> **Homologada funcionalmente em 01/11/2026:** 8/8 cenários aprovados no Unity, segundo confirmação do usuário. PR #119 permanece OPEN/DRAFT contra `dev`, sem merge. Drop a longa distância e persistência de Bags abandonadas no chão após reinício continuam fora do escopo.
+
 Data: 01/11/2026 · Branch: `feature/server-authoritative-containers-loot-c9` · PR #119 permanece DRAFT, base `dev`.
 
 ## Reprodução: Unity C12
@@ -24,8 +26,8 @@ A janela de loot em `C8SidebarDynamicDock.ApplyVisibility` tinha `anchorMin=(0,1
 ### Testes
 
 - Criado `server/tests/clientC13NetworkAndLootContracts.test.ts`, incluído no `npm test`. Confere ausência física de campo opcional nos DTOs sem UUID, aceita pacotes efetivos no Zod, rejeita `null`/vazio/tipo errado, preserva origem equipada, verifica anchors do loot e APIs atualizadas.
-- **CI C13 aprovada:** [GitHub Actions #41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): **581 testes aprovados/0 falhas** em Ubuntu e Windows, build TS, integração PostgreSQL e smoke/dist concluídos. Testes TS confirmam **contratos estáticos**, não serializam DTO C# nem exercitam Play Mode. Unity continua pendente.
-- **QA Unity obrigatório:** arraste Bag equipada→chão; drop item da Bag→chão; Bag com UUID válido dentro de outra Bag; NPC sob item; loot linha 1/2/3 e Shift+L/TODOS; drag loot→Bag e loot→chão; F10 e resoluções, login/logout; console sem seis warnings.
+- **CI C13 aprovada:** [GitHub Actions #41329598547](https://github.com/richzago/ZagoQuest/actions/runs/41329598547): **581 testes aprovados/0 falhas** em Ubuntu e Windows, build TS, integração PostgreSQL e smoke/dist concluídos. Testes TS confirmam **contratos estáticos**; o comportamento no Play Mode foi homologado separadamente pelo usuário em 01/11/2026 (8/8 cenários).
+- **QA Unity homologado, 8/8 cenários reportados pelo usuário (01/11/2026):** compilação sem os seis CS0618; Simple Bag equipada→chão→recolher; item da Bag→chão→recolher; Bag aninhada e UUID preservado; loot 1º, 2º e 3º item; loot→Bag e chão, Shift+L; NPC/logout/movimento; UI em 1280×720/1920×1080 e F10 100/115/130. Relato manual, sem anexos de vídeo ou logs nesta etapa.
 
 ### Alcance desejado para drops distantes
 
