@@ -26,6 +26,7 @@ export interface ClientUseItemMessage {
 export interface ClientEquipItemMessage {
   type: "equipItem";
   itemId: string;
+  instanceId?: string;
 }
 
 /**
