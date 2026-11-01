@@ -550,7 +550,8 @@ export class Player extends Creature {
       if (this.isViewingNestedBag || !this.hasItem(itemId, 1)) return false;
       const oldBag = this.equippedBag();
       // Sem Bag equipada, conteúdo legado no mapa não pode sumir na migração.
-      const target = this.takeContainedBag(itemId);
+      const target = this.takeContainedBag(itemId, instanceId);
+      if (!target) return false; // UUID não é filho da Bag atual.
       const targetCapacity = item.containerSlots ?? 0;
       const used = [...target.items].reduce((sum,[id,qty]) => {
         try { return sum + (ItemRegistry.get(id).stackable ? 1 : qty); }
