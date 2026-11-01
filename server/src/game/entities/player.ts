@@ -85,6 +85,16 @@ export class Player extends Creature {
       this.viewedBagInstanceId !== this.equippedBagInstanceId;
   }
 
+  getVisibleBagChildren(): Array<{instanceId: string; itemId: string}> {
+    const bag = this.viewedBag();
+    if (!bag || this.getContainerCapacity() <= 0) return [];
+    return bag.children.flatMap(id => {
+      const child = this.bagInstances.get(id);
+      return child && (bag.items.get(child.itemId) ?? 0) > 0
+        ? [{ instanceId:id, itemId:child.itemId }] : [];
+    });
+  }
+
   private viewedBag() {
     return this.viewedBagInstanceId
       ? this.bagInstances.get(this.viewedBagInstanceId) : this.equippedBag();
