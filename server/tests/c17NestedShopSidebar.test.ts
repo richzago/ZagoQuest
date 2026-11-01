@@ -47,9 +47,28 @@ test("C17: compra empilha em Bag já ocupada mesmo quando não está aberta",()=
  const gold=player.gold;
  assert.equal(ShopSystem.buyItem(player,npc,potion,7),true);
  assert.ok(player.gold<gold);
- assert.equal(player.bagInstances.get(children[0].instanceId)?.items.get(potion),12);
+ assert.equal(player.bagInstances.get(children[0].instanceId)?.items.get(potion),10);
+ assert.equal(player.bagInstances.get(children[1].instanceId)?.items.get(potion),2);
  assert.equal(player.bagInstances.get(rootId)?.items.get(potion),undefined);
 });
+test("C17: se maxStack=10, compra de 11 potions SEM segunda Bag é recusada, sem débito",()=>{
+ const {player,npc}=setup();
+ assert.equal(ItemRegistry.get(potion).maxStack,10);
+ const gold=player.gold;
+ assert.equal(ShopSystem.buyItem(player,npc,potion,11),false);
+ assert.equal(player.gold,gold);
+ assert.equal(player.inventory.has(potion),false);
+});
+test("C17: potions não ultrapassam maxStack quando principal lotada",()=>{
+ const {player,npc}=setup();const children=fillRoot(player,npc);
+ assert.equal(ShopSystem.buyItem(player,npc,potion,10),true);
+ const gold=player.gold;
+ assert.equal(ShopSystem.buyItem(player,npc,potion,10),true);
+ assert.ok(player.gold < gold);
+ assert.equal(player.bagInstances.get(children[0].instanceId)!.items.get(potion),10);
+ assert.equal(player.bagInstances.get(children[1].instanceId)!.items.get(potion),10);
+});
+
 test("C17: Bag recém-comprada dentro de outra Bag recebe UUID sem sumir ao navegar",()=>{
  const {player,npc}=setup();const children=fillRoot(player,npc);
  const a=player.bagInstances.get(children[0].instanceId)!;
